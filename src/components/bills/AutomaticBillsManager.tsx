@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import BillCard from './BillCard';
-import BillForm from './BillForm';
+import SimpleBillForm from './SimpleBillForm';
 
 const AutomaticBillsManager = () => {
   const { 
@@ -34,12 +35,8 @@ const AutomaticBillsManager = () => {
     amount: '',
     due_date: '',
     recurrence: 'monthly',
-    priority: 1,
-    meter_number: '',
-    payment_number: '',
-    recipient_phone: '',
-    recipient_country: '',
-    recipient_name: ''
+    is_automated: false,
+    recipient_phone: ''
   });
 
   const resetForm = () => {
@@ -48,12 +45,8 @@ const AutomaticBillsManager = () => {
       amount: '',
       due_date: '',
       recurrence: 'monthly',
-      priority: 1,
-      meter_number: '',
-      payment_number: '',
-      recipient_phone: '',
-      recipient_country: '',
-      recipient_name: ''
+      is_automated: false,
+      recipient_phone: ''
     });
     setShowForm(false);
     setEditingBill(null);
@@ -85,21 +78,16 @@ const AutomaticBillsManager = () => {
         amount: amount,
         due_date: formData.due_date,
         recurrence: formData.recurrence,
-        priority: formData.priority,
-        is_automated: false,
+        priority: 1,
+        is_automated: formData.is_automated,
         status: 'pending',
-        meter_number: formData.meter_number || '',
-        payment_number: formData.recipient_phone || ''
+        payment_number: formData.recipient_phone,
+        meter_number: ''
       });
 
       resetForm();
     } catch (error) {
       console.error('Error creating bill:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de créer la facture",
-        variant: "destructive"
-      });
     }
   };
 
@@ -131,32 +119,13 @@ const AutomaticBillsManager = () => {
         amount: amount,
         due_date: formData.due_date,
         recurrence: formData.recurrence,
-        priority: formData.priority,
-        meter_number: formData.meter_number || '',
-        payment_number: formData.recipient_phone || ''
+        is_automated: formData.is_automated,
+        payment_number: formData.recipient_phone
       });
 
       resetForm();
     } catch (error) {
       console.error('Error updating bill:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de modifier la facture",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handlePayNow = async (billId: string) => {
-    try {
-      await payBillManually(billId);
-    } catch (error) {
-      console.error('Error paying bill:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de payer la facture",
-        variant: "destructive"
-      });
     }
   };
 
@@ -167,14 +136,18 @@ const AutomaticBillsManager = () => {
       amount: bill.amount?.toString() || '',
       due_date: bill.due_date || '',
       recurrence: bill.recurrence || 'monthly',
-      priority: bill.priority || 1,
-      meter_number: bill.meter_number || '',
-      payment_number: bill.payment_number || '',
-      recipient_phone: bill.payment_number || '',
-      recipient_country: '',
-      recipient_name: ''
+      is_automated: bill.is_automated || false,
+      recipient_phone: bill.payment_number || ''
     });
     setShowForm(true);
+  };
+
+  const handlePayNow = async (billId: string) => {
+    try {
+      await payBillManually(billId);
+    } catch (error) {
+      console.error('Error paying bill:', error);
+    }
   };
 
   const handleDeleteBill = async (billId: string) => {
@@ -182,11 +155,6 @@ const AutomaticBillsManager = () => {
       await deleteBill(billId);
     } catch (error) {
       console.error('Error deleting bill:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de supprimer la facture",
-        variant: "destructive"
-      });
     }
   };
 
@@ -195,11 +163,6 @@ const AutomaticBillsManager = () => {
       await toggleAutomation(billId, isAutomated);
     } catch (error) {
       console.error('Error toggling automation:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de modifier l'automation",
-        variant: "destructive"
-      });
     }
   };
 
@@ -225,7 +188,7 @@ const AutomaticBillsManager = () => {
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-2xl max-h-[90vh]">
-            <BillForm
+            <SimpleBillForm
               editingBill={editingBill}
               formData={formData}
               setFormData={setFormData}
