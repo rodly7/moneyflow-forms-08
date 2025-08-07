@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,7 @@ import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import BillCard from './BillCard';
-import SimpleBillForm from './SimpleBillForm';
+import AutomaticBillForm from './AutomaticBillForm';
 
 const AutomaticBillsManager = () => {
   const { 
@@ -32,28 +31,32 @@ const AutomaticBillsManager = () => {
   const [editingBill, setEditingBill] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     bill_name: '',
+    selectedBillType: '',
+    provider: '',
+    accountNumber: '',
     amount: '',
+    recipientPhone: '',
     due_date: '',
-    recurrence: 'monthly',
-    is_automated: false,
-    recipient_phone: ''
+    is_automated: true
   });
 
   const resetForm = () => {
     setFormData({
       bill_name: '',
+      selectedBillType: '',
+      provider: '',
+      accountNumber: '',
       amount: '',
+      recipientPhone: '',
       due_date: '',
-      recurrence: 'monthly',
-      is_automated: false,
-      recipient_phone: ''
+      is_automated: true
     });
     setShowForm(false);
     setEditingBill(null);
   };
 
   const handleCreateBill = async () => {
-    if (!formData.bill_name.trim() || !formData.amount || !formData.due_date || !formData.recipient_phone) {
+    if (!formData.bill_name.trim() || !formData.amount || !formData.due_date || !formData.recipientPhone || !formData.selectedBillType) {
       toast({
         title: "Erreur",
         description: "Veuillez remplir tous les champs obligatoires",
@@ -77,12 +80,12 @@ const AutomaticBillsManager = () => {
         bill_name: formData.bill_name.trim(),
         amount: amount,
         due_date: formData.due_date,
-        recurrence: formData.recurrence,
+        recurrence: 'monthly',
         priority: 1,
         is_automated: formData.is_automated,
         status: 'pending',
-        payment_number: formData.recipient_phone,
-        meter_number: ''
+        payment_number: formData.recipientPhone,
+        meter_number: formData.accountNumber
       });
 
       resetForm();
@@ -94,7 +97,7 @@ const AutomaticBillsManager = () => {
   const handleEditBill = async () => {
     if (!editingBill) return;
 
-    if (!formData.bill_name.trim() || !formData.amount || !formData.due_date || !formData.recipient_phone) {
+    if (!formData.bill_name.trim() || !formData.amount || !formData.due_date || !formData.recipientPhone || !formData.selectedBillType) {
       toast({
         title: "Erreur",
         description: "Veuillez remplir tous les champs obligatoires",
@@ -118,9 +121,10 @@ const AutomaticBillsManager = () => {
         bill_name: formData.bill_name.trim(),
         amount: amount,
         due_date: formData.due_date,
-        recurrence: formData.recurrence,
+        recurrence: 'monthly',
         is_automated: formData.is_automated,
-        payment_number: formData.recipient_phone
+        payment_number: formData.recipientPhone,
+        meter_number: formData.accountNumber
       });
 
       resetForm();
@@ -133,11 +137,13 @@ const AutomaticBillsManager = () => {
     setEditingBill(bill.id);
     setFormData({
       bill_name: bill.bill_name || '',
+      selectedBillType: 'electricity', // Default type based on the bill
+      provider: 'ENEO', // Default provider
+      accountNumber: bill.meter_number || '',
       amount: bill.amount?.toString() || '',
+      recipientPhone: bill.payment_number || '',
       due_date: bill.due_date || '',
-      recurrence: bill.recurrence || 'monthly',
-      is_automated: bill.is_automated || false,
-      recipient_phone: bill.payment_number || ''
+      is_automated: bill.is_automated || true
     });
     setShowForm(true);
   };
@@ -172,7 +178,7 @@ const AutomaticBillsManager = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Factures Automatiques</h1>
-          <p className="text-gray-600">Gérez vos paiements récurrents</p>
+          <p className="text-gray-600">Gérez vos paiements récurrents avec débit automatique mensuel</p>
         </div>
         
         <Button
@@ -187,8 +193,8 @@ const AutomaticBillsManager = () => {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-2xl max-h-[90vh]">
-            <SimpleBillForm
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <AutomaticBillForm
               editingBill={editingBill}
               formData={formData}
               setFormData={setFormData}
@@ -207,7 +213,7 @@ const AutomaticBillsManager = () => {
             <CardContent>
               <Wifi className="w-16 h-16 mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-600 mb-2">Aucune facture automatique</h3>
-              <p className="text-gray-500 mb-4">Créez votre première facture automatique pour simplifier vos paiements.</p>
+              <p className="text-gray-500 mb-4">Créez votre première facture automatique pour simplifier vos paiements récurrents.</p>
               <Button onClick={() => setShowForm(true)} className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
                 <Plus className="w-4 h-4 mr-2" />
                 Créer une facture
