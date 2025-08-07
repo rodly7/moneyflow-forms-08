@@ -1,0 +1,67 @@
+
+<!DOCTYPE html>
+<html lang="en" style="height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden;">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content, shrink-to-fit=no" />
+    <title>Sendflow - Transfert d'argent rapide et sécurisé</title>
+    <meta name="description" content="Application de transfert d'argent rapide et sécurisée" />
+    <meta name="author" content="Sendflow" />
+    <meta property="og:image" content="/og-image.png" />
+    
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Sendflow" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    
+    <!-- Support pour occupation totale écran mobile -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-touch-fullscreen" content="yes">
+    
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png" />
+    
+    <style>
+      /* Garantir l'occupation totale immédiatement */
+      html, body, #root {
+        height: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        position: relative;
+      }
+      
+      #root {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+      }
+      
+      /* Empêcher le zoom et les gestes indésirables */
+      * {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      input, textarea, button {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+    </style>
+  </head>
+
+  <body style="height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; overscroll-behavior: none; touch-action: manipulation;">
+    <div id="root" style="height: 100%; width: 100%; position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden;"></div>
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

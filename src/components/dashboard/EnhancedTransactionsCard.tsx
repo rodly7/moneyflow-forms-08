@@ -1,0 +1,234 @@
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowUpRight, ArrowDownLeft, Eye, History } from "lucide-react";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatCurrency } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+
+interface Transaction {
+  id: string;
+  type: 'sent' | 'received' | 'withdrawal';
+  amount: number;
+  description: string;
+  date: string;
+  status: string;
+}
+
+const EnhancedTransactionsCard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Récupérer les transferts envoyés
+  const { data: sentTransfers } = useQuery({
+    queryKey: ['sent-transfers', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('transfers')
+        .select('*')
+        .eq('sender_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Récupérer les transferts reçus
+  const { data: receivedTransfers } = useQuery({
+    queryKey: ['received-transfers-history', user?.id],
+    queryFn: async () => {
+      if (!user?.phone) return [];
+      
+      const { data, error } = await supabase
+        .from('transfers')
+        .select('*')
+        .eq('recipient_phone', user.phone)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.phone,
+  });
+
+  // Récupérer les retraits
+  const { data: withdrawals } = useQuery({
+    queryKey: ['withdrawals-history', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('withdrawals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Combiner et trier toutes les transactions
+  const allTransactions: Transaction[] = React.useMemo(() => {
+    const transactions: Transaction[] = [];
+
+    // Ajouter les transferts envoyés
+    sentTransfers?.forEach(transfer => {
+      transactions.push({
+        id: `sent_${transfer.id}`,
+        type: 'sent',
+        amount: transfer.amount,
+        description: `Vers ${transfer.recipient_full_name}`,
+        date: transfer.created_at,
+        status: transfer.status
+      });
+    });
+
+    // Ajouter les transferts reçus
+    receivedTransfers?.forEach(transfer => {
+      transactions.push({
+        id: `received_${transfer.id}`,
+        type: 'received',
+        amount: transfer.amount,
+        description: `Reçu d'un expéditeur`,
+        date: transfer.created_at,
+        status: transfer.status
+      });
+    });
+
+    // Ajouter les retraits
+    withdrawals?.forEach(withdrawal => {
+      transactions.push({
+        id: `withdrawal_${withdrawal.id}`,
+        type: 'withdrawal',
+        amount: withdrawal.amount,
+        description: 'Retrait d\'argent',
+        date: withdrawal.created_at,
+        status: withdrawal.status
+      });
+    });
+
+    // Trier par date décroissante
+    return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+  }, [sentTransfers, receivedTransfers, withdrawals]);
+
+  const getTransactionIcon = (type: string) => {
+    switch (type) {
+      case 'sent':
+        return <ArrowUpRight className="w-4 h-4 text-red-500" />;
+      case 'received':
+        return <ArrowDownLeft className="w-4 h-4 text-green-500" />;
+      case 'withdrawal':
+        return <ArrowUpRight className="w-4 h-4 text-blue-500" />;
+      default:
+        return <History className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  const getTransactionColor = (type: string) => {
+    switch (type) {
+      case 'sent':
+        return 'text-red-600';
+      case 'received':
+        return 'text-green-600';
+      case 'withdrawal':
+        return 'text-blue-600';
+      default:
+        return 'text-gray-600';
+    }
+  };
+
+  const getAmountPrefix = (type: string) => {
+    switch (type) {
+      case 'sent':
+      case 'withdrawal':
+        return '-';
+      case 'received':
+        return '+';
+      default:
+        return '';
+    }
+  };
+
+  return (
+    <Card className="bg-white shadow-sm">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+            <History className="w-4 h-4" />
+            Historique récent
+          </CardTitle>
+          <button
+            onClick={() => navigate('/transactions')}
+            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+          >
+            <Eye className="w-3 h-3" />
+            Voir tout
+          </button>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="space-y-3">
+          {allTransactions.length === 0 ? (
+            <div className="text-center py-6 text-gray-500">
+              <History className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm">Aucune transaction récente</p>
+            </div>
+          ) : (
+            allTransactions.map((transaction) => (
+              <div
+                key={transaction.id}
+                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gray-100 rounded-full">
+                    {getTransactionIcon(transaction.type)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {transaction.description}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(transaction.date).toLocaleDateString('fr-FR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-sm font-semibold ${getTransactionColor(transaction.type)}`}>
+                    {getAmountPrefix(transaction.type)}{formatCurrency(transaction.amount, 'XAF')}
+                  </p>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    transaction.status === 'completed' 
+                      ? 'bg-green-100 text-green-700' 
+                      : transaction.status === 'pending'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {transaction.status === 'completed' ? 'Terminé' : 
+                     transaction.status === 'pending' ? 'En cours' : transaction.status}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default EnhancedTransactionsCard;

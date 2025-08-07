@@ -1,0 +1,187 @@
+
+/* Mode ultra-compact global pour PWA */
+.ultra-compact-mode {
+  font-size: 11px !important;
+  line-height: 1.1 !important;
+}
+
+.ultra-compact-mode * {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.ultra-compact-mode .text-xs {
+  font-size: 10px !important;
+}
+
+.ultra-compact-mode .text-sm {
+  font-size: 11px !important;
+}
+
+.ultra-compact-mode .text-base {
+  font-size: 12px !important;
+}
+
+/* Réduction des espaces en mode ultra-compact */
+.ultra-compact-mode .space-y-1 > * + * {
+  margin-top: 0.125rem !important;
+}
+
+.ultra-compact-mode .space-y-2 > * + * {
+  margin-top: 0.25rem !important;
+}
+
+.ultra-compact-mode .gap-1 {
+  gap: 0.125rem !important;
+}
+
+.ultra-compact-mode .gap-2 {
+  gap: 0.25rem !important;
+}
+
+.ultra-compact-mode .gap-3 {
+  gap: 0.375rem !important;
+}
+
+/* Padding et margins ultra-compacts */
+.ultra-compact-mode .p-1 {
+  padding: 0.125rem !important;
+}
+
+.ultra-compact-mode .p-2 {
+  padding: 0.25rem !important;
+}
+
+.ultra-compact-mode .p-3 {
+  padding: 0.375rem !important;
+}
+
+.ultra-compact-mode .p-4 {
+  padding: 0.5rem !important;
+}
+
+.ultra-compact-mode .px-2 {
+  padding-left: 0.25rem !important;
+  padding-right: 0.25rem !important;
+}
+
+.ultra-compact-mode .py-1 {
+  padding-top: 0.125rem !important;
+  padding-bottom: 0.125rem !important;
+}
+
+/* Hauteurs ultra-compactes */
+.ultra-compact-mode .h-8 {
+  height: 1.5rem !important;
+}
+
+.ultra-compact-mode .h-10 {
+  height: 2rem !important;
+}
+
+.ultra-compact-mode .h-12 {
+  height: 2.5rem !important;
+}
+
+.ultra-compact-mode .h-16 {
+  height: 3rem !important;
+}
+
+/* Icônes ultra-compactes */
+.ultra-compact-mode .w-4 {
+  width: 0.75rem !important;
+}
+
+.ultra-compact-mode .h-4 {
+  height: 0.75rem !important;
+}
+
+.ultra-compact-mode .w-3 {
+  width: 0.625rem !important;
+}
+
+.ultra-compact-mode .h-3 {
+  height: 0.625rem !important;
+}
+
+.ultra-compact-mode .w-2 {
+  width: 0.5rem !important;
+}
+
+.ultra-compact-mode .h-2 {
+  height: 0.5rem !important;
+}
+
+/* Optimisation du scroll en mode PWA */
+.ultra-compact-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior: contain;
+}
+
+.ultra-compact-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Optimisation des performances pour le mode PWA */
+.ultra-compact-mode .mobile-scroll {
+  will-change: scroll-position;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Boutons ultra-compacts */
+.ultra-compact-mode button {
+  font-size: 10px !important;
+  padding: 0.25rem 0.5rem !important;
+  min-height: 1.5rem !important;
+}
+
+.ultra-compact-mode .btn-sm {
+  font-size: 9px !important;
+  padding: 0.125rem 0.25rem !important;
+  min-height: 1.25rem !important;
+}
+
+/* Cards ultra-compactes */
+.ultra-compact-mode .card {
+  border-radius: 0.25rem !important;
+}
+
+.ultra-compact-mode .rounded {
+  border-radius: 0.25rem !important;
+}
+
+.ultra-compact-mode .rounded-full {
+  border-radius: 9999px !important;
+}
+
+/* Mode PWA spécifique - ajustements additionnels */
+@media (display-mode: standalone) {
+  .ultra-compact-mode {
+    font-size: 10px !important;
+  }
+  
+  .ultra-compact-mode .text-xs {
+    font-size: 9px !important;
+  }
+  
+  .ultra-compact-mode .h-10 {
+    height: 1.75rem !important;
+  }
+  
+  .ultra-compact-mode .h-16 {
+    height: 2.5rem !important;
+  }
+}
+
+/* Animations ultra-rapides en mode compact */
+.ultra-compact-mode * {
+  transition-duration: 150ms !important;
+}
+
+.ultra-compact-mode .animate-spin {
+  animation-duration: 0.5s !important;
+}
