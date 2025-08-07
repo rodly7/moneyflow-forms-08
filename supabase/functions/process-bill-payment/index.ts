@@ -8,9 +8,13 @@ const corsHeaders = {
 }
 
 interface BillPaymentRequest {
-  bill_id: string;
   user_id: string;
   amount: number;
+  bill_type: string;
+  provider: string;
+  account_number: string;
+  recipient_phone?: string;
+  bill_id?: string;
 }
 
 Deno.serve(async (req) => {
@@ -68,13 +72,13 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { bill_id, user_id, amount } = requestBody
+    const { user_id, amount, bill_type, provider, account_number, recipient_phone, bill_id } = requestBody
 
-    if (!bill_id || !user_id || !amount) {
+    if (!user_id || !amount || (!bill_type && !bill_id)) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: 'Paramètres manquants' 
+          message: 'Paramètres manquants (user_id, amount, bill_type ou bill_id requis)' 
         }), 
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -83,7 +87,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log('Processing bill payment:', { bill_id, user_id, amount })
+    console.log('Processing bill payment:', { user_id, amount, bill_type, provider, account_number })
 
     // Vérifier le solde de l'utilisateur
     const { data: profile, error: profileError } = await supabase
@@ -119,10 +123,12 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Débiter le compte
-    const { error: balanceError } = await supabase.rpc('increment_balance', {
-      user_id: user_id,
-      amount: -amount
+    // Débiter le compte avec la fonction sécurisée
+    const { error: balanceError } = await supabase.rpc('secure_increment_balance', {
+      target_user_id: user_id,
+      amount: -amount,
+      operation_type: 'bill_payment',
+      performed_by: user_id
     })
 
     if (balanceError) {
@@ -139,40 +145,58 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Mettre à jour le statut de la facture
-    const { error: billError } = await supabase
-      .from('automatic_bills')
-      .update({ 
-        status: 'paid',
-        last_payment_date: new Date().toISOString(),
-        payment_attempts: 0
-      })
-      .eq('id', bill_id)
+    // Si c'est un paiement de facture automatique, mettre à jour le statut
+    if (bill_id) {
+      const { error: billError } = await supabase
+        .from('automatic_bills')
+        .update({ 
+          status: 'paid',
+          last_payment_date: new Date().toISOString(),
+          payment_attempts: 0
+        })
+        .eq('id', bill_id)
 
-    if (billError) {
-      console.error('Bill update error:', billError)
-      // Rollback balance update
-      await supabase.rpc('increment_balance', {
-        user_id: user_id,
-        amount: amount
-      })
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: 'Erreur lors de la mise à jour de la facture' 
-        }), 
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500
-        }
-      )
+      if (billError) {
+        console.error('Bill update error:', billError)
+        // Rollback balance update
+        await supabase.rpc('secure_increment_balance', {
+          target_user_id: user_id,
+          amount: amount,
+          operation_type: 'refund',
+          performed_by: user_id
+        })
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: 'Erreur lors de la mise à jour de la facture' 
+          }), 
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500
+          }
+        )
+      }
+    } else {
+      // Pour les paiements manuels, créer une entrée dans automatic_bills pour historique
+      await supabase
+        .from('automatic_bills')
+        .insert({
+          user_id: user_id,
+          bill_name: `${bill_type}_${provider}`,
+          amount: amount,
+          status: 'completed',
+          payment_number: recipient_phone || '',
+          meter_number: account_number || '',
+          due_date: new Date().toISOString().split('T')[0],
+          recurrence: 'once'
+        })
     }
 
     // Enregistrer l'historique de paiement
     const { error: historyError } = await supabase
       .from('bill_payment_history')
       .insert({
-        bill_id: bill_id,
+        bill_id: bill_id || null,
         user_id: user_id,
         amount: amount,
         status: 'success',
