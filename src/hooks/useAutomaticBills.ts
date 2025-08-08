@@ -139,37 +139,33 @@ export const useAutomaticBills = () => {
 
       console.log('🔄 Paiement de facture automatique via Edge Function');
 
-      // Utiliser la même structure que le paiement manuel pour assurer la compatibilité
-      const requestBody = {
+      // Utiliser exactement la même approche que useRobustBillPayment
+      const paymentData = {
         user_id: user.id,
         amount: Number(bill.amount),
-        bill_type: 'automatic_bill',
+        bill_type: bill.bill_name || 'automatic_bill',
         provider: bill.bill_name || 'automatic',
         account_number: bill.meter_number || '',
         recipient_phone: bill.payment_number || '',
-        bill_id: billId // Ajouter le bill_id pour la logique spécifique aux factures automatiques
+        bill_id: billId
       };
 
-      console.log('📤 Données envoyées pour facture automatique:', requestBody);
+      console.log('📤 Données envoyées pour facture automatique:', paymentData);
 
-      // Appeler la fonction de paiement avec gestion d'erreurs améliorée
-      let data, error;
-      try {
-        const response = await supabase.functions.invoke('process-bill-payment', {
-          body: JSON.stringify(requestBody),
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-        data = response.data;
-        error = response.error;
+      // Appeler l'Edge Function avec la même méthode que le paiement manuel
+      const { data, error } = await supabase.functions.invoke('process-bill-payment', {
+        body: paymentData,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
 
-        console.log('📥 Réponse Edge Function facture:', { data, error });
-      } catch (fetchError) {
-        console.error('🔄 Erreur de connexion, utilisation du système de fallback', fetchError);
-        // Fallback: décrémenter directement le solde
-        console.log('🔄 Utilisation du système de fallback pour le paiement de facture');
+      console.log('📥 Réponse Edge Function facture:', { data, error });
+
+      if (error) {
+        console.error('🔄 Erreur Edge Function, utilisation du système de fallback', error);
         
+        // Fallback: utiliser le système local comme le paiement manuel
         const { error: fallbackError } = await supabase.rpc('secure_increment_balance', {
           target_user_id: user.id,
           amount: -bill.amount,
@@ -191,18 +187,18 @@ export const useAutomaticBills = () => {
           })
           .eq('id', billId);
         
-        data = { success: true, amount: bill.amount };
-        error = null;
-      }
-
-      if (error) {
-        console.error('Erreur lors du paiement:', error);
         toast({
-          title: "Erreur de paiement",
-          description: error.message || 'Une erreur est survenue lors du paiement',
-          variant: "destructive"
+          title: "✅ Paiement réussi (Fallback)",
+          description: `Facture ${bill.bill_name} payée avec succès (${bill.amount.toLocaleString()} FCFA)`,
         });
-        return;
+        
+        // Actualiser les données
+        await Promise.all([
+          fetchBills(),
+          fetchPaymentHistory()
+        ]);
+        
+        return { success: true };
       }
 
       const result = data as PaymentResult;
@@ -370,119 +366,10 @@ export const useAutomaticBills = () => {
     bills,
     paymentHistory,
     loading,
-    createBill: async (billData: Omit<AutomaticBill, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'payment_attempts' | 'max_attempts'>) => {
-      if (!user) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('automatic_bills')
-          .insert({
-            ...billData,
-            user_id: user.id,
-            payment_attempts: 0,
-            max_attempts: 3
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        await fetchBills();
-        toast({
-          title: "Succès",
-          description: "Facture automatique créée avec succès",
-          variant: "default"
-        });
-
-        return data;
-      } catch (error) {
-        console.error('Error creating bill:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de créer la facture automatique",
-          variant: "destructive"
-        });
-        throw error;
-      }
-    },
-    updateBill: async (billId: string, updates: Partial<AutomaticBill>) => {
-      try {
-        const { error } = await supabase
-          .from('automatic_bills')
-          .update(updates)
-          .eq('id', billId)
-          .eq('user_id', user?.id);
-
-        if (error) throw error;
-
-        await fetchBills();
-        toast({
-          title: "Succès",
-          description: "Facture mise à jour avec succès",
-          variant: "default"
-        });
-      } catch (error) {
-        console.error('Error updating bill:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de mettre à jour la facture",
-          variant: "destructive"
-        });
-        throw error;
-      }
-    },
-    deleteBill: async (billId: string) => {
-      try {
-        const { error } = await supabase
-          .from('automatic_bills')
-          .delete()
-          .eq('id', billId)
-          .eq('user_id', user?.id);
-
-        if (error) throw error;
-
-        await fetchBills();
-        toast({
-          title: "Succès",
-          description: "Facture supprimée avec succès",
-          variant: "default"
-        });
-      } catch (error) {
-        console.error('Error deleting bill:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de supprimer la facture",
-          variant: "destructive"
-        });
-        throw error;
-      }
-    },
-    toggleAutomation: async (billId: string, isAutomated: boolean) => {
-      try {
-        const { error } = await supabase
-          .from('automatic_bills')
-          .update({ is_automated: isAutomated })
-          .eq('id', billId)
-          .eq('user_id', user?.id);
-
-        if (error) throw error;
-
-        await fetchBills();
-        toast({
-          title: "Succès",
-          description: `Automation ${isAutomated ? 'activée' : 'désactivée'} avec succès`,
-          variant: "default"
-        });
-      } catch (error) {
-        console.error('Error toggling automation:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de modifier l'automation",
-          variant: "destructive"
-        });
-        throw error;
-      }
-    },
+    createBill,
+    updateBill,
+    deleteBill,
+    toggleAutomation,
     payBillManually,
     fetchBills,
     fetchPaymentHistory
