@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownLeft, Eye, History, CreditCard, Plus } from "lucide-react";
@@ -144,26 +145,11 @@ const EnhancedTransactionsCard = () => {
 
       if (error) {
         console.error('❌ Erreur paiements factures:', error);
-        console.log('ℹ️ Tentative avec la table bills...');
-        
-        // Fallback: essayer la table 'bills' si bill_payment_history n'existe pas
-        const { data: billsData, error: billsError } = await supabase
-          .from('bills')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (billsError) {
-          console.error('❌ Erreur table bills aussi:', billsError);
-          return [];
-        }
-        
-        console.log('✅ Paiements de factures récupérés depuis bills:', billsData?.length || 0);
-        return billsData || [];
+        // Pas de fallback vers une table inexistante
+        return [];
       }
       
-      console.log('✅ Paiements de factures récupérés depuis bill_payment_history:', data?.length || 0);
+      console.log('✅ Paiements de factures récupérés:', data?.length || 0);
       console.log('📋 Détails paiements factures:', data);
       return data || [];
     },
@@ -201,11 +187,12 @@ const EnhancedTransactionsCard = () => {
       // Vérifier que ce n'est pas un transfert que l'utilisateur a envoyé lui-même
       if (transfer.sender_id !== user?.id) {
         console.log('➕ Ajout transfert reçu:', transfer.id);
+        // Utiliser une description générique car sender_full_name n'existe pas dans le schéma
         transactions.push({
           id: `received_${transfer.id}`,
           type: 'received',
           amount: transfer.amount,
-          description: `Reçu de ${transfer.sender_full_name || 'un expéditeur'}`,
+          description: `Reçu d'un expéditeur`,
           date: transfer.created_at,
           status: transfer.status
         });
@@ -243,13 +230,13 @@ const EnhancedTransactionsCard = () => {
     // Ajouter les paiements de factures
     billPayments?.forEach(payment => {
       console.log('➕ Ajout paiement facture:', payment.id);
-      const paymentDate = payment.payment_date || payment.created_at;
+      // Utiliser created_at car payment_date peut ne pas exister
       transactions.push({
         id: `bill_${payment.id}`,
         type: 'bill_payment',
         amount: payment.amount,
-        description: `Paiement de facture ${payment.bill_type || ''}`,
-        date: paymentDate,
+        description: `Paiement de facture`,
+        date: payment.created_at,
         status: payment.status
       });
     });
