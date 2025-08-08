@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownLeft, Eye, History, CreditCard, Plus } from "lucide-react";
@@ -126,7 +125,7 @@ const EnhancedTransactionsCard = () => {
         id: `sent_${transfer.id}`,
         type: 'sent',
         amount: transfer.amount,
-        description: `Vers ${transfer.recipient_full_name}`,
+        description: `Envoyé à ${transfer.recipient_full_name || transfer.recipient_phone}`,
         date: transfer.created_at,
         status: transfer.status
       });
@@ -138,7 +137,7 @@ const EnhancedTransactionsCard = () => {
         id: `received_${transfer.id}`,
         type: 'received',
         amount: transfer.amount,
-        description: `Reçu d'un expéditeur`,
+        description: `Reçu de ${transfer.recipient_full_name || 'un expéditeur'}`,
         date: transfer.created_at,
         status: transfer.status
       });
@@ -162,7 +161,7 @@ const EnhancedTransactionsCard = () => {
         id: `deposit_${deposit.id}`,
         type: 'deposit',
         amount: deposit.amount,
-        description: `Dépôt ${deposit.payment_method}`,
+        description: `Dépôt ${deposit.payment_method || 'mobile money'}`,
         date: deposit.created_at,
         status: deposit.status
       });
@@ -174,13 +173,13 @@ const EnhancedTransactionsCard = () => {
         id: `bill_${payment.id}`,
         type: 'bill_payment',
         amount: payment.amount,
-        description: `Paiement de facture`,
+        description: `Facture ${payment.bill_name || 'Service'} payée`,
         date: payment.created_at,
         status: payment.status
       });
     });
 
-    // Trier par date décroissante
+    // Trier par date décroissante et prendre les 5 plus récentes
     return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
   }, [sentTransfers, receivedTransfers, withdrawals, deposits, billPayments]);
 
@@ -229,6 +228,23 @@ const EnhancedTransactionsCard = () => {
     }
   };
 
+  const getTransactionTypeLabel = (type: string) => {
+    switch (type) {
+      case 'sent':
+        return 'Envoi';
+      case 'received':
+        return 'Reçu';
+      case 'withdrawal':
+        return 'Retrait';
+      case 'deposit':
+        return 'Dépôt';
+      case 'bill_payment':
+        return 'Facture';
+      default:
+        return 'Transaction';
+    }
+  };
+
   return (
     <Card className="bg-white shadow-sm">
       <CardHeader className="pb-3">
@@ -257,13 +273,18 @@ const EnhancedTransactionsCard = () => {
             allTransactions.map((transaction) => (
               <div
                 key={transaction.id}
-                className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors border border-gray-100"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-gray-100 rounded-full">
                     {getTransactionIcon(transaction.type)}
                   </div>
                   <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs px-2 py-1 rounded-full bg-gray-200 text-gray-700 font-medium">
+                        {getTransactionTypeLabel(transaction.type)}
+                      </span>
+                    </div>
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {transaction.description}
                     </p>
