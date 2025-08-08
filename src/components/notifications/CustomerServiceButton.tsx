@@ -139,10 +139,10 @@ Pays: ${profile.country}`;
       >
         <MessageSquare className="w-5 h-5" />
         <span className="sr-only">Service client</span>
-        {isAgent && <span className="ml-2 text-sm hidden md:inline">Contacter Admin</span>}
+        {isAgent && <span className="ml-2 text-sm hidden md:inline text-white">Contacter Admin</span>}
       </Button>
 
-      {/* Modal */}
+      {/* Modal avec scroll optimisé */}
       {isModalOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in-0"
@@ -152,143 +152,145 @@ Pays: ${profile.country}`;
             }
           }}
         >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full animate-in zoom-in-95 duration-200">
-            <div className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full">
-                  <MessageSquare className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold">
-                    {isAgent ? 'Contacter les Administrateurs' : 'Service Client'}
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    {isAgent ? 'Support pour les agents' : 'Contactez nos administrateurs'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Messages rapides */}
-              <div className="mb-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Messages rapides :</p>
-                <div className="grid grid-cols-1 gap-2">
-                  {quickMessages.map((msg) => (
-                    <button
-                      key={msg.id}
-                      type="button"
-                      onClick={() => handleQuickMessage(msg.text)}
-                      className="text-left p-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md transition-colors duration-200"
-                    >
-                      {msg.text}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="requestType" className="block text-sm font-medium mb-2">
-                    Type de demande
-                  </label>
-                  <select
-                    id="requestType"
-                    value={requestType}
-                    onChange={(e) => setRequestType(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                  >
-                    <option value="general">Général</option>
-                    <option value="transaction">Transaction</option>
-                    <option value="account">Compte</option>
-                    <option value="technical">Technique</option>
-                    <option value="complaint">Réclamation</option>
-                    <option value="password_appointment">🗓️ Rendez-vous changement mot de passe</option>
-                    {isAgent && (
-                      <>
-                        <option value="agent_support">Support Agent</option>
-                        <option value="client_issue">Problème Client</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-
-                {requestType !== 'password_appointment' && (
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="overflow-y-auto max-h-[90vh]">
+              <div className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full">
+                    <MessageSquare className="w-5 h-5 text-white" />
+                  </div>
                   <div>
-                    <label htmlFor="priority" className="block text-sm font-medium mb-2">
-                      Priorité
+                    <h2 className="text-lg font-semibold text-gray-800">
+                      {isAgent ? 'Contacter les Administrateurs' : 'Service Client'}
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      {isAgent ? 'Support pour les agents' : 'Contactez nos administrateurs'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Messages rapides */}
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-800 mb-2">Messages rapides :</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {quickMessages.map((msg) => (
+                      <button
+                        key={msg.id}
+                        type="button"
+                        onClick={() => handleQuickMessage(msg.text)}
+                        className="text-left p-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-md transition-colors duration-200 text-gray-800"
+                      >
+                        {msg.text}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="requestType" className="block text-sm font-medium mb-2 text-gray-800">
+                      Type de demande
                     </label>
                     <select
-                      id="priority"
-                      value={priority}
-                      onChange={(e) => setPriority(e.target.value)}
-                      className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ${
-                        priority === 'urgent' ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                      }`}
+                      id="requestType"
+                      value={requestType}
+                      onChange={(e) => setRequestType(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-800 bg-white"
                     >
-                      <option value="low">Faible</option>
-                      <option value="normal">Normale</option>
-                      <option value="high">Élevée</option>
-                      <option value="urgent">🚨 Urgente</option>
+                      <option value="general">Général</option>
+                      <option value="transaction">Transaction</option>
+                      <option value="account">Compte</option>
+                      <option value="technical">Technique</option>
+                      <option value="complaint">Réclamation</option>
+                      <option value="password_appointment">🗓️ Rendez-vous changement mot de passe</option>
+                      {isAgent && (
+                        <>
+                          <option value="agent_support">Support Agent</option>
+                          <option value="client_issue">Problème Client</option>
+                        </>
+                      )}
                     </select>
                   </div>
-                )}
 
-                <div>
-                  <label htmlFor="message" className="block text-sm font-medium mb-2">
-                    Votre message
-                  </label>
-                  <textarea
-                    id="message"
-                    placeholder={requestType === 'password_appointment' 
-                      ? "Expliquez pourquoi vous souhaitez changer votre mot de passe..."
-                      : isAgent 
-                        ? "Décrivez votre problème ou votre demande..."
-                        : "Décrivez votre problème en détail..."}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[120px] resize-none transition-all duration-200"
-                    disabled={isLoading}
-                    required
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    {requestType === 'password_appointment' 
-                      ? "Un administrateur vous contactera pour fixer un rendez-vous."
-                      : "Nos administrateurs traiteront votre demande rapidement."}
-                  </p>
-                </div>
+                  {requestType !== 'password_appointment' && (
+                    <div>
+                      <label htmlFor="priority" className="block text-sm font-medium mb-2 text-gray-800">
+                        Priorité
+                      </label>
+                      <select
+                        id="priority"
+                        value={priority}
+                        onChange={(e) => setPriority(e.target.value)}
+                        className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-800 bg-white ${
+                          priority === 'urgent' ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                        }`}
+                      >
+                        <option value="low">Faible</option>
+                        <option value="normal">Normale</option>
+                        <option value="high">Élevée</option>
+                        <option value="urgent">🚨 Urgente</option>
+                      </select>
+                    </div>
+                  )}
 
-                <div className="flex gap-2 pt-4">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsModalOpen(false)}
-                    disabled={isLoading}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-all duration-200"
-                  >
-                    Annuler
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={isLoading || !message.trim()}
-                    className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-md hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all duration-200 transform hover:scale-[1.02]"
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Envoi...
-                      </>
-                    ) : requestType === 'password_appointment' ? (
-                      <>
-                        <Calendar className="w-4 h-4" />
-                        Demander rendez-vous
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        Envoyer
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
+                  <div>
+                    <label htmlFor="message" className="block text-sm font-medium mb-2 text-gray-800">
+                      Votre message
+                    </label>
+                    <textarea
+                      id="message"
+                      placeholder={requestType === 'password_appointment' 
+                        ? "Expliquez pourquoi vous souhaitez changer votre mot de passe..."
+                        : isAgent 
+                          ? "Décrivez votre problème ou votre demande..."
+                          : "Décrivez votre problème en détail..."}
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[120px] resize-none transition-all duration-200 text-gray-800 bg-white"
+                      disabled={isLoading}
+                      required
+                    />
+                    <p className="text-sm text-gray-600 mt-1">
+                      {requestType === 'password_appointment' 
+                        ? "Un administrateur vous contactera pour fixer un rendez-vous."
+                        : "Nos administrateurs traiteront votre demande rapidement."}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 pt-4">
+                    <button 
+                      type="button" 
+                      onClick={() => setIsModalOpen(false)}
+                      disabled={isLoading}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-all duration-200 text-gray-800 bg-white"
+                    >
+                      Annuler
+                    </button>
+                    <button 
+                      type="submit" 
+                      disabled={isLoading || !message.trim()}
+                      className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-md hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all duration-200 transform hover:scale-[1.02]"
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Envoi...
+                        </>
+                      ) : requestType === 'password_appointment' ? (
+                        <>
+                          <Calendar className="w-4 h-4" />
+                          Demander rendez-vous
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          Envoyer
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         </div>
