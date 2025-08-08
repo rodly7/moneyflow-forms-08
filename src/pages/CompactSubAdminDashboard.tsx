@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +10,20 @@ import CompactStatsGrid from "@/components/dashboard/CompactStatsGrid";
 import CompactActionGrid from "@/components/dashboard/CompactActionGrid";
 import CompactInfoCard from "@/components/dashboard/CompactInfoCard";
 import UserProfileInfo from "@/components/profile/UserProfileInfo";
+
+interface AgentData {
+  id: string;
+  status: string;
+  user_id: string;
+}
+
+interface WithdrawalData {
+  id: string;
+}
+
+interface TransferData {
+  id: string;
+}
 
 const CompactSubAdminDashboard = () => {
   const { user, profile, signOut } = useAuth();
@@ -26,40 +41,43 @@ const CompactSubAdminDashboard = () => {
     if (user?.id) {
       setIsLoading(true);
       try {
-        // Fetch agents managed by this sub-admin
+        // Fetch agents managed by this sub-admin with explicit typing
         const { data: agentsData, error: agentsError } = await supabase
           .from('agents')
           .select('id, status, user_id')
-          .eq('territory_admin_id', user.id);
+          .eq('territory_admin_id', user.id)
+          .returns<AgentData[]>();
 
         if (agentsError) throw agentsError;
 
         const totalAgents = agentsData?.length || 0;
-        const activeAgents = agentsData?.filter(a => a.status === 'active').length || 0;
+        const activeAgents = agentsData?.filter((a: AgentData) => a.status === 'active').length || 0;
 
         // Get agent user IDs for further queries
-        const agentUserIds = agentsData?.map(a => a.user_id).filter(Boolean) || [];
+        const agentUserIds = agentsData?.map((a: AgentData) => a.user_id).filter(Boolean) || [];
 
         let pendingWithdrawals = 0;
         let totalTransactions = 0;
 
         if (agentUserIds.length > 0) {
-          // Fetch pending withdrawals from agents in this territory
+          // Fetch pending withdrawals from agents in this territory with explicit typing
           const { data: withdrawalsData, error: withdrawalsError } = await supabase
             .from('withdrawals')
             .select('id')
             .eq('status', 'pending')
-            .in('user_id', agentUserIds);
+            .in('user_id', agentUserIds)
+            .returns<WithdrawalData[]>();
 
           if (!withdrawalsError && withdrawalsData) {
             pendingWithdrawals = withdrawalsData.length;
           }
 
-          // Fetch total transactions from agents in this territory
+          // Fetch total transactions from agents in this territory with explicit typing
           const { data: transactionsData, error: transactionsError } = await supabase
             .from('transfers')
             .select('id')
-            .in('agent_id', agentUserIds);
+            .in('agent_id', agentUserIds)
+            .returns<TransferData[]>();
 
           if (!transactionsError && transactionsData) {
             totalTransactions = transactionsData.length;
