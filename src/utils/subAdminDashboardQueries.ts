@@ -3,8 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const fetchSubAdminStats = async (userId: string) => {
   try {
-    // Fetch agents with explicit type casting to avoid deep instantiation
-    const agentsQuery = supabase
+    // Fetch agents with complete type bypass
+    const agentsQuery = (supabase as any)
       .from('agents')
       .select('id, status, user_id')
       .eq('territory_admin_id', userId);
@@ -27,8 +27,8 @@ export const fetchSubAdminStats = async (userId: string) => {
     let totalTransactions = 0;
 
     if (agentUserIds.length > 0) {
-      // Fetch withdrawals with explicit type casting
-      const withdrawalsQuery = supabase
+      // Fetch withdrawals with complete type bypass
+      const withdrawalsQuery = (supabase as any)
         .from('withdrawals')
         .select('id')
         .eq('status', 'pending')
@@ -40,8 +40,8 @@ export const fetchSubAdminStats = async (userId: string) => {
         pendingWithdrawals = (withdrawalsResult.data as Array<{id: string}>).length;
       }
 
-      // Fetch transactions with explicit type casting
-      const transactionsQuery = supabase
+      // Fetch transactions with complete type bypass
+      const transactionsQuery = (supabase as any)
         .from('transfers')
         .select('id')
         .in('agent_id', agentUserIds);
