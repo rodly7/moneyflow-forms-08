@@ -49,10 +49,22 @@ ${finalMessage}
 
 --- Informations utilisateur ---
 Nom: ${profile.full_name}
+Rôle: ${profile.role}
 Téléphone: ${profile.phone}
 Email: ${user.email}
+Pays: ${profile.country}
 
 Merci de me contacter pour fixer un rendez-vous.`;
+      } else {
+        // Ajouter les informations de l'expéditeur pour tous les messages
+        finalMessage = `${finalMessage}
+
+--- Informations expéditeur ---
+Nom: ${profile.full_name}
+Rôle: ${profile.role}
+Téléphone: ${profile.phone}
+Email: ${user.email}
+Pays: ${profile.country}`;
       }
 
       const { error } = await supabase
@@ -99,6 +111,8 @@ Merci de me contacter pour fixer un rendez-vous.`;
     { id: 'transaction', text: 'Question sur une transaction' },
     { id: 'account', text: 'Problème avec mon compte' },
     { id: 'password', text: 'Je veux changer mon mot de passe' },
+    { id: 'agent_help', text: 'J\'ai besoin d\'aide en tant qu\'agent' },
+    { id: 'client_issue', text: 'Problème avec un client' },
   ];
 
   const handleQuickMessage = (messageText: string) => {
@@ -109,16 +123,23 @@ Merci de me contacter pour fixer un rendez-vous.`;
     }
   };
 
+  // Adapter l'apparence selon le rôle
+  const isAgent = profile?.role === 'agent';
+  const buttonClass = isAgent 
+    ? "relative p-2 text-white hover:bg-blue-600 transition-all duration-200 bg-blue-500 rounded-md"
+    : "relative p-2 text-primary-foreground hover:bg-white/10 transition-all duration-200";
+
   return (
     <>
       <Button
         variant="ghost"
         size="sm"
         onClick={() => setIsModalOpen(true)}
-        className="relative p-2 text-primary-foreground hover:bg-white/10 transition-all duration-200"
+        className={buttonClass}
       >
         <MessageSquare className="w-5 h-5" />
         <span className="sr-only">Service client</span>
+        {isAgent && <span className="ml-2 text-sm hidden md:inline">Contacter Admin</span>}
       </Button>
 
       {/* Modal */}
@@ -138,9 +159,11 @@ Merci de me contacter pour fixer un rendez-vous.`;
                   <MessageSquare className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold">Service Client</h2>
+                  <h2 className="text-lg font-semibold">
+                    {isAgent ? 'Contacter les Administrateurs' : 'Service Client'}
+                  </h2>
                   <p className="text-sm text-gray-600">
-                    Contactez nos administrateurs
+                    {isAgent ? 'Support pour les agents' : 'Contactez nos administrateurs'}
                   </p>
                 </div>
               </div>
@@ -179,6 +202,12 @@ Merci de me contacter pour fixer un rendez-vous.`;
                     <option value="technical">Technique</option>
                     <option value="complaint">Réclamation</option>
                     <option value="password_appointment">🗓️ Rendez-vous changement mot de passe</option>
+                    {isAgent && (
+                      <>
+                        <option value="agent_support">Support Agent</option>
+                        <option value="client_issue">Problème Client</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -211,7 +240,9 @@ Merci de me contacter pour fixer un rendez-vous.`;
                     id="message"
                     placeholder={requestType === 'password_appointment' 
                       ? "Expliquez pourquoi vous souhaitez changer votre mot de passe..."
-                      : "Décrivez votre problème en détail..."}
+                      : isAgent 
+                        ? "Décrivez votre problème ou votre demande..."
+                        : "Décrivez votre problème en détail..."}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[120px] resize-none transition-all duration-200"

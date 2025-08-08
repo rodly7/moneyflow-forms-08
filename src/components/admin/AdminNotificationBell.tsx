@@ -1,10 +1,11 @@
-import React from 'react';
-import { CustomerServiceButton } from '@/components/notifications/CustomerServiceButton';
 
-// This component is now deprecated and replaced by CustomerServiceButton
-// Keeping for backward compatibility but redirecting to CustomerServiceButton
+import React from 'react';
+import { SimpleCustomerServiceButton } from '@/components/notifications/SimpleCustomerServiceButton';
+
+// Ce composant est maintenant remplacé par le système de service client
+// Il redirige vers SimpleCustomerServiceButton pour une expérience unifiée
 const AdminNotificationBell = ({ className = "" }) => {
-  return <CustomerServiceButton />;
+  return <SimpleCustomerServiceButton />;
 };
 
 export default AdminNotificationBell;
