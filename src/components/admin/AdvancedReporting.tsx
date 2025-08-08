@@ -12,7 +12,6 @@ import {
   BarChart3, PieChart, DollarSign, Users,
   Clock, AlertCircle, CheckCircle
 } from 'lucide-react';
-import { useAdvancedAdmin } from '@/hooks/useAdvancedAdmin';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,15 +20,14 @@ interface ReportData {
   report_type: string;
   report_data: any;
   generated_at: string;
-  generated_by: string;
   status: 'pending' | 'completed' | 'failed';
 }
 
 const AdvancedReporting = () => {
-  const { generateReport, isProcessing } = useAdvancedAdmin();
   const { toast } = useToast();
   const [reports, setReports] = useState<ReportData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [reportForm, setReportForm] = useState({
     type: 'daily' as 'daily' | 'weekly' | 'monthly',
     dateFrom: '',
@@ -39,43 +37,86 @@ const AdvancedReporting = () => {
   });
 
   useEffect(() => {
-    fetchReports();
+    // Initialiser quelques rapports simulés
+    setReports([
+      {
+        id: '1',
+        report_type: 'daily',
+        report_data: {
+          totalTransfers: 150,
+          totalVolume: 25000000,
+          activeAgents: 45
+        },
+        generated_at: new Date().toISOString(),
+        status: 'completed'
+      },
+      {
+        id: '2',
+        report_type: 'weekly', 
+        report_data: {
+          totalTransfers: 850,
+          totalVolume: 125000000,
+          activeAgents: 52
+        },
+        generated_at: new Date(Date.now() - 86400000).toISOString(),
+        status: 'completed'
+      }
+    ]);
   }, []);
 
-  const fetchReports = async () => {
+  const handleGenerateReport = async () => {
+    setIsProcessing(true);
     try {
-      const { data, error } = await supabase
-        .from('admin_reports')
-        .select('*')
-        .order('generated_at', { ascending: false })
-        .limit(20);
+      // Récupérer les données de transferts
+      const { data: transfers, error: transfersError } = await supabase
+        .from('transfers')
+        .select('*');
 
-      if (error) throw error;
-      setReports(data || []);
+      if (transfersError) throw transfersError;
+
+      // Récupérer les agents
+      const { data: agents, error: agentsError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'agent');
+
+      if (agentsError) throw agentsError;
+
+      // Générer les statistiques
+      const reportData = {
+        period: reportForm.type,
+        generatedAt: new Date().toISOString(),
+        totalTransfers: transfers?.length || 0,
+        totalVolume: transfers?.reduce((sum, t) => sum + t.amount, 0) || 0,
+        activeAgents: agents?.length || 0,
+        topPerformers: agents?.slice(0, 5) || []
+      };
+
+      // Ajouter le rapport à la liste
+      const newReport: ReportData = {
+        id: Date.now().toString(),
+        report_type: reportForm.type,
+        report_data: reportData,
+        generated_at: new Date().toISOString(),
+        status: 'completed'
+      };
+
+      setReports(prev => [newReport, ...prev]);
+
+      toast({
+        title: "Rapport généré",
+        description: `Rapport ${reportForm.type} généré avec succès`,
+      });
+
     } catch (error: any) {
-      console.error('Erreur chargement rapports:', error);
+      console.error('Erreur génération rapport:', error);
       toast({
         title: "Erreur",
-        description: "Erreur lors du chargement des rapports",
+        description: error.message || "Erreur lors de la génération du rapport",
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateReport = async () => {
-    const filters = {
-      dateFrom: reportForm.dateFrom,
-      dateTo: reportForm.dateTo,
-      country: reportForm.country !== 'all' ? reportForm.country : undefined,
-      agentStatus: reportForm.agentStatus !== 'all' ? reportForm.agentStatus : undefined
-    };
-
-    const result = await generateReport(reportForm.type, filters);
-    
-    if (result.success) {
-      fetchReports(); // Recharger la liste des rapports
+      setIsProcessing(false);
     }
   };
 
@@ -216,24 +257,6 @@ const AdvancedReporting = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Statut des agents</Label>
-                    <Select
-                      value={reportForm.agentStatus}
-                      onValueChange={(value) => setReportForm(prev => ({ ...prev, agentStatus: value }))}
-                    >
-                      <SelectTrigger className="w-full md:w-64">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous les statuts</SelectItem>
-                        <SelectItem value="active">Actifs seulement</SelectItem>
-                        <SelectItem value="pending">En attente</SelectItem>
-                        <SelectItem value="suspended">Suspendus</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
                   <Button
                     onClick={handleGenerateReport}
                     disabled={isProcessing}
@@ -317,86 +340,78 @@ const AdvancedReporting = () => {
             <TabsContent value="history" className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Historique des Rapports</h3>
-                <Button onClick={fetchReports} variant="outline" size="sm">
+                <Button variant="outline" size="sm">
                   <Clock className="w-4 h-4 mr-2" />
                   Actualiser
                 </Button>
               </div>
 
-              {loading ? (
-                <div className="animate-pulse space-y-4">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-16 bg-gray-200 rounded"></div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {reports.map((report) => (
-                    <Card key={report.id}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h4 className="font-medium">
-                                Rapport {getReportTypeLabel(report.report_type)}
-                              </h4>
-                              {getStatusBadge(report.status)}
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-gray-600">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="w-4 h-4" />
-                                {new Date(report.generated_at).toLocaleDateString('fr-FR', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </div>
-                              {report.report_data && (
-                                <div className="flex items-center gap-1">
-                                  <TrendingUp className="w-4 h-4" />
-                                  {report.report_data.totalTransfers || 0} transactions
-                                </div>
-                              )}
-                              {report.report_data && (
-                                <div className="flex items-center gap-1">
-                                  <DollarSign className="w-4 h-4" />
-                                  {(report.report_data.totalVolume || 0).toLocaleString()} FCFA
-                                </div>
-                              )}
-                            </div>
+              <div className="space-y-3">
+                {reports.map((report) => (
+                  <Card key={report.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h4 className="font-medium">
+                              Rapport {getReportTypeLabel(report.report_type)}
+                            </h4>
+                            {getStatusBadge(report.status)}
                           </div>
-                          <div className="flex items-center gap-2">
-                            {report.status === 'completed' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => downloadReport(report.id, report.report_data)}
-                              >
-                                <Download className="w-4 h-4 mr-1" />
-                                Télécharger
-                              </Button>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              {new Date(report.generated_at).toLocaleDateString('fr-FR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                            {report.report_data && (
+                              <div className="flex items-center gap-1">
+                                <TrendingUp className="w-4 h-4" />
+                                {report.report_data.totalTransfers || 0} transactions
+                              </div>
+                            )}
+                            {report.report_data && (
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="w-4 h-4" />
+                                {(report.report_data.totalVolume || 0).toLocaleString()} FCFA
+                              </div>
                             )}
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        <div className="flex items-center gap-2">
+                          {report.status === 'completed' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => downloadReport(report.id, report.report_data)}
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                              Télécharger
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
 
-                  {reports.length === 0 && (
-                    <Card>
-                      <CardContent className="p-8 text-center">
-                        <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                        <p className="text-gray-500">Aucun rapport généré pour le moment</p>
-                        <p className="text-sm text-gray-400 mt-1">
-                          Utilisez l'onglet "Générer" pour créer votre premier rapport
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              )}
+                {reports.length === 0 && (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-gray-500">Aucun rapport généré pour le moment</p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        Utilisez l'onglet "Générer" pour créer votre premier rapport
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="analytics" className="space-y-4">
@@ -467,32 +482,6 @@ const AdvancedReporting = () => {
                   </CardContent>
                 </Card>
               </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Activité Récente</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {reports.slice(0, 5).map((report) => (
-                      <div key={report.id} className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full ${
-                            report.status === 'completed' ? 'bg-green-500' : 
-                            report.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
-                          }`} />
-                          <span className="text-sm">
-                            Rapport {getReportTypeLabel(report.report_type)}
-                          </span>
-                        </div>
-                        <span className="text-xs text-gray-500">
-                          {new Date(report.generated_at).toLocaleTimeString('fr-FR')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
             </TabsContent>
           </Tabs>
         </CardContent>
