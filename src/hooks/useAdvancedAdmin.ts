@@ -13,6 +13,7 @@ export interface AgentSuspensionData {
 }
 
 export interface TransactionLimit {
+  [key: string]: any; // Index signature for Json compatibility
   userRole: 'user' | 'agent' | 'admin';
   operationType: string;
   singleLimit: number;
@@ -43,26 +44,25 @@ export const useAdvancedAdmin = () => {
         ? new Date(Date.now() + suspensionData.duration * 24 * 60 * 60 * 1000)
         : null;
 
-      // Mettre à jour le statut de l'agent
-      const { error: agentError } = await supabase
-        .from('agents')
+      // Mettre à jour le statut de l'agent via profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
         .update({
-          status: 'suspended',
-          suspension_reason: suspensionData.reason,
-          suspended_at: new Date().toISOString(),
-          suspension_end_date: suspensionEndDate?.toISOString(),
-          suspended_by: suspensionData.suspendedBy
+          is_banned: true,
+          banned_reason: suspensionData.reason,
+          banned_at: new Date().toISOString()
         })
-        .eq('user_id', suspensionData.agentId);
+        .eq('id', suspensionData.agentId)
+        .eq('role', 'agent');
 
-      if (agentError) throw agentError;
+      if (profileError) throw profileError;
 
       // Créer un log d'audit
       await supabase
         .from('audit_logs')
         .insert({
           action: 'agent_suspended',
-          table_name: 'agents',
+          table_name: 'profiles',
           record_id: suspensionData.agentId,
           user_id: suspensionData.suspendedBy,
           new_values: {
@@ -96,27 +96,25 @@ export const useAdvancedAdmin = () => {
   const batchValidateAgents = useCallback(async (agentIds: string[], action: 'approve' | 'reject', reason?: string) => {
     setIsProcessing(true);
     try {
-      const newStatus = action === 'approve' ? 'active' : 'rejected';
+      const updateData = action === 'approve' 
+        ? { is_verified: true, verified_at: new Date().toISOString() }
+        : { is_banned: true, banned_reason: reason, banned_at: new Date().toISOString() };
       
       const { error } = await supabase
-        .from('agents')
-        .update({
-          status: newStatus,
-          validated_at: new Date().toISOString(),
-          validated_by: user?.id,
-          validation_reason: reason
-        })
-        .in('user_id', agentIds);
+        .from('profiles')
+        .update(updateData)
+        .in('id', agentIds)
+        .eq('role', 'agent');
 
       if (error) throw error;
 
       // Log pour chaque agent
       const auditLogs = agentIds.map(agentId => ({
         action: `agent_${action}`,
-        table_name: 'agents',
+        table_name: 'profiles',
         record_id: agentId,
         user_id: user?.id,
-        new_values: { status: newStatus, reason }
+        new_values: { action, reason }
       }));
 
       await supabase
@@ -154,7 +152,10 @@ export const useAdvancedAdmin = () => {
           table_name: 'transaction_limits',
           record_id: 'batch_update',
           user_id: user?.id,
-          new_values: { limits_count: limits.length, limits }
+          new_values: { 
+            limits_count: limits.length,
+            limits_summary: `Updated ${limits.length} transaction limits`
+          }
         });
 
       toast({
@@ -222,7 +223,7 @@ export const useAdvancedAdmin = () => {
           message: `Rapport automatique généré: ${reportData.totalTransfers} transactions, volume: ${reportData.totalVolume} FCFA`,
           notification_type: 'admin_report',
           priority: 'normal',
-          created_by: user?.id,
+          sent_by: user?.id,
           total_recipients: 1
         });
 
@@ -262,7 +263,7 @@ export const useAdvancedAdmin = () => {
           message,
           notification_type: 'targeted',
           priority,
-          created_by: user?.id,
+          sent_by: user?.id,
           total_recipients: recipients.length
         })
         .select()

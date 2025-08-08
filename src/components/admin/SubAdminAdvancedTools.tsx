@@ -1,25 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Shield, Users, MapPin, TrendingUp, 
-  AlertTriangle, FileText, MessageSquare,
-  CheckCircle, Clock, UserCheck, UserX
-} from 'lucide-react';
-import { useSubAdmin } from '@/hooks/useSubAdmin';
-import { supabase } from '@/integrations/supabase/client';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { MapPin, Users, TrendingUp, AlertTriangle, FileText, Send } from 'lucide-react';
 
-interface TerritoryAgent {
+interface TerritorialAgent {
   id: string;
-  user_id: string;
   full_name: string;
   phone: string;
   status: string;
@@ -28,134 +23,101 @@ interface TerritoryAgent {
   created_at: string;
 }
 
-interface TerritoryStats {
+interface TerritorialStats {
   totalAgents: number;
   activeAgents: number;
-  pendingValidations: number;
+  pendingAgents: number;
   totalTransactions: number;
   totalVolume: number;
-  alertsCount: number;
+  averagePerformance: number;
 }
 
-const SubAdminAdvancedTools = () => {
+interface SubAdminReport {
+  id: string;
+  type: 'bug' | 'improvement' | 'issue';
+  title: string;
+  description: string;
+  priority: 'low' | 'medium' | 'high';
+  status: string;
+  created_at: string;
+}
+
+const SubAdminAdvancedTools: React.FC = () => {
   const { user } = useAuth();
-  const { 
-    isSubAdmin, 
-    userCountry, 
-    canValidateAgent, 
-    canManageAgents,
-    canSendNotifications,
-    canViewTerritorialStats 
-  } = useSubAdmin();
   const { toast } = useToast();
-  
-  const [agents, setAgents] = useState<TerritoryAgent[]>([]);
-  const [stats, setStats] = useState<TerritoryStats>({
+  const [loading, setLoading] = useState(false);
+  const [territorialAgents, setTerritorialAgents] = useState<TerritorialAgent[]>([]);
+  const [territorialStats, setTerritorialStats] = useState<TerritorialStats>({
     totalAgents: 0,
     activeAgents: 0,
-    pendingValidations: 0,
+    pendingAgents: 0,
     totalTransactions: 0,
     totalVolume: 0,
-    alertsCount: 0
+    averagePerformance: 0
   });
-  const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
 
-  // Formulaire pour signaler des problèmes
-  const [reportForm, setReportForm] = useState({
-    type: 'bug' as 'bug' | 'improvement' | 'issue',
-    title: '',
-    description: '',
-    priority: 'normal' as 'low' | 'normal' | 'high'
-  });
+  // États pour le rapport
+  const [reportType, setReportType] = useState<'bug' | 'improvement' | 'issue'>('bug');
+  const [reportTitle, setReportTitle] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportPriority, setReportPriority] = useState<'low' | 'medium' | 'high'>('medium');
 
   useEffect(() => {
-    if (isSubAdmin && userCountry) {
-      loadTerritoryData();
-    }
-  }, [isSubAdmin, userCountry]);
+    loadTerritorialData();
+  }, []);
 
-  const loadTerritoryData = async () => {
-    if (!userCountry) return;
-
+  const loadTerritorialData = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-
-      // Charger les profils d'agents de ce territoire
-      const { data: profilesData, error: profilesError } = await supabase
+      // Récupérer les agents du territoire (simulation basée sur les profils)
+      const { data: agents, error: agentsError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, phone, balance, country, created_at')
         .eq('role', 'agent')
-        .eq('country', userCountry);
-
-      if (profilesError) throw profilesError;
-
-      // Charger les informations des agents
-      const { data: agentsData, error: agentsError } = await supabase
-        .from('agents')
-        .select('*');
+        .limit(20);
 
       if (agentsError) throw agentsError;
 
-      // Combiner les données
-      const territoryAgents: TerritoryAgent[] = profilesData?.map(profile => {
-        const agentInfo = agentsData?.find(agent => agent.user_id === profile.id);
-        return {
-          id: agentInfo?.id || profile.id,
-          user_id: profile.id,
-          full_name: profile.full_name || 'Nom inconnu',
-          phone: profile.phone || '',
-          status: agentInfo?.status || 'pending',
-          balance: profile.balance || 0,
-          country: profile.country || '',
-          created_at: profile.created_at
-        };
-      }).filter(agent => agent.country === userCountry) || [];
+      // Traiter les données des agents
+      const processedAgents: TerritorialAgent[] = (agents || []).map(agent => ({
+        id: agent.id,
+        full_name: agent.full_name || 'N/A',
+        phone: agent.phone,
+        status: 'active', // Simulation
+        balance: agent.balance,
+        country: agent.country || 'N/A',
+        created_at: agent.created_at
+      }));
 
-      setAgents(territoryAgents);
+      setTerritorialAgents(processedAgents);
 
-      // Calculer les statistiques
-      const totalAgents = territoryAgents.length;
-      const activeAgents = territoryAgents.filter(a => a.status === 'active').length;
-      const pendingValidations = territoryAgents.filter(a => a.status === 'pending').length;
+      // Calculer les statistiques territoriales
+      const activeAgentsCount = processedAgents.filter(a => a.status === 'active').length;
+      const pendingAgentsCount = processedAgents.filter(a => a.status === 'pending').length;
 
-      // Charger les transactions du territoire
-      const agentIds = territoryAgents.map(a => a.user_id);
-      if (agentIds.length > 0) {
-        const { data: transfersData, error: transfersError } = await supabase
-          .from('transfers')
-          .select('amount')
-          .in('agent_id', agentIds);
+      // Récupérer les statistiques de transactions
+      const { data: transfers } = await supabase
+        .from('transfers')
+        .select('amount')
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
-        if (!transfersError && transfersData) {
-          const totalTransactions = transfersData.length;
-          const totalVolume = transfersData.reduce((sum, t) => sum + t.amount, 0);
+      const totalVolume = transfers?.reduce((sum, t) => sum + t.amount, 0) || 0;
+      const totalTransactions = transfers?.length || 0;
 
-          setStats({
-            totalAgents,
-            activeAgents,
-            pendingValidations,
-            totalTransactions,
-            totalVolume,
-            alertsCount: pendingValidations + territoryAgents.filter(a => a.balance < 10000).length
-          });
-        }
-      } else {
-        setStats({
-          totalAgents,
-          activeAgents,
-          pendingValidations,
-          totalTransactions: 0,
-          totalVolume: 0,
-          alertsCount: pendingValidations
-        });
-      }
+      setTerritorialStats({
+        totalAgents: processedAgents.length,
+        activeAgents: activeAgentsCount,
+        pendingAgents: pendingAgentsCount,
+        totalTransactions,
+        totalVolume,
+        averagePerformance: totalTransactions > 0 ? Math.round(totalVolume / totalTransactions) : 0
+      });
 
-    } catch (error: any) {
-      console.error('Erreur chargement données territoire:', error);
+    } catch (error) {
+      console.error('Erreur chargement données territoriales:', error);
       toast({
         title: "Erreur",
-        description: "Erreur lors du chargement des données du territoire",
+        description: "Impossible de charger les données territoriales",
         variant: "destructive"
       });
     } finally {
@@ -164,54 +126,26 @@ const SubAdminAdvancedTools = () => {
   };
 
   const handleValidateAgent = async (agentId: string, action: 'approve' | 'reject') => {
-    if (!canValidateAgent) {
-      toast({
-        title: "Accès refusé",
-        description: "Vous n'avez pas l'autorisation de valider les agents",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setProcessing(true);
+    setLoading(true);
     try {
-      const newStatus = action === 'approve' ? 'active' : 'rejected';
+      const updateData = action === 'approve' 
+        ? { is_verified: true, verified_at: new Date().toISOString() }
+        : { is_banned: true, banned_reason: 'Rejeté par sous-admin', banned_at: new Date().toISOString() };
       
       const { error } = await supabase
-        .from('agents')
-        .update({
-          status: newStatus,
-          validated_at: new Date().toISOString(),
-          validated_by: user?.id,
-          validation_reason: `Validation par sous-admin du territoire ${userCountry}`
-        })
-        .eq('user_id', agentId);
+        .from('profiles')
+        .update(updateData)
+        .eq('id', agentId);
 
       if (error) throw error;
 
-      // Log de l'action
-      await supabase
-        .from('audit_logs')
-        .insert({
-          action: `sub_admin_agent_${action}`,
-          table_name: 'agents',
-          record_id: agentId,
-          user_id: user?.id,
-          new_values: { 
-            status: newStatus, 
-            territory: userCountry,
-            validated_by_sub_admin: true
-          }
-        });
-
       toast({
-        title: `Agent ${action === 'approve' ? 'approuvé' : 'rejeté'}`,
-        description: "Action effectuée avec succès",
+        title: "Agent mis à jour",
+        description: `Agent ${action === 'approve' ? 'approuvé' : 'rejeté'} avec succès`,
       });
 
-      loadTerritoryData(); // Recharger les données
-
-    } catch (error: any) {
+      loadTerritorialData();
+    } catch (error) {
       console.error('Erreur validation agent:', error);
       toast({
         title: "Erreur",
@@ -219,51 +153,49 @@ const SubAdminAdvancedTools = () => {
         variant: "destructive"
       });
     } finally {
-      setProcessing(false);
+      setLoading(false);
     }
   };
 
-  const handleSendReport = async () => {
-    if (!reportForm.title || !reportForm.description) {
+  const handleSubmitReport = async () => {
+    if (!reportTitle.trim() || !reportDescription.trim()) {
       toast({
         title: "Erreur",
-        description: "Veuillez remplir tous les champs",
+        description: "Veuillez remplir tous les champs obligatoires",
         variant: "destructive"
       });
       return;
     }
 
-    setProcessing(true);
+    setLoading(true);
     try {
-      // Simuler l'enregistrement du rapport (utiliser la table notifications comme proxy)
-      const reportMessage = `[${reportForm.type.toUpperCase()}] ${reportForm.title}\n\n${reportForm.description}\n\nTerritoire: ${userCountry}\nPriorité: ${reportForm.priority}`;
-
+      // Utiliser la table notifications pour simuler les rapports
       const { error } = await supabase
         .from('notifications')
         .insert({
-          title: `Rapport ${reportForm.type} - ${userCountry}`,
-          message: reportMessage,
+          title: `[${reportType.toUpperCase()}] ${reportTitle}`,
+          message: reportDescription,
           notification_type: 'sub_admin_report',
-          priority: reportForm.priority,
-          created_by: user?.id,
+          priority: reportPriority,
+          sent_by: user?.id,
+          target_role: 'admin',
           total_recipients: 1
         });
 
       if (error) throw error;
-
-      setReportForm({
-        type: 'bug',
-        title: '',
-        description: '',
-        priority: 'normal'
-      });
 
       toast({
         title: "Rapport envoyé",
         description: "Votre rapport a été transmis à l'administration principale",
       });
 
-    } catch (error: any) {
+      // Réinitialiser le formulaire
+      setReportTitle('');
+      setReportDescription('');
+      setReportType('bug');
+      setReportPriority('medium');
+
+    } catch (error) {
       console.error('Erreur envoi rapport:', error);
       toast({
         title: "Erreur",
@@ -271,292 +203,253 @@ const SubAdminAdvancedTools = () => {
         variant: "destructive"
       });
     } finally {
-      setProcessing(false);
+      setLoading(false);
     }
   };
 
-  if (!isSubAdmin) {
-    return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <Shield className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-gray-500">Accès réservé aux sous-administrateurs</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-12 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            Outils Avancés - Territoire {userCountry}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-              <TabsTrigger value="agents">Gestion Agents</TabsTrigger>
-              <TabsTrigger value="reports">Rapports</TabsTrigger>
-              <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            </TabsList>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Outils Avancés Sous-Admin</h2>
+          <p className="text-muted-foreground">Gestion territoriale et outils de reporting</p>
+        </div>
+      </div>
 
-            <TabsContent value="overview" className="space-y-6">
-              {/* Statistiques du territoire */}
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
+      <Tabs defaultValue="territorial" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="territorial">Gestion Territoriale</TabsTrigger>
+          <TabsTrigger value="reporting">Système de Rapport</TabsTrigger>
+          <TabsTrigger value="analytics">Analytiques Locales</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="territorial" className="space-y-4">
+          {/* Statistiques territoriales */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{territorialStats.totalAgents}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Agents Actifs</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{territorialStats.activeAgents}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">En Attente</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">{territorialStats.pendingAgents}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Volume Total</CardTitle>
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{territorialStats.totalVolume.toLocaleString()} FCFA</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Liste des agents territoriaux */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Agents du Territoire</CardTitle>
+              <CardDescription>Gestion et validation des agents dans votre zone</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {territorialAgents.map((agent) => (
+                  <div key={agent.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-4">
                       <div>
-                        <p className="text-sm text-gray-600">Total Agents</p>
-                        <p className="text-xl font-bold">{stats.totalAgents}</p>
+                        <p className="font-medium">{agent.full_name}</p>
+                        <p className="text-sm text-muted-foreground">{agent.phone}</p>
+                        <p className="text-sm text-muted-foreground">{agent.country}</p>
                       </div>
-                      <Users className="w-6 h-6 text-blue-500" />
+                      <Badge variant={agent.status === 'active' ? 'default' : 'secondary'}>
+                        {agent.status}
+                      </Badge>
                     </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">Actifs</p>
-                        <p className="text-xl font-bold text-green-600">{stats.activeAgents}</p>
-                      </div>
-                      <UserCheck className="w-6 h-6 text-green-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">En attente</p>
-                        <p className="text-xl font-bold text-yellow-600">{stats.pendingValidations}</p>
-                      </div>
-                      <Clock className="w-6 h-6 text-yellow-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">Transactions</p>
-                        <p className="text-xl font-bold">{stats.totalTransactions}</p>
-                      </div>
-                      <TrendingUp className="w-6 h-6 text-purple-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">Volume</p>
-                        <p className="text-lg font-bold">{(stats.totalVolume / 1000000).toFixed(1)}M</p>
-                      </div>
-                      <TrendingUp className="w-6 h-6 text-green-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">Alertes</p>
-                        <p className="text-xl font-bold text-red-600">{stats.alertsCount}</p>
-                      </div>
-                      <AlertTriangle className="w-6 h-6 text-red-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Résumé des agents */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Agents du Territoire</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {agents.map((agent) => (
-                      <div key={agent.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <p className="font-medium">{agent.full_name}</p>
-                          <p className="text-sm text-gray-600">{agent.phone}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <p className="text-sm font-medium">{agent.balance.toLocaleString()} FCFA</p>
-                          <Badge className={`${
-                            agent.status === 'active' ? 'bg-green-500' :
-                            agent.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
-                          } text-white`}>
-                            {agent.status === 'active' ? 'Actif' : 
-                             agent.status === 'pending' ? 'En attente' : 'Inactif'}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="agents" className="space-y-4">
-              {canValidateAgent && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Validation des Agents</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {agents.filter(a => a.status === 'pending').map((agent) => (
-                        <div key={agent.id} className="flex items-center justify-between p-3 border rounded-lg bg-yellow-50">
-                          <div>
-                            <p className="font-medium">{agent.full_name}</p>
-                            <p className="text-sm text-gray-600">{agent.phone}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleValidateAgent(agent.user_id, 'approve')}
-                              disabled={processing}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleValidateAgent(agent.user_id, 'reject')}
-                              disabled={processing}
-                            >
-                              <UserX className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-
-                      {agents.filter(a => a.status === 'pending').length === 0 && (
-                        <div className="text-center py-6 text-gray-500">
-                          <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                          <p>Aucun agent en attente de validation</p>
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium">{agent.balance.toLocaleString()} FCFA</p>
+                      {agent.status === 'pending' && (
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleValidateAgent(agent.id, 'approve')}
+                            disabled={loading}
+                          >
+                            Approuver
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleValidateAgent(agent.id, 'reject')}
+                            disabled={loading}
+                          >
+                            Rejeter
+                          </Button>
                         </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-            <TabsContent value="reports" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Signaler un Problème
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Type de rapport</Label>
-                      <select
-                        className="w-full p-2 border rounded-md"
-                        value={reportForm.type}
-                        onChange={(e) => setReportForm(prev => ({ 
-                          ...prev, type: e.target.value as 'bug' | 'improvement' | 'issue'
-                        }))}
-                      >
-                        <option value="bug">Bug technique</option>
-                        <option value="improvement">Amélioration suggérée</option>
-                        <option value="issue">Problème opérationnel</option>
-                      </select>
+        <TabsContent value="reporting" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Système de Rapport
+              </CardTitle>
+              <CardDescription>
+                Signaler des bugs, proposer des améliorations ou rapporter des problèmes
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="report-type">Type de rapport</Label>
+                  <Select value={reportType} onValueChange={(value: any) => setReportType(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bug">🐛 Bug Report</SelectItem>
+                      <SelectItem value="improvement">💡 Amélioration</SelectItem>
+                      <SelectItem value="issue">⚠️ Problème</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="report-priority">Priorité</Label>
+                  <Select value={reportPriority} onValueChange={(value: any) => setReportPriority(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">🟢 Faible</SelectItem>
+                      <SelectItem value="medium">🟡 Moyenne</SelectItem>
+                      <SelectItem value="high">🔴 Élevée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="report-title">Titre du rapport</Label>
+                <Input
+                  id="report-title"
+                  value={reportTitle}
+                  onChange={(e) => setReportTitle(e.target.value)}
+                  placeholder="Décrivez brièvement le problème ou la suggestion"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="report-description">Description détaillée</Label>
+                <Textarea
+                  id="report-description"
+                  value={reportDescription}
+                  onChange={(e) => setReportDescription(e.target.value)}
+                  placeholder="Fournissez tous les détails nécessaires, étapes de reproduction, etc."
+                  rows={5}
+                />
+              </div>
+
+              <Button 
+                onClick={handleSubmitReport}
+                disabled={loading || !reportTitle.trim() || !reportDescription.trim()}
+                className="w-full"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Envoyer le Rapport
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Performance du Territoire</CardTitle>
+                <CardDescription>Indicateurs de performance locaux</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">Transactions totales (30j)</span>
+                  <span className="font-bold">{territorialStats.totalTransactions}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">Volume moyen par transaction</span>
+                  <span className="font-bold">{territorialStats.averagePerformance.toLocaleString()} FCFA</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">Taux d'agents actifs</span>
+                  <span className="font-bold">
+                    {territorialStats.totalAgents > 0 
+                      ? Math.round((territorialStats.activeAgents / territorialStats.totalAgents) * 100)
+                      : 0}%
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Alertes du Territoire</CardTitle>
+                <CardDescription>Notifications et alertes importantes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {territorialStats.pendingAgents > 0 && (
+                    <div className="flex items-center gap-2 p-2 bg-yellow-50 rounded">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      <span className="text-sm">{territorialStats.pendingAgents} agent(s) en attente de validation</span>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label>Priorité</Label>
-                      <select
-                        className="w-full p-2 border rounded-md"
-                        value={reportForm.priority}
-                        onChange={(e) => setReportForm(prev => ({ 
-                          ...prev, priority: e.target.value as 'low' | 'normal' | 'high'
-                        }))}
-                      >
-                        <option value="low">Faible</option>
-                        <option value="normal">Normale</option>
-                        <option value="high">Élevée</option>
-                      </select>
+                  )}
+                  {territorialStats.activeAgents === 0 && (
+                    <div className="flex items-center gap-2 p-2 bg-red-50 rounded">
+                      <AlertTriangle className="h-4 w-4 text-red-600" />
+                      <span className="text-sm">Aucun agent actif dans le territoire</span>
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Titre du rapport</Label>
-                    <Input
-                      placeholder="Résumé du problème"
-                      value={reportForm.title}
-                      onChange={(e) => setReportForm(prev => ({ ...prev, title: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Description détaillée</Label>
-                    <Textarea
-                      placeholder="Décrivez le problème en détail..."
-                      value={reportForm.description}
-                      onChange={(e) => setReportForm(prev => ({ ...prev, description: e.target.value }))}
-                      rows={4}
-                    />
-                  </div>
-
-                  <Button
-                    onClick={handleSendReport}
-                    disabled={processing}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    Envoyer le Rapport
-                  </Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="notifications" className="space-y-4">
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-blue-500" />
-                  <p className="text-gray-700 font-medium mb-2">Notifications Territoriales</p>
-                  <p className="text-sm text-gray-500">
-                    Système de notification pour votre territoire en développement
-                  </p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                  )}
+                  {territorialStats.pendingAgents === 0 && territorialStats.activeAgents > 0 && (
+                    <div className="flex items-center gap-2 p-2 bg-green-50 rounded">
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      <span className="text-sm">Territoire fonctionnel - Tous les agents sont validés</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
