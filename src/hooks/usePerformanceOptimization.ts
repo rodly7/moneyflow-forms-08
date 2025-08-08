@@ -1,6 +1,35 @@
 
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+
+// Hook pour surveiller les performances des composants
+export const usePerformanceMonitor = (componentName: string) => {
+  const renderCount = useRef(0);
+  const [renders, setRenders] = useState(0);
+
+  useEffect(() => {
+    renderCount.current++;
+    setRenders(renderCount.current);
+    console.log(`🔄 ${componentName} rendered ${renderCount.current} times`);
+  });
+
+  return { renderCount: renders };
+};
+
+// Hook pour débouncer les fonctions
+export const useDebounce = (callback: Function, delay: number) => {
+  const timeoutRef = useRef<NodeJS.Timeout>();
+
+  return useCallback((...args: any[]) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  }, [callback, delay]);
+};
 
 export const usePerformanceOptimization = () => {
   const { user, profile } = useAuth();

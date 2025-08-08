@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, RefreshCw } from 'lucide-react';
 import { CustomerServiceButton } from '@/components/notifications/CustomerServiceButton';
 
 interface CompactHeaderProps {
@@ -9,6 +9,8 @@ interface CompactHeaderProps {
   subtitle?: string;
   icon?: React.ReactNode;
   onSignOut: () => void;
+  onRefresh?: () => void;
+  isLoading?: boolean;
   showNotifications?: boolean;
   className?: string;
 }
@@ -18,6 +20,8 @@ const CompactHeader = ({
   subtitle, 
   icon, 
   onSignOut, 
+  onRefresh,
+  isLoading = false,
   showNotifications = true,
   className = ""
 }: CompactHeaderProps) => {
@@ -42,6 +46,20 @@ const CompactHeader = ({
 
           {/* Actions */}
           <div className="flex items-center space-x-2">
+            {/* Bouton de rafraîchissement */}
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRefresh}
+                disabled={isLoading}
+                className="text-primary-foreground hover:bg-white/10 transition-all duration-200"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="sr-only">Actualiser</span>
+              </Button>
+            )}
+
             {/* Service Client */}
             {showNotifications && (
               <div className="relative">
