@@ -7,7 +7,7 @@ import { ArrowUpRight, QrCode, History, PiggyBank, RefreshCw, LogOut, Crown, Sta
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
-import EnhancedNotificationSystem from "@/components/notifications/EnhancedNotificationSystem";
+import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
 import { TouchOptimizedButton } from "./TouchOptimizedButton";
 import { OptimizedScrollContainer } from "./OptimizedScrollContainer";
 import EnhancedTransactionsCard from "@/components/dashboard/EnhancedTransactionsCard";
@@ -116,7 +116,7 @@ const MobileDashboard = memo(({
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <EnhancedNotificationSystem />
+              <CustomerServiceButton />
               <button 
                 onClick={onRefresh}
                 disabled={isLoading}
