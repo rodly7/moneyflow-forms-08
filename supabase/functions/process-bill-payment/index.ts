@@ -10,9 +10,9 @@ const corsHeaders = {
 interface BillPaymentRequest {
   user_id: string;
   amount: number;
-  bill_type: string;
-  provider: string;
-  account_number: string;
+  bill_type?: string;
+  provider?: string;
+  account_number?: string;
   recipient_phone?: string;
   bill_id?: string;
 }
@@ -56,15 +56,34 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
     
+    // Get request body with better error handling
     let requestBody: BillPaymentRequest
     try {
-      requestBody = await req.json()
+      const bodyText = await req.text()
+      console.log('Raw request body:', bodyText)
+      
+      if (!bodyText || bodyText.trim() === '') {
+        console.error('Empty request body received')
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: 'Corps de requête vide' 
+          }), 
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400
+          }
+        )
+      }
+      
+      requestBody = JSON.parse(bodyText)
+      console.log('Parsed request body:', requestBody)
     } catch (error) {
       console.error('Error parsing request body:', error)
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: 'Format de données invalide' 
+          message: 'Format de données invalide: ' + error.message 
         }), 
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -77,6 +96,7 @@ Deno.serve(async (req) => {
 
     // Validation des paramètres requis
     if (!user_id || !amount || (!bill_type && !bill_id)) {
+      console.error('Missing required parameters:', { user_id, amount, bill_type, bill_id })
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -180,11 +200,11 @@ Deno.serve(async (req) => {
       }
     } else {
       // Pour les paiements manuels, créer une entrée dans automatic_bills pour historique
-      await supabase
+      const { error: billInsertError } = await supabase
         .from('automatic_bills')
         .insert({
           user_id: user_id,
-          bill_name: `${bill_type}_${provider}`,
+          bill_name: `${bill_type || 'payment'}_${provider || 'manual'}`,
           amount: amount,
           status: 'completed',
           payment_number: recipient_phone || '',
@@ -192,6 +212,11 @@ Deno.serve(async (req) => {
           due_date: new Date().toISOString().split('T')[0],
           recurrence: 'once'
         })
+
+      if (billInsertError) {
+        console.error('Bill insert error:', billInsertError)
+        // Continue anyway as this is just for history
+      }
     }
 
     // Enregistrer l'historique de paiement
@@ -232,7 +257,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false,
-        message: 'Erreur interne du serveur' 
+        message: 'Erreur interne du serveur: ' + error.message 
       }), 
       {
         status: 500,

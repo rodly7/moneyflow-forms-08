@@ -140,11 +140,11 @@ export const useAutomaticBills = () => {
 
       console.log('🔄 Paiement de facture automatique via Edge Function');
 
-      // Préparer les données pour l'Edge Function
+      // Préparer les données pour l'Edge Function avec validation complète
       const requestBody = {
         bill_id: billId,
         user_id: user.id,
-        amount: bill.amount
+        amount: Number(bill.amount)
       };
 
       console.log('📤 Données envoyées pour facture automatique:', requestBody);

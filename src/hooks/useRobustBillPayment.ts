@@ -40,24 +40,24 @@ export const useRobustBillPayment = () => {
         return { success: false };
       }
 
+      // Préparer les données de paiement avec validation
+      const requestBody = {
+        user_id: user.id,
+        amount: Number(paymentData.amount),
+        bill_type: paymentData.billType || 'manual_payment',
+        provider: paymentData.provider || 'manual',
+        account_number: paymentData.accountNumber || '',
+        recipient_phone: paymentData.recipientPhone || ''
+      };
+
+      console.log('🔄 Tentative de paiement via Edge Function');
+      console.log('📤 Données envoyées:', requestBody);
+
       // Stratégie de fallback pour les erreurs Edge Function
       let paymentSuccess = false;
       
       // Tentative 1: Utiliser l'Edge Function si possible
       try {
-        console.log('🔄 Tentative de paiement via Edge Function');
-        
-        const requestBody = {
-          user_id: user.id,
-          amount: paymentData.amount,
-          bill_type: paymentData.billType,
-          provider: paymentData.provider,
-          account_number: paymentData.accountNumber,
-          recipient_phone: paymentData.recipientPhone
-        };
-
-        console.log('📤 Données envoyées:', requestBody);
-
         const { data, error } = await supabase.functions.invoke('process-bill-payment', {
           body: requestBody,
           headers: {
@@ -107,7 +107,7 @@ export const useRobustBillPayment = () => {
           throw new Error(`Erreur de balance: ${balanceError.message}`);
         }
 
-        // Enregistrer l'historique de paiement - utiliser la table correcte
+        // Enregistrer l'historique de paiement
         const { error: historyError } = await supabase
           .from('automatic_bills')
           .insert({
@@ -148,9 +148,7 @@ export const useRobustBillPayment = () => {
           variant: "default"
         });
 
-        // Créer une notification simple pour signaler le paiement en attente
         console.log("⚠️ Paiement en attente - notification créée");
-        
         return { success: true, isPending: true };
       }
 
