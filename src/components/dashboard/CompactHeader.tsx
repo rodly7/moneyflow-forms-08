@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, RefreshCw } from 'lucide-react';
-import UnifiedNotificationBell from '@/components/notifications/UnifiedNotificationBell';
+import { CustomerServiceButton } from '@/components/notifications/CustomerServiceButton';
 
 interface CompactHeaderProps {
   title: string;
@@ -60,11 +61,9 @@ const CompactHeader = ({
             </Button>
           )}
 
-          {/* Système de notifications unifié - remplace CustomerServiceButton */}
+          {/* Service client - remplace la cloche de notification */}
           {showNotifications && (
-            <div className="text-primary-foreground">
-              <UnifiedNotificationBell />
-            </div>
+            <CustomerServiceButton />
           )}
 
           {/* Logout Button */}
