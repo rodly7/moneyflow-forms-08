@@ -173,8 +173,8 @@ const EnhancedTransactionsCard = () => {
         id: `bill_${payment.id}`,
         type: 'bill_payment',
         amount: payment.amount,
-        description: `Facture ${payment.bill_name || 'Service'} payée`,
-        date: payment.created_at,
+        description: `Paiement de facture`,
+        date: payment.payment_date,
         status: payment.status
       });
     });
