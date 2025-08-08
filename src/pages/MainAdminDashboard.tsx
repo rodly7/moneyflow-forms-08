@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,6 +35,23 @@ const MainAdminDashboard = () => {
   const { profile } = useAuth();
   const { data, isLoading, refetch } = useAdminDashboardData();
   const [selectedTab, setSelectedTab] = useState('overview');
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  // Fetch users data for the users tab
+  const fetchUsers = async () => {
+    try {
+      const { data: usersData, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, balance, country, role, is_banned, created_at')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setUsers(usersData || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -42,6 +60,44 @@ const MainAdminDashboard = () => {
 
     return () => clearInterval(interval);
   }, [refetch]);
+
+  useEffect(() => {
+    if (selectedTab === 'users') {
+      fetchUsers();
+    }
+  }, [selectedTab]);
+
+  const handleViewUser = (user) => {
+    setSelectedUser(user);
+  };
+
+  const handleQuickRoleChange = async (userId, newRole) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      fetchUsers(); // Refresh users list
+    } catch (error) {
+      console.error('Error updating user role:', error);
+    }
+  };
+
+  const handleQuickBanToggle = async (userId, currentBanStatus) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_banned: !currentBanStatus })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      fetchUsers(); // Refresh users list
+    } catch (error) {
+      console.error('Error toggling user ban status:', error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -247,9 +303,14 @@ const MainAdminDashboard = () => {
         <TabsContent value="users" className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold tracking-tight">Gestion des Utilisateurs</h2>
-            <UserManagementActions />
           </div>
-          <UsersDataTable />
+          <UsersDataTable
+            users={users}
+            onViewUser={handleViewUser}
+            onQuickRoleChange={handleQuickRoleChange}
+            onQuickBanToggle={handleQuickBanToggle}
+            onUserUpdated={fetchUsers}
+          />
         </TabsContent>
 
         <TabsContent value="agents" className="space-y-4">
@@ -328,3 +389,4 @@ const MainAdminDashboard = () => {
 };
 
 export default MainAdminDashboard;
+
