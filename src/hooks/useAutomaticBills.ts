@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -137,35 +138,57 @@ export const useAutomaticBills = () => {
         return;
       }
 
+      console.log('🔄 Paiement de facture automatique via Edge Function');
+
+      // Préparer les données pour l'Edge Function
+      const requestBody = {
+        bill_id: billId,
+        user_id: user.id,
+        amount: bill.amount
+      };
+
+      console.log('📤 Données envoyées pour facture automatique:', requestBody);
+
       // Appeler la fonction de paiement avec gestion d'erreurs améliorée
       let data, error;
       try {
         const response = await supabase.functions.invoke('process-bill-payment', {
-          body: JSON.stringify({
-            bill_id: billId,
-            user_id: user.id,
-            amount: bill.amount
-          }),
+          body: requestBody,
           headers: {
             'Content-Type': 'application/json',
           }
         });
         data = response.data;
         error = response.error;
+
+        console.log('📥 Réponse Edge Function facture:', { data, error });
       } catch (fetchError) {
         console.error('🔄 Erreur de connexion, utilisation du système de fallback', fetchError);
         // Fallback: décrémenter directement le solde
-        console.log('🔄 Utilisation du système de fallback pour le paiement');
-        const { data: fallbackData, error: fallbackError } = await supabase.rpc('increment_balance', {
-          user_id: user.id,
-          amount: -bill.amount
+        console.log('🔄 Utilisation du système de fallback pour le paiement de facture');
+        
+        const { error: fallbackError } = await supabase.rpc('secure_increment_balance', {
+          target_user_id: user.id,
+          amount: -bill.amount,
+          operation_type: 'bill_payment',
+          performed_by: user.id
         });
         
         if (fallbackError) {
           throw new Error('Échec du paiement: ' + fallbackError.message);
         }
         
-        data = { success: true, amount: bill.amount, new_balance: fallbackData };
+        // Mettre à jour le statut de la facture
+        await supabase
+          .from('automatic_bills')
+          .update({ 
+            status: 'paid',
+            last_payment_date: new Date().toISOString(),
+            payment_attempts: 0
+          })
+          .eq('id', billId);
+        
+        data = { success: true, amount: bill.amount };
         error = null;
       }
 

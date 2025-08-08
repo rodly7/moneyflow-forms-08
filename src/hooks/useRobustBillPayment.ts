@@ -45,16 +45,27 @@ export const useRobustBillPayment = () => {
       
       // Tentative 1: Utiliser l'Edge Function si possible
       try {
+        console.log('🔄 Tentative de paiement via Edge Function');
+        
+        const requestBody = {
+          user_id: user.id,
+          amount: paymentData.amount,
+          bill_type: paymentData.billType,
+          provider: paymentData.provider,
+          account_number: paymentData.accountNumber,
+          recipient_phone: paymentData.recipientPhone
+        };
+
+        console.log('📤 Données envoyées:', requestBody);
+
         const { data, error } = await supabase.functions.invoke('process-bill-payment', {
-          body: {
-            user_id: user.id,
-            amount: paymentData.amount,
-            bill_type: paymentData.billType,
-            provider: paymentData.provider,
-            account_number: paymentData.accountNumber,
-            recipient_phone: paymentData.recipientPhone
+          body: requestBody,
+          headers: {
+            'Content-Type': 'application/json',
           }
         });
+
+        console.log('📥 Réponse reçue:', { data, error });
 
         if (!error && data?.success) {
           paymentSuccess = true;
@@ -62,9 +73,20 @@ export const useRobustBillPayment = () => {
             title: "✅ Paiement réussi",
             description: `Facture ${paymentData.provider} payée avec succès (${paymentData.amount.toLocaleString()} FCFA)`,
           });
+        } else if (error) {
+          console.error('❌ Erreur Edge Function:', error);
+          throw new Error(`Edge Function Error: ${error.message}`);
+        } else if (data && !data.success) {
+          console.error('❌ Échec du paiement:', data.message);
+          toast({
+            title: "Échec du paiement",
+            description: data.message || "Le paiement a échoué",
+            variant: "destructive"
+          });
+          return { success: false };
         }
       } catch (edgeError) {
-        console.log("❌ Edge Function indisponible, utilisation du fallback");
+        console.log("❌ Edge Function indisponible, utilisation du fallback", edgeError);
       }
 
       // Tentative 2: Fallback direct avec transaction locale
@@ -81,6 +103,7 @@ export const useRobustBillPayment = () => {
           });
 
         if (balanceError) {
+          console.error('❌ Erreur de balance:', balanceError);
           throw new Error(`Erreur de balance: ${balanceError.message}`);
         }
 
@@ -99,6 +122,7 @@ export const useRobustBillPayment = () => {
           });
 
         if (historyError) {
+          console.error('❌ Erreur d\'historique:', historyError);
           // Rembourser si l'historique échoue
           await supabase.rpc('secure_increment_balance', {
             target_user_id: user.id,
