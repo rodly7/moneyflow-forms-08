@@ -1,3 +1,4 @@
+
 import { useEffect, useCallback, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,7 +10,7 @@ interface UseAutoBalanceRefreshOptions {
 }
 
 export const useAutoBalanceRefresh = ({
-  intervalMs = 5000, // 5 secondes exactement
+  intervalMs = 3000, // 3 secondes exactement
   onBalanceChange,
   enableRealtime = true
 }: UseAutoBalanceRefreshOptions = {}) => {
@@ -21,7 +22,7 @@ export const useAutoBalanceRefresh = ({
     if (!user?.id) return;
 
     try {
-      console.log('🔄 Rafraîchissement automatique du solde...');
+      console.log('🔄 Rafraîchissement automatique du solde toutes les 3 secondes...');
       
       // Utiliser la fonction RPC pour obtenir le solde exact
       const { data: realBalance, error: rpcError } = await supabase.rpc('increment_balance', {
@@ -58,7 +59,7 @@ export const useAutoBalanceRefresh = ({
     // Rafraîchir immédiatement
     refreshBalance();
 
-    // Configurer l'intervalle
+    // Configurer l'intervalle - 3 secondes pour une mise à jour plus fréquente
     const interval = setInterval(refreshBalance, intervalMs);
 
     return () => {

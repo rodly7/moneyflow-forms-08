@@ -45,21 +45,27 @@ const EnhancedTransactionsCard = () => {
       return data || [];
     },
     enabled: !!user?.id,
+    refetchInterval: 3000, // Rafraîchir toutes les 3 secondes
   });
 
-  // Récupérer les transferts reçus
+  // Récupérer les transferts reçus - AMÉLIORÉ
   const { data: receivedTransfers } = useQuery({
     queryKey: ['received-transfers-history', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
       
       console.log('🔄 Récupération des transferts reçus pour user.id:', user.id);
+      console.log('🔄 Téléphone utilisateur:', user.phone);
       
       // Rechercher par recipient_id ET par recipient_phone pour couvrir tous les cas
       const { data, error } = await supabase
         .from('transfers')
-        .select('*')
+        .select(`
+          *,
+          sender_profile:profiles!transfers_sender_id_fkey(full_name)
+        `)
         .or(`recipient_id.eq.${user.id},recipient_phone.eq.${user.phone}`)
+        .neq('sender_id', user.id) // Exclure les transferts envoyés par l'utilisateur
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
         .limit(10);
@@ -74,6 +80,7 @@ const EnhancedTransactionsCard = () => {
       return data || [];
     },
     enabled: !!user?.id && !!user?.phone,
+    refetchInterval: 3000, // Rafraîchir toutes les 3 secondes
   });
 
   // Récupérer les retraits
@@ -100,6 +107,7 @@ const EnhancedTransactionsCard = () => {
       return data || [];
     },
     enabled: !!user?.id,
+    refetchInterval: 3000,
   });
 
   // Récupérer les dépôts/recharges
@@ -126,9 +134,10 @@ const EnhancedTransactionsCard = () => {
       return data || [];
     },
     enabled: !!user?.id,
+    refetchInterval: 3000,
   });
 
-  // Récupérer les paiements de factures
+  // Récupérer les paiements de factures - CORRIGÉ
   const { data: billPayments } = useQuery({
     queryKey: ['bill-payments-history', user?.id],
     queryFn: async () => {
@@ -136,16 +145,30 @@ const EnhancedTransactionsCard = () => {
       
       console.log('🔄 Récupération des paiements de factures pour:', user.id);
       
-      const { data, error } = await supabase
-        .from('bill_payment_history')
+      // Essayer d'abord la table bill_payments
+      let { data, error } = await supabase
+        .from('bill_payments')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
+      // Si la table bill_payments n'existe pas, essayer bill_payment_history
+      if (error && error.code === '42P01') {
+        console.log('⚠️ Table bill_payments non trouvée, essai de bill_payment_history...');
+        const result = await supabase
+          .from('bill_payment_history')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        data = result.data;
+        error = result.error;
+      }
+
       if (error) {
         console.error('❌ Erreur paiements factures:', error);
-        // Pas de fallback vers une table inexistante
         return [];
       }
       
@@ -154,9 +177,10 @@ const EnhancedTransactionsCard = () => {
       return data || [];
     },
     enabled: !!user?.id,
+    refetchInterval: 3000,
   });
 
-  // Combiner et trier toutes les transactions
+  // Combiner et trier toutes les transactions - AMÉLIORÉ
   const allTransactions: Transaction[] = React.useMemo(() => {
     const transactions: Transaction[] = [];
 
@@ -182,23 +206,18 @@ const EnhancedTransactionsCard = () => {
       });
     });
 
-    // Ajouter les transferts reçus
+    // Ajouter les transferts reçus - AMÉLIORÉ
     receivedTransfers?.forEach(transfer => {
-      // Vérifier que ce n'est pas un transfert que l'utilisateur a envoyé lui-même
-      if (transfer.sender_id !== user?.id) {
-        console.log('➕ Ajout transfert reçu:', transfer.id);
-        // Utiliser une description générique car sender_full_name n'existe pas dans le schéma
-        transactions.push({
-          id: `received_${transfer.id}`,
-          type: 'received',
-          amount: transfer.amount,
-          description: `Reçu d'un expéditeur`,
-          date: transfer.created_at,
-          status: transfer.status
-        });
-      } else {
-        console.log('⏩ Transfert ignoré (envoyé par l\'utilisateur):', transfer.id);
-      }
+      console.log('➕ Ajout transfert reçu:', transfer.id);
+      const senderName = transfer.sender_profile?.full_name || 'un expéditeur';
+      transactions.push({
+        id: `received_${transfer.id}`,
+        type: 'received',
+        amount: transfer.amount,
+        description: `Reçu de ${senderName}`,
+        date: transfer.created_at,
+        status: transfer.status
+      });
     });
 
     // Ajouter les retraits
@@ -227,15 +246,14 @@ const EnhancedTransactionsCard = () => {
       });
     });
 
-    // Ajouter les paiements de factures
+    // Ajouter les paiements de factures - CORRIGÉ
     billPayments?.forEach(payment => {
       console.log('➕ Ajout paiement facture:', payment.id);
-      // Utiliser created_at car payment_date peut ne pas exister
       transactions.push({
         id: `bill_${payment.id}`,
         type: 'bill_payment',
         amount: payment.amount,
-        description: `Paiement de facture`,
+        description: `Facture ${payment.bill_type || payment.service_name || 'payée'}`,
         date: payment.created_at,
         status: payment.status
       });
@@ -343,6 +361,7 @@ const EnhancedTransactionsCard = () => {
             <div className="text-center py-6 text-gray-500">
               <History className="w-8 h-8 mx-auto mb-2 text-gray-300" />
               <p className="text-sm">Aucune transaction récente</p>
+              <p className="text-xs text-gray-400 mt-1">Mise à jour automatique toutes les 3 secondes</p>
             </div>
           ) : (
             allTransactions.map((transaction) => (

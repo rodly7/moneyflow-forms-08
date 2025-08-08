@@ -57,7 +57,7 @@ const BalanceCard = ({
   // Déterminer la devise basée sur le pays de l'utilisateur
   const userCurrency = currency || getCurrencyForCountry(userCountry);
 
-  // Query optimisée pour récupérer le solde en temps réel (1 seconde)
+  // Query optimisée pour récupérer le solde en temps réel (3 secondes)
   const { data: realTimeBalance, isLoading: isLoadingBalance, refetch: refetchBalance } = useRealTimeQuery({
     queryKey: ['user-balance', user?.id],
     queryFn: async () => {
@@ -82,7 +82,7 @@ const BalanceCard = ({
       }
     },
     enabled: !!user?.id,
-    refetchInterval: 5000, // Rafraîchir toutes les 5 secondes
+    refetchInterval: 3000, // Rafraîchir toutes les 3 secondes
   });
 
   // Utilise le solde en temps réel si disponible, sinon le solde passé en props
@@ -199,7 +199,7 @@ const BalanceCard = ({
           
           {realTimeBalance !== undefined && realTimeBalance !== balance && (
             <p className="text-xs text-white/60 mt-1">
-              Solde mis à jour en temps réel
+              Solde mis à jour automatiquement (3s)
             </p>
           )}
           
