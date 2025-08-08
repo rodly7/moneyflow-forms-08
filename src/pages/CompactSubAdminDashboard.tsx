@@ -10,6 +10,7 @@ import CompactStatsGrid from "@/components/dashboard/CompactStatsGrid";
 import CompactActionGrid from "@/components/dashboard/CompactActionGrid";
 import CompactInfoCard from "@/components/dashboard/CompactInfoCard";
 import UserProfileInfo from "@/components/profile/UserProfileInfo";
+import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
 
 interface AgentData {
   id: string;
@@ -41,43 +42,40 @@ const CompactSubAdminDashboard = () => {
     if (user?.id) {
       setIsLoading(true);
       try {
-        // Fetch agents managed by this sub-admin with explicit typing
+        // Fetch agents managed by this sub-admin
         const { data: agentsData, error: agentsError } = await supabase
           .from('agents')
           .select('id, status, user_id')
-          .eq('territory_admin_id', user.id)
-          .returns<AgentData[]>();
+          .eq('territory_admin_id', user.id);
 
         if (agentsError) throw agentsError;
 
         const totalAgents = agentsData?.length || 0;
-        const activeAgents = agentsData?.filter((a: AgentData) => a.status === 'active').length || 0;
+        const activeAgents = agentsData?.filter((a: any) => a.status === 'active').length || 0;
 
         // Get agent user IDs for further queries
-        const agentUserIds = agentsData?.map((a: AgentData) => a.user_id).filter(Boolean) || [];
+        const agentUserIds = agentsData?.map((a: any) => a.user_id).filter(Boolean) || [];
 
         let pendingWithdrawals = 0;
         let totalTransactions = 0;
 
         if (agentUserIds.length > 0) {
-          // Fetch pending withdrawals from agents in this territory with explicit typing
+          // Fetch pending withdrawals from agents in this territory
           const { data: withdrawalsData, error: withdrawalsError } = await supabase
             .from('withdrawals')
             .select('id')
             .eq('status', 'pending')
-            .in('user_id', agentUserIds)
-            .returns<WithdrawalData[]>();
+            .in('user_id', agentUserIds);
 
           if (!withdrawalsError && withdrawalsData) {
             pendingWithdrawals = withdrawalsData.length;
           }
 
-          // Fetch total transactions from agents in this territory with explicit typing
+          // Fetch total transactions from agents in this territory
           const { data: transactionsData, error: transactionsError } = await supabase
             .from('transfers')
             .select('id')
-            .in('agent_id', agentUserIds)
-            .returns<TransferData[]>();
+            .in('agent_id', agentUserIds);
 
           if (!transactionsError && transactionsData) {
             totalTransactions = transactionsData.length;
@@ -213,6 +211,10 @@ const CompactSubAdminDashboard = () => {
           onSignOut={handleSignOut}
           isLoading={isLoading}
         />
+
+        <div className="flex justify-end mb-4">
+          <CustomerServiceButton />
+        </div>
 
         <div className="bg-card p-3 rounded-lg">
           <UserProfileInfo />
