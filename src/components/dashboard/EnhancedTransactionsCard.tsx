@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownLeft, Eye, History } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Eye, History, CreditCard, Plus } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 
 interface Transaction {
   id: string;
-  type: 'sent' | 'received' | 'withdrawal';
+  type: 'sent' | 'received' | 'withdrawal' | 'deposit' | 'bill_payment';
   amount: number;
   description: string;
   date: string;
@@ -77,6 +78,44 @@ const EnhancedTransactionsCard = () => {
     enabled: !!user?.id,
   });
 
+  // Récupérer les dépôts/recharges
+  const { data: deposits } = useQuery({
+    queryKey: ['deposits-history', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('recharges')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Récupérer les paiements de factures
+  const { data: billPayments } = useQuery({
+    queryKey: ['bill-payments-history', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('bill_payments')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
   // Combiner et trier toutes les transactions
   const allTransactions: Transaction[] = React.useMemo(() => {
     const transactions: Transaction[] = [];
@@ -111,15 +150,39 @@ const EnhancedTransactionsCard = () => {
         id: `withdrawal_${withdrawal.id}`,
         type: 'withdrawal',
         amount: withdrawal.amount,
-        description: 'Retrait d\'argent',
+        description: `Retrait vers ${withdrawal.withdrawal_phone}`,
         date: withdrawal.created_at,
         status: withdrawal.status
       });
     });
 
+    // Ajouter les dépôts
+    deposits?.forEach(deposit => {
+      transactions.push({
+        id: `deposit_${deposit.id}`,
+        type: 'deposit',
+        amount: deposit.amount,
+        description: `Dépôt ${deposit.payment_method}`,
+        date: deposit.created_at,
+        status: deposit.status
+      });
+    });
+
+    // Ajouter les paiements de factures
+    billPayments?.forEach(payment => {
+      transactions.push({
+        id: `bill_${payment.id}`,
+        type: 'bill_payment',
+        amount: payment.amount,
+        description: `Facture ${payment.bill_type}`,
+        date: payment.created_at,
+        status: payment.status
+      });
+    });
+
     // Trier par date décroissante
     return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
-  }, [sentTransfers, receivedTransfers, withdrawals]);
+  }, [sentTransfers, receivedTransfers, withdrawals, deposits, billPayments]);
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
@@ -129,6 +192,10 @@ const EnhancedTransactionsCard = () => {
         return <ArrowDownLeft className="w-4 h-4 text-green-500" />;
       case 'withdrawal':
         return <ArrowUpRight className="w-4 h-4 text-blue-500" />;
+      case 'deposit':
+        return <Plus className="w-4 h-4 text-green-500" />;
+      case 'bill_payment':
+        return <CreditCard className="w-4 h-4 text-orange-500" />;
       default:
         return <History className="w-4 h-4 text-gray-500" />;
     }
@@ -137,11 +204,12 @@ const EnhancedTransactionsCard = () => {
   const getTransactionColor = (type: string) => {
     switch (type) {
       case 'sent':
+      case 'withdrawal':
+      case 'bill_payment':
         return 'text-red-600';
       case 'received':
+      case 'deposit':
         return 'text-green-600';
-      case 'withdrawal':
-        return 'text-blue-600';
       default:
         return 'text-gray-600';
     }
@@ -151,8 +219,10 @@ const EnhancedTransactionsCard = () => {
     switch (type) {
       case 'sent':
       case 'withdrawal':
+      case 'bill_payment':
         return '-';
       case 'received':
+      case 'deposit':
         return '+';
       default:
         return '';
