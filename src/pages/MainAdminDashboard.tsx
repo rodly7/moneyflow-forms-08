@@ -1,11 +1,10 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminDashboardData } from '@/hooks/useAdminDashboardData';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, 
   TrendingUp, 
@@ -389,4 +388,3 @@ const MainAdminDashboard = () => {
 };
 
 export default MainAdminDashboard;
-
