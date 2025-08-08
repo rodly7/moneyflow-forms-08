@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -140,11 +139,15 @@ export const useAutomaticBills = () => {
 
       console.log('🔄 Paiement de facture automatique via Edge Function');
 
-      // Préparer les données pour l'Edge Function avec validation complète
+      // Utiliser la même structure que le paiement manuel pour assurer la compatibilité
       const requestBody = {
-        bill_id: billId,
         user_id: user.id,
-        amount: Number(bill.amount)
+        amount: Number(bill.amount),
+        bill_type: 'automatic_bill',
+        provider: bill.bill_name || 'automatic',
+        account_number: bill.meter_number || '',
+        recipient_phone: bill.payment_number || '',
+        bill_id: billId // Ajouter le bill_id pour la logique spécifique aux factures automatiques
       };
 
       console.log('📤 Données envoyées pour facture automatique:', requestBody);
@@ -153,7 +156,7 @@ export const useAutomaticBills = () => {
       let data, error;
       try {
         const response = await supabase.functions.invoke('process-bill-payment', {
-          body: requestBody,
+          body: JSON.stringify(requestBody),
           headers: {
             'Content-Type': 'application/json',
           }
