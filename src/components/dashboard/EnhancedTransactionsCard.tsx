@@ -48,7 +48,7 @@ const EnhancedTransactionsCard = () => {
     refetchInterval: 3000, // Rafraîchir toutes les 3 secondes
   });
 
-  // Récupérer les transferts reçus - AMÉLIORÉ
+  // Récupérer les transferts reçus - CORRIGÉ
   const { data: receivedTransfers } = useQuery({
     queryKey: ['received-transfers-history', user?.id],
     queryFn: async () => {
@@ -60,10 +60,7 @@ const EnhancedTransactionsCard = () => {
       // Rechercher par recipient_id ET par recipient_phone pour couvrir tous les cas
       const { data, error } = await supabase
         .from('transfers')
-        .select(`
-          *,
-          sender_profile:profiles!transfers_sender_id_fkey(full_name)
-        `)
+        .select('*, sender_profile:profiles!transfers_sender_id_fkey(full_name)')
         .or(`recipient_id.eq.${user.id},recipient_phone.eq.${user.phone}`)
         .neq('sender_id', user.id) // Exclure les transferts envoyés par l'utilisateur
         .eq('status', 'completed')
@@ -72,7 +69,7 @@ const EnhancedTransactionsCard = () => {
 
       if (error) {
         console.error('❌ Erreur transferts reçus:', error);
-        throw error;
+        return []; // Retourner un tableau vide en cas d'erreur
       }
       
       console.log('✅ Transferts reçus récupérés:', data?.length || 0);
@@ -100,7 +97,7 @@ const EnhancedTransactionsCard = () => {
 
       if (error) {
         console.error('❌ Erreur retraits:', error);
-        throw error;
+        return [];
       }
       
       console.log('✅ Retraits récupérés:', data?.length || 0);
@@ -127,7 +124,7 @@ const EnhancedTransactionsCard = () => {
 
       if (error) {
         console.error('❌ Erreur dépôts:', error);
-        throw error;
+        return [];
       }
       
       console.log('✅ Dépôts récupérés:', data?.length || 0);
@@ -137,7 +134,7 @@ const EnhancedTransactionsCard = () => {
     refetchInterval: 3000,
   });
 
-  // Récupérer les paiements de factures - CORRIGÉ
+  // Récupérer les paiements de factures depuis les transactions existantes
   const { data: billPayments } = useQuery({
     queryKey: ['bill-payments-history', user?.id],
     queryFn: async () => {
@@ -145,27 +142,14 @@ const EnhancedTransactionsCard = () => {
       
       console.log('🔄 Récupération des paiements de factures pour:', user.id);
       
-      // Essayer d'abord la table bill_payments
-      let { data, error } = await supabase
-        .from('bill_payments')
+      // Chercher dans les recharges avec payment_method contenant "bill" ou dans un champ spécifique
+      const { data, error } = await supabase
+        .from('recharges')
         .select('*')
         .eq('user_id', user.id)
+        .or('payment_method.ilike.%bill%,payment_method.ilike.%facture%')
         .order('created_at', { ascending: false })
         .limit(10);
-
-      // Si la table bill_payments n'existe pas, essayer bill_payment_history
-      if (error && error.code === '42P01') {
-        console.log('⚠️ Table bill_payments non trouvée, essai de bill_payment_history...');
-        const result = await supabase
-          .from('bill_payment_history')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
-        
-        data = result.data;
-        error = result.error;
-      }
 
       if (error) {
         console.error('❌ Erreur paiements factures:', error);
@@ -180,7 +164,7 @@ const EnhancedTransactionsCard = () => {
     refetchInterval: 3000,
   });
 
-  // Combiner et trier toutes les transactions - AMÉLIORÉ
+  // Combiner et trier toutes les transactions - CORRIGÉ
   const allTransactions: Transaction[] = React.useMemo(() => {
     const transactions: Transaction[] = [];
 
@@ -206,10 +190,10 @@ const EnhancedTransactionsCard = () => {
       });
     });
 
-    // Ajouter les transferts reçus - AMÉLIORÉ
+    // Ajouter les transferts reçus - CORRIGÉ
     receivedTransfers?.forEach(transfer => {
       console.log('➕ Ajout transfert reçu:', transfer.id);
-      const senderName = transfer.sender_profile?.full_name || 'un expéditeur';
+      const senderName = (transfer as any).sender_profile?.full_name || 'un expéditeur';
       transactions.push({
         id: `received_${transfer.id}`,
         type: 'received',
@@ -253,7 +237,7 @@ const EnhancedTransactionsCard = () => {
         id: `bill_${payment.id}`,
         type: 'bill_payment',
         amount: payment.amount,
-        description: `Facture ${payment.bill_type || payment.service_name || 'payée'}`,
+        description: `Facture ${payment.payment_method || 'payée'}`,
         date: payment.created_at,
         status: payment.status
       });
