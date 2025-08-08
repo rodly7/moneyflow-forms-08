@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -10,7 +9,6 @@ import CompactStatsGrid from "@/components/dashboard/CompactStatsGrid";
 import CompactActionGrid from "@/components/dashboard/CompactActionGrid";
 import CompactInfoCard from "@/components/dashboard/CompactInfoCard";
 import UserProfileInfo from "@/components/profile/UserProfileInfo";
-import CustomerServiceButton from "@/components/notifications/CustomerServiceButton";
 
 const CompactSubAdminDashboard = () => {
   const { user, profile, signOut } = useAuth();
@@ -39,29 +37,40 @@ const CompactSubAdminDashboard = () => {
         const totalAgents = agentsData?.length || 0;
         const activeAgents = agentsData?.filter(a => a.status === 'active').length || 0;
 
-        // Fetch withdrawal requests from agents in this territory
-        const agentUserIds = agentsData?.map(a => a.user_id) || [];
-        const { data: withdrawalsData, error: withdrawalsError } = await supabase
-          .from('agent_withdrawal_requests')
-          .select('id')
-          .eq('status', 'pending')
-          .in('agent_id', agentUserIds);
+        // Get agent user IDs for further queries
+        const agentUserIds = agentsData?.map(a => a.user_id).filter(Boolean) || [];
 
-        if (withdrawalsError) throw withdrawalsError;
+        let pendingWithdrawals = 0;
+        let totalTransactions = 0;
 
-        // Fetch total transactions from agents in this territory
-        const { data: transactionsData, error: transactionsError } = await supabase
-          .from('transfers')
-          .select('id')
-          .in('agent_id', agentUserIds);
+        if (agentUserIds.length > 0) {
+          // Fetch pending withdrawals from agents in this territory
+          const { data: withdrawalsData, error: withdrawalsError } = await supabase
+            .from('withdrawals')
+            .select('id')
+            .eq('status', 'pending')
+            .in('user_id', agentUserIds);
 
-        if (transactionsError) throw transactionsError;
+          if (!withdrawalsError && withdrawalsData) {
+            pendingWithdrawals = withdrawalsData.length;
+          }
+
+          // Fetch total transactions from agents in this territory
+          const { data: transactionsData, error: transactionsError } = await supabase
+            .from('transfers')
+            .select('id')
+            .in('agent_id', agentUserIds);
+
+          if (!transactionsError && transactionsData) {
+            totalTransactions = transactionsData.length;
+          }
+        }
 
         setTerritoryStats({
           totalAgents,
           activeAgents,
-          pendingWithdrawals: withdrawalsData?.length || 0,
-          totalTransactions: transactionsData?.length || 0,
+          pendingWithdrawals,
+          totalTransactions,
         });
 
       } catch (error) {
@@ -185,7 +194,6 @@ const CompactSubAdminDashboard = () => {
           onRefresh={fetchData}
           onSignOut={handleSignOut}
           isLoading={isLoading}
-          rightComponent={<CustomerServiceButton />}
         />
 
         <div className="bg-card p-3 rounded-lg">
