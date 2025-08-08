@@ -127,7 +127,7 @@ Pays: ${profile.country}`;
   const isAgent = profile?.role === 'agent';
   const buttonClass = isAgent 
     ? "relative p-2 text-white hover:bg-blue-600 transition-all duration-200 bg-blue-500 rounded-md"
-    : "relative p-2 text-primary-foreground hover:bg-white/10 transition-all duration-200";
+    : "relative p-2 text-foreground hover:bg-muted/20 transition-all duration-200";
 
   return (
     <>
