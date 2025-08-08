@@ -26,6 +26,8 @@ const EnhancedTransactionsCard = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       
+      console.log('🔄 Récupération des transferts envoyés pour:', user.id);
+      
       const { data, error } = await supabase
         .from('transfers')
         .select('*')
@@ -33,7 +35,12 @@ const EnhancedTransactionsCard = () => {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur transferts envoyés:', error);
+        throw error;
+      }
+      
+      console.log('✅ Transferts envoyés récupérés:', data?.length || 0);
       return data || [];
     },
     enabled: !!user?.id,
@@ -45,14 +52,22 @@ const EnhancedTransactionsCard = () => {
     queryFn: async () => {
       if (!user?.phone) return [];
       
+      console.log('🔄 Récupération des transferts reçus pour:', user.phone);
+      
       const { data, error } = await supabase
         .from('transfers')
         .select('*')
         .eq('recipient_phone', user.phone)
+        .eq('status', 'completed') // Seulement les transferts terminés
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur transferts reçus:', error);
+        throw error;
+      }
+      
+      console.log('✅ Transferts reçus récupérés:', data?.length || 0);
       return data || [];
     },
     enabled: !!user?.phone,
@@ -64,6 +79,8 @@ const EnhancedTransactionsCard = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       
+      console.log('🔄 Récupération des retraits pour:', user.id);
+      
       const { data, error } = await supabase
         .from('withdrawals')
         .select('*')
@@ -71,7 +88,12 @@ const EnhancedTransactionsCard = () => {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur retraits:', error);
+        throw error;
+      }
+      
+      console.log('✅ Retraits récupérés:', data?.length || 0);
       return data || [];
     },
     enabled: !!user?.id,
@@ -83,6 +105,8 @@ const EnhancedTransactionsCard = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       
+      console.log('🔄 Récupération des dépôts pour:', user.id);
+      
       const { data, error } = await supabase
         .from('recharges')
         .select('*')
@@ -90,7 +114,12 @@ const EnhancedTransactionsCard = () => {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur dépôts:', error);
+        throw error;
+      }
+      
+      console.log('✅ Dépôts récupérés:', data?.length || 0);
       return data || [];
     },
     enabled: !!user?.id,
@@ -102,14 +131,21 @@ const EnhancedTransactionsCard = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       
+      console.log('🔄 Récupération des paiements de factures pour:', user.id);
+      
       const { data, error } = await supabase
         .from('bill_payment_history')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .order('payment_date', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur paiements factures:', error);
+        throw error;
+      }
+      
+      console.log('✅ Paiements de factures récupérés:', data?.length || 0);
       return data || [];
     },
     enabled: !!user?.id,
@@ -118,6 +154,8 @@ const EnhancedTransactionsCard = () => {
   // Combiner et trier toutes les transactions
   const allTransactions: Transaction[] = React.useMemo(() => {
     const transactions: Transaction[] = [];
+
+    console.log('🔄 Combinaison des transactions...');
 
     // Ajouter les transferts envoyés
     sentTransfers?.forEach(transfer => {
@@ -131,16 +169,19 @@ const EnhancedTransactionsCard = () => {
       });
     });
 
-    // Ajouter les transferts reçus
+    // Ajouter les transferts reçus (IMPORTANT: Seulement ceux reçus par l'utilisateur actuel)
     receivedTransfers?.forEach(transfer => {
-      transactions.push({
-        id: `received_${transfer.id}`,
-        type: 'received',
-        amount: transfer.amount,
-        description: `Reçu de ${transfer.recipient_full_name || 'un expéditeur'}`,
-        date: transfer.created_at,
-        status: transfer.status
-      });
+      // Vérifier que ce n'est pas un transfert que l'utilisateur a envoyé
+      if (transfer.sender_id !== user?.id) {
+        transactions.push({
+          id: `received_${transfer.id}`,
+          type: 'received',
+          amount: transfer.amount,
+          description: `Reçu de ${transfer.recipient_full_name || 'un expéditeur'}`,
+          date: transfer.created_at,
+          status: transfer.status
+        });
+      }
     });
 
     // Ajouter les retraits
@@ -179,9 +220,22 @@ const EnhancedTransactionsCard = () => {
       });
     });
 
+    console.log('✅ Total transactions combinées:', transactions.length);
+    console.log('📊 Détail par type:', {
+      sent: transactions.filter(t => t.type === 'sent').length,
+      received: transactions.filter(t => t.type === 'received').length,
+      withdrawal: transactions.filter(t => t.type === 'withdrawal').length,
+      deposit: transactions.filter(t => t.type === 'deposit').length,
+      bill_payment: transactions.filter(t => t.type === 'bill_payment').length,
+    });
+
     // Trier par date décroissante et prendre les 5 plus récentes
-    return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
-  }, [sentTransfers, receivedTransfers, withdrawals, deposits, billPayments]);
+    const sortedTransactions = transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+    
+    console.log('🔄 Transactions affichées (5 plus récentes):', sortedTransactions);
+    
+    return sortedTransactions;
+  }, [sentTransfers, receivedTransfers, withdrawals, deposits, billPayments, user?.id]);
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
