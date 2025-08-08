@@ -81,27 +81,36 @@ const SubAdminAdvancedTools = () => {
     try {
       setLoading(true);
 
-      // Charger les agents de ce territoire
+      // Charger les profils d'agents de ce territoire
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'agent')
+        .eq('country', userCountry);
+
+      if (profilesError) throw profilesError;
+
+      // Charger les informations des agents
       const { data: agentsData, error: agentsError } = await supabase
         .from('agents')
-        .select(`
-          *,
-          profiles!inner(full_name, phone, balance, country)
-        `)
-        .eq('profiles.country', userCountry);
+        .select('*');
 
       if (agentsError) throw agentsError;
 
-      const territoryAgents: TerritoryAgent[] = agentsData?.map(agent => ({
-        id: agent.id,
-        user_id: agent.user_id,
-        full_name: agent.profiles.full_name,
-        phone: agent.profiles.phone,
-        status: agent.status,
-        balance: agent.profiles.balance,
-        country: agent.profiles.country,
-        created_at: agent.created_at
-      })) || [];
+      // Combiner les données
+      const territoryAgents: TerritoryAgent[] = profilesData?.map(profile => {
+        const agentInfo = agentsData?.find(agent => agent.user_id === profile.id);
+        return {
+          id: agentInfo?.id || profile.id,
+          user_id: profile.id,
+          full_name: profile.full_name || 'Nom inconnu',
+          phone: profile.phone || '',
+          status: agentInfo?.status || 'pending',
+          balance: profile.balance || 0,
+          country: profile.country || '',
+          created_at: profile.created_at
+        };
+      }).filter(agent => agent.country === userCountry) || [];
 
       setAgents(territoryAgents);
 
@@ -226,32 +235,21 @@ const SubAdminAdvancedTools = () => {
 
     setProcessing(true);
     try {
-      // Enregistrer le rapport
+      // Simuler l'enregistrement du rapport (utiliser la table notifications comme proxy)
+      const reportMessage = `[${reportForm.type.toUpperCase()}] ${reportForm.title}\n\n${reportForm.description}\n\nTerritoire: ${userCountry}\nPriorité: ${reportForm.priority}`;
+
       const { error } = await supabase
-        .from('sub_admin_reports')
-        .insert({
-          report_type: reportForm.type,
-          title: reportForm.title,
-          description: reportForm.description,
-          priority: reportForm.priority,
-          territory: userCountry,
-          reported_by: user?.id,
-          status: 'pending'
-        });
-
-      if (error) throw error;
-
-      // Créer une notification pour l'admin principal
-      await supabase
         .from('notifications')
         .insert({
           title: `Rapport ${reportForm.type} - ${userCountry}`,
-          message: `${reportForm.title}\n\n${reportForm.description}`,
+          message: reportMessage,
           notification_type: 'sub_admin_report',
           priority: reportForm.priority,
           created_by: user?.id,
           total_recipients: 1
         });
+
+      if (error) throw error;
 
       setReportForm({
         type: 'bug',
