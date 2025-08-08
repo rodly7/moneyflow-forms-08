@@ -27,13 +27,11 @@ const CompactSubAdminDashboard = () => {
     if (user?.id) {
       setIsLoading(true);
       try {
-        // Fetch agents managed by this sub-admin - using simpler query
-        const agentsQuery = supabase
+        // Fetch agents managed by this sub-admin - direct query execution
+        const { data: agentsData, error: agentsError } = await supabase
           .from('agents')
           .select('id, status, user_id')
           .eq('territory_admin_id', user.id);
-
-        const { data: agentsData, error: agentsError } = await agentsQuery;
 
         if (agentsError) throw agentsError;
 
@@ -47,26 +45,22 @@ const CompactSubAdminDashboard = () => {
         let totalTransactions = 0;
 
         if (agentUserIds.length > 0) {
-          // Fetch pending withdrawals - using simpler query
-          const withdrawalsQuery = supabase
+          // Fetch pending withdrawals - direct query execution
+          const { data: withdrawalsData, error: withdrawalsError } = await supabase
             .from('withdrawals')
             .select('id')
             .eq('status', 'pending')
             .in('user_id', agentUserIds);
 
-          const { data: withdrawalsData, error: withdrawalsError } = await withdrawalsQuery;
-
           if (!withdrawalsError && withdrawalsData) {
             pendingWithdrawals = withdrawalsData.length;
           }
 
-          // Fetch total transactions - using simpler query
-          const transactionsQuery = supabase
+          // Fetch total transactions - direct query execution
+          const { data: transactionsData, error: transactionsError } = await supabase
             .from('transfers')
             .select('id')
             .in('agent_id', agentUserIds);
-
-          const { data: transactionsData, error: transactionsError } = await transactionsQuery;
 
           if (!transactionsError && transactionsData) {
             totalTransactions = transactionsData.length;
