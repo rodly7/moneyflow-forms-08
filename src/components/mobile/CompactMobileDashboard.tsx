@@ -7,7 +7,7 @@ import { ArrowUpRight, QrCode, History, PiggyBank, RefreshCw, LogOut, Crown, Sta
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
-import NotificationSystem from "@/components/notifications/NotificationSystem";
+import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 import { OptimizedScrollContainer } from "./OptimizedScrollContainer";
 
@@ -106,7 +106,7 @@ const CompactMobileDashboard = memo(({
               </div>
             </div>
             <div className="flex items-center gap-0.5 flex-shrink-0">
-              <NotificationSystem />
+              <CustomerServiceButton />
               <Button 
                 variant="ghost"
                 size="sm"

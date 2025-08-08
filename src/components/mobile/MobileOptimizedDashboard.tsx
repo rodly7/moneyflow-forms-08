@@ -7,7 +7,7 @@ import { ArrowUpRight, QrCode, Wallet, History, PiggyBank, RefreshCw, LogOut, Cr
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
-import NotificationSystem from "@/components/notifications/NotificationSystem";
+import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
 
 interface MobileOptimizedDashboardProps {
   userBalance: number;
@@ -113,7 +113,7 @@ const MobileOptimizedDashboard = memo(({
                 </div>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
-                <NotificationSystem />
+                <CustomerServiceButton />
                 <Button 
                   variant="ghost" 
                   size="sm" 
