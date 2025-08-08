@@ -33,6 +33,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { AdminUserService, AdminUserData } from '@/services/adminUserService';
 import { AgentQuotaTracker } from '@/components/admin/AgentQuotaTracker';
+import AdvancedAgentManagement from '@/components/admin/AdvancedAgentManagement';
+import AdvancedReporting from '@/components/admin/AdvancedReporting';
+import AdvancedNotificationSystem from '@/components/admin/AdvancedNotificationSystem';
 
 // Widget pour dépôt rapide aux agents
 const QuickAgentDepositWidget = () => {
@@ -459,9 +462,12 @@ const MainAdminDashboard = () => {
   const navItems = [
     { id: "dashboard", label: "Tableau de Bord", icon: BarChart3 },
     { id: "users", label: "Gestion Utilisateurs", icon: Users },
+    { id: "agents", label: "Agents Avancés", icon: UserCog },
+    { id: "reports", label: "Rapports", icon: FileText },
     { id: "quotas", label: "Quotas Agents", icon: TrendingUp },
     { id: "finance", label: "Finance", icon: Wallet },
     { id: "notifications", label: "Notifications", icon: MessageSquare },
+    { id: "advanced-notifications", label: "Notifications Pro", icon: Bell },
     { id: "settings", label: "Paramètres", icon: Settings }
   ];
 
@@ -949,6 +955,21 @@ const MainAdminDashboard = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Gestion avancée des agents */}
+          <TabsContent value="agents" className="space-y-6">
+            <AdvancedAgentManagement />
+          </TabsContent>
+
+          {/* Rapports avancés */}
+          <TabsContent value="reports" className="space-y-6">
+            <AdvancedReporting />
+          </TabsContent>
+
+          {/* Notifications avancées */}
+          <TabsContent value="advanced-notifications" className="space-y-6">
+            <AdvancedNotificationSystem />
           </TabsContent>
         </Tabs>
       </div>

@@ -10,6 +10,7 @@ import CompactInfoCard from "@/components/dashboard/CompactInfoCard";
 import UserProfileInfo from "@/components/profile/UserProfileInfo";
 import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
 import { fetchSubAdminStats } from "@/utils/subAdminDashboardQueries";
+import SubAdminAdvancedTools from "@/components/admin/SubAdminAdvancedTools";
 
 const CompactSubAdminDashboard = () => {
   const { user, profile, signOut } = useAuth();
@@ -22,6 +23,7 @@ const CompactSubAdminDashboard = () => {
     pendingWithdrawals: 0,
     totalTransactions: 0,
   });
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (user?.id) {
@@ -111,9 +113,9 @@ const CompactSubAdminDashboard = () => {
       variant: "outline" as const
     },
     {
-      label: "Supprimer un Agent",
-      icon: UserMinus,
-      onClick: () => navigate('/remove-agent'),
+      label: "Outils Avancés",
+      icon: Shield,
+      onClick: () => setShowAdvancedTools(!showAdvancedTools),
       variant: "outline" as const
     },
     {
@@ -167,6 +169,13 @@ const CompactSubAdminDashboard = () => {
           titleIcon={Zap}
           actions={actionItems}
         />
+
+        {/* Section des outils avancés */}
+        {showAdvancedTools && (
+          <div className="space-y-4">
+            <SubAdminAdvancedTools />
+          </div>
+        )}
 
         <CompactInfoCard
           title="Informations Utiles"
