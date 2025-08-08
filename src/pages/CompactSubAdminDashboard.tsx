@@ -27,11 +27,14 @@ const CompactSubAdminDashboard = () => {
     if (user?.id) {
       setIsLoading(true);
       try {
-        // Fetch agents managed by this sub-admin - direct query execution
-        const { data: agentsData, error: agentsError } = await supabase
+        // Fetch agents managed by this sub-admin - with explicit type assertion
+        const agentsResponse = await supabase
           .from('agents')
           .select('id, status, user_id')
-          .eq('territory_admin_id', user.id);
+          .eq('territory_admin_id', user.id as string);
+
+        const agentsData = agentsResponse.data as Array<{id: string, status: string, user_id: string}> | null;
+        const agentsError = agentsResponse.error;
 
         if (agentsError) throw agentsError;
 
@@ -45,22 +48,28 @@ const CompactSubAdminDashboard = () => {
         let totalTransactions = 0;
 
         if (agentUserIds.length > 0) {
-          // Fetch pending withdrawals - direct query execution
-          const { data: withdrawalsData, error: withdrawalsError } = await supabase
+          // Fetch pending withdrawals - with explicit type assertion
+          const withdrawalsResponse = await supabase
             .from('withdrawals')
             .select('id')
             .eq('status', 'pending')
-            .in('user_id', agentUserIds);
+            .in('user_id', agentUserIds as string[]);
+
+          const withdrawalsData = withdrawalsResponse.data as Array<{id: string}> | null;
+          const withdrawalsError = withdrawalsResponse.error;
 
           if (!withdrawalsError && withdrawalsData) {
             pendingWithdrawals = withdrawalsData.length;
           }
 
-          // Fetch total transactions - direct query execution
-          const { data: transactionsData, error: transactionsError } = await supabase
+          // Fetch total transactions - with explicit type assertion
+          const transactionsResponse = await supabase
             .from('transfers')
             .select('id')
-            .in('agent_id', agentUserIds);
+            .in('agent_id', agentUserIds as string[]);
+
+          const transactionsData = transactionsResponse.data as Array<{id: string}> | null;
+          const transactionsError = transactionsResponse.error;
 
           if (!transactionsError && transactionsData) {
             totalTransactions = transactionsData.length;
