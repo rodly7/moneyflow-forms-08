@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -11,20 +10,6 @@ import CompactActionGrid from "@/components/dashboard/CompactActionGrid";
 import CompactInfoCard from "@/components/dashboard/CompactInfoCard";
 import UserProfileInfo from "@/components/profile/UserProfileInfo";
 import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
-
-interface AgentData {
-  id: string;
-  status: string;
-  user_id: string;
-}
-
-interface WithdrawalData {
-  id: string;
-}
-
-interface TransferData {
-  id: string;
-}
 
 const CompactSubAdminDashboard = () => {
   const { user, profile, signOut } = useAuth();
@@ -42,40 +27,46 @@ const CompactSubAdminDashboard = () => {
     if (user?.id) {
       setIsLoading(true);
       try {
-        // Fetch agents managed by this sub-admin
-        const { data: agentsData, error: agentsError } = await supabase
+        // Fetch agents managed by this sub-admin - using simpler query
+        const agentsQuery = supabase
           .from('agents')
           .select('id, status, user_id')
           .eq('territory_admin_id', user.id);
 
+        const { data: agentsData, error: agentsError } = await agentsQuery;
+
         if (agentsError) throw agentsError;
 
         const totalAgents = agentsData?.length || 0;
-        const activeAgents = agentsData?.filter((a: any) => a.status === 'active').length || 0;
+        const activeAgents = agentsData?.filter(a => a.status === 'active').length || 0;
 
         // Get agent user IDs for further queries
-        const agentUserIds = agentsData?.map((a: any) => a.user_id).filter(Boolean) || [];
+        const agentUserIds = agentsData?.map(a => a.user_id).filter(Boolean) || [];
 
         let pendingWithdrawals = 0;
         let totalTransactions = 0;
 
         if (agentUserIds.length > 0) {
-          // Fetch pending withdrawals from agents in this territory
-          const { data: withdrawalsData, error: withdrawalsError } = await supabase
+          // Fetch pending withdrawals - using simpler query
+          const withdrawalsQuery = supabase
             .from('withdrawals')
             .select('id')
             .eq('status', 'pending')
             .in('user_id', agentUserIds);
 
+          const { data: withdrawalsData, error: withdrawalsError } = await withdrawalsQuery;
+
           if (!withdrawalsError && withdrawalsData) {
             pendingWithdrawals = withdrawalsData.length;
           }
 
-          // Fetch total transactions from agents in this territory
-          const { data: transactionsData, error: transactionsError } = await supabase
+          // Fetch total transactions - using simpler query
+          const transactionsQuery = supabase
             .from('transfers')
             .select('id')
             .in('agent_id', agentUserIds);
+
+          const { data: transactionsData, error: transactionsError } = await transactionsQuery;
 
           if (!transactionsError && transactionsData) {
             totalTransactions = transactionsData.length;
