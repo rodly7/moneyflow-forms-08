@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, Clock, Phone, User, ArrowLeft } from 'lucide-react';
+import { Phone, User, ArrowLeft, MessageSquare } from 'lucide-react';
 
 interface PasswordChangeAppointmentFormProps {
   onBack: () => void;
@@ -20,8 +20,8 @@ export const PasswordChangeAppointmentForm = ({ onBack }: PasswordChangeAppointm
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
-    preferredDate: '',
-    preferredTime: '',
+    fullName: profile?.full_name || '',
+    phoneNumber: profile?.phone || '',
     reason: '',
     contactMethod: 'phone',
     additionalNotes: ''
@@ -38,7 +38,7 @@ export const PasswordChangeAppointmentForm = ({ onBack }: PasswordChangeAppointm
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user || !profile) {
+    if (!user) {
       toast({
         title: "Erreur",
         description: "Vous devez être connecté pour demander un rendez-vous",
@@ -47,7 +47,7 @@ export const PasswordChangeAppointmentForm = ({ onBack }: PasswordChangeAppointm
       return;
     }
 
-    if (!formData.preferredDate || !formData.preferredTime || !formData.reason) {
+    if (!formData.fullName || !formData.phoneNumber || !formData.reason) {
       toast({
         title: "Erreur",
         description: "Veuillez remplir tous les champs obligatoires",
@@ -63,19 +63,16 @@ export const PasswordChangeAppointmentForm = ({ onBack }: PasswordChangeAppointm
         .from('customer_support_messages')
         .insert({
           user_id: user.id,
-          message: `DEMANDE DE RENDEZ-VOUS - Changement de mot de passe
+          message: `🗓️ DEMANDE DE RENDEZ-VOUS - Changement de mot de passe
           
-📅 Date souhaitée: ${formData.preferredDate}
-🕐 Heure souhaitée: ${formData.preferredTime}
+👤 Nom complet: ${formData.fullName}
+📞 Numéro de téléphone: ${formData.phoneNumber}
 📞 Méthode de contact: ${formData.contactMethod}
 💬 Raison: ${formData.reason}
 
 ${formData.additionalNotes ? `Notes supplémentaires: ${formData.additionalNotes}` : ''}
 
---- Informations utilisateur ---
-Nom: ${profile.full_name}
-Téléphone: ${profile.phone}
-Email: ${user.email}`,
+Merci de me contacter pour fixer un rendez-vous au plus tôt.`,
           category: 'account',
           priority: 'high',
           status: 'unread'
@@ -89,8 +86,8 @@ Email: ${user.email}`,
       });
 
       setFormData({
-        preferredDate: '',
-        preferredTime: '',
+        fullName: profile?.full_name || '',
+        phoneNumber: profile?.phone || '',
         reason: '',
         contactMethod: 'phone',
         additionalNotes: ''
@@ -108,16 +105,6 @@ Email: ${user.email}`,
       setLoading(false);
     }
   };
-
-  // Générer les créneaux horaires
-  const timeSlots = [];
-  for (let hour = 8; hour <= 18; hour++) {
-    timeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
-    timeSlots.push(`${hour.toString().padStart(2, '0')}:30`);
-  }
-
-  // Date minimum (aujourd'hui)
-  const today = new Date().toISOString().split('T')[0];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4 relative overflow-hidden">
@@ -137,57 +124,51 @@ Email: ${user.email}`,
           </Button>
           
           <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mb-4">
-            <Calendar className="w-8 h-8 text-white" />
+            <MessageSquare className="w-8 h-8 text-white" />
           </div>
           
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Prendre Rendez-vous
+            Demande de Rendez-vous
           </CardTitle>
           <CardDescription className="text-base">
-            Demandez un rendez-vous pour changer votre mot de passe
+            Remplissez vos informations pour demander un rendez-vous
           </CardDescription>
         </CardHeader>
         
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="preferredDate" className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Date souhaitée *
-                </Label>
-                <Input
-                  id="preferredDate"
-                  name="preferredDate"
-                  type="date"
-                  value={formData.preferredDate}
-                  onChange={handleInputChange}
-                  min={today}
-                  required
-                  disabled={loading}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="fullName" className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Nom complet *
+              </Label>
+              <Input
+                id="fullName"
+                name="fullName"
+                type="text"
+                value={formData.fullName}
+                onChange={handleInputChange}
+                required
+                disabled={loading}
+                placeholder="Votre nom complet"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="preferredTime" className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Heure souhaitée *
-                </Label>
-                <select
-                  id="preferredTime"
-                  name="preferredTime"
-                  value={formData.preferredTime}
-                  onChange={handleInputChange}
-                  required
-                  disabled={loading}
-                  className="h-10 w-full px-3 rounded-md border border-input bg-background text-sm"
-                >
-                  <option value="">Choisir l'heure</option>
-                  {timeSlots.map(time => (
-                    <option key={time} value={time}>{time}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber" className="flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                Numéro de téléphone *
+              </Label>
+              <Input
+                id="phoneNumber"
+                name="phoneNumber"
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={handleInputChange}
+                required
+                disabled={loading}
+                placeholder="Ex: +242XXXXXXXX"
+              />
             </div>
 
             <div className="space-y-2">
@@ -256,7 +237,7 @@ Email: ${user.email}`,
                 disabled={loading}
                 className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               >
-                {loading ? 'Envoi...' : 'Demander rendez-vous'}
+                {loading ? 'Envoi...' : 'Envoyer la demande'}
               </Button>
             </div>
           </form>

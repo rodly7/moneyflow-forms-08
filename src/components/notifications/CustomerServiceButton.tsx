@@ -115,13 +115,13 @@ Merci de me contacter pour fixer un rendez-vous.`;
         variant="ghost"
         size="sm"
         onClick={() => setIsModalOpen(true)}
-        className="relative p-2 hover:bg-primary/10 transition-all duration-200"
+        className="relative p-2 text-primary-foreground hover:bg-white/10 transition-all duration-200"
       >
-        <MessageSquare className="w-6 h-6 text-primary" />
+        <MessageSquare className="w-5 h-5" />
         <span className="sr-only">Service client</span>
       </Button>
 
-      {/* Modal avec éléments HTML natifs */}
+      {/* Modal */}
       {isModalOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in-0"
@@ -140,7 +140,7 @@ Merci de me contacter pour fixer un rendez-vous.`;
                 <div>
                   <h2 className="text-lg font-semibold">Service Client</h2>
                   <p className="text-sm text-gray-600">
-                    Contactez nos administrateurs et sous-administrateurs
+                    Contactez nos administrateurs
                   </p>
                 </div>
               </div>
@@ -210,7 +210,7 @@ Merci de me contacter pour fixer un rendez-vous.`;
                   <textarea
                     id="message"
                     placeholder={requestType === 'password_appointment' 
-                      ? "Expliquez pourquoi vous souhaitez changer votre mot de passe et vos disponibilités..."
+                      ? "Expliquez pourquoi vous souhaitez changer votre mot de passe..."
                       : "Décrivez votre problème en détail..."}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
@@ -221,7 +221,7 @@ Merci de me contacter pour fixer un rendez-vous.`;
                   <p className="text-sm text-gray-500 mt-1">
                     {requestType === 'password_appointment' 
                       ? "Un administrateur vous contactera pour fixer un rendez-vous."
-                      : "Nos administrateurs et sous-administrateurs traiteront votre demande."}
+                      : "Nos administrateurs traiteront votre demande rapidement."}
                   </p>
                 </div>
 
