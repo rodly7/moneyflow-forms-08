@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Shield, Zap, BarChart3, User2, Users, PackageCheck, ClipboardList, UserPlus, UserMinus, UserCog } from "lucide-react";
 import CompactHeader from "@/components/dashboard/CompactHeader";
 import CompactStatsGrid from "@/components/dashboard/CompactStatsGrid";
@@ -10,6 +9,7 @@ import CompactActionGrid from "@/components/dashboard/CompactActionGrid";
 import CompactInfoCard from "@/components/dashboard/CompactInfoCard";
 import UserProfileInfo from "@/components/profile/UserProfileInfo";
 import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
+import { fetchSubAdminStats } from "@/utils/subAdminDashboardQueries";
 
 const CompactSubAdminDashboard = () => {
   const { user, profile, signOut } = useAuth();
@@ -27,62 +27,8 @@ const CompactSubAdminDashboard = () => {
     if (user?.id) {
       setIsLoading(true);
       try {
-        // Fetch agents managed by this sub-admin - using any to avoid deep type issues
-        const agentsQuery: any = await supabase
-          .from('agents')
-          .select('id, status, user_id')
-          .eq('territory_admin_id', user.id);
-
-        const agentsData = agentsQuery.data;
-        const agentsError = agentsQuery.error;
-
-        if (agentsError) throw agentsError;
-
-        const totalAgents = agentsData?.length || 0;
-        const activeAgents = agentsData?.filter((a: any) => a.status === 'active').length || 0;
-
-        // Get agent user IDs for further queries
-        const agentUserIds = agentsData?.map((a: any) => a.user_id).filter(Boolean) || [];
-
-        let pendingWithdrawals = 0;
-        let totalTransactions = 0;
-
-        if (agentUserIds.length > 0) {
-          // Fetch pending withdrawals - using any to avoid deep type issues
-          const withdrawalsQuery: any = await supabase
-            .from('withdrawals')
-            .select('id')
-            .eq('status', 'pending')
-            .in('user_id', agentUserIds);
-
-          const withdrawalsData = withdrawalsQuery.data;
-          const withdrawalsError = withdrawalsQuery.error;
-
-          if (!withdrawalsError && withdrawalsData) {
-            pendingWithdrawals = withdrawalsData.length;
-          }
-
-          // Fetch total transactions - using any to avoid deep type issues
-          const transactionsQuery: any = await supabase
-            .from('transfers')
-            .select('id')
-            .in('agent_id', agentUserIds);
-
-          const transactionsData = transactionsQuery.data;
-          const transactionsError = transactionsQuery.error;
-
-          if (!transactionsError && transactionsData) {
-            totalTransactions = transactionsData.length;
-          }
-        }
-
-        setTerritoryStats({
-          totalAgents,
-          activeAgents,
-          pendingWithdrawals,
-          totalTransactions,
-        });
-
+        const stats = await fetchSubAdminStats(user.id);
+        setTerritoryStats(stats);
       } catch (error) {
         console.error("Error fetching data:", error);
         toast({
