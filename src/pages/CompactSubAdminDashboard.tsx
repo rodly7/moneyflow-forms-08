@@ -27,49 +27,49 @@ const CompactSubAdminDashboard = () => {
     if (user?.id) {
       setIsLoading(true);
       try {
-        // Fetch agents managed by this sub-admin - with explicit type assertion
-        const agentsResponse = await supabase
+        // Fetch agents managed by this sub-admin - using any to avoid deep type issues
+        const agentsQuery: any = await supabase
           .from('agents')
           .select('id, status, user_id')
-          .eq('territory_admin_id', user.id as string);
+          .eq('territory_admin_id', user.id);
 
-        const agentsData = agentsResponse.data as Array<{id: string, status: string, user_id: string}> | null;
-        const agentsError = agentsResponse.error;
+        const agentsData = agentsQuery.data;
+        const agentsError = agentsQuery.error;
 
         if (agentsError) throw agentsError;
 
         const totalAgents = agentsData?.length || 0;
-        const activeAgents = agentsData?.filter(a => a.status === 'active').length || 0;
+        const activeAgents = agentsData?.filter((a: any) => a.status === 'active').length || 0;
 
         // Get agent user IDs for further queries
-        const agentUserIds = agentsData?.map(a => a.user_id).filter(Boolean) || [];
+        const agentUserIds = agentsData?.map((a: any) => a.user_id).filter(Boolean) || [];
 
         let pendingWithdrawals = 0;
         let totalTransactions = 0;
 
         if (agentUserIds.length > 0) {
-          // Fetch pending withdrawals - with explicit type assertion
-          const withdrawalsResponse = await supabase
+          // Fetch pending withdrawals - using any to avoid deep type issues
+          const withdrawalsQuery: any = await supabase
             .from('withdrawals')
             .select('id')
             .eq('status', 'pending')
-            .in('user_id', agentUserIds as string[]);
+            .in('user_id', agentUserIds);
 
-          const withdrawalsData = withdrawalsResponse.data as Array<{id: string}> | null;
-          const withdrawalsError = withdrawalsResponse.error;
+          const withdrawalsData = withdrawalsQuery.data;
+          const withdrawalsError = withdrawalsQuery.error;
 
           if (!withdrawalsError && withdrawalsData) {
             pendingWithdrawals = withdrawalsData.length;
           }
 
-          // Fetch total transactions - with explicit type assertion
-          const transactionsResponse = await supabase
+          // Fetch total transactions - using any to avoid deep type issues
+          const transactionsQuery: any = await supabase
             .from('transfers')
             .select('id')
-            .in('agent_id', agentUserIds as string[]);
+            .in('agent_id', agentUserIds);
 
-          const transactionsData = transactionsResponse.data as Array<{id: string}> | null;
-          const transactionsError = transactionsResponse.error;
+          const transactionsData = transactionsQuery.data;
+          const transactionsError = transactionsQuery.error;
 
           if (!transactionsError && transactionsData) {
             totalTransactions = transactionsData.length;
