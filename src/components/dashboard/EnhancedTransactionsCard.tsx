@@ -97,14 +97,14 @@ const EnhancedTransactionsCard = () => {
     enabled: !!user?.id,
   });
 
-  // Récupérer les paiements de factures
+  // Récupérer les paiements de factures depuis bill_payment_history
   const { data: billPayments } = useQuery({
     queryKey: ['bill-payments-history', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
       
       const { data, error } = await supabase
-        .from('bill_payments')
+        .from('bill_payment_history')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -174,7 +174,7 @@ const EnhancedTransactionsCard = () => {
         id: `bill_${payment.id}`,
         type: 'bill_payment',
         amount: payment.amount,
-        description: `Facture ${payment.bill_type}`,
+        description: `Paiement de facture`,
         date: payment.created_at,
         status: payment.status
       });
