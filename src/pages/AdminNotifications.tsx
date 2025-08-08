@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { MessageSquare, Send, ArrowLeft, Bell, List, Users, Clock, CheckCircle } from "lucide-react";
+import CustomerSupportMessages from "@/components/admin/CustomerSupportMessages";
 
 interface NotificationData {
   id: string;
@@ -244,7 +245,7 @@ const AdminNotifications = () => {
 
         {/* Tabs Navigation */}
         <Tabs defaultValue="send" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-white/80 backdrop-blur-sm shadow-lg rounded-xl h-14">
+          <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-sm shadow-lg rounded-xl h-14">
             <TabsTrigger value="send" className="flex items-center gap-2 h-10">
               <Send className="w-4 h-4" />
               <span className="hidden sm:inline">Envoyer</span>
@@ -252,6 +253,10 @@ const AdminNotifications = () => {
             <TabsTrigger value="history" className="flex items-center gap-2 h-10">
               <List className="w-4 h-4" />
               <span className="hidden sm:inline">Historique</span>
+            </TabsTrigger>
+            <TabsTrigger value="support" className="flex items-center gap-2 h-10">
+              <MessageSquare className="w-4 h-4" />
+              <span className="hidden sm:inline">Support</span>
             </TabsTrigger>
           </TabsList>
 
@@ -467,6 +472,10 @@ const AdminNotifications = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="support" className="mt-6">
+            <CustomerSupportMessages />
           </TabsContent>
         </Tabs>
       </div>

@@ -38,14 +38,9 @@ export const PasswordChangeAppointmentForm = ({ onBack }: PasswordChangeAppointm
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) {
-      toast({
-        title: "Erreur",
-        description: "Vous devez être connecté pour demander un rendez-vous",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Suppression de l'obligation de connexion: la demande peut être envoyée sans être connecté
+    // L'identification se fera via le numéro de téléphone saisi
+
 
     if (!formData.fullName || !formData.phoneNumber || !formData.reason) {
       toast({
@@ -59,10 +54,28 @@ export const PasswordChangeAppointmentForm = ({ onBack }: PasswordChangeAppointm
     setLoading(true);
 
     try {
+      // Identifier le compte via le numéro de téléphone saisi
+      const { data: profileMatch, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .eq('phone', formData.phoneNumber)
+        .limit(1)
+        .single();
+
+      if (profileError || !profileMatch) {
+        toast({
+          title: 'Numéro introuvable',
+          description: "Nous n'avons pas trouvé de compte avec ce numéro. Veuillez saisir le numéro lié à votre compte ou contacter un administrateur.",
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase
         .from('customer_support_messages')
         .insert({
-          user_id: user.id,
+          user_id: profileMatch.id,
           message: `🗓️ DEMANDE DE RENDEZ-VOUS - Changement de mot de passe
           
 👤 Nom complet: ${formData.fullName}
