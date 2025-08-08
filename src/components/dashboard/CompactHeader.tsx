@@ -1,65 +1,69 @@
-import { memo } from "react";
-import { Button } from "@/components/ui/button";
-import { RefreshCw, LogOut, MessageSquare } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import EnhancedNotificationSystem from "@/components/notifications/EnhancedNotificationSystem";
+
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { LogOut, User } from 'lucide-react';
+import { CustomerServiceButton } from '@/components/notifications/CustomerServiceButton';
 
 interface CompactHeaderProps {
   title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  onRefresh?: () => void;
+  subtitle?: string;
+  icon?: React.ReactNode;
   onSignOut: () => void;
-  isLoading?: boolean;
   showNotifications?: boolean;
+  className?: string;
 }
 
-const CompactHeader = memo(({ 
+const CompactHeader = ({ 
   title, 
   subtitle, 
   icon, 
-  onRefresh, 
   onSignOut, 
-  isLoading = false,
-  showNotifications = true 
+  showNotifications = true,
+  className = ""
 }: CompactHeaderProps) => {
-  const navigate = useNavigate();
-  
   return (
-    <div className="flex items-center justify-between p-3 bg-card rounded-lg border">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-          {icon}
-        </div>
-        <div>
-          <h1 className="text-lg font-bold">{title}</h1>
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {showNotifications && <EnhancedNotificationSystem />}
-        {onRefresh && (
-          <Button 
-            variant="outline" 
-            size="default" 
-            onClick={onRefresh}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-        )}
-        <Button 
-          variant="outline" 
-          size="default" 
-          onClick={onSignOut}
-        >
-          <LogOut className="w-3.5 h-3.5" />
-        </Button>
-      </div>
-    </div>
-  );
-});
+    <header className={`bg-gradient-to-r from-primary via-primary/95 to-primary/90 text-primary-foreground shadow-lg transition-all duration-300 ${className}`}>
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo et titre */}
+          <div className="flex items-center space-x-3">
+            {icon && (
+              <div className="p-2 bg-white/10 rounded-lg backdrop-blur-sm">
+                {icon}
+              </div>
+            )}
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold truncate">{title}</h1>
+              {subtitle && (
+                <p className="text-sm text-primary-foreground/80 truncate">{subtitle}</p>
+              )}
+            </div>
+          </div>
 
-CompactHeader.displayName = 'CompactHeader';
+          {/* Actions */}
+          <div className="flex items-center space-x-2">
+            {/* Service Client */}
+            {showNotifications && (
+              <div className="relative">
+                <CustomerServiceButton />
+              </div>
+            )}
+
+            {/* Bouton de déconnexion */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onSignOut}
+              className="text-primary-foreground hover:bg-white/10 transition-all duration-200"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="sr-only">Déconnexion</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
 
 export default CompactHeader;

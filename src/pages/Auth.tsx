@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Icons } from "@/components/ui/icons";
 import { countries } from "@/data/countries";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Zap, Shield, User, Phone, MapPin, Lock, ArrowLeft, Sparkles, Crown, Eye, EyeOff, CheckCircle2, Mail, KeyRound } from "lucide-react";
-import { ForgotPasswordForm } from "@/components/auth/ForgotPasswordForm";
+import { Zap, Shield, User, Phone, MapPin, Lock, ArrowLeft, Sparkles, Crown, Eye, EyeOff, CheckCircle2, Mail, Calendar } from "lucide-react";
+import { PasswordChangeAppointmentForm } from "@/components/auth/PasswordChangeAppointmentForm";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -37,8 +37,8 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   
-  // Forgot password state
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  // Appointment state
+  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
 
   const handleCountryChange = (value: string) => {
     const selectedCountry = countries.find(c => c.name === value);
@@ -109,7 +109,6 @@ const Auth = () => {
         errorMessage = "Numéro de téléphone ou mot de passe incorrect. Vérifiez que vous utilisez exactement le même numéro qu'à l'inscription.";
       } else if (error.message.includes("Un compte existe déjà") || error.message.includes("User already registered")) {
         errorMessage = "Un compte existe déjà avec ce numéro. Basculement vers la connexion...";
-        // Automatiquement basculer vers la connexion et pré-remplir le numéro
         setTimeout(() => {
           setIsSignUp(false);
           setLoginPhone(phone || loginPhone);
@@ -127,35 +126,26 @@ const Auth = () => {
     }
   };
 
-
-  if (showForgotPassword) {
+  if (showAppointmentForm) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Background effects */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10"></div>
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/20 rounded-full filter blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/20 rounded-full filter blur-3xl animate-pulse delay-1000"></div>
-        
-        <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />
-      </div>
+      <PasswordChangeAppointmentForm onBack={() => setShowAppointmentForm(false)} />
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      {/* Back to home button */}
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 flex items-center justify-center p-4 transition-all duration-500">
       <Button
         variant="ghost"
         onClick={() => navigate('/')}
-        className="fixed top-4 left-4 text-muted-foreground hover:text-foreground z-20"
+        className="fixed top-4 left-4 text-muted-foreground hover:text-foreground z-20 transition-all duration-200"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
         Accueil
       </Button>
 
-      <Card className="w-full max-w-md shadow-lg border">
+      <Card className="w-full max-w-md shadow-xl border-0 bg-card/95 backdrop-blur-sm transition-all duration-300 hover:shadow-2xl">
         <CardHeader className="space-y-2 text-center pb-4">
-          <div className="mx-auto w-12 h-12 bg-primary rounded-full flex items-center justify-center mb-2">
+          <div className="mx-auto w-12 h-12 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center mb-2 transition-transform duration-200 hover:scale-110">
             {isAgentMode ? (
               <Crown className="w-6 h-6 text-primary-foreground" />
             ) : (
@@ -163,7 +153,7 @@ const Auth = () => {
             )}
           </div>
           
-          <CardTitle className="text-2xl font-bold">
+          <CardTitle className="text-2xl font-bold transition-colors duration-200">
             {isSignUp ? (
               <>
                 {isAgentMode ? "Devenir Agent" : "Créer un compte"}
@@ -173,7 +163,7 @@ const Auth = () => {
             )}
           </CardTitle>
           
-          <CardDescription>
+          <CardDescription className="transition-colors duration-200">
             {isSignUp ? (
               <>
                 {isAgentMode ? "Rejoignez notre réseau d'agents" : "Rejoignez SendFlow"}
@@ -189,7 +179,7 @@ const Auth = () => {
             {isSignUp ? (
               <>
                 {/* Full Name */}
-                <div className="space-y-2">
+                <div className="space-y-2 transition-all duration-200">
                   <Label htmlFor="fullName" className="flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Nom complet
@@ -201,12 +191,12 @@ const Auth = () => {
                     required
                     disabled={loading}
                     placeholder="Entrez votre nom complet"
-                    className="h-12"
+                    className="h-12 transition-all duration-200 focus:shadow-md"
                   />
                 </div>
 
-                {/* Country - Select HTML natif */}
-                <div className="space-y-2">
+                {/* Country */}
+                <div className="space-y-2 transition-all duration-200">
                   <Label htmlFor="country" className="flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
                     Pays
@@ -215,7 +205,7 @@ const Auth = () => {
                     id="country"
                     value={country} 
                     onChange={(e) => handleCountryChange(e.target.value)}
-                    className="h-12 w-full px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    className="h-12 w-full px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all duration-200"
                   >
                     <option value="">Sélectionnez votre pays</option>
                     {countries.map((country) => (
@@ -226,8 +216,8 @@ const Auth = () => {
                   </select>
                 </div>
 
-                {/* City - Select HTML natif */}
-                <div className="space-y-2">
+                {/* City */}
+                <div className="space-y-2 transition-all duration-200">
                   <Label htmlFor="address" className="flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
                     Ville
@@ -237,7 +227,7 @@ const Auth = () => {
                     value={address} 
                     onChange={(e) => setAddress(e.target.value)}
                     disabled={!country}
-                    className="h-12 w-full px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-12 w-full px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
                   >
                     <option value="">Sélectionnez votre ville</option>
                     {availableCities.map((city) => (
@@ -248,8 +238,8 @@ const Auth = () => {
                   </select>
                 </div>
 
-                {/* Phone Number with country code */}
-                <div className="space-y-2">
+                {/* Phone Number */}
+                <div className="space-y-2 transition-all duration-200">
                   <Label htmlFor="phone" className="flex items-center gap-2">
                     <Phone className="w-4 h-4" />
                     Numéro de téléphone
@@ -268,13 +258,13 @@ const Auth = () => {
                       onChange={handlePhoneNumberChange}
                       required
                       disabled={loading || !selectedCountryCode}
-                      className="h-12 flex-1"
+                      className="h-12 flex-1 transition-all duration-200 focus:shadow-md"
                     />
                   </div>
                 </div>
 
                 {/* Password */}
-                <div className="space-y-2">
+                <div className="space-y-2 transition-all duration-200">
                   <Label htmlFor="password" className="flex items-center gap-2">
                     <Lock className="w-4 h-4" />
                     Mot de passe
@@ -289,13 +279,13 @@ const Auth = () => {
                       disabled={loading}
                       minLength={6}
                       placeholder="Au moins 6 caractères"
-                      className="h-12 pr-10"
+                      className="h-12 pr-10 transition-all duration-200 focus:shadow-md"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 transition-all duration-200"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -306,7 +296,7 @@ const Auth = () => {
             ) : (
               <>
                 {/* Login Phone */}
-                <div className="space-y-2">
+                <div className="space-y-2 transition-all duration-200">
                   <Label htmlFor="loginPhone" className="flex items-center gap-2">
                     <Phone className="w-4 h-4" />
                     Numéro de téléphone
@@ -319,12 +309,12 @@ const Auth = () => {
                     onChange={(e) => setLoginPhone(e.target.value)}
                     required
                     disabled={loading}
-                    className="h-12"
+                    className="h-12 transition-all duration-200 focus:shadow-md"
                   />
                 </div>
 
                 {/* Login Password */}
-                <div className="space-y-2">
+                <div className="space-y-2 transition-all duration-200">
                   <Label htmlFor="loginPassword" className="flex items-center gap-2">
                     <Lock className="w-4 h-4" />
                     Mot de passe
@@ -339,13 +329,13 @@ const Auth = () => {
                       disabled={loading}
                       minLength={6}
                       placeholder="Votre mot de passe"
-                      className="h-12 pr-10"
+                      className="h-12 pr-10 transition-all duration-200 focus:shadow-md"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 transition-all duration-200"
                       onClick={() => setShowLoginPassword(!showLoginPassword)}
                     >
                       {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -358,7 +348,7 @@ const Auth = () => {
             {/* Submit Button */}
             <Button 
               type="submit" 
-              className="w-full mt-6" 
+              className="w-full mt-6 h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary transition-all duration-200 transform hover:scale-[1.02]" 
               disabled={loading}
             >
               {loading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
@@ -376,31 +366,30 @@ const Auth = () => {
               type="button"
               variant="outline"
               onClick={() => setIsSignUp(!isSignUp)}
-              className="w-full"
+              className="w-full h-12 transition-all duration-200 hover:shadow-md"
               disabled={loading}
             >
               {isSignUp ? "Déjà un compte? Se connecter" : "Pas de compte? S'inscrire"}
             </Button>
 
-            {/* Forgot Password Link */}
+            {/* Password Change Appointment Link */}
             {!isSignUp && (
               <div className="text-center mt-4">
                 <Button
                   type="button"
                   variant="link"
-                  onClick={() => setShowForgotPassword(true)}
-                  className="text-sm text-muted-foreground flex items-center justify-center gap-2"
+                  onClick={() => setShowAppointmentForm(true)}
+                  className="text-sm text-muted-foreground flex items-center justify-center gap-2 hover:text-primary transition-all duration-200"
                   disabled={loading}
                 >
-                  <KeyRound className="w-4 h-4" />
-                  Mot de passe oublié ?
+                  <Calendar className="w-4 h-4" />
+                  Prendre rendez-vous pour changer le mot de passe
                 </Button>
               </div>
             )}
           </form>
         </CardContent>
       </Card>
-      
     </div>
   );
 };

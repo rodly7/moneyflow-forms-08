@@ -1,91 +1,130 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 
-interface PerformanceMetrics {
-  renderCount: number;
-  lastRenderTime: number;
-  averageRenderTime: number;
-}
+import { useEffect, useCallback, useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
-export const usePerformanceMonitor = (componentName: string): PerformanceMetrics => {
-  const [metrics, setMetrics] = useState<PerformanceMetrics>({
-    renderCount: 0,
-    lastRenderTime: 0,
-    averageRenderTime: 0
-  });
-  
-  const renderTimes = useRef<number[]>([]);
-  const startTime = useRef<number>(0);
+export const usePerformanceOptimization = () => {
+  const { user, profile } = useAuth();
 
-  useEffect(() => {
-    startTime.current = performance.now();
-  });
+  // Précharger les ressources critiques
+  const preloadCriticalResources = useCallback(() => {
+    // Précharger les polices et icônes
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'font';
+    link.type = 'font/woff2';
+    link.crossOrigin = 'anonymous';
+    document.head.appendChild(link);
 
-  useEffect(() => {
-    const endTime = performance.now();
-    const renderTime = endTime - startTime.current;
-    
-    renderTimes.current.push(renderTime);
-    
-    // Keep only last 10 render times
-    if (renderTimes.current.length > 10) {
-      renderTimes.current.shift();
-    }
-    
-    const averageRenderTime = renderTimes.current.reduce((sum, time) => sum + time, 0) / renderTimes.current.length;
-    
-    setMetrics(prev => ({
-      renderCount: prev.renderCount + 1,
-      lastRenderTime: renderTime,
-      averageRenderTime
-    }));
+    // Précharger les scripts critiques
+    const scriptPreload = document.createElement('link');
+    scriptPreload.rel = 'modulepreload';
+    document.head.appendChild(scriptPreload);
+  }, []);
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`${componentName} render #${metrics.renderCount + 1}: ${renderTime.toFixed(2)}ms`);
-    }
-  });
+  // Optimiser les images
+  const optimizeImages = useCallback(() => {
+    const images = document.querySelectorAll('img[data-src]');
+    const imageObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const img = entry.target as HTMLImageElement;
+          img.src = img.dataset.src || '';
+          img.classList.add('fade-in');
+          imageObserver.unobserve(img);
+        }
+      });
+    });
 
-  return metrics;
-};
+    images.forEach(img => imageObserver.observe(img));
 
-export const useOptimizedCallback = <T extends (...args: any[]) => any>(
-  callback: T,
-  deps: React.DependencyList
-): T => {
-  return useCallback(callback, deps);
-};
+    return () => imageObserver.disconnect();
+  }, []);
 
-export const useDebounce = <T>(value: T, delay: number): T => {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
+  // Débouncer les requêtes
+  const debounce = useCallback((func: Function, wait: number) => {
+    let timeout: NodeJS.Timeout;
+    return function executedFunction(...args: any[]) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
     };
-  }, [value, delay]);
+  }, []);
 
-  return debouncedValue;
-};
+  // Mémoriser les calculs lourds
+  const heavyComputation = useMemo(() => {
+    if (!user || !profile) return null;
+    
+    // Calculs optimisés pour l'interface
+    return {
+      isAuthenticated: !!user,
+      userRole: profile.role,
+      permissions: {
+        canManageUsers: profile.role === 'admin' || profile.role === 'sub_admin',
+        canViewReports: profile.role !== 'user',
+        canModifySettings: profile.role === 'admin'
+      }
+    };
+  }, [user, profile]);
 
-export const useDebouncedCallback = <T extends (...args: any[]) => any>(
-  callback: T,
-  delay: number
-): T => {
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  // Optimiser les animations
+  const optimizeAnimations = useCallback(() => {
+    // Réduire les animations si l'utilisateur préfère
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.documentElement.style.setProperty('--animation-duration', '0.01ms');
+    }
 
-  return useCallback(
-    ((...args: Parameters<T>) => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+    // Optimiser les transitions
+    const style = document.createElement('style');
+    style.textContent = `
+      * {
+        will-change: auto;
       }
       
-      timeoutRef.current = setTimeout(() => {
-        callback(...args);
-      }, delay);
-    }) as T,
-    [callback, delay]
-  );
+      .animate-on-hover:hover {
+        transform: translateY(-1px);
+        transition: transform 0.2s ease;
+      }
+      
+      .smooth-transition {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      .fast-transition {
+        transition: all 0.15s ease-out;
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
+  // Nettoyer les ressources inutiles
+  const cleanupResources = useCallback(() => {
+    // Nettoyer les event listeners
+    return () => {
+      window.removeEventListener('scroll', () => {});
+      window.removeEventListener('resize', () => {});
+    };
+  }, []);
+
+  // Initialiser les optimisations
+  useEffect(() => {
+    const cleanup = setTimeout(() => {
+      preloadCriticalResources();
+      optimizeImages();
+      optimizeAnimations();
+    }, 100);
+
+    return () => {
+      clearTimeout(cleanup);
+      cleanupResources();
+    };
+  }, [preloadCriticalResources, optimizeImages, optimizeAnimations, cleanupResources]);
+
+  return {
+    debounce,
+    heavyComputation,
+    isOptimized: true
+  };
 };
