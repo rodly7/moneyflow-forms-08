@@ -1,17 +1,16 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, Zap, FileText, History, BarChart3, User2, Users, MapPin, PackageCheck, ClipboardList, UserPlus, UserMinus, UserCog } from "lucide-react";
+import { Shield, Zap, BarChart3, User2, Users, PackageCheck, ClipboardList, UserPlus, UserMinus, UserCog } from "lucide-react";
 import CompactHeader from "@/components/dashboard/CompactHeader";
 import CompactStatsGrid from "@/components/dashboard/CompactStatsGrid";
 import CompactActionGrid from "@/components/dashboard/CompactActionGrid";
 import CompactInfoCard from "@/components/dashboard/CompactInfoCard";
 import UserProfileInfo from "@/components/profile/UserProfileInfo";
-import { Card, CardContent } from "@/components/ui/card";
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import CustomerServiceButton from "@/components/notifications/CustomerServiceButton";
 
 const CompactSubAdminDashboard = () => {
   const { user, profile, signOut } = useAuth();
@@ -29,20 +28,40 @@ const CompactSubAdminDashboard = () => {
     if (user?.id) {
       setIsLoading(true);
       try {
-        // Fetch territory stats
-        const { data: statsData, error: statsError } = await supabase.rpc('get_territory_stats', {
-          sub_admin_id: user.id
-        });
+        // Fetch agents managed by this sub-admin
+        const { data: agentsData, error: agentsError } = await supabase
+          .from('agents')
+          .select('id, status, user_id')
+          .eq('territory_admin_id', user.id);
 
-        if (statsError) {
-          throw statsError;
-        }
+        if (agentsError) throw agentsError;
+
+        const totalAgents = agentsData?.length || 0;
+        const activeAgents = agentsData?.filter(a => a.status === 'active').length || 0;
+
+        // Fetch withdrawal requests from agents in this territory
+        const agentUserIds = agentsData?.map(a => a.user_id) || [];
+        const { data: withdrawalsData, error: withdrawalsError } = await supabase
+          .from('agent_withdrawal_requests')
+          .select('id')
+          .eq('status', 'pending')
+          .in('agent_id', agentUserIds);
+
+        if (withdrawalsError) throw withdrawalsError;
+
+        // Fetch total transactions from agents in this territory
+        const { data: transactionsData, error: transactionsError } = await supabase
+          .from('transfers')
+          .select('id')
+          .in('agent_id', agentUserIds);
+
+        if (transactionsError) throw transactionsError;
 
         setTerritoryStats({
-          totalAgents: statsData?.total_agents || 0,
-          activeAgents: statsData?.active_agents || 0,
-          pendingWithdrawals: statsData?.pending_withdrawals || 0,
-          totalTransactions: statsData?.total_transactions || 0,
+          totalAgents,
+          activeAgents,
+          pendingWithdrawals: withdrawalsData?.length || 0,
+          totalTransactions: transactionsData?.length || 0,
         });
 
       } catch (error) {
@@ -166,6 +185,7 @@ const CompactSubAdminDashboard = () => {
           onRefresh={fetchData}
           onSignOut={handleSignOut}
           isLoading={isLoading}
+          rightComponent={<CustomerServiceButton />}
         />
 
         <div className="bg-card p-3 rounded-lg">
