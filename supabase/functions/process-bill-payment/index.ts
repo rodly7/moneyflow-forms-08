@@ -18,6 +18,7 @@ interface BillPaymentRequest {
 }
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       headers: corsHeaders,
@@ -74,6 +75,7 @@ Deno.serve(async (req) => {
 
     const { user_id, amount, bill_type, provider, account_number, recipient_phone, bill_id } = requestBody
 
+    // Validation des paramètres requis
     if (!user_id || !amount || (!bill_type && !bill_id)) {
       return new Response(
         JSON.stringify({ 
