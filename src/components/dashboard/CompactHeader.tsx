@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, RefreshCw } from 'lucide-react';
-import { UnifiedNotificationBell } from '@/components/notifications/UnifiedNotificationBell';
+import UnifiedNotificationBell from '@/components/notifications/UnifiedNotificationBell';
 
 interface CompactHeaderProps {
   title: string;
