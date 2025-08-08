@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +25,11 @@ export interface AdminDashboardStats {
   adminBalance: number;
   totalCommissions: number;
   totalVolume: number;
+  totalTransactionVolume: number;
+  todayTransactions: number;
+  newUsersToday: number;
+  pendingTransactions: number;
+  pendingAgents: number;
   topAgent: AgentPerformanceData | null;
   agents: AgentPerformanceData[];
   anomalies: Array<{
@@ -49,6 +55,11 @@ export const useAdminDashboardData = () => {
     adminBalance: 0,
     totalCommissions: 0,
     totalVolume: 0,
+    totalTransactionVolume: 0,
+    todayTransactions: 0,
+    newUsersToday: 0,
+    pendingTransactions: 0,
+    pendingAgents: 0,
     topAgent: null,
     agents: [],
     anomalies: [],
@@ -68,9 +79,16 @@ export const useAdminDashboardData = () => {
       // Récupérer tous les utilisateurs pour avoir le compte total
       const { data: allUsersData, error: usersError } = await supabase
         .from('profiles')
-        .select('id, role, is_banned, balance');
+        .select('id, role, is_banned, balance, created_at');
 
       if (usersError) throw usersError;
+
+      // Calculate new users today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const newUsersToday = allUsersData?.filter(u => 
+        new Date(u.created_at) >= today
+      ).length || 0;
 
       // Récupérer les agents avec leurs profils
       const { data: agentsData, error: agentsError } = await supabase
@@ -81,6 +99,21 @@ export const useAdminDashboardData = () => {
         `);
 
       if (agentsError) throw agentsError;
+
+      // Count pending agents
+      const pendingAgents = agentsData?.filter(a => a.status === 'pending').length || 0;
+
+      // Get today's transfers for today's transaction count
+      const { data: todayTransfersData } = await supabase
+        .from('transfers')
+        .select('id, amount, status')
+        .gte('created_at', today.toISOString());
+
+      const todayTransactions = todayTransfersData?.length || 0;
+      const totalTransactionVolume = todayTransfersData?.reduce((sum, t) => sum + t.amount, 0) || 0;
+
+      // Count pending transactions
+      const pendingTransactions = todayTransfersData?.filter(t => t.status === 'pending').length || 0;
 
       // Récupérer les profils des agents
       const agentUserIds = agentsData?.map(a => a.user_id) || [];
@@ -186,6 +219,11 @@ export const useAdminDashboardData = () => {
         adminBalance,
         totalCommissions,
         totalVolume,
+        totalTransactionVolume,
+        todayTransactions,
+        newUsersToday,
+        pendingTransactions,
+        pendingAgents,
         topAgent,
         agents: agentsPerformance,
         anomalies: anomalies.slice(0, 10),

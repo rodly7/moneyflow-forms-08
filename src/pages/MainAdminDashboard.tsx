@@ -18,17 +18,17 @@ import {
   Wrench
 } from 'lucide-react';
 
-// Import existing components
-import { UsersDataTable } from '@/components/admin/UsersDataTable';
-import { UserManagementActions } from '@/components/admin/UserManagementActions';
-import { TransactionMonitor } from '@/components/admin/TransactionMonitor';
-import { NotificationSender } from '@/components/admin/NotificationSender';
-import { TreasuryDashboard } from '@/components/treasury/TreasuryDashboard';
+// Import existing components with correct syntax (default exports)
+import UsersDataTable from '@/components/admin/UsersDataTable';
+import UserManagementActions from '@/components/admin/UserManagementActions';
+import TransactionMonitor from '@/components/admin/TransactionMonitor';
+import NotificationSender from '@/components/admin/NotificationSender';
+import TreasuryDashboard from '@/components/treasury/TreasuryDashboard';
 
-// Import new advanced components
-import { AdvancedAgentManagement } from '@/components/admin/AdvancedAgentManagement';
-import { AdvancedReporting } from '@/components/admin/AdvancedReporting';
-import { AdvancedNotificationSystem } from '@/components/admin/AdvancedNotificationSystem';
+// Import new advanced components with correct syntax (default exports)
+import AdvancedAgentManagement from '@/components/admin/AdvancedAgentManagement';
+import AdvancedReporting from '@/components/admin/AdvancedReporting';
+import AdvancedNotificationSystem from '@/components/admin/AdvancedNotificationSystem';
 
 const MainAdminDashboard = () => {
   const { profile } = useAuth();
@@ -261,7 +261,7 @@ const MainAdminDashboard = () => {
         </TabsContent>
 
         <TabsContent value="treasury" className="space-y-4">
-          <TreasuryDashboard />
+          <TreasuryDashboard onRefresh={refetch} />
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-4">
