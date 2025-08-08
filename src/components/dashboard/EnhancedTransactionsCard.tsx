@@ -50,15 +50,16 @@ const EnhancedTransactionsCard = () => {
   const { data: receivedTransfers } = useQuery({
     queryKey: ['received-transfers-history', user?.id],
     queryFn: async () => {
-      if (!user?.phone) return [];
+      if (!user?.id) return [];
       
-      console.log('🔄 Récupération des transferts reçus pour:', user.phone);
+      console.log('🔄 Récupération des transferts reçus pour user.id:', user.id);
       
+      // Rechercher par recipient_id ET par recipient_phone pour couvrir tous les cas
       const { data, error } = await supabase
         .from('transfers')
         .select('*')
-        .eq('recipient_phone', user.phone)
-        .eq('status', 'completed') // Seulement les transferts terminés
+        .or(`recipient_id.eq.${user.id},recipient_phone.eq.${user.phone}`)
+        .eq('status', 'completed')
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -68,9 +69,10 @@ const EnhancedTransactionsCard = () => {
       }
       
       console.log('✅ Transferts reçus récupérés:', data?.length || 0);
+      console.log('📋 Détails transferts reçus:', data);
       return data || [];
     },
-    enabled: !!user?.phone,
+    enabled: !!user?.id && !!user?.phone,
   });
 
   // Récupérer les retraits
@@ -125,7 +127,7 @@ const EnhancedTransactionsCard = () => {
     enabled: !!user?.id,
   });
 
-  // Récupérer les paiements de factures depuis bill_payment_history
+  // Récupérer les paiements de factures
   const { data: billPayments } = useQuery({
     queryKey: ['bill-payments-history', user?.id],
     queryFn: async () => {
@@ -137,15 +139,32 @@ const EnhancedTransactionsCard = () => {
         .from('bill_payment_history')
         .select('*')
         .eq('user_id', user.id)
-        .order('payment_date', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(10);
 
       if (error) {
         console.error('❌ Erreur paiements factures:', error);
-        throw error;
+        console.log('ℹ️ Tentative avec la table bills...');
+        
+        // Fallback: essayer la table 'bills' si bill_payment_history n'existe pas
+        const { data: billsData, error: billsError } = await supabase
+          .from('bills')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (billsError) {
+          console.error('❌ Erreur table bills aussi:', billsError);
+          return [];
+        }
+        
+        console.log('✅ Paiements de factures récupérés depuis bills:', billsData?.length || 0);
+        return billsData || [];
       }
       
-      console.log('✅ Paiements de factures récupérés:', data?.length || 0);
+      console.log('✅ Paiements de factures récupérés depuis bill_payment_history:', data?.length || 0);
+      console.log('📋 Détails paiements factures:', data);
       return data || [];
     },
     enabled: !!user?.id,
@@ -156,9 +175,17 @@ const EnhancedTransactionsCard = () => {
     const transactions: Transaction[] = [];
 
     console.log('🔄 Combinaison des transactions...');
+    console.log('📊 Données disponibles:', {
+      sentTransfers: sentTransfers?.length || 0,
+      receivedTransfers: receivedTransfers?.length || 0,
+      withdrawals: withdrawals?.length || 0,
+      deposits: deposits?.length || 0,
+      billPayments: billPayments?.length || 0,
+    });
 
     // Ajouter les transferts envoyés
     sentTransfers?.forEach(transfer => {
+      console.log('➕ Ajout transfert envoyé:', transfer.id);
       transactions.push({
         id: `sent_${transfer.id}`,
         type: 'sent',
@@ -169,23 +196,27 @@ const EnhancedTransactionsCard = () => {
       });
     });
 
-    // Ajouter les transferts reçus (IMPORTANT: Seulement ceux reçus par l'utilisateur actuel)
+    // Ajouter les transferts reçus
     receivedTransfers?.forEach(transfer => {
-      // Vérifier que ce n'est pas un transfert que l'utilisateur a envoyé
+      // Vérifier que ce n'est pas un transfert que l'utilisateur a envoyé lui-même
       if (transfer.sender_id !== user?.id) {
+        console.log('➕ Ajout transfert reçu:', transfer.id);
         transactions.push({
           id: `received_${transfer.id}`,
           type: 'received',
           amount: transfer.amount,
-          description: `Reçu de ${transfer.recipient_full_name || 'un expéditeur'}`,
+          description: `Reçu de ${transfer.sender_full_name || 'un expéditeur'}`,
           date: transfer.created_at,
           status: transfer.status
         });
+      } else {
+        console.log('⏩ Transfert ignoré (envoyé par l\'utilisateur):', transfer.id);
       }
     });
 
     // Ajouter les retraits
     withdrawals?.forEach(withdrawal => {
+      console.log('➕ Ajout retrait:', withdrawal.id);
       transactions.push({
         id: `withdrawal_${withdrawal.id}`,
         type: 'withdrawal',
@@ -198,6 +229,7 @@ const EnhancedTransactionsCard = () => {
 
     // Ajouter les dépôts
     deposits?.forEach(deposit => {
+      console.log('➕ Ajout dépôt:', deposit.id);
       transactions.push({
         id: `deposit_${deposit.id}`,
         type: 'deposit',
@@ -210,12 +242,14 @@ const EnhancedTransactionsCard = () => {
 
     // Ajouter les paiements de factures
     billPayments?.forEach(payment => {
+      console.log('➕ Ajout paiement facture:', payment.id);
+      const paymentDate = payment.payment_date || payment.created_at;
       transactions.push({
         id: `bill_${payment.id}`,
         type: 'bill_payment',
         amount: payment.amount,
-        description: `Paiement de facture`,
-        date: payment.payment_date,
+        description: `Paiement de facture ${payment.bill_type || ''}`,
+        date: paymentDate,
         status: payment.status
       });
     });
