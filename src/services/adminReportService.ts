@@ -183,65 +183,81 @@ export class AdminReportService {
   }
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
-    // Use raw query result without complex typing
-    const subAdminsQuery = await supabase
-      .from('profiles')
-      .select('id, full_name, country')
-      .eq('role', 'sub_admin');
+    try {
+      // Use explicit typing to avoid infinite recursion
+      const { data: subAdminsData, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, country')
+        .eq('role', 'sub_admin');
 
-    if (subAdminsQuery.error) throw subAdminsQuery.error;
+      if (error) throw error;
 
-    const subAdminReports: SubAdminReport[] = [];
-    const subAdmins = subAdminsQuery.data;
+      const subAdminReports: SubAdminReport[] = [];
+      
+      if (!subAdminsData || subAdminsData.length === 0) {
+        return subAdminReports;
+      }
 
-    if (!subAdmins) return subAdminReports;
+      for (const subAdmin of subAdminsData) {
+        try {
+          // Get agents count with explicit typing
+          const { data: agentsData } = await supabase
+            .from('agents')
+            .select('user_id')
+            .eq('territory_admin_id', subAdmin.id);
 
-    for (const subAdmin of subAdmins) {
-      // Simple agent count query without complex typing
-      const agentsQuery = await supabase
-        .from('agents')
-        .select('user_id')
-        .eq('territory_admin_id', subAdmin.id);
+          const agentCount = agentsData?.length || 0;
+          let totalVolume = 0;
 
-      const agentCount = agentsQuery.data?.length || 0;
+          // Calculate total volume if there are agents
+          if (agentCount > 0 && agentsData) {
+            // Extract agent IDs with explicit typing
+            const agentIds: string[] = agentsData
+              .map((agent: any) => agent.user_id)
+              .filter((id: any): id is string => Boolean(id));
 
-      // Calculate total volume with basic approach
-      let totalVolume = 0;
-      if (agentCount > 0 && agentsQuery.data) {
-        const agentIds: string[] = [];
-        
-        // Extract agent IDs manually to avoid type issues
-        for (const agent of agentsQuery.data) {
-          if (agent.user_id) {
-            agentIds.push(agent.user_id);
+            if (agentIds.length > 0) {
+              const { data: performanceData } = await supabase
+                .from('agent_monthly_performance')
+                .select('total_volume')
+                .in('agent_id', agentIds);
+
+              if (performanceData) {
+                totalVolume = performanceData.reduce((sum: number, perf: any) => {
+                  const volume = Number(perf.total_volume) || 0;
+                  return sum + volume;
+                }, 0);
+              }
+            }
           }
-        }
 
-        if (agentIds.length > 0) {
-          const performanceQuery = await supabase
-            .from('agent_monthly_performance')
-            .select('total_volume')
-            .in('agent_id', agentIds);
-
-          if (performanceQuery.data) {
-            totalVolume = performanceQuery.data.reduce((sum: number, perf: any) => {
-              return sum + (Number(perf.total_volume) || 0);
-            }, 0);
-          }
+          subAdminReports.push({
+            sub_admin_id: subAdmin.id,
+            sub_admin_name: subAdmin.full_name || 'Unknown',
+            agents_managed: agentCount,
+            territory: subAdmin.country || 'Non défini',
+            total_volume: totalVolume,
+            commission_percentage: 0.15 // 15% pour les sous-admins
+          });
+        } catch (subError) {
+          console.warn(`Error processing sub-admin ${subAdmin.id}:`, subError);
+          // Continue with next sub-admin
+          subAdminReports.push({
+            sub_admin_id: subAdmin.id,
+            sub_admin_name: subAdmin.full_name || 'Unknown',
+            agents_managed: 0,
+            territory: subAdmin.country || 'Non défini',
+            total_volume: 0,
+            commission_percentage: 0.15
+          });
         }
       }
 
-      subAdminReports.push({
-        sub_admin_id: subAdmin.id,
-        sub_admin_name: subAdmin.full_name || 'Unknown',
-        agents_managed: agentCount,
-        territory: subAdmin.country || 'Non défini',
-        total_volume: totalVolume,
-        commission_percentage: 0.15 // 15% pour les sous-admins
-      });
+      return subAdminReports;
+    } catch (error) {
+      console.error('Error fetching sub-admins data:', error);
+      return [];
     }
-
-    return subAdminReports;
   }
 
   static async getTreasuryRevenue(startDate: Date, endDate: Date) {
