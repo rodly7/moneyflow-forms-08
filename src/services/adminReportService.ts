@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface WeeklyReport {
@@ -210,20 +211,23 @@ export class AdminReportService {
 
   private static async processSubAdminReport(admin: any): Promise<SubAdminReport> {
     try {
-      const { count: agentsCount } = await supabase
+      // Use a simpler query pattern to avoid type inference issues
+      const agentsQuery = await supabase
         .from('agents')
-        .select('user_id', { count: 'exact', head: true })
+        .select('user_id')
         .eq('territory_admin_id', admin.id);
 
+      const agentsCount = agentsQuery.data ? agentsQuery.data.length : 0;
+
       let totalVolume = 0;
-      if (agentsCount && agentsCount > 0) {
+      if (agentsCount > 0) {
         totalVolume = await this.calculateSubAdminVolume(admin.id);
       }
 
       return {
         sub_admin_id: admin.id || '',
         sub_admin_name: admin.full_name || 'Unknown',
-        agents_managed: agentsCount || 0,
+        agents_managed: agentsCount,
         territory: admin.country || 'Non défini',
         total_volume: totalVolume,
         commission_percentage: 0.15
@@ -244,17 +248,17 @@ export class AdminReportService {
 
   private static async calculateSubAdminVolume(subAdminId: string): Promise<number> {
     try {
-      const { data: agents } = await supabase
+      const agentsQuery = await supabase
         .from('agents')
         .select('user_id')
         .eq('territory_admin_id', subAdminId);
 
-      if (!agents || agents.length === 0) {
+      if (!agentsQuery.data || agentsQuery.data.length === 0) {
         return 0;
       }
 
       const userIds: string[] = [];
-      agents.forEach(agent => {
+      agentsQuery.data.forEach(agent => {
         if (agent.user_id) {
           userIds.push(agent.user_id);
         }
@@ -264,17 +268,17 @@ export class AdminReportService {
         return 0;
       }
 
-      const { data: performance } = await supabase
+      const performanceQuery = await supabase
         .from('agent_monthly_performance')
         .select('total_volume')
         .in('agent_id', userIds);
 
-      if (!performance) {
+      if (!performanceQuery.data) {
         return 0;
       }
 
       let totalVolume = 0;
-      performance.forEach(perf => {
+      performanceQuery.data.forEach(perf => {
         const volume = Number(perf.total_volume);
         if (!isNaN(volume)) {
           totalVolume += volume;
