@@ -184,73 +184,65 @@ export class AdminReportService {
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
     try {
-      // Use basic fetch without complex type inference
-      const subAdminResponse = await supabase.rpc('get_basic_data', {
-        table_name: 'profiles',
-        columns: 'id, full_name, country',
-        where_clause: "role = 'sub_admin'"
-      });
+      // Simple query to get sub-admins without complex type inference
+      const { data: subAdmins, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, country')
+        .eq('role', 'sub_admin');
 
-      // If RPC doesn't exist, fall back to basic query with any type
-      let subAdminsData: any[];
-      
-      if (subAdminResponse.error) {
-        const basicQuery = await supabase
-          .from('profiles')
-          .select('id, full_name, country')
-          .eq('role', 'sub_admin');
-        
-        if (basicQuery.error) {
-          console.error('Error fetching sub-admins:', basicQuery.error);
-          return [];
-        }
-        
-        subAdminsData = basicQuery.data as any[] || [];
-      } else {
-        subAdminsData = subAdminResponse.data as any[] || [];
+      if (error) {
+        console.error('Error fetching sub-admins:', error);
+        return [];
       }
 
-      if (subAdminsData.length === 0) {
+      if (!subAdmins || subAdmins.length === 0) {
         return [];
       }
 
       const reports: SubAdminReport[] = [];
 
-      // Use basic iteration without complex type chains
-      for (const admin of subAdminsData) {
+      // Process each sub-admin with simple typing
+      for (let i = 0; i < subAdmins.length; i++) {
+        const admin = subAdmins[i];
+        
         try {
-          // Count agents with basic query
-          const agentCountQuery = await supabase
+          // Get agent count with basic query
+          const { count: agentCount } = await supabase
             .from('agents')
-            .select('user_id', { count: 'exact' })
+            .select('*', { count: 'exact', head: true })
             .eq('territory_admin_id', admin.id || '');
 
-          const agentCount = agentCountQuery.count || 0;
-          
-          // Get agent IDs if any exist
-          const agentData = agentCountQuery.data as any[] || [];
-          const agentIds = agentData.map((a: any) => a.user_id).filter(Boolean);
-          
+          // Get agents managed by this sub-admin
+          const { data: agentsList } = await supabase
+            .from('agents')
+            .select('user_id')
+            .eq('territory_admin_id', admin.id || '');
+
           let totalVolume = 0;
 
-          if (agentIds.length > 0) {
-            // Basic performance query
-            const perfQuery = await supabase
-              .from('agent_monthly_performance')
-              .select('total_volume')
-              .in('agent_id', agentIds);
+          if (agentsList && agentsList.length > 0) {
+            // Get performance data for managed agents
+            const agentIds = agentsList.map(a => a.user_id).filter(Boolean);
+            
+            if (agentIds.length > 0) {
+              const { data: performanceData } = await supabase
+                .from('agent_monthly_performance')
+                .select('total_volume')
+                .in('agent_id', agentIds);
 
-            const perfData = perfQuery.data as any[] || [];
-            totalVolume = perfData.reduce((sum: number, p: any) => {
-              const vol = parseFloat(p.total_volume || '0');
-              return sum + (isNaN(vol) ? 0 : vol);
-            }, 0);
+              if (performanceData) {
+                totalVolume = performanceData.reduce((sum, perf) => {
+                  const volume = Number(perf.total_volume || 0);
+                  return sum + (isNaN(volume) ? 0 : volume);
+                }, 0);
+              }
+            }
           }
 
           const report: SubAdminReport = {
             sub_admin_id: String(admin.id || ''),
             sub_admin_name: String(admin.full_name || 'Unknown'),
-            agents_managed: agentCount,
+            agents_managed: agentCount || 0,
             territory: String(admin.country || 'Non défini'),
             total_volume: totalVolume,
             commission_percentage: 0.15
