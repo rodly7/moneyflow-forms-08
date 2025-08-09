@@ -15,7 +15,7 @@ interface Message {
   profiles: {
     full_name: string;
     phone: string;
-  };
+  } | null;
 }
 
 export const SimpleMessagesTab = () => {
@@ -40,14 +40,32 @@ export const SimpleMessagesTab = () => {
       const { data, error } = await supabase
         .from('customer_support_messages')
         .select(`
-          *,
-          profiles (full_name, phone)
+          id,
+          user_id,
+          message,
+          category,
+          status,
+          priority,
+          created_at,
+          profiles!customer_support_messages_user_id_fkey (full_name, phone)
         `)
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
-      setMessages(data || []);
+      
+      const formattedMessages: Message[] = (data || []).map(msg => ({
+        id: msg.id,
+        user_id: msg.user_id,
+        message: msg.message,
+        category: msg.category,
+        status: msg.status,
+        priority: msg.priority,
+        created_at: msg.created_at,
+        profiles: msg.profiles || null
+      }));
+      
+      setMessages(formattedMessages);
     } catch (error) {
       console.error('Erreur lors du chargement des messages:', error);
     } finally {
@@ -266,7 +284,7 @@ export const SimpleMessagesTab = () => {
                     <strong>{msg.profiles?.full_name || 'Utilisateur inconnu'}</strong>
                     <br />
                     <small style={{ color: '#666' }}>
-                      {msg.profiles?.phone} • {new Date(msg.created_at).toLocaleString('fr-FR')}
+                      {msg.profiles?.phone || 'N/A'} • {new Date(msg.created_at).toLocaleString('fr-FR')}
                     </small>
                   </div>
                   <div style={{ display: 'flex', gap: '5px' }}>

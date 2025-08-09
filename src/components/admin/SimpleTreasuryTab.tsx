@@ -14,7 +14,7 @@ interface BalanceFlow {
   profiles: {
     full_name: string;
     phone: string;
-  };
+  } | null;
 }
 
 export const SimpleTreasuryTab = () => {
@@ -38,27 +38,27 @@ export const SimpleTreasuryTab = () => {
 
   const fetchBalanceFlows = async () => {
     try {
+      // Fetch from profiles table for balance operations instead of audit_logs
       const { data, error } = await supabase
-        .from('audit_logs')
-        .select(`
-          *,
-          profiles!audit_logs_user_id_fkey (full_name, phone)
-        `)
-        .eq('table_name', 'profiles')
+        .from('profiles')
+        .select('id, full_name, phone, balance, created_at')
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(20);
 
       if (error) throw error;
       
-      // Transform audit logs to balance flows format
-      const transformedFlows = (data || []).map(log => ({
-        id: log.id,
-        user_id: log.user_id || '',
-        amount: log.new_values?.amount || 0,
-        type: log.action.includes('credit') ? 'credit' : 'debit',
-        description: log.action,
-        created_at: log.created_at,
-        profiles: log.profiles
+      // Transform to balance flows format for display
+      const transformedFlows: BalanceFlow[] = (data || []).map(profile => ({
+        id: profile.id,
+        user_id: profile.id,
+        amount: profile.balance,
+        type: 'balance',
+        description: `Solde actuel: ${profile.balance} FCFA`,
+        created_at: profile.created_at,
+        profiles: {
+          full_name: profile.full_name || 'N/A',
+          phone: profile.phone || 'N/A'
+        }
       }));
       
       setFlows(transformedFlows);
@@ -294,13 +294,13 @@ export const SimpleTreasuryTab = () => {
       {/* Historique des flux */}
       <div>
         <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: 'bold' }}>
-          Historique des opérations
+          Soldes des utilisateurs récents
         </h3>
 
         {loading ? (
-          <p>Chargement des opérations...</p>
+          <p>Chargement des données...</p>
         ) : flows.length === 0 ? (
-          <p>Aucune opération récente</p>
+          <p>Aucune donnée disponible</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {flows.map((flow) => (
@@ -320,18 +320,18 @@ export const SimpleTreasuryTab = () => {
                   <strong>{flow.profiles?.full_name || 'Utilisateur inconnu'}</strong>
                   <br />
                   <small style={{ color: '#666' }}>
-                    {flow.profiles?.phone} • {new Date(flow.created_at).toLocaleString('fr-FR')}
+                    {flow.profiles?.phone || 'N/A'} • {new Date(flow.created_at).toLocaleString('fr-FR')}
                   </small>
                   <br />
                   <small>{flow.description}</small>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <span style={{
-                    color: flow.type === 'credit' ? '#28a745' : '#dc3545',
+                    color: flow.amount >= 0 ? '#28a745' : '#dc3545',
                     fontWeight: 'bold',
                     fontSize: '18px'
                   }}>
-                    {flow.type === 'credit' ? '+' : '-'}{formatAmount(flow.amount)}
+                    {formatAmount(flow.amount)}
                   </span>
                 </div>
               </div>
