@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface WeeklyReport {
@@ -184,7 +183,7 @@ export class AdminReportService {
   }
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
-    // Simplify the query to avoid type instantiation issues
+    // Use basic query without complex select typing
     const { data: subAdmins, error: subAdminsError } = await supabase
       .from('profiles')
       .select('id, full_name, country')
@@ -197,37 +196,32 @@ export class AdminReportService {
     if (!subAdmins) return subAdminReports;
 
     for (const subAdmin of subAdmins) {
-      // Use explicit typing to avoid inference issues
-      const agentsQuery = await supabase
+      // Use basic query to avoid type complexity
+      const { data: agentsData } = await supabase
         .from('agents')
-        .select('id, user_id')
+        .select('user_id')
         .eq('territory_admin_id', subAdmin.id);
 
-      const managedAgents = agentsQuery.data || [];
-      const agentCount = managedAgents.length;
+      const agentCount = agentsData ? agentsData.length : 0;
 
-      // Calculate total volume with explicit types
+      // Calculate total volume with simple approach
       let totalVolume = 0;
-      if (agentCount > 0) {
-        // Extract user_ids with explicit type assertion
-        const agentUserIds: string[] = [];
-        for (const agent of managedAgents) {
-          if (agent.user_id) {
-            agentUserIds.push(agent.user_id);
-          }
-        }
+      if (agentCount > 0 && agentsData) {
+        // Use simple map to extract user_ids
+        const userIds = agentsData
+          .map(agent => agent.user_id)
+          .filter(Boolean);
 
-        if (agentUserIds.length > 0) {
-          const performanceQuery = await supabase
+        if (userIds.length > 0) {
+          const { data: performanceData } = await supabase
             .from('agent_monthly_performance')
             .select('total_volume')
-            .in('agent_id', agentUserIds);
+            .in('agent_id', userIds);
 
-          const performances = performanceQuery.data;
-          if (performances) {
-            for (const perf of performances) {
-              totalVolume += perf.total_volume || 0;
-            }
+          if (performanceData) {
+            totalVolume = performanceData.reduce((sum, perf) => {
+              return sum + (perf.total_volume || 0);
+            }, 0);
           }
         }
       }
