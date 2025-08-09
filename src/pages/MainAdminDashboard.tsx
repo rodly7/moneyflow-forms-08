@@ -32,6 +32,13 @@ import AdvancedNotificationSystem from '@/components/admin/AdvancedNotificationS
 import CustomerSupportMessages from '@/components/admin/CustomerSupportMessages';
 import SystemSettings from '@/components/admin/SystemSettings';
 
+// Import des nouveaux composants simplifiés
+import SimpleAdvancedTab from '@/components/admin/SimpleAdvancedTab';
+import SimpleAgentsTab from '@/components/admin/SimpleAgentsTab';
+import SimpleTreasuryTab from '@/components/admin/SimpleTreasuryTab';
+import SimpleSettingsTab from '@/components/admin/SimpleSettingsTab';
+import SimpleMessagesTab from '@/components/admin/SimpleMessagesTab';
+
 const MainAdminDashboard = () => {
   const { profile, signOut } = useAuth();
   const { data, isLoading, refetch } = useAdminDashboardData();
@@ -345,59 +352,7 @@ const MainAdminDashboard = () => {
 
           {/* Dashboard Avancé */}
           <TabsContent value="advanced" className="space-y-4">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5 text-purple-500" />
-                    Rapports Avancés
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <AdvancedReporting />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5 text-gray-500" />
-                    Paramètres Système
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-medium mb-2">Limites de Transaction</h4>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span>Utilisateur quotidien</span>
-                            <span className="font-medium">500,000 FCFA</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Agent quotidien</span>
-                            <span className="font-medium">2,000,000 FCFA</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-medium mb-2">Frais de Transaction</h4>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span>National</span>
-                            <span className="font-medium">1%</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>International</span>
-                            <span className="font-medium">4.5-6.5%</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <SimpleAdvancedTab />
           </TabsContent>
 
           {/* Gestion Utilisateurs */}
@@ -446,28 +401,12 @@ const MainAdminDashboard = () => {
 
           {/* Gestion Agents */}
           <TabsContent value="agents" className="space-y-4">
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <UserCog className="h-6 w-6 text-orange-500" />
-                  Gestion Avancée des Agents
-                </h2>
-              </div>
-              <AdvancedAgentManagement />
-            </div>
+            <SimpleAgentsTab />
           </TabsContent>
 
           {/* Trésorerie */}
           <TabsContent value="treasury" className="space-y-4">
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <DollarSign className="h-6 w-6 text-yellow-600" />
-                  Dashboard Trésorerie
-                </h2>
-              </div>
-              <TreasuryDashboard onRefresh={refetch} />
-            </div>
+            <SimpleTreasuryTab />
           </TabsContent>
 
           {/* Surveillance des Transactions */}
@@ -494,55 +433,14 @@ const MainAdminDashboard = () => {
             </div>
           </TabsContent>
 
-          {/* Paramètres Système - NOUVEAU */}
+          {/* Paramètres Système */}
           <TabsContent value="settings" className="space-y-6">
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <Settings className="h-6 w-6 text-gray-600" />
-                    Paramètres Système
-                  </h2>
-                  <p className="text-gray-600 mt-1">Configurez et contrôlez les fonctionnalités du système</p>
-                </div>
-              </div>
-              <SystemSettings />
-            </div>
+            <SimpleSettingsTab />
           </TabsContent>
 
           {/* Notifications & Messages */}
           <TabsContent value="notifications" className="space-y-6">
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bell className="h-5 w-5 text-red-500" />
-                    Système de Notifications Avancé
-                  </CardTitle>
-                  <CardDescription>
-                    Envoyez des notifications ciblées aux utilisateurs et agents
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <AdvancedNotificationSystem />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bell className="h-5 w-5 text-blue-500" />
-                    Messages Support Client
-                  </CardTitle>
-                  <CardDescription>
-                    Gérez les messages des utilisateurs et agents, et répondez directement
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <CustomerSupportMessages />
-                </CardContent>
-              </Card>
-            </div>
+            <SimpleMessagesTab />
           </TabsContent>
         </Tabs>
       </div>
