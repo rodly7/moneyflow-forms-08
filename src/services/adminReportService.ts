@@ -184,100 +184,96 @@ export class AdminReportService {
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
     try {
-      // Simple query without complex type inference
-      const subAdminQuery = await supabase
-        .from('profiles')
-        .select('id, full_name, country')
-        .eq('role', 'sub_admin');
+      // Use basic fetch without complex type inference
+      const subAdminResponse = await supabase.rpc('get_basic_data', {
+        table_name: 'profiles',
+        columns: 'id, full_name, country',
+        where_clause: "role = 'sub_admin'"
+      });
 
-      if (subAdminQuery.error) {
-        console.error('Error fetching sub-admins:', subAdminQuery.error);
-        return [];
-      }
-
-      const subAdminsData = subAdminQuery.data;
-      if (!subAdminsData || subAdminsData.length === 0) {
-        return [];
-      }
-
-      const subAdminReports: SubAdminReport[] = [];
-
-      // Process each sub-admin individually to avoid complex type chains
-      for (let i = 0; i < subAdminsData.length; i++) {
-        const subAdmin = subAdminsData[i];
+      // If RPC doesn't exist, fall back to basic query with any type
+      let subAdminsData: any[];
+      
+      if (subAdminResponse.error) {
+        const basicQuery = await supabase
+          .from('profiles')
+          .select('id, full_name, country')
+          .eq('role', 'sub_admin');
         
-        try {
-          // Simple agent count query
-          const agentQuery = await supabase
-            .from('agents')
-            .select('user_id')
-            .eq('territory_admin_id', subAdmin.id);
+        if (basicQuery.error) {
+          console.error('Error fetching sub-admins:', basicQuery.error);
+          return [];
+        }
+        
+        subAdminsData = basicQuery.data as any[] || [];
+      } else {
+        subAdminsData = subAdminResponse.data as any[] || [];
+      }
 
-          const agentsData = agentQuery.data || [];
-          const agentCount = agentsData.length;
+      if (subAdminsData.length === 0) {
+        return [];
+      }
+
+      const reports: SubAdminReport[] = [];
+
+      // Use basic iteration without complex type chains
+      for (const admin of subAdminsData) {
+        try {
+          // Count agents with basic query
+          const agentCountQuery = await supabase
+            .from('agents')
+            .select('user_id', { count: 'exact' })
+            .eq('territory_admin_id', admin.id || '');
+
+          const agentCount = agentCountQuery.count || 0;
+          
+          // Get agent IDs if any exist
+          const agentData = agentCountQuery.data as any[] || [];
+          const agentIds = agentData.map((a: any) => a.user_id).filter(Boolean);
           
           let totalVolume = 0;
 
-          // Only calculate volume if there are agents
-          if (agentCount > 0) {
-            // Extract agent IDs manually
-            const agentIds: string[] = [];
-            for (const agent of agentsData) {
-              if (agent && agent.user_id && typeof agent.user_id === 'string') {
-                agentIds.push(agent.user_id);
-              }
-            }
+          if (agentIds.length > 0) {
+            // Basic performance query
+            const perfQuery = await supabase
+              .from('agent_monthly_performance')
+              .select('total_volume')
+              .in('agent_id', agentIds);
 
-            if (agentIds.length > 0) {
-              // Simple performance query
-              const performanceQuery = await supabase
-                .from('agent_monthly_performance')
-                .select('total_volume')
-                .in('agent_id', agentIds);
-
-              if (performanceQuery.data) {
-                for (const perf of performanceQuery.data) {
-                  if (perf && perf.total_volume) {
-                    const volume = Number(perf.total_volume);
-                    if (!isNaN(volume)) {
-                      totalVolume += volume;
-                    }
-                  }
-                }
-              }
-            }
+            const perfData = perfQuery.data as any[] || [];
+            totalVolume = perfData.reduce((sum: number, p: any) => {
+              const vol = parseFloat(p.total_volume || '0');
+              return sum + (isNaN(vol) ? 0 : vol);
+            }, 0);
           }
 
-          // Create report entry
           const report: SubAdminReport = {
-            sub_admin_id: subAdmin.id || '',
-            sub_admin_name: subAdmin.full_name || 'Unknown',
+            sub_admin_id: String(admin.id || ''),
+            sub_admin_name: String(admin.full_name || 'Unknown'),
             agents_managed: agentCount,
-            territory: subAdmin.country || 'Non défini',
+            territory: String(admin.country || 'Non défini'),
             total_volume: totalVolume,
             commission_percentage: 0.15
           };
 
-          subAdminReports.push(report);
+          reports.push(report);
 
-        } catch (subError) {
-          console.warn(`Error processing sub-admin ${subAdmin.id}:`, subError);
+        } catch (error) {
+          console.warn(`Error processing sub-admin ${admin.id}:`, error);
           
           // Add fallback entry
-          const fallbackReport: SubAdminReport = {
-            sub_admin_id: subAdmin.id || '',
-            sub_admin_name: subAdmin.full_name || 'Unknown',
+          reports.push({
+            sub_admin_id: String(admin.id || ''),
+            sub_admin_name: String(admin.full_name || 'Unknown'),
             agents_managed: 0,
-            territory: subAdmin.country || 'Non défini',
+            territory: String(admin.country || 'Non défini'),
             total_volume: 0,
             commission_percentage: 0.15
-          };
-
-          subAdminReports.push(fallbackReport);
+          });
         }
       }
 
-      return subAdminReports;
+      return reports;
     } catch (error) {
       console.error('Error fetching sub-admins data:', error);
       return [];
