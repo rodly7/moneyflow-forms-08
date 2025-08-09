@@ -184,66 +184,58 @@ export class AdminReportService {
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
     try {
-      // Simple query to get sub-admins without complex type inference
-      const { data: subAdmins, error } = await supabase
+      // Simple query with explicit typing
+      const subAdminQuery = await supabase
         .from('profiles')
         .select('id, full_name, country')
         .eq('role', 'sub_admin');
 
-      if (error) {
-        console.error('Error fetching sub-admins:', error);
+      if (subAdminQuery.error) {
+        console.error('Error fetching sub-admins:', subAdminQuery.error);
         return [];
       }
 
+      const subAdmins = subAdminQuery.data;
       if (!subAdmins || subAdmins.length === 0) {
         return [];
       }
 
       const reports: SubAdminReport[] = [];
 
-      // Process each sub-admin with simple typing
-      for (let i = 0; i < subAdmins.length; i++) {
-        const admin = subAdmins[i];
-        
+      // Process each sub-admin individually
+      for (const admin of subAdmins) {
         try {
-          // Get agent count with basic query
-          const { count: agentCount } = await supabase
-            .from('agents')
-            .select('*', { count: 'exact', head: true })
-            .eq('territory_admin_id', admin.id || '');
-
-          // Get agents managed by this sub-admin
-          const { data: agentsList } = await supabase
+          // Get agents count using a simple query
+          const agentsQuery = await supabase
             .from('agents')
             .select('user_id')
-            .eq('territory_admin_id', admin.id || '');
+            .eq('territory_admin_id', admin.id);
+
+          const agentsList = agentsQuery.data || [];
+          const agentCount = agentsList.length;
+          const agentIds = agentsList.map(agent => agent.user_id).filter(Boolean);
 
           let totalVolume = 0;
 
-          if (agentsList && agentsList.length > 0) {
-            // Get performance data for managed agents
-            const agentIds = agentsList.map(a => a.user_id).filter(Boolean);
-            
-            if (agentIds.length > 0) {
-              const { data: performanceData } = await supabase
-                .from('agent_monthly_performance')
-                .select('total_volume')
-                .in('agent_id', agentIds);
+          // Get performance data if we have agents
+          if (agentIds.length > 0) {
+            const performanceQuery = await supabase
+              .from('agent_monthly_performance')
+              .select('total_volume')
+              .in('agent_id', agentIds);
 
-              if (performanceData) {
-                totalVolume = performanceData.reduce((sum, perf) => {
-                  const volume = Number(perf.total_volume || 0);
-                  return sum + (isNaN(volume) ? 0 : volume);
-                }, 0);
-              }
-            }
+            const performanceData = performanceQuery.data || [];
+            totalVolume = performanceData.reduce((sum, perf) => {
+              const volume = Number(perf.total_volume) || 0;
+              return sum + volume;
+            }, 0);
           }
 
           const report: SubAdminReport = {
-            sub_admin_id: String(admin.id || ''),
-            sub_admin_name: String(admin.full_name || 'Unknown'),
-            agents_managed: agentCount || 0,
-            territory: String(admin.country || 'Non défini'),
+            sub_admin_id: admin.id,
+            sub_admin_name: admin.full_name || 'Unknown',
+            agents_managed: agentCount,
+            territory: admin.country || 'Non défini',
             total_volume: totalVolume,
             commission_percentage: 0.15
           };
@@ -255,10 +247,10 @@ export class AdminReportService {
           
           // Add fallback entry
           reports.push({
-            sub_admin_id: String(admin.id || ''),
-            sub_admin_name: String(admin.full_name || 'Unknown'),
+            sub_admin_id: admin.id,
+            sub_admin_name: admin.full_name || 'Unknown',
             agents_managed: 0,
-            territory: String(admin.country || 'Non défini'),
+            territory: admin.country || 'Non défini',
             total_volume: 0,
             commission_percentage: 0.15
           });
