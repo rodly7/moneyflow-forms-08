@@ -70,7 +70,7 @@ export const calculateFee = (
   amount: number,
   senderCountry: string,
   recipientCountry: string,
-  userType: 'user' | 'agent' | 'admin' = 'user'
+  userType: 'user' | 'agent' | 'admin' | 'sub_admin' = 'user'
 ): {
   fee: number;
   rate: number;
@@ -84,6 +84,8 @@ export const calculateFee = (
     baseRate = 0.025; // 2.5% pour les agents
   } else if (userType === 'admin') {
     baseRate = 0.01; // 1% pour les admins
+  } else if (userType === 'sub_admin') {
+    baseRate = 0.015; // 1.5% pour les sous-admins
   }
   
   // Tarification selon la destination
