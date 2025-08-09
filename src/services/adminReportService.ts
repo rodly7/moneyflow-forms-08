@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface WeeklyReport {
@@ -185,78 +184,75 @@ export class AdminReportService {
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
     try {
-      // Use basic query without type assertion to avoid deep type inference
-      const subAdminResult = await supabase
+      // Use the most basic query possible to avoid type inference issues
+      const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, country')
         .eq('role', 'sub_admin');
 
-      if (subAdminResult.error) {
-        console.error('Error fetching sub-admins:', subAdminResult.error);
-        return [];
-      }
-
-      const rawSubAdmins = subAdminResult.data;
-      if (!rawSubAdmins || rawSubAdmins.length === 0) {
+      if (error || !data) {
+        console.error('Error fetching sub-admins:', error);
         return [];
       }
 
       const reports: SubAdminReport[] = [];
 
-      // Process each sub-admin with basic queries
-      for (const admin of rawSubAdmins) {
+      // Process each sub-admin individually with separate queries
+      for (let i = 0; i < data.length; i++) {
+        const admin = data[i];
+        
         try {
-          // Simple agent count query without complex typing
-          const agentsResult = await supabase
+          // Count agents managed by this sub-admin
+          const agentCountResult = await supabase
             .from('agents')
-            .select('user_id')
+            .select('user_id', { count: 'exact' })
             .eq('territory_admin_id', admin.id);
 
-          let agentCount = 0;
-          let agentIds: string[] = [];
+          const agentCount = agentCountResult.count || 0;
 
-          if (!agentsResult.error && agentsResult.data) {
-            agentCount = agentsResult.data.length;
-            agentIds = agentsResult.data.map(agent => agent.user_id).filter(Boolean);
-          }
-
+          // If there are agents, get their IDs for performance calculation
           let totalVolume = 0;
+          if (agentCount > 0) {
+            const agentIdsResult = await supabase
+              .from('agents')
+              .select('user_id')
+              .eq('territory_admin_id', admin.id);
 
-          // Get performance data with basic query
-          if (agentIds.length > 0) {
-            const perfResult = await supabase
-              .from('agent_monthly_performance')
-              .select('total_volume')
-              .in('agent_id', agentIds);
+            if (agentIdsResult.data && agentIdsResult.data.length > 0) {
+              const agentIds = agentIdsResult.data.map(a => a.user_id);
 
-            if (!perfResult.error && perfResult.data) {
-              totalVolume = perfResult.data.reduce((sum, perf) => {
-                const volume = parseFloat(String(perf.total_volume)) || 0;
-                return sum + volume;
-              }, 0);
+              // Calculate total volume from performance data
+              const perfResult = await supabase
+                .from('agent_monthly_performance')
+                .select('total_volume')
+                .in('agent_id', agentIds);
+
+              if (perfResult.data) {
+                totalVolume = perfResult.data.reduce((sum, perf) => {
+                  return sum + (Number(perf.total_volume) || 0);
+                }, 0);
+              }
             }
           }
 
-          const report: SubAdminReport = {
-            sub_admin_id: String(admin.id || ''),
-            sub_admin_name: String(admin.full_name || 'Unknown'),
+          reports.push({
+            sub_admin_id: admin.id || '',
+            sub_admin_name: admin.full_name || 'Unknown',
             agents_managed: agentCount,
-            territory: String(admin.country || 'Non défini'),
+            territory: admin.country || 'Non défini',
             total_volume: totalVolume,
             commission_percentage: 0.15
-          };
-
-          reports.push(report);
+          });
 
         } catch (error) {
           console.warn(`Error processing sub-admin ${admin.id}:`, error);
           
           // Add fallback entry
           reports.push({
-            sub_admin_id: String(admin.id || ''),
-            sub_admin_name: String(admin.full_name || 'Unknown'),
+            sub_admin_id: admin.id || '',
+            sub_admin_name: admin.full_name || 'Unknown',
             agents_managed: 0,
-            territory: String(admin.country || 'Non défini'),
+            territory: admin.country || 'Non défini',
             total_volume: 0,
             commission_percentage: 0.15
           });
