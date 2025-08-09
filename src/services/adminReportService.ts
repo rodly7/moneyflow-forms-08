@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface WeeklyReport {
@@ -187,25 +186,17 @@ export class AdminReportService {
     try {
       const reports: SubAdminReport[] = [];
       
-      // Get sub-admins with basic info
-      const subAdminsResult = await supabase
+      const { data: subAdmins, error } = await supabase
         .from('profiles')
         .select('id, full_name, country')
         .eq('role', 'sub_admin');
 
-      if (subAdminsResult.error) {
-        console.error('Error fetching sub-admins:', subAdminsResult.error);
+      if (error || !subAdmins) {
+        console.error('Error fetching sub-admins:', error);
         return [];
       }
 
-      const subAdmins = subAdminsResult.data;
-      if (!subAdmins) {
-        return [];
-      }
-
-      // Process each sub-admin individually
-      for (let i = 0; i < subAdmins.length; i++) {
-        const admin = subAdmins[i];
+      for (const admin of subAdmins) {
         const report = await this.processSubAdminReport(admin);
         reports.push(report);
       }
@@ -219,24 +210,20 @@ export class AdminReportService {
 
   private static async processSubAdminReport(admin: any): Promise<SubAdminReport> {
     try {
-      // Count agents managed
-      const agentsResult = await supabase
+      const { count: agentsCount } = await supabase
         .from('agents')
         .select('user_id', { count: 'exact', head: true })
         .eq('territory_admin_id', admin.id);
 
-      const agentsCount = agentsResult.count || 0;
       let totalVolume = 0;
-
-      // Calculate total volume if there are agents
-      if (agentsCount > 0) {
+      if (agentsCount && agentsCount > 0) {
         totalVolume = await this.calculateSubAdminVolume(admin.id);
       }
 
       return {
         sub_admin_id: admin.id || '',
         sub_admin_name: admin.full_name || 'Unknown',
-        agents_managed: agentsCount,
+        agents_managed: agentsCount || 0,
         territory: admin.country || 'Non défini',
         total_volume: totalVolume,
         commission_percentage: 0.15
@@ -257,44 +244,42 @@ export class AdminReportService {
 
   private static async calculateSubAdminVolume(subAdminId: string): Promise<number> {
     try {
-      // Get agent user IDs
-      const agentsResult = await supabase
+      const { data: agents } = await supabase
         .from('agents')
         .select('user_id')
         .eq('territory_admin_id', subAdminId);
 
-      if (!agentsResult.data || agentsResult.data.length === 0) {
+      if (!agents || agents.length === 0) {
         return 0;
       }
 
       const userIds: string[] = [];
-      for (const agent of agentsResult.data) {
+      agents.forEach(agent => {
         if (agent.user_id) {
           userIds.push(agent.user_id);
         }
-      }
+      });
 
       if (userIds.length === 0) {
         return 0;
       }
 
-      // Get performance data
-      const performanceResult = await supabase
+      const { data: performance } = await supabase
         .from('agent_monthly_performance')
         .select('total_volume')
         .in('agent_id', userIds);
 
-      if (!performanceResult.data) {
+      if (!performance) {
         return 0;
       }
 
       let totalVolume = 0;
-      for (const perf of performanceResult.data) {
+      performance.forEach(perf => {
         const volume = Number(perf.total_volume);
         if (!isNaN(volume)) {
           totalVolume += volume;
         }
-      }
+      });
 
       return totalVolume;
     } catch (error) {
