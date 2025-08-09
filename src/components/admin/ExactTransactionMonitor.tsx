@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,19 +42,44 @@ const ExactTransactionMonitor = () => {
       const recentTransactions = await AdminReportService.getRecentTransactions(100);
       
       // Transform the data to match our interface
-      const transformedTransactions: Transaction[] = recentTransactions.map(transaction => ({
-        id: transaction.id,
-        type: transaction.type as 'transfer' | 'withdrawal' | 'deposit',
-        amount: transaction.amount,
-        status: transaction.status,
-        timestamp: transaction.timestamp,
-        sender: transaction.sender || null,
-        user: transaction.user || null,
-        recipient_full_name: transaction.recipient_full_name,
-        recipient_phone: transaction.recipient_phone,
-        fees: transaction.fees,
-        currency: transaction.currency
-      }));
+      const transformedTransactions: Transaction[] = recentTransactions.map(transaction => {
+        const baseTransaction = {
+          id: transaction.id,
+          type: transaction.type as 'transfer' | 'withdrawal' | 'deposit',
+          amount: transaction.amount,
+          status: transaction.status,
+          timestamp: transaction.timestamp,
+        };
+
+        // Handle different transaction types with their specific properties
+        if (transaction.type === 'transfer') {
+          return {
+            ...baseTransaction,
+            sender: transaction.sender || null,
+            recipient_full_name: (transaction as any).recipient_full_name,
+            recipient_phone: (transaction as any).recipient_phone,
+            fees: (transaction as any).fees || 0,
+            currency: (transaction as any).currency || 'XAF'
+          };
+        } else if (transaction.type === 'withdrawal') {
+          return {
+            ...baseTransaction,
+            user: transaction.user || null,
+            recipient_phone: (transaction as any).withdrawal_phone,
+            fees: 0,
+            currency: 'XAF'
+          };
+        } else if (transaction.type === 'deposit') {
+          return {
+            ...baseTransaction,
+            user: transaction.user || null,
+            fees: 0,
+            currency: (transaction as any).currency || 'XAF'
+          };
+        }
+
+        return baseTransaction as Transaction;
+      });
       
       setTransactions(transformedTransactions);
       
@@ -88,11 +112,13 @@ const ExactTransactionMonitor = () => {
   }, []);
 
   const filteredTransactions = transactions.filter(transaction => {
+    const senderName = transaction.sender?.full_name || transaction.user?.full_name || '';
+    const recipientName = transaction.recipient_full_name || '';
+    
     const matchesSearch = searchTerm === '' || 
       transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (transaction.sender?.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (transaction.user?.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (transaction.recipient_full_name || '').toLowerCase().includes(searchTerm.toLowerCase());
+      senderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      recipientName.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter;
     const matchesType = typeFilter === 'all' || transaction.type === typeFilter;
@@ -338,6 +364,8 @@ const ExactTransactionMonitor = () => {
             
             {!loading && filteredTransactions.map((transaction, index) => {
               const Icon = getTransactionIcon(transaction.type);
+              const senderName = transaction.sender?.full_name || transaction.user?.full_name || 'N/A';
+              const recipientName = transaction.recipient_full_name || transaction.recipient_phone || 'N/A';
               
               return (
                 <div
@@ -351,13 +379,11 @@ const ExactTransactionMonitor = () => {
                     
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-gray-900">
-                          {transaction.sender?.full_name || transaction.user?.full_name || 'N/A'}
-                        </span>
+                        <span className="font-medium text-gray-900">{senderName}</span>
                         {transaction.type === 'transfer' && (
                           <>
                             <ArrowUpRight className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-600">{transaction.recipient_full_name}</span>
+                            <span className="text-gray-600">{recipientName}</span>
                           </>
                         )}
                       </div>

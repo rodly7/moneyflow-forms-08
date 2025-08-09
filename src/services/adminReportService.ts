@@ -239,15 +239,19 @@ export class AdminReportService {
     let adminCredits = 0;
 
     auditLogs?.forEach(log => {
-      const newValues = log.new_values as any;
-      const amount = newValues?.amount || 0;
-      
-      if (log.action === 'platform_commission') {
-        platformRevenue += Number(amount);
-      } else if (log.action === 'transfer_fee') {
-        totalFees += Number(amount);
-      } else if (log.action === 'admin_credit') {
-        adminCredits += Number(amount);
+      try {
+        const newValues = log.new_values as Record<string, any>;
+        const amount = newValues?.amount ? Number(newValues.amount) : 0;
+        
+        if (log.action === 'platform_commission') {
+          platformRevenue += amount;
+        } else if (log.action === 'transfer_fee') {
+          totalFees += amount;
+        } else if (log.action === 'admin_credit') {
+          adminCredits += amount;
+        }
+      } catch (error) {
+        console.warn('Error parsing audit log:', log.id, error);
       }
     });
 
