@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminDashboardData } from '@/hooks/useAdminDashboardData';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   TrendingUp, 
@@ -17,7 +17,9 @@ import {
   BarChart3,
   LogOut,
   Crown,
-  Settings
+  Settings,
+  Shield,
+  Eye
 } from 'lucide-react';
 
 // Import existing components
@@ -34,6 +36,7 @@ const MainAdminDashboard = () => {
   const { data, isLoading, refetch } = useAdminDashboardData();
   const [selectedTab, setSelectedTab] = useState('dashboard');
   const [users, setUsers] = useState([]);
+  const navigate = useNavigate();
 
   // Fetch users data for the users tab
   const fetchUsers = async () => {
@@ -90,7 +93,7 @@ const MainAdminDashboard = () => {
       color: "text-blue-600"
     },
     {
-      title: "Agents Actifs",
+      title: "Agents Actifs", 
       value: data?.totalAgents || 0,
       change: "+5%",
       trend: "up",
@@ -135,6 +138,14 @@ const MainAdminDashboard = () => {
               </div>
             </div>
             <div className="flex items-center space-x-3">
+              <Button 
+                onClick={() => navigate('/admin-settings')}
+                variant="outline"
+                className="flex items-center space-x-2 hover:bg-gray-50"
+              >
+                <Settings className="w-4 h-4" />
+                <span>Paramètres Système</span>
+              </Button>
               <Badge variant="default" className="bg-red-600 hover:bg-red-700">
                 Admin Principal
               </Badge>
@@ -180,62 +191,72 @@ const MainAdminDashboard = () => {
           })}
         </div>
 
-        {/* Navigation Tabs Simplifiée */}
+        {/* Navigation Tabs Étendue */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
           <div className="bg-white rounded-xl p-1 shadow-sm">
-            <TabsList className="grid w-full grid-cols-6 bg-transparent">
+            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 bg-transparent gap-1">
               <TabsTrigger 
                 value="dashboard" 
-                className="flex items-center gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white"
+                className="flex items-center gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white text-xs lg:text-sm"
               >
                 <Activity className="h-4 w-4" />
-                <span className="hidden md:inline">Dashboard Principal</span>
-                <span className="md:hidden">Dashboard</span>
+                <span className="hidden md:inline">Dashboard</span>
               </TabsTrigger>
               
               <TabsTrigger 
                 value="advanced" 
-                className="flex items-center gap-2 data-[state=active]:bg-purple-500 data-[state=active]:text-white"
+                className="flex items-center gap-2 data-[state=active]:bg-purple-500 data-[state=active]:text-white text-xs lg:text-sm"
               >
                 <BarChart3 className="h-4 w-4" />
-                <span className="hidden md:inline">Dashboard Avancé</span>
-                <span className="md:hidden">Avancé</span>
+                <span className="hidden md:inline">Avancé</span>
               </TabsTrigger>
               
               <TabsTrigger 
                 value="users" 
-                className="flex items-center gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white"
+                className="flex items-center gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white text-xs lg:text-sm"
               >
                 <Users className="h-4 w-4" />
-                <span className="hidden md:inline">Gestion Utilisateurs</span>
-                <span className="md:hidden">Utilisateurs</span>
+                <span className="hidden md:inline">Utilisateurs</span>
               </TabsTrigger>
               
               <TabsTrigger 
                 value="agents" 
-                className="flex items-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+                className="flex items-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white text-xs lg:text-sm"
               >
                 <UserCog className="h-4 w-4" />
-                <span className="hidden md:inline">Gestion Agents</span>
-                <span className="md:hidden">Agents</span>
+                <span className="hidden md:inline">Agents</span>
               </TabsTrigger>
               
               <TabsTrigger 
                 value="treasury" 
-                className="flex items-center gap-2 data-[state=active]:bg-yellow-600 data-[state=active]:text-white"
+                className="flex items-center gap-2 data-[state=active]:bg-yellow-600 data-[state=active]:text-white text-xs lg:text-sm"
               >
                 <DollarSign className="h-4 w-4" />
                 <span className="hidden md:inline">Trésorerie</span>
-                <span className="md:hidden">Trésorerie</span>
+              </TabsTrigger>
+              
+              <TabsTrigger 
+                value="surveillance" 
+                className="flex items-center gap-2 data-[state=active]:bg-indigo-500 data-[state=active]:text-white text-xs lg:text-sm"
+              >
+                <Eye className="h-4 w-4" />
+                <span className="hidden md:inline">Surveillance</span>
+              </TabsTrigger>
+              
+              <TabsTrigger 
+                value="settings" 
+                className="flex items-center gap-2 data-[state=active]:bg-gray-600 data-[state=active]:text-white text-xs lg:text-sm"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="hidden md:inline">Paramètres</span>
               </TabsTrigger>
               
               <TabsTrigger 
                 value="notifications" 
-                className="flex items-center gap-2 data-[state=active]:bg-red-500 data-[state=active]:text-white"
+                className="flex items-center gap-2 data-[state=active]:bg-red-500 data-[state=active]:text-white text-xs lg:text-sm"
               >
                 <Bell className="h-4 w-4" />
-                <span className="hidden md:inline">Notifications & Messages</span>
-                <span className="md:hidden">Messages</span>
+                <span className="hidden md:inline">Messages</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -453,6 +474,139 @@ const MainAdminDashboard = () => {
                 </h2>
               </div>
               <TreasuryDashboard onRefresh={refetch} />
+            </div>
+          </TabsContent>
+
+          {/* Surveillance des Transactions */}
+          <TabsContent value="surveillance" className="space-y-6">
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <Eye className="h-6 w-6 text-indigo-500" />
+                    Surveillance des Transactions
+                  </h2>
+                  <p className="text-gray-600 mt-1">Monitoring en temps réel de toutes les opérations</p>
+                </div>
+                <Button 
+                  onClick={() => navigate('/admin-transaction-monitor')}
+                  variant="outline"
+                  className="bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-700"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Vue Détaillée
+                </Button>
+              </div>
+              <TransactionMonitor />
+            </div>
+          </TabsContent>
+
+          {/* Paramètres Système */}
+          <TabsContent value="settings" className="space-y-6">
+            <div className="grid gap-6">
+              {/* Contrôles Système */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-red-500" />
+                    Contrôles Système
+                  </CardTitle>
+                  <CardDescription>
+                    Gérez les fonctionnalités critiques du système
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-medium mb-3">Services de Transaction</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Transferts d'argent</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span className="text-sm text-green-600">Actif</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Retraits agents</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span className="text-sm text-green-600">Actif</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Dépôts mobiles</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span className="text-sm text-green-600">Actif</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-medium mb-3">Limites et Restrictions</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Limite quotidienne utilisateur</span>
+                          <span className="text-sm font-medium">500,000 FCFA</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Limite quotidienne agent</span>
+                          <span className="text-sm font-medium">2,000,000 FCFA</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Frais de transaction</span>
+                          <span className="text-sm font-medium">1-6.5%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Maintenance Système */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5 text-gray-600" />
+                    Maintenance Système
+                  </CardTitle>
+                  <CardDescription>
+                    Outils de maintenance et configuration
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Button 
+                      onClick={() => navigate('/admin-settings')}
+                      variant="outline" 
+                      className="h-20 flex flex-col items-center gap-2"
+                    >
+                      <Settings className="w-6 h-6" />
+                      <span>Configuration Avancée</span>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col items-center gap-2 opacity-50 cursor-not-allowed"
+                      disabled
+                    >
+                      <Shield className="w-6 h-6" />
+                      <span>Mode Maintenance</span>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col items-center gap-2 opacity-50 cursor-not-allowed"
+                      disabled
+                    >
+                      <Activity className="w-6 h-6" />
+                      <span>Diagnostic Système</span>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
