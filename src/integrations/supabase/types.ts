@@ -1297,6 +1297,36 @@ export type Database = {
           },
         ]
       }
+      system_settings: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       system_status: {
         Row: {
           component: string
@@ -1350,6 +1380,45 @@ export type Database = {
           created_at?: string | null
           daily_limit?: number
           id?: string
+          operation_type?: string
+          single_limit?: number
+          updated_at?: string | null
+          user_role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
+      transaction_limits_config: {
+        Row: {
+          country: string | null
+          created_at: string | null
+          daily_limit: number
+          id: string
+          is_active: boolean | null
+          monthly_limit: number | null
+          operation_type: string
+          single_limit: number
+          updated_at: string | null
+          user_role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string | null
+          daily_limit?: number
+          id?: string
+          is_active?: boolean | null
+          monthly_limit?: number | null
+          operation_type: string
+          single_limit?: number
+          updated_at?: string | null
+          user_role: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          country?: string | null
+          created_at?: string | null
+          daily_limit?: number
+          id?: string
+          is_active?: boolean | null
+          monthly_limit?: number | null
           operation_type?: string
           single_limit?: number
           updated_at?: string | null
