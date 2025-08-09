@@ -1,14 +1,35 @@
 
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
-const SimpleMessagesTab = () => {
-  const [messages, setMessages] = useState([]);
+interface Message {
+  id: string;
+  user_id: string;
+  message: string;
+  category: string;
+  status: string;
+  priority: string;
+  created_at: string;
+  profiles: {
+    full_name: string;
+    phone: string;
+  };
+}
+
+export const SimpleMessagesTab = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMessage, setSelectedMessage] = useState(null);
-  const [response, setResponse] = useState('');
-  const [notificationText, setNotificationText] = useState('');
-  const [targetAudience, setTargetAudience] = useState('all');
+
+  // États pour le formulaire de notification
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [notificationType, setNotificationType] = useState('general');
+  const [priority, setPriority] = useState('normal');
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     fetchMessages();
@@ -20,311 +41,285 @@ const SimpleMessagesTab = () => {
         .from('customer_support_messages')
         .select(`
           *,
-          profiles:user_id (
-            full_name,
-            phone,
-            role
-          )
+          profiles (full_name, phone)
         `)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(50);
 
       if (error) throw error;
       setMessages(data || []);
     } catch (error) {
-      console.error('Erreur chargement messages:', error);
+      console.error('Erreur lors du chargement des messages:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const sendResponse = async (messageId) => {
-    if (!response.trim()) return;
+  const handleSendNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !message) return;
 
-    try {
-      const { error } = await supabase
-        .from('customer_support_messages')
-        .update({ 
-          admin_response: response,
-          status: 'responded',
-          responded_at: new Date().toISOString()
-        })
-        .eq('id', messageId);
-
-      if (error) throw error;
-
-      alert('Réponse envoyée avec succès');
-      setResponse('');
-      setSelectedMessage(null);
-      fetchMessages();
-    } catch (error) {
-      console.error('Erreur envoi réponse:', error);
-      alert('Erreur lors de l\'envoi de la réponse');
-    }
-  };
-
-  const sendNotification = async () => {
-    if (!notificationText.trim()) return;
-
+    setSending(true);
     try {
       const { error } = await supabase
         .from('notifications')
         .insert({
-          title: 'Message Administrateur',
-          message: notificationText,
-          type: 'admin_broadcast',
-          target_audience: targetAudience,
-          created_at: new Date().toISOString()
+          title: title,
+          message: message,
+          notification_type: notificationType,
+          priority: priority,
+          sent_by: user?.id,
+          target_users: [], // Notification globale
+          total_recipients: 0
         });
 
       if (error) throw error;
 
-      alert('Notification envoyée avec succès');
-      setNotificationText('');
+      toast({
+        title: "Notification envoyée",
+        description: "La notification a été envoyée avec succès",
+      });
+
+      // Reset form
+      setTitle('');
+      setMessage('');
+      setNotificationType('general');
+      setPriority('normal');
+
     } catch (error) {
-      console.error('Erreur envoi notification:', error);
-      alert('Erreur lors de l\'envoi de la notification');
+      console.error('Erreur:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'envoyer la notification",
+        variant: "destructive"
+      });
+    } finally {
+      setSending(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <p>Chargement des messages...</p>
-      </div>
-    );
-  }
+  const markAsRead = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('customer_support_messages')
+        .update({ 
+          status: 'read',
+          read_at: new Date().toISOString()
+        })
+        .eq('id', messageId);
+
+      if (error) throw error;
+      
+      // Refresh messages
+      fetchMessages();
+      
+      toast({
+        title: "Message marqué comme lu",
+      });
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de marquer le message comme lu",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
-    <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-      <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', color: '#1f2937' }}>
-        💬 Messages & Notifications
+    <div style={{ padding: '20px' }}>
+      <h2 style={{ marginBottom: '30px', fontSize: '24px', fontWeight: 'bold' }}>
+        Messages & Notifications
       </h2>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
-        {/* Section Notifications */}
-        <div style={{ padding: '20px', backgroundColor: '#fef3c7', borderRadius: '8px', border: '1px solid #fbbf24' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#92400e', marginBottom: '15px' }}>
-            📢 Envoyer une Notification
-          </h3>
-
+      {/* Formulaire d'envoi de notification */}
+      <div style={{ 
+        backgroundColor: '#f8f9fa', 
+        padding: '20px', 
+        borderRadius: '8px', 
+        marginBottom: '30px' 
+      }}>
+        <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: 'bold' }}>
+          Envoyer une notification globale
+        </h3>
+        
+        <form onSubmit={handleSendNotification}>
           <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '5px', color: '#374151' }}>
-              Public cible
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              Titre:
             </label>
-            <select
-              value={targetAudience}
-              onChange={(e) => setTargetAudience(e.target.value)}
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               style={{
                 width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '14px',
-                backgroundColor: 'white'
+                padding: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '4px'
               }}
-            >
-              <option value="all">Tous les utilisateurs</option>
-              <option value="users">Utilisateurs seulement</option>
-              <option value="agents">Agents seulement</option>
-              <option value="admins">Administrateurs seulement</option>
-            </select>
-          </div>
-
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '5px', color: '#374151' }}>
-              Message
-            </label>
-            <textarea
-              value={notificationText}
-              onChange={(e) => setNotificationText(e.target.value)}
-              rows={4}
-              placeholder="Tapez votre message..."
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '14px',
-                resize: 'vertical'
-              }}
+              required
             />
           </div>
 
-          <button
-            onClick={sendNotification}
-            disabled={!notificationText.trim()}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: notificationText.trim() ? '#f59e0b' : '#9ca3af',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: notificationText.trim() ? 'pointer' : 'not-allowed'
-            }}
-          >
-            Envoyer la notification
-          </button>
-        </div>
-
-        {/* Section Messages Support */}
-        <div style={{ padding: '20px', backgroundColor: '#dbeafe', borderRadius: '8px', border: '1px solid #3b82f6' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1d4ed8', marginBottom: '15px' }}>
-            📨 Messages Support ({messages.length})
-          </h3>
-
-          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-            {messages.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#6b7280', fontStyle: 'italic' }}>
-                Aucun message pour le moment
-              </p>
-            ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  style={{
-                    padding: '12px',
-                    backgroundColor: 'white',
-                    borderRadius: '6px',
-                    marginBottom: '10px',
-                    border: message.status === 'pending' ? '2px solid #f59e0b' : '1px solid #e5e7eb',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setSelectedMessage(message)}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                    <strong style={{ color: '#1f2937' }}>
-                      {message.profiles?.full_name || 'Utilisateur'}
-                    </strong>
-                    <span style={{
-                      fontSize: '12px',
-                      padding: '2px 8px',
-                      borderRadius: '10px',
-                      backgroundColor: message.status === 'pending' ? '#fef3c7' : '#dcfce7',
-                      color: message.status === 'pending' ? '#92400e' : '#16a34a'
-                    }}>
-                      {message.status === 'pending' ? 'En attente' : 'Traité'}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '14px', color: '#4b5563', margin: '5px 0' }}>
-                    {message.message.length > 100 ? 
-                      `${message.message.substring(0, 100)}...` : 
-                      message.message
-                    }
-                  </p>
-                  <div style={{ fontSize: '12px', color: '#9ca3af' }}>
-                    {new Date(message.created_at).toLocaleDateString('fr-FR')} - {message.profiles?.phone}
-                  </div>
-                </div>
-              ))
-            )}
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              Message:
+            </label>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={4}
+              style={{
+                width: '100%',
+                padding: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                resize: 'vertical'
+              }}
+              required
+            />
           </div>
-        </div>
-      </div>
 
-      {/* Modal de réponse */}
-      {selectedMessage && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '30px',
-            borderRadius: '8px',
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '80%',
-            overflowY: 'auto'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1f2937' }}>
-                Message de {selectedMessage.profiles?.full_name}
-              </h3>
-              <button
-                onClick={() => setSelectedMessage(null)}
+          <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                Type:
+              </label>
+              <select
+                value={notificationType}
+                onChange={(e) => setNotificationType(e.target.value)}
                 style={{
-                  padding: '5px 10px',
-                  backgroundColor: '#f3f4f6',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
+                  padding: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
                 }}
               >
-                ✕
-              </button>
+                <option value="general">Général</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="promotion">Promotion</option>
+                <option value="alert">Alerte</option>
+              </select>
             </div>
 
-            <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f9fafb', borderRadius: '6px' }}>
-              <p style={{ color: '#4b5563', lineHeight: '1.5' }}>
-                {selectedMessage.message}
-              </p>
-              <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '10px' }}>
-                Envoyé le {new Date(selectedMessage.created_at).toLocaleString('fr-FR')}
-              </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                Priorité:
+              </label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                style={{
+                  padding: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              >
+                <option value="low">Faible</option>
+                <option value="normal">Normale</option>
+                <option value="high">Élevée</option>
+              </select>
             </div>
-
-            {selectedMessage.status === 'pending' && (
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '5px', color: '#374151' }}>
-                  Votre réponse
-                </label>
-                <textarea
-                  value={response}
-                  onChange={(e) => setResponse(e.target.value)}
-                  rows={4}
-                  placeholder="Tapez votre réponse..."
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    marginBottom: '15px',
-                    resize: 'vertical'
-                  }}
-                />
-                <button
-                  onClick={() => sendResponse(selectedMessage.id)}
-                  disabled={!response.trim()}
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: response.trim() ? '#16a34a' : '#9ca3af',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: response.trim() ? 'pointer' : 'not-allowed'
-                  }}
-                >
-                  Envoyer la réponse
-                </button>
-              </div>
-            )}
-
-            {selectedMessage.admin_response && (
-              <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
-                <strong style={{ color: '#16a34a', display: 'block', marginBottom: '8px' }}>Votre réponse :</strong>
-                <p style={{ color: '#15803d' }}>{selectedMessage.admin_response}</p>
-              </div>
-            )}
           </div>
-        </div>
-      )}
+
+          <button
+            type="submit"
+            disabled={sending || !title || !message}
+            style={{
+              backgroundColor: sending ? '#ccc' : '#007bff',
+              color: 'white',
+              padding: '10px 20px',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: sending ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {sending ? 'Envoi...' : 'Envoyer la notification'}
+          </button>
+        </form>
+      </div>
+
+      {/* Liste des messages de support */}
+      <div>
+        <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: 'bold' }}>
+          Messages de support client
+        </h3>
+
+        {loading ? (
+          <p>Chargement des messages...</p>
+        ) : messages.length === 0 ? (
+          <p>Aucun message de support</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                style={{
+                  backgroundColor: msg.status === 'unread' ? '#fff3cd' : '#f8f9fa',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  border: '1px solid #ddd'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
+                  <div>
+                    <strong>{msg.profiles?.full_name || 'Utilisateur inconnu'}</strong>
+                    <br />
+                    <small style={{ color: '#666' }}>
+                      {msg.profiles?.phone} • {new Date(msg.created_at).toLocaleString('fr-FR')}
+                    </small>
+                  </div>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      backgroundColor: msg.status === 'unread' ? '#ffc107' : '#28a745',
+                      color: 'white'
+                    }}>
+                      {msg.status === 'unread' ? 'Non lu' : 'Lu'}
+                    </span>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      backgroundColor: msg.priority === 'high' ? '#dc3545' : msg.priority === 'normal' ? '#17a2b8' : '#6c757d',
+                      color: 'white'
+                    }}>
+                      {msg.priority === 'high' ? 'Urgent' : msg.priority === 'normal' ? 'Normal' : 'Faible'}
+                    </span>
+                  </div>
+                </div>
+                
+                <p style={{ marginBottom: '10px', lineHeight: '1.5' }}>
+                  {msg.message}
+                </p>
+                
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>
+                  Catégorie: {msg.category}
+                </div>
+
+                {msg.status === 'unread' && (
+                  <button
+                    onClick={() => markAsRead(msg.id)}
+                    style={{
+                      backgroundColor: '#28a745',
+                      color: 'white',
+                      padding: '5px 15px',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '14px'
+                    }}
+                  >
+                    Marquer comme lu
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
-
-export default SimpleMessagesTab;

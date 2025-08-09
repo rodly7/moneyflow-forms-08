@@ -1,209 +1,344 @@
 
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
-const SimpleTreasuryTab = () => {
-  const [treasuryData, setTreasuryData] = useState({
-    totalBalance: 0,
-    todayRevenue: 0,
-    pendingTransactions: 0,
-    monthlyRevenue: 0
-  });
-  const [creditAmount, setCreditAmount] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [loading, setLoading] = useState(false);
+interface BalanceFlow {
+  id: string;
+  user_id: string;
+  amount: number;
+  type: string;
+  description: string;
+  created_at: string;
+  profiles: {
+    full_name: string;
+    phone: string;
+  };
+}
+
+export const SimpleTreasuryTab = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [flows, setFlows] = useState<BalanceFlow[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // États pour les opérations
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [operationType, setOperationType] = useState('credit');
+  const [description, setDescription] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [searchPhone, setSearchPhone] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchTreasuryData();
+    fetchBalanceFlows();
   }, []);
 
-  const fetchTreasuryData = async () => {
+  const fetchBalanceFlows = async () => {
     try {
-      // Récupérer le solde admin
-      const { data: adminProfile } = await supabase
-        .from('profiles')
-        .select('balance')
-        .eq('role', 'admin')
-        .maybeSingle();
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select(`
+          *,
+          profiles!audit_logs_user_id_fkey (full_name, phone)
+        `)
+        .eq('table_name', 'profiles')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-      // Récupérer les transactions du jour
-      const today = new Date().toISOString().split('T')[0];
-      const { data: todayTransactions } = await supabase
-        .from('transfers')
-        .select('amount')
-        .gte('created_at', today)
-        .eq('status', 'completed');
-
-      // Transactions en attente
-      const { data: pendingTransactions } = await supabase
-        .from('transfers')
-        .select('id')
-        .eq('status', 'pending');
-
-      const todayRevenue = todayTransactions?.reduce((sum, t) => sum + (t.amount * 0.01), 0) || 0;
-
-      setTreasuryData({
-        totalBalance: adminProfile?.balance || 0,
-        todayRevenue,
-        pendingTransactions: pendingTransactions?.length || 0,
-        monthlyRevenue: todayRevenue * 30 // Estimation
-      });
+      if (error) throw error;
+      
+      // Transform audit logs to balance flows format
+      const transformedFlows = (data || []).map(log => ({
+        id: log.id,
+        user_id: log.user_id || '',
+        amount: log.new_values?.amount || 0,
+        type: log.action.includes('credit') ? 'credit' : 'debit',
+        description: log.action,
+        created_at: log.created_at,
+        profiles: log.profiles
+      }));
+      
+      setFlows(transformedFlows);
     } catch (error) {
-      console.error('Erreur chargement trésorerie:', error);
-    }
-  };
-
-  const handleCredit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { data: user, error: userError } = await supabase
-        .from('profiles')
-        .select('id, full_name, balance')
-        .eq('phone', phoneNumber)
-        .maybeSingle();
-
-      if (userError || !user) {
-        alert('Utilisateur non trouvé');
-        return;
-      }
-
-      const amount = parseFloat(creditAmount);
-      const newBalance = parseFloat(user.balance) + amount;
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ balance: newBalance })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      alert(`Compte de ${user.full_name} crédité de ${amount} FCFA`);
-      setCreditAmount('');
-      setPhoneNumber('');
-      fetchTreasuryData();
-    } catch (error) {
-      console.error('Erreur crédit:', error);
-      alert('Erreur lors du crédit');
+      console.error('Erreur lors du chargement des flux:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const searchUser = async () => {
+    if (!searchPhone) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, balance')
+        .ilike('phone', `%${searchPhone}%`)
+        .limit(10);
+
+      if (error) throw error;
+      setSearchResults(data || []);
+    } catch (error) {
+      console.error('Erreur recherche:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de rechercher l'utilisateur",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleBalanceOperation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserId || !amount) return;
+
+    setProcessing(true);
+    try {
+      const operationAmount = operationType === 'credit' ? Number(amount) : -Number(amount);
+      
+      const { error } = await supabase.rpc('secure_increment_balance', {
+        target_user_id: selectedUserId,
+        amount: operationAmount,
+        operation_type: `admin_${operationType}`,
+        performed_by: user?.id
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Opération réussie",
+        description: `${operationType === 'credit' ? 'Crédit' : 'Débit'} de ${amount} FCFA effectué`,
+      });
+
+      // Reset form
+      setSelectedUserId('');
+      setAmount('');
+      setDescription('');
+      setSearchPhone('');
+      setSearchResults([]);
+      
+      // Refresh flows
+      fetchBalanceFlows();
+
+    } catch (error) {
+      console.error('Erreur opération:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'effectuer l'opération",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR').format(Math.abs(amount)) + ' FCFA';
+  };
+
   return (
-    <div style={{ padding: '20px', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-      <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', color: '#1f2937' }}>
-        💰 Dashboard Trésorerie
+    <div style={{ padding: '20px' }}>
+      <h2 style={{ marginBottom: '30px', fontSize: '24px', fontWeight: 'bold' }}>
+        Gestion de la Trésorerie
       </h2>
 
-      {/* Statistiques */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '30px' }}>
-        <div style={{ padding: '20px', backgroundColor: '#dbeafe', borderRadius: '8px', textAlign: 'center' }}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1d4ed8' }}>
-            {treasuryData.totalBalance.toLocaleString()}
-          </div>
-          <div style={{ fontSize: '14px', color: '#3730a3', marginTop: '5px' }}>
-            Solde Total (FCFA)
-          </div>
-        </div>
-
-        <div style={{ padding: '20px', backgroundColor: '#dcfce7', borderRadius: '8px', textAlign: 'center' }}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#16a34a' }}>
-            {treasuryData.todayRevenue.toLocaleString()}
-          </div>
-          <div style={{ fontSize: '14px', color: '#15803d', marginTop: '5px' }}>
-            Revenus Aujourd'hui (FCFA)
-          </div>
-        </div>
-
-        <div style={{ padding: '20px', backgroundColor: '#fef3c7', borderRadius: '8px', textAlign: 'center' }}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#d97706' }}>
-            {treasuryData.pendingTransactions}
-          </div>
-          <div style={{ fontSize: '14px', color: '#b45309', marginTop: '5px' }}>
-            Transactions en Attente
-          </div>
-        </div>
-
-        <div style={{ padding: '20px', backgroundColor: '#f3e8ff', borderRadius: '8px', textAlign: 'center' }}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#7c3aed' }}>
-            {treasuryData.monthlyRevenue.toLocaleString()}
-          </div>
-          <div style={{ fontSize: '14px', color: '#6d28d9', marginTop: '5px' }}>
-            Revenus Mensuels (Est.)
-          </div>
-        </div>
-      </div>
-
-      {/* Formulaire de crédit */}
-      <div style={{ padding: '20px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '15px', color: '#374151' }}>
-          Créditer un Compte Utilisateur
+      {/* Opérations de balance */}
+      <div style={{ 
+        backgroundColor: '#f8f9fa', 
+        padding: '20px', 
+        borderRadius: '8px', 
+        marginBottom: '30px' 
+      }}>
+        <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: 'bold' }}>
+          Opérations de solde
         </h3>
+        
+        <form onSubmit={handleBalanceOperation}>
+          {/* Recherche utilisateur */}
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              Rechercher un utilisateur:
+            </label>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+              <input
+                type="text"
+                value={searchPhone}
+                onChange={(e) => setSearchPhone(e.target.value)}
+                placeholder="Numéro de téléphone..."
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              />
+              <button
+                type="button"
+                onClick={searchUser}
+                style={{
+                  backgroundColor: '#17a2b8',
+                  color: 'white',
+                  padding: '10px 20px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Rechercher
+              </button>
+            </div>
 
-        <form onSubmit={handleCredit} style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'end' }}>
-          <div style={{ minWidth: '200px', flex: '1' }}>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '5px', color: '#374151' }}>
-              Numéro de téléphone
+            {searchResults.length > 0 && (
+              <div style={{ marginTop: '10px' }}>
+                {searchResults.map((user) => (
+                  <div
+                    key={user.id}
+                    onClick={() => {
+                      setSelectedUserId(user.id);
+                      setSearchResults([]);
+                    }}
+                    style={{
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      marginBottom: '5px',
+                      cursor: 'pointer',
+                      backgroundColor: selectedUserId === user.id ? '#e3f2fd' : 'white'
+                    }}
+                  >
+                    <strong>{user.full_name}</strong> - {user.phone}
+                    <br />
+                    <small>Solde actuel: {formatAmount(user.balance)}</small>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                Type d'opération:
+              </label>
+              <select
+                value={operationType}
+                onChange={(e) => setOperationType(e.target.value)}
+                style={{
+                  padding: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              >
+                <option value="credit">Crédit</option>
+                <option value="debit">Débit</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                Montant (FCFA):
+              </label>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                min="1"
+                style={{
+                  padding: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+                required
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              Description:
             </label>
             <input
               type="text"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="+221773637752"
-              required
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Raison de l'opération..."
               style={{
                 width: '100%',
                 padding: '10px',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '14px'
-              }}
-            />
-          </div>
-
-          <div style={{ minWidth: '200px', flex: '1' }}>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '5px', color: '#374151' }}>
-              Montant (FCFA)
-            </label>
-            <input
-              type="number"
-              value={creditAmount}
-              onChange={(e) => setCreditAmount(e.target.value)}
-              placeholder="50000"
-              required
-              min="1"
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '14px'
+                border: '1px solid #ddd',
+                borderRadius: '4px'
               }}
             />
           </div>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={processing || !selectedUserId || !amount}
             style={{
-              padding: '10px 20px',
-              backgroundColor: loading ? '#9ca3af' : '#059669',
+              backgroundColor: processing ? '#ccc' : '#28a745',
               color: 'white',
+              padding: '10px 20px',
               border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: loading ? 'not-allowed' : 'pointer'
+              borderRadius: '4px',
+              cursor: processing ? 'not-allowed' : 'pointer'
             }}
           >
-            {loading ? 'Traitement...' : 'Créditer'}
+            {processing ? 'Traitement...' : `${operationType === 'credit' ? 'Créditer' : 'Débiter'} ${amount || '0'} FCFA`}
           </button>
         </form>
+      </div>
+
+      {/* Historique des flux */}
+      <div>
+        <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: 'bold' }}>
+          Historique des opérations
+        </h3>
+
+        {loading ? (
+          <p>Chargement des opérations...</p>
+        ) : flows.length === 0 ? (
+          <p>Aucune opération récente</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {flows.map((flow) => (
+              <div
+                key={flow.id}
+                style={{
+                  backgroundColor: 'white',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  border: '1px solid #ddd',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div>
+                  <strong>{flow.profiles?.full_name || 'Utilisateur inconnu'}</strong>
+                  <br />
+                  <small style={{ color: '#666' }}>
+                    {flow.profiles?.phone} • {new Date(flow.created_at).toLocaleString('fr-FR')}
+                  </small>
+                  <br />
+                  <small>{flow.description}</small>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    color: flow.type === 'credit' ? '#28a745' : '#dc3545',
+                    fontWeight: 'bold',
+                    fontSize: '18px'
+                  }}>
+                    {flow.type === 'credit' ? '+' : '-'}{formatAmount(flow.amount)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 };
-
-export default SimpleTreasuryTab;
