@@ -183,44 +183,49 @@ export class AdminReportService {
   }
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
-    // Use basic query without complex select typing
-    const { data: subAdmins, error: subAdminsError } = await supabase
+    // Use raw query result without complex typing
+    const subAdminsQuery = await supabase
       .from('profiles')
       .select('id, full_name, country')
       .eq('role', 'sub_admin');
 
-    if (subAdminsError) throw subAdminsError;
+    if (subAdminsQuery.error) throw subAdminsQuery.error;
 
     const subAdminReports: SubAdminReport[] = [];
+    const subAdmins = subAdminsQuery.data;
 
     if (!subAdmins) return subAdminReports;
 
     for (const subAdmin of subAdmins) {
-      // Use basic query to avoid type complexity
-      const { data: agentsData } = await supabase
+      // Simple agent count query without complex typing
+      const agentsQuery = await supabase
         .from('agents')
         .select('user_id')
         .eq('territory_admin_id', subAdmin.id);
 
-      const agentCount = agentsData ? agentsData.length : 0;
+      const agentCount = agentsQuery.data?.length || 0;
 
-      // Calculate total volume with simple approach
+      // Calculate total volume with basic approach
       let totalVolume = 0;
-      if (agentCount > 0 && agentsData) {
-        // Use simple map to extract user_ids
-        const userIds = agentsData
-          .map(agent => agent.user_id)
-          .filter(Boolean);
+      if (agentCount > 0 && agentsQuery.data) {
+        const agentIds: string[] = [];
+        
+        // Extract agent IDs manually to avoid type issues
+        for (const agent of agentsQuery.data) {
+          if (agent.user_id) {
+            agentIds.push(agent.user_id);
+          }
+        }
 
-        if (userIds.length > 0) {
-          const { data: performanceData } = await supabase
+        if (agentIds.length > 0) {
+          const performanceQuery = await supabase
             .from('agent_monthly_performance')
             .select('total_volume')
-            .in('agent_id', userIds);
+            .in('agent_id', agentIds);
 
-          if (performanceData) {
-            totalVolume = performanceData.reduce((sum, perf) => {
-              return sum + (perf.total_volume || 0);
+          if (performanceQuery.data) {
+            totalVolume = performanceQuery.data.reduce((sum: number, perf: any) => {
+              return sum + (Number(perf.total_volume) || 0);
             }, 0);
           }
         }
