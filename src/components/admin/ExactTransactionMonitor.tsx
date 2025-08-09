@@ -20,8 +20,8 @@ interface Transaction {
   amount: number;
   status: string;
   timestamp: string;
-  sender?: { full_name: string; phone: string };
-  user?: { full_name: string; phone: string };
+  sender?: { full_name: string; phone: string } | null;
+  user?: { full_name: string; phone: string } | null;
   recipient_full_name?: string;
   recipient_phone?: string;
   fees?: number;
@@ -41,9 +41,25 @@ const ExactTransactionMonitor = () => {
     setLoading(true);
     try {
       const recentTransactions = await AdminReportService.getRecentTransactions(100);
-      setTransactions(recentTransactions);
       
-      console.log('🔄 Transactions mises à jour:', recentTransactions.length);
+      // Transform the data to match our interface
+      const transformedTransactions: Transaction[] = recentTransactions.map(transaction => ({
+        id: transaction.id,
+        type: transaction.type as 'transfer' | 'withdrawal' | 'deposit',
+        amount: transaction.amount,
+        status: transaction.status,
+        timestamp: transaction.timestamp,
+        sender: transaction.sender || null,
+        user: transaction.user || null,
+        recipient_full_name: transaction.recipient_full_name,
+        recipient_phone: transaction.recipient_phone,
+        fees: transaction.fees,
+        currency: transaction.currency
+      }));
+      
+      setTransactions(transformedTransactions);
+      
+      console.log('🔄 Transactions mises à jour:', transformedTransactions.length);
     } catch (error: any) {
       console.error('Erreur chargement transactions:', error);
       toast({

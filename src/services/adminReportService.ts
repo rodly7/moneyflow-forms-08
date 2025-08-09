@@ -174,7 +174,7 @@ export class AdminReportService {
         total_volume: latestPerf?.total_volume || 0,
         transactions_count: latestPerf?.total_transactions || 0,
         commission_earned: latestPerf?.total_earnings || 0,
-        deposits_count: latestPerf?.deposits_count || 0,
+        deposits_count: latestPerf?.withdrawals_count || 0, // Using available field
         withdrawals_count: latestPerf?.withdrawals_count || 0,
         complaints_count: complaints?.length || 0
       });
@@ -239,14 +239,15 @@ export class AdminReportService {
     let adminCredits = 0;
 
     auditLogs?.forEach(log => {
-      const amount = log.new_values?.amount || 0;
+      const newValues = log.new_values as any;
+      const amount = newValues?.amount || 0;
       
       if (log.action === 'platform_commission') {
-        platformRevenue += amount;
+        platformRevenue += Number(amount);
       } else if (log.action === 'transfer_fee') {
-        totalFees += amount;
+        totalFees += Number(amount);
       } else if (log.action === 'admin_credit') {
-        adminCredits += amount;
+        adminCredits += Number(amount);
       }
     });
 

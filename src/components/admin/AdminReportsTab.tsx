@@ -2,85 +2,59 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  FileText, Download, Calendar, TrendingUp, 
-  BarChart3, Users, DollarSign, Activity,
-  RefreshCw, Clock, CheckCircle
+  FileBarChart, Download, RefreshCw, Calendar,
+  TrendingUp, Users, DollarSign, BarChart3
 } from 'lucide-react';
 import { AdminReportService, WeeklyReport, MonthlyReport, AgentPerformanceReport, SubAdminReport } from '@/services/adminReportService';
-import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const AdminReportsTab = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [reportPeriod, setReportPeriod] = useState<'weekly' | 'monthly'>('weekly');
+  const [reportType, setReportType] = useState<'weekly' | 'monthly'>('weekly');
   const [weeklyReport, setWeeklyReport] = useState<WeeklyReport | null>(null);
   const [monthlyReport, setMonthlyReport] = useState<MonthlyReport | null>(null);
-  const [agentPerformances, setAgentPerformances] = useState<AgentPerformanceReport[]>([]);
-  const [subAdminsData, setSubAdminsData] = useState<SubAdminReport[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [agentReports, setAgentReports] = useState<AgentPerformanceReport[]>([]);
+  const [subAdminReports, setSubAdminReports] = useState<SubAdminReport[]>([]);
 
-  const generateWeeklyReport = async () => {
+  const generateReports = async () => {
     setLoading(true);
     try {
       const now = new Date();
-      const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-      const endOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + 6));
-      
-      const [report, agents] = await Promise.all([
-        AdminReportService.generateWeeklyReport(startOfWeek, endOfWeek),
-        AdminReportService.getAgentsPerformance(startOfWeek, endOfWeek)
-      ]);
-      
-      setWeeklyReport(report);
-      setAgentPerformances(agents);
-      
-      toast({
-        title: "✅ Rapport hebdomadaire généré",
-        description: "Toutes les données ont été calculées avec précision"
-      });
-    } catch (error: any) {
-      console.error('Erreur génération rapport hebdomadaire:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de générer le rapport hebdomadaire",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
 
-  const generateMonthlyReport = async () => {
-    setLoading(true);
-    try {
-      const startOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
-      const endOfMonth = new Date(selectedYear, selectedMonth, 0);
-      
-      const [report, agents, subAdmins] = await Promise.all([
-        AdminReportService.generateMonthlyReport(selectedMonth, selectedYear),
-        AdminReportService.getAgentsPerformance(startOfMonth, endOfMonth),
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+
+      const [weekly, monthly, agents, subAdmins] = await Promise.all([
+        AdminReportService.generateWeeklyReport(startOfWeek, endOfWeek),
+        AdminReportService.generateMonthlyReport(currentMonth, currentYear),
+        AdminReportService.getAgentsPerformance(startOfWeek, endOfWeek),
         AdminReportService.getSubAdminsData()
       ]);
-      
-      setMonthlyReport(report);
-      setAgentPerformances(agents);
-      setSubAdminsData(subAdmins);
-      
+
+      setWeeklyReport(weekly);
+      setMonthlyReport(monthly);
+      setAgentReports(agents);
+      setSubAdminReports(subAdmins);
+
       toast({
-        title: "✅ Rapport mensuel généré",
-        description: `Rapport de ${selectedMonth}/${selectedYear} généré avec succès`
+        title: "✅ Rapports générés",
+        description: "Tous les rapports ont été générés avec succès"
       });
     } catch (error: any) {
-      console.error('Erreur génération rapport mensuel:', error);
+      console.error('Erreur génération rapports:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de générer le rapport mensuel",
+        description: "Impossible de générer les rapports",
         variant: "destructive"
       });
     } finally {
@@ -89,12 +63,12 @@ const AdminReportsTab = () => {
   };
 
   const exportReport = (data: any, filename: string) => {
-    const jsonStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${filename}-${Date.now()}.json`;
+    link.download = `${filename}-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -102,13 +76,12 @@ const AdminReportsTab = () => {
 
     toast({
       title: "Export réussi",
-      description: `Le rapport ${filename} a été exporté`
+      description: `Rapport ${filename} exporté avec succès`
     });
   };
 
   useEffect(() => {
-    generateWeeklyReport();
-    generateMonthlyReport();
+    generateReports();
   }, []);
 
   const ReportCard = ({ title, value, subtitle, icon: Icon, color = "blue" }: any) => (
@@ -120,7 +93,9 @@ const AdminReportsTab = () => {
             <p className={`text-2xl font-bold text-${color}-700`}>{value}</p>
             {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
           </div>
-          <Icon className={`w-8 h-8 text-${color}-500`} />
+          <div className={`w-12 h-12 bg-${color}-100 rounded-full flex items-center justify-center`}>
+            <Icon className={`w-6 h-6 text-${color}-600`} />
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -129,10 +104,14 @@ const AdminReportsTab = () => {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">Rapports Administrateur</h2>
-        <div className="flex items-center gap-4">
-          <Select value={reportPeriod} onValueChange={(value: 'weekly' | 'monthly') => setReportPeriod(value)}>
-            <SelectTrigger className="w-32">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Rapports Administrateur</h2>
+          <p className="text-gray-600 mt-1">Données exactes et performances détaillées</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <Select value={reportType} onValueChange={(value) => setReportType(value as 'weekly' | 'monthly')}>
+            <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -141,45 +120,13 @@ const AdminReportsTab = () => {
             </SelectContent>
           </Select>
           
-          {reportPeriod === 'monthly' && (
-            <>
-              <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <SelectItem key={i + 1} value={(i + 1).toString()}>
-                      {new Date(0, i).toLocaleDateString('fr-FR', { month: 'long' })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-                <SelectTrigger className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[2024, 2025, 2026].map(year => (
-                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
-          )}
-          
           <Button
-            onClick={reportPeriod === 'weekly' ? generateWeeklyReport : generateMonthlyReport}
+            onClick={generateReports}
             disabled={loading}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            {loading ? (
-              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <BarChart3 className="w-4 h-4 mr-2" />
-            )}
-            Générer
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Actualiser
           </Button>
         </div>
       </div>
@@ -189,34 +136,41 @@ const AdminReportsTab = () => {
           <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
           <TabsTrigger value="agents">Agents</TabsTrigger>
           <TabsTrigger value="subadmins">Sous-Admins</TabsTrigger>
-          <TabsTrigger value="revenue">Revenus</TabsTrigger>
+          <TabsTrigger value="export">Export</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {(weeklyReport || monthlyReport) && (
+          {reportType === 'weekly' && weeklyReport && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <ReportCard
-                  title="Total Transactions"
-                  value={(reportPeriod === 'weekly' ? weeklyReport?.total_transactions : monthlyReport?.total_transactions) || 0}
-                  icon={Activity}
+                  title="Transactions Totales"
+                  value={weeklyReport.total_transactions}
+                  subtitle="Cette semaine"
+                  icon={BarChart3}
                   color="blue"
                 />
+                
                 <ReportCard
                   title="Volume Total"
-                  value={formatCurrency((reportPeriod === 'weekly' ? weeklyReport?.total_volume : monthlyReport?.total_volume) || 0)}
+                  value={formatCurrency(weeklyReport.total_volume)}
+                  subtitle="Toutes opérations"
                   icon={DollarSign}
                   color="green"
                 />
+                
                 <ReportCard
                   title="Revenus Plateforme"
-                  value={formatCurrency((reportPeriod === 'weekly' ? weeklyReport?.platform_revenue : monthlyReport?.platform_revenue) || 0)}
+                  value={formatCurrency(weeklyReport.platform_revenue)}
+                  subtitle="Part SendFlow"
                   icon={TrendingUp}
                   color="purple"
                 />
+                
                 <ReportCard
                   title="Agents Actifs"
-                  value={(reportPeriod === 'weekly' ? weeklyReport?.active_agents : monthlyReport?.active_agents) || 0}
+                  value={weeklyReport.active_agents}
+                  subtitle="Agents en activité"
                   icon={Users}
                   color="orange"
                 />
@@ -225,181 +179,209 @@ const AdminReportsTab = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <ReportCard
                   title="Transferts Internationaux"
-                  value={(reportPeriod === 'weekly' ? weeklyReport?.international_transfers : monthlyReport?.international_transfers) || 0}
-                  subtitle="Transferts vers l'étranger"
+                  value={weeklyReport.international_transfers}
+                  subtitle="Opérations cross-border"
                   icon={BarChart3}
                   color="indigo"
                 />
+                
                 <ReportCard
                   title="Transferts Domestiques"
-                  value={(reportPeriod === 'weekly' ? weeklyReport?.domestic_transfers : monthlyReport?.domestic_transfers) || 0}
-                  subtitle="Transferts locaux"
+                  value={weeklyReport.domestic_transfers}
+                  subtitle="Opérations locales"
                   icon={BarChart3}
                   color="teal"
                 />
+                
                 <ReportCard
-                  title="Commissions Agents"
-                  value={formatCurrency((reportPeriod === 'weekly' ? weeklyReport?.agent_commissions : monthlyReport?.agent_commissions) || 0)}
-                  subtitle="Payées aux agents"
+                  title="Frais Collectés"
+                  value={formatCurrency(weeklyReport.total_fees)}
+                  subtitle="Total des commissions"
                   icon={DollarSign}
                   color="pink"
                 />
               </div>
             </>
           )}
+
+          {reportType === 'monthly' && monthlyReport && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ReportCard
+                  title="Transactions Mensuelles"
+                  value={monthlyReport.total_transactions}
+                  subtitle={`Mois ${monthlyReport.month}/${monthlyReport.year}`}
+                  icon={BarChart3}
+                  color="blue"
+                />
+                
+                <ReportCard
+                  title="Volume Mensuel"
+                  value={formatCurrency(monthlyReport.total_volume)}
+                  subtitle="Toutes opérations"
+                  icon={DollarSign}
+                  color="green"
+                />
+                
+                <ReportCard
+                  title="Revenus Mensuels"
+                  value={formatCurrency(monthlyReport.platform_revenue)}
+                  subtitle="Part SendFlow"
+                  icon={TrendingUp}
+                  color="purple"
+                />
+                
+                <ReportCard
+                  title="Utilisateurs Actifs"
+                  value={monthlyReport.active_users}
+                  subtitle="Utilisateurs du mois"
+                  icon={Users}
+                  color="orange"
+                />
+              </div>
+            </>
+          )}
         </TabsContent>
 
-        <TabsContent value="agents" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Performance des Agents</h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => exportReport(agentPerformances, 'agents-performance')}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Exporter
-            </Button>
-          </div>
-          
-          <div className="grid gap-4">
-            {agentPerformances.map((agent, index) => (
-              <Card key={index} className="bg-white">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold text-lg">{agent.agent_name}</h4>
-                      <p className="text-sm text-gray-600">ID: {agent.agent_id.slice(0, 8)}...</p>
-                    </div>
-                    <Badge variant={agent.complaints_count > 0 ? "destructive" : "default"}>
-                      {agent.complaints_count} plaintes
-                    </Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Volume</p>
-                      <p className="font-bold">{formatCurrency(agent.total_volume)}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Transactions</p>
-                      <p className="font-bold">{agent.transactions_count}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Dépôts</p>
-                      <p className="font-bold">{agent.deposits_count}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Retraits</p>
-                      <p className="font-bold">{agent.withdrawals_count}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Commissions</p>
-                      <p className="font-bold text-green-600">{formatCurrency(agent.commission_earned)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <TabsContent value="agents" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Performance des Agents</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Agent</th>
+                      <th className="text-right p-2">Volume</th>
+                      <th className="text-right p-2">Transactions</th>
+                      <th className="text-right p-2">Commission</th>
+                      <th className="text-right p-2">Dépôts</th>
+                      <th className="text-right p-2">Retraits</th>
+                      <th className="text-right p-2">Plaintes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {agentReports.map((agent, index) => (
+                      <tr key={agent.agent_id} className="border-b hover:bg-gray-50">
+                        <td className="p-2">
+                          <div>
+                            <div className="font-medium">{agent.agent_name}</div>
+                            <div className="text-xs text-gray-500">ID: {agent.agent_id.slice(0, 8)}...</div>
+                          </div>
+                        </td>
+                        <td className="text-right p-2 font-medium">
+                          {formatCurrency(agent.total_volume)}
+                        </td>
+                        <td className="text-right p-2">{agent.transactions_count}</td>
+                        <td className="text-right p-2 text-green-600">
+                          {formatCurrency(agent.commission_earned)}
+                        </td>
+                        <td className="text-right p-2">{agent.deposits_count}</td>
+                        <td className="text-right p-2">{agent.withdrawals_count}</td>
+                        <td className="text-right p-2">
+                          <Badge variant={agent.complaints_count > 0 ? "destructive" : "default"}>
+                            {agent.complaints_count}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="subadmins" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Données des Sous-Administrateurs</h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => exportReport(subAdminsData, 'subadmins-data')}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Exporter
-            </Button>
-          </div>
-          
-          <div className="grid gap-4">
-            {subAdminsData.map((subAdmin, index) => (
-              <Card key={index} className="bg-white">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold text-lg">{subAdmin.sub_admin_name}</h4>
-                      <p className="text-sm text-gray-600">Territoire: {subAdmin.territory}</p>
-                    </div>
-                    <Badge variant="outline">
-                      {subAdmin.commission_percentage * 100}% commission
-                    </Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Agents Gérés</p>
-                      <p className="font-bold text-blue-600">{subAdmin.agents_managed}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Volume Total</p>
-                      <p className="font-bold">{formatCurrency(subAdmin.total_volume)}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600">Commission Potentielle</p>
-                      <p className="font-bold text-green-600">
-                        {formatCurrency(subAdmin.total_volume * subAdmin.commission_percentage)}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <TabsContent value="subadmins" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Performance des Sous-Administrateurs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Sous-Admin</th>
+                      <th className="text-left p-2">Territoire</th>
+                      <th className="text-right p-2">Agents Gérés</th>
+                      <th className="text-right p-2">Volume Total</th>
+                      <th className="text-right p-2">Commission %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subAdminReports.map((subAdmin, index) => (
+                      <tr key={subAdmin.sub_admin_id} className="border-b hover:bg-gray-50">
+                        <td className="p-2">
+                          <div className="font-medium">{subAdmin.sub_admin_name}</div>
+                        </td>
+                        <td className="p-2">{subAdmin.territory}</td>
+                        <td className="text-right p-2">{subAdmin.agents_managed}</td>
+                        <td className="text-right p-2 font-medium">
+                          {formatCurrency(subAdmin.total_volume)}
+                        </td>
+                        <td className="text-right p-2">
+                          {(subAdmin.commission_percentage * 100).toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="revenue" className="space-y-4">
+        <TabsContent value="export" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Revenus Exactes SendFlow
+                <Download className="w-5 h-5" />
+                Export des Rapports
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2">Calculs en cours...</p>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button
-                  onClick={async () => {
-                    setLoading(true);
-                    try {
-                      const now = new Date();
-                      const startDate = reportPeriod === 'weekly' 
-                        ? new Date(now.setDate(now.getDate() - 7))
-                        : new Date(selectedYear, selectedMonth - 1, 1);
-                      const endDate = reportPeriod === 'weekly'
-                        ? new Date()
-                        : new Date(selectedYear, selectedMonth, 0);
-                      
-                      const revenue = await AdminReportService.getTreasuryRevenue(startDate, endDate);
-                      
-                      toast({
-                        title: "Revenus calculés",
-                        description: `Revenus nets: ${formatCurrency(revenue.netRevenue)}`
-                      });
-                    } catch (error) {
-                      toast({
-                        title: "Erreur",
-                        description: "Impossible de calculer les revenus",
-                        variant: "destructive"
-                      });
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  disabled={loading}
+                  onClick={() => weeklyReport && exportReport(weeklyReport, 'rapport-hebdomadaire')}
+                  disabled={!weeklyReport}
+                  variant="outline"
+                  className="justify-start"
                 >
-                  {loading ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Calculator className="w-4 h-4 mr-2" />
-                  )}
-                  Calculer Revenus Exacts
+                  <FileBarChart className="w-4 h-4 mr-2" />
+                  Rapport Hebdomadaire
+                </Button>
+                
+                <Button
+                  onClick={() => monthlyReport && exportReport(monthlyReport, 'rapport-mensuel')}
+                  disabled={!monthlyReport}
+                  variant="outline"
+                  className="justify-start"
+                >
+                  <FileBarChart className="w-4 h-4 mr-2" />
+                  Rapport Mensuel
+                </Button>
+                
+                <Button
+                  onClick={() => exportReport(agentReports, 'performance-agents')}
+                  disabled={agentReports.length === 0}
+                  variant="outline"
+                  className="justify-start"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Performance Agents
+                </Button>
+                
+                <Button
+                  onClick={() => exportReport(subAdminReports, 'performance-sous-admins')}
+                  disabled={subAdminReports.length === 0}
+                  variant="outline"
+                  className="justify-start"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Performance Sous-Admins
                 </Button>
               </div>
             </CardContent>
