@@ -184,94 +184,86 @@ export class AdminReportService {
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
     try {
-      // Use raw query to avoid complex type inference
+      // Direct query without RPC call
       const { data: subAdmins, error } = await supabase
-        .rpc('get_sub_admins_basic_info');
+        .from('profiles')
+        .select('id, full_name, country')
+        .eq('role', 'sub_admin');
 
       if (error) {
         console.error('Error fetching sub-admins:', error);
-        // Fallback to direct query with minimal typing
-        const fallbackResult = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('role', 'sub_admin');
-        
-        if (fallbackResult.error || !fallbackResult.data) {
-          return [];
-        }
-        
-        return this.processSubAdminData(fallbackResult.data);
+        return [];
       }
 
-      return this.processSubAdminData(subAdmins || []);
+      if (!subAdmins || subAdmins.length === 0) {
+        return [];
+      }
+
+      const reports: SubAdminReport[] = [];
+
+      for (const admin of subAdmins) {
+        try {
+          // Get agent count with simple query
+          const { count: agentCount } = await supabase
+            .from('agents')
+            .select('*', { count: 'exact', head: true })
+            .eq('territory_admin_id', admin.id);
+
+          let totalVolume = 0;
+
+          if (agentCount && agentCount > 0) {
+            // Get agent IDs
+            const { data: agentIds } = await supabase
+              .from('agents')
+              .select('user_id')
+              .eq('territory_admin_id', admin.id);
+
+            if (agentIds && agentIds.length > 0) {
+              const ids = agentIds.map(agent => agent.user_id);
+
+              // Get performance data
+              const { data: perfData } = await supabase
+                .from('agent_monthly_performance')
+                .select('total_volume')
+                .in('agent_id', ids);
+
+              if (perfData && perfData.length > 0) {
+                totalVolume = perfData.reduce((sum, perf) => {
+                  const volume = Number(perf.total_volume) || 0;
+                  return sum + volume;
+                }, 0);
+              }
+            }
+          }
+
+          reports.push({
+            sub_admin_id: String(admin.id || ''),
+            sub_admin_name: String(admin.full_name || 'Unknown'),
+            agents_managed: agentCount || 0,
+            territory: String(admin.country || 'Non défini'),
+            total_volume: totalVolume,
+            commission_percentage: 0.15
+          });
+
+        } catch (error) {
+          console.warn(`Error processing sub-admin ${admin.id}:`, error);
+          
+          reports.push({
+            sub_admin_id: String(admin.id || ''),
+            sub_admin_name: String(admin.full_name || 'Unknown'),
+            agents_managed: 0,
+            territory: String(admin.country || 'Non défini'),
+            total_volume: 0,
+            commission_percentage: 0.15
+          });
+        }
+      }
+
+      return reports;
     } catch (error) {
       console.error('Error in getSubAdminsData:', error);
       return [];
     }
-  }
-
-  private static async processSubAdminData(rawData: any[]): Promise<SubAdminReport[]> {
-    const reports: SubAdminReport[] = [];
-
-    for (const admin of rawData) {
-      try {
-        // Use simple count query
-        const agentCountQuery = await supabase
-          .from('agents')
-          .select('*', { count: 'exact', head: true })
-          .eq('territory_admin_id', admin.id);
-
-        const agentCount = agentCountQuery.count || 0;
-        let totalVolume = 0;
-
-        if (agentCount > 0) {
-          // Get agent IDs with simple query
-          const agentIdsQuery = await supabase
-            .from('agents')
-            .select('user_id')
-            .eq('territory_admin_id', admin.id);
-
-          if (agentIdsQuery.data && agentIdsQuery.data.length > 0) {
-            const agentIds = agentIdsQuery.data.map((a: any) => a.user_id);
-
-            // Get performance data with simple query
-            const perfQuery = await supabase
-              .from('agent_monthly_performance')
-              .select('total_volume')
-              .in('agent_id', agentIds);
-
-            if (perfQuery.data) {
-              totalVolume = perfQuery.data.reduce((sum: number, perf: any) => {
-                return sum + (parseFloat(perf.total_volume) || 0);
-              }, 0);
-            }
-          }
-        }
-
-        reports.push({
-          sub_admin_id: String(admin.id || ''),
-          sub_admin_name: String(admin.full_name || 'Unknown'),
-          agents_managed: agentCount,
-          territory: String(admin.country || 'Non défini'),
-          total_volume: totalVolume,
-          commission_percentage: 0.15
-        });
-
-      } catch (error) {
-        console.warn(`Error processing sub-admin ${admin.id}:`, error);
-        
-        reports.push({
-          sub_admin_id: String(admin.id || ''),
-          sub_admin_name: String(admin.full_name || 'Unknown'),
-          agents_managed: 0,
-          territory: String(admin.country || 'Non défini'),
-          total_volume: 0,
-          commission_percentage: 0.15
-        });
-      }
-    }
-
-    return reports;
   }
 
   static async getTreasuryRevenue(startDate: Date, endDate: Date) {
