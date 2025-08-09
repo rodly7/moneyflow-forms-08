@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface WeeklyReport {
@@ -184,54 +185,53 @@ export class AdminReportService {
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
     try {
-      // Use explicit any type to avoid deep type inference
-      const { data: rawSubAdmins, error } = await supabase
+      // Use basic query without type assertion to avoid deep type inference
+      const subAdminResult = await supabase
         .from('profiles')
         .select('id, full_name, country')
-        .eq('role', 'sub_admin') as { data: any[] | null, error: any };
+        .eq('role', 'sub_admin');
 
-      if (error) {
-        console.error('Error fetching sub-admins:', error);
+      if (subAdminResult.error) {
+        console.error('Error fetching sub-admins:', subAdminResult.error);
         return [];
       }
 
+      const rawSubAdmins = subAdminResult.data;
       if (!rawSubAdmins || rawSubAdmins.length === 0) {
         return [];
       }
 
       const reports: SubAdminReport[] = [];
 
-      // Process each sub-admin with explicit typing
-      for (let i = 0; i < rawSubAdmins.length; i++) {
-        const admin = rawSubAdmins[i];
-        
+      // Process each sub-admin with basic queries
+      for (const admin of rawSubAdmins) {
         try {
-          // Simple agent count query
-          const { data: agentsData, error: agentsError } = await supabase
+          // Simple agent count query without complex typing
+          const agentsResult = await supabase
             .from('agents')
             .select('user_id')
-            .eq('territory_admin_id', admin.id) as { data: any[] | null, error: any };
+            .eq('territory_admin_id', admin.id);
 
           let agentCount = 0;
           let agentIds: string[] = [];
 
-          if (!agentsError && agentsData) {
-            agentCount = agentsData.length;
-            agentIds = agentsData.map((agent: any) => agent.user_id).filter((id: any) => id);
+          if (!agentsResult.error && agentsResult.data) {
+            agentCount = agentsResult.data.length;
+            agentIds = agentsResult.data.map(agent => agent.user_id).filter(Boolean);
           }
 
           let totalVolume = 0;
 
-          // Get performance data with explicit typing
+          // Get performance data with basic query
           if (agentIds.length > 0) {
-            const { data: perfData, error: perfError } = await supabase
+            const perfResult = await supabase
               .from('agent_monthly_performance')
               .select('total_volume')
-              .in('agent_id', agentIds) as { data: any[] | null, error: any };
+              .in('agent_id', agentIds);
 
-            if (!perfError && perfData) {
-              totalVolume = perfData.reduce((sum: number, perf: any) => {
-                const volume = parseFloat(perf.total_volume) || 0;
+            if (!perfResult.error && perfResult.data) {
+              totalVolume = perfResult.data.reduce((sum, perf) => {
+                const volume = parseFloat(String(perf.total_volume)) || 0;
                 return sum + volume;
               }, 0);
             }
