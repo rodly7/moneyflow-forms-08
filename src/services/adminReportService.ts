@@ -184,72 +184,96 @@ export class AdminReportService {
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
     try {
-      // Use explicit typing to avoid infinite recursion
-      const { data: subAdminsData, error } = await supabase
+      // Simple query without complex type inference
+      const subAdminQuery = await supabase
         .from('profiles')
         .select('id, full_name, country')
         .eq('role', 'sub_admin');
 
-      if (error) throw error;
-
-      const subAdminReports: SubAdminReport[] = [];
-      
-      if (!subAdminsData || subAdminsData.length === 0) {
-        return subAdminReports;
+      if (subAdminQuery.error) {
+        console.error('Error fetching sub-admins:', subAdminQuery.error);
+        return [];
       }
 
-      for (const subAdmin of subAdminsData) {
+      const subAdminsData = subAdminQuery.data;
+      if (!subAdminsData || subAdminsData.length === 0) {
+        return [];
+      }
+
+      const subAdminReports: SubAdminReport[] = [];
+
+      // Process each sub-admin individually to avoid complex type chains
+      for (let i = 0; i < subAdminsData.length; i++) {
+        const subAdmin = subAdminsData[i];
+        
         try {
-          // Get agents count with explicit typing
-          const { data: agentsData } = await supabase
+          // Simple agent count query
+          const agentQuery = await supabase
             .from('agents')
             .select('user_id')
             .eq('territory_admin_id', subAdmin.id);
 
-          const agentCount = agentsData?.length || 0;
+          const agentsData = agentQuery.data || [];
+          const agentCount = agentsData.length;
+          
           let totalVolume = 0;
 
-          // Calculate total volume if there are agents
-          if (agentCount > 0 && agentsData) {
-            // Extract agent IDs with explicit typing
-            const agentIds: string[] = agentsData
-              .map((agent: any) => agent.user_id)
-              .filter((id: any): id is string => Boolean(id));
+          // Only calculate volume if there are agents
+          if (agentCount > 0) {
+            // Extract agent IDs manually
+            const agentIds: string[] = [];
+            for (const agent of agentsData) {
+              if (agent && agent.user_id && typeof agent.user_id === 'string') {
+                agentIds.push(agent.user_id);
+              }
+            }
 
             if (agentIds.length > 0) {
-              const { data: performanceData } = await supabase
+              // Simple performance query
+              const performanceQuery = await supabase
                 .from('agent_monthly_performance')
                 .select('total_volume')
                 .in('agent_id', agentIds);
 
-              if (performanceData) {
-                totalVolume = performanceData.reduce((sum: number, perf: any) => {
-                  const volume = Number(perf.total_volume) || 0;
-                  return sum + volume;
-                }, 0);
+              if (performanceQuery.data) {
+                for (const perf of performanceQuery.data) {
+                  if (perf && perf.total_volume) {
+                    const volume = Number(perf.total_volume);
+                    if (!isNaN(volume)) {
+                      totalVolume += volume;
+                    }
+                  }
+                }
               }
             }
           }
 
-          subAdminReports.push({
-            sub_admin_id: subAdmin.id,
+          // Create report entry
+          const report: SubAdminReport = {
+            sub_admin_id: subAdmin.id || '',
             sub_admin_name: subAdmin.full_name || 'Unknown',
             agents_managed: agentCount,
             territory: subAdmin.country || 'Non défini',
             total_volume: totalVolume,
-            commission_percentage: 0.15 // 15% pour les sous-admins
-          });
+            commission_percentage: 0.15
+          };
+
+          subAdminReports.push(report);
+
         } catch (subError) {
           console.warn(`Error processing sub-admin ${subAdmin.id}:`, subError);
-          // Continue with next sub-admin
-          subAdminReports.push({
-            sub_admin_id: subAdmin.id,
+          
+          // Add fallback entry
+          const fallbackReport: SubAdminReport = {
+            sub_admin_id: subAdmin.id || '',
             sub_admin_name: subAdmin.full_name || 'Unknown',
             agents_managed: 0,
             territory: subAdmin.country || 'Non défini',
             total_volume: 0,
             commission_percentage: 0.15
-          });
+          };
+
+          subAdminReports.push(fallbackReport);
         }
       }
 
