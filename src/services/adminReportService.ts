@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface WeeklyReport {
@@ -184,6 +183,7 @@ export class AdminReportService {
   }
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
+    // Simplify the query to avoid type instantiation issues
     const { data: subAdmins, error: subAdminsError } = await supabase
       .from('profiles')
       .select('id, full_name, country')
@@ -193,28 +193,34 @@ export class AdminReportService {
 
     const subAdminReports: SubAdminReport[] = [];
 
-    for (const subAdmin of subAdmins || []) {
-      // Compter les agents gérés par ce sous-admin
-      const { data: managedAgents } = await supabase
+    if (!subAdmins) return subAdminReports;
+
+    for (const subAdmin of subAdmins) {
+      // Use simpler approach to avoid type complexity
+      const agentsQuery = await supabase
         .from('agents')
         .select('id, user_id')
         .eq('territory_admin_id', subAdmin.id);
 
-      // Calculer le volume total des agents gérés
+      const managedAgents = agentsQuery.data || [];
+
+      // Calculate total volume with simplified approach
       let totalVolume = 0;
-      if (managedAgents && managedAgents.length > 0) {
-        const { data: performances } = await supabase
+      if (managedAgents.length > 0) {
+        const agentIds = managedAgents.map((a: any) => a.user_id);
+        const performanceQuery = await supabase
           .from('agent_monthly_performance')
           .select('total_volume')
-          .in('agent_id', managedAgents.map(a => a.user_id));
+          .in('agent_id', agentIds);
 
-        totalVolume = performances?.reduce((sum, p) => sum + p.total_volume, 0) || 0;
+        const performances = performanceQuery.data || [];
+        totalVolume = performances.reduce((sum: number, p: any) => sum + (p.total_volume || 0), 0);
       }
 
       subAdminReports.push({
         sub_admin_id: subAdmin.id,
-        sub_admin_name: subAdmin.full_name,
-        agents_managed: managedAgents?.length || 0,
+        sub_admin_name: subAdmin.full_name || 'Unknown',
+        agents_managed: managedAgents.length,
         territory: subAdmin.country || 'Non défini',
         total_volume: totalVolume,
         commission_percentage: 0.15 // 15% pour les sous-admins
