@@ -30,6 +30,7 @@ import AdvancedAgentManagement from '@/components/admin/AdvancedAgentManagement'
 import AdvancedReporting from '@/components/admin/AdvancedReporting';
 import AdvancedNotificationSystem from '@/components/admin/AdvancedNotificationSystem';
 import CustomerSupportMessages from '@/components/admin/CustomerSupportMessages';
+import SystemSettings from '@/components/admin/SystemSettings';
 
 const MainAdminDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -138,14 +139,6 @@ const MainAdminDashboard = () => {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <Button 
-                onClick={() => navigate('/admin-settings')}
-                variant="outline"
-                className="flex items-center space-x-2 hover:bg-gray-50"
-              >
-                <Settings className="w-4 h-4" />
-                <span>Paramètres Système</span>
-              </Button>
               <Badge variant="default" className="bg-red-600 hover:bg-red-700">
                 Admin Principal
               </Badge>
@@ -501,112 +494,19 @@ const MainAdminDashboard = () => {
             </div>
           </TabsContent>
 
-          {/* Paramètres Système */}
+          {/* Paramètres Système - NOUVEAU */}
           <TabsContent value="settings" className="space-y-6">
-            <div className="grid gap-6">
-              {/* Contrôles Système */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-red-500" />
-                    Contrôles Système
-                  </CardTitle>
-                  <CardDescription>
-                    Gérez les fonctionnalités critiques du système
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-medium mb-3">Services de Transaction</h4>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Transferts d'argent</span>
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span className="text-sm text-green-600">Actif</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Retraits agents</span>
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span className="text-sm text-green-600">Actif</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Dépôts mobiles</span>
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span className="text-sm text-green-600">Actif</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-medium mb-3">Limites et Restrictions</h4>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Limite quotidienne utilisateur</span>
-                          <span className="text-sm font-medium">500,000 FCFA</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Limite quotidienne agent</span>
-                          <span className="text-sm font-medium">2,000,000 FCFA</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Frais de transaction</span>
-                          <span className="text-sm font-medium">1-6.5%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Maintenance Système */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5 text-gray-600" />
-                    Maintenance Système
-                  </CardTitle>
-                  <CardDescription>
-                    Outils de maintenance et configuration
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <Button 
-                      onClick={() => navigate('/admin-settings')}
-                      variant="outline" 
-                      className="h-20 flex flex-col items-center gap-2"
-                    >
-                      <Settings className="w-6 h-6" />
-                      <span>Configuration Avancée</span>
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      className="h-20 flex flex-col items-center gap-2 opacity-50 cursor-not-allowed"
-                      disabled
-                    >
-                      <Shield className="w-6 h-6" />
-                      <span>Mode Maintenance</span>
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      className="h-20 flex flex-col items-center gap-2 opacity-50 cursor-not-allowed"
-                      disabled
-                    >
-                      <Activity className="w-6 h-6" />
-                      <span>Diagnostic Système</span>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <Settings className="h-6 w-6 text-gray-600" />
+                    Paramètres Système
+                  </h2>
+                  <p className="text-gray-600 mt-1">Configurez et contrôlez les fonctionnalités du système</p>
+                </div>
+              </div>
+              <SystemSettings />
             </div>
           </TabsContent>
 
