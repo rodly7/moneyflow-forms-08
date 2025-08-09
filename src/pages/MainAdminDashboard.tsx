@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMainAdmin } from '@/hooks/useMainAdmin';
-import { SimpleAdvancedTab } from '@/components/admin/SimpleAdvancedTab';
-import { SimpleAgentsTab } from '@/components/admin/SimpleAgentsTab';
+import SimpleAdvancedTab from '@/components/admin/SimpleAdvancedTab';
+import SimpleAgentsTab from '@/components/admin/SimpleAgentsTab';
 import { SimpleTreasuryTab } from '@/components/admin/SimpleTreasuryTab';
-import { SimpleSettingsTab } from '@/components/admin/SimpleSettingsTab';
+import SimpleSettingsTab from '@/components/admin/SimpleSettingsTab';
 import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
 
 export default function MainAdminDashboard() {

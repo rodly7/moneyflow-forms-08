@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,33 +36,41 @@ export const SimpleMessagesTab = () => {
 
   const fetchMessages = async () => {
     try {
-      const { data, error } = await supabase
+      // First get the messages
+      const { data: messagesData, error: messagesError } = await supabase
         .from('customer_support_messages')
-        .select(`
-          id,
-          user_id,
-          message,
-          category,
-          status,
-          priority,
-          created_at,
-          profiles!customer_support_messages_user_id_fkey (full_name, phone)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (error) throw error;
-      
-      const formattedMessages: Message[] = (data || []).map(msg => ({
-        id: msg.id,
-        user_id: msg.user_id,
-        message: msg.message,
-        category: msg.category,
-        status: msg.status,
-        priority: msg.priority,
-        created_at: msg.created_at,
-        profiles: msg.profiles || null
-      }));
+      if (messagesError) throw messagesError;
+
+      // Then get profiles separately
+      const userIds = messagesData?.map(msg => msg.user_id) || [];
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      const formattedMessages: Message[] = (messagesData || []).map(msg => {
+        const profile = profilesData?.find(p => p.id === msg.user_id);
+        return {
+          id: msg.id,
+          user_id: msg.user_id,
+          message: msg.message,
+          category: msg.category || 'general',
+          status: msg.status,
+          priority: msg.priority,
+          created_at: msg.created_at,
+          profiles: profile ? {
+            full_name: profile.full_name || 'Utilisateur inconnu',
+            phone: profile.phone || 'N/A'
+          } : null
+        };
+      });
       
       setMessages(formattedMessages);
     } catch (error) {
