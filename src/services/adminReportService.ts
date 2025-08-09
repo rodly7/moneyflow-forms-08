@@ -184,58 +184,64 @@ export class AdminReportService {
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
     try {
-      // Simple query with explicit typing
-      const subAdminQuery = await supabase
+      // Use explicit any type to avoid deep type inference
+      const { data: rawSubAdmins, error } = await supabase
         .from('profiles')
         .select('id, full_name, country')
-        .eq('role', 'sub_admin');
+        .eq('role', 'sub_admin') as { data: any[] | null, error: any };
 
-      if (subAdminQuery.error) {
-        console.error('Error fetching sub-admins:', subAdminQuery.error);
+      if (error) {
+        console.error('Error fetching sub-admins:', error);
         return [];
       }
 
-      const subAdmins = subAdminQuery.data;
-      if (!subAdmins || subAdmins.length === 0) {
+      if (!rawSubAdmins || rawSubAdmins.length === 0) {
         return [];
       }
 
       const reports: SubAdminReport[] = [];
 
-      // Process each sub-admin individually
-      for (const admin of subAdmins) {
+      // Process each sub-admin with explicit typing
+      for (let i = 0; i < rawSubAdmins.length; i++) {
+        const admin = rawSubAdmins[i];
+        
         try {
-          // Get agents count using a simple query
-          const agentsQuery = await supabase
+          // Simple agent count query
+          const { data: agentsData, error: agentsError } = await supabase
             .from('agents')
             .select('user_id')
-            .eq('territory_admin_id', admin.id);
+            .eq('territory_admin_id', admin.id) as { data: any[] | null, error: any };
 
-          const agentsList = agentsQuery.data || [];
-          const agentCount = agentsList.length;
-          const agentIds = agentsList.map(agent => agent.user_id).filter(Boolean);
+          let agentCount = 0;
+          let agentIds: string[] = [];
+
+          if (!agentsError && agentsData) {
+            agentCount = agentsData.length;
+            agentIds = agentsData.map((agent: any) => agent.user_id).filter((id: any) => id);
+          }
 
           let totalVolume = 0;
 
-          // Get performance data if we have agents
+          // Get performance data with explicit typing
           if (agentIds.length > 0) {
-            const performanceQuery = await supabase
+            const { data: perfData, error: perfError } = await supabase
               .from('agent_monthly_performance')
               .select('total_volume')
-              .in('agent_id', agentIds);
+              .in('agent_id', agentIds) as { data: any[] | null, error: any };
 
-            const performanceData = performanceQuery.data || [];
-            totalVolume = performanceData.reduce((sum, perf) => {
-              const volume = Number(perf.total_volume) || 0;
-              return sum + volume;
-            }, 0);
+            if (!perfError && perfData) {
+              totalVolume = perfData.reduce((sum: number, perf: any) => {
+                const volume = parseFloat(perf.total_volume) || 0;
+                return sum + volume;
+              }, 0);
+            }
           }
 
           const report: SubAdminReport = {
-            sub_admin_id: admin.id,
-            sub_admin_name: admin.full_name || 'Unknown',
+            sub_admin_id: String(admin.id || ''),
+            sub_admin_name: String(admin.full_name || 'Unknown'),
             agents_managed: agentCount,
-            territory: admin.country || 'Non défini',
+            territory: String(admin.country || 'Non défini'),
             total_volume: totalVolume,
             commission_percentage: 0.15
           };
@@ -247,10 +253,10 @@ export class AdminReportService {
           
           // Add fallback entry
           reports.push({
-            sub_admin_id: admin.id,
-            sub_admin_name: admin.full_name || 'Unknown',
+            sub_admin_id: String(admin.id || ''),
+            sub_admin_name: String(admin.full_name || 'Unknown'),
             agents_managed: 0,
-            territory: admin.country || 'Non défini',
+            territory: String(admin.country || 'Non défini'),
             total_volume: 0,
             commission_percentage: 0.15
           });
