@@ -174,7 +174,7 @@ export class AdminReportService {
         total_volume: latestPerf?.total_volume || 0,
         transactions_count: latestPerf?.total_transactions || 0,
         commission_earned: latestPerf?.total_earnings || 0,
-        deposits_count: latestPerf?.withdrawals_count || 0, // Using available field
+        deposits_count: latestPerf?.withdrawals_count || 0,
         withdrawals_count: latestPerf?.withdrawals_count || 0,
         complaints_count: complaints?.length || 0
       });
@@ -240,15 +240,18 @@ export class AdminReportService {
 
     auditLogs?.forEach(log => {
       try {
-        const newValues = log.new_values as Record<string, any>;
-        const amount = newValues?.amount ? Number(newValues.amount) : 0;
-        
-        if (log.action === 'platform_commission') {
-          platformRevenue += amount;
-        } else if (log.action === 'transfer_fee') {
-          totalFees += amount;
-        } else if (log.action === 'admin_credit') {
-          adminCredits += amount;
+        const newValues = log.new_values;
+        if (newValues && typeof newValues === 'object' && !Array.isArray(newValues)) {
+          const amount = (newValues as Record<string, any>).amount;
+          const amountNum = amount ? Number(amount) : 0;
+          
+          if (log.action === 'platform_commission') {
+            platformRevenue += amountNum;
+          } else if (log.action === 'transfer_fee') {
+            totalFees += amountNum;
+          } else if (log.action === 'admin_credit') {
+            adminCredits += amountNum;
+          }
         }
       } catch (error) {
         console.warn('Error parsing audit log:', log.id, error);

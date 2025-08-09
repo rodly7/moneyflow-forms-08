@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,7 @@ const ExactTransactionMonitor = () => {
     try {
       const recentTransactions = await AdminReportService.getRecentTransactions(100);
       
-      // Transform the data to match our interface
+      // Transform the data to match our interface with proper type checking
       const transformedTransactions: Transaction[] = recentTransactions.map(transaction => {
         const baseTransaction = {
           id: transaction.id,
@@ -51,34 +52,48 @@ const ExactTransactionMonitor = () => {
           timestamp: transaction.timestamp,
         };
 
-        // Handle different transaction types with their specific properties
+        // Handle transfer type
         if (transaction.type === 'transfer') {
+          const transferData = transaction as any;
           return {
             ...baseTransaction,
-            sender: transaction.sender || null,
-            recipient_full_name: (transaction as any).recipient_full_name,
-            recipient_phone: (transaction as any).recipient_phone,
-            fees: (transaction as any).fees || 0,
-            currency: (transaction as any).currency || 'XAF'
+            sender: transferData.sender || null,
+            recipient_full_name: transferData.recipient_full_name || '',
+            recipient_phone: transferData.recipient_phone || '',
+            fees: transferData.fees || 0,
+            currency: transferData.currency || 'XAF'
           };
-        } else if (transaction.type === 'withdrawal') {
+        } 
+        
+        // Handle withdrawal type
+        if (transaction.type === 'withdrawal') {
+          const withdrawalData = transaction as any;
           return {
             ...baseTransaction,
-            user: transaction.user || null,
-            recipient_phone: (transaction as any).withdrawal_phone,
+            user: withdrawalData.user || null,
+            recipient_phone: withdrawalData.withdrawal_phone || '',
             fees: 0,
             currency: 'XAF'
           };
-        } else if (transaction.type === 'deposit') {
+        } 
+        
+        // Handle deposit type
+        if (transaction.type === 'deposit') {
+          const depositData = transaction as any;
           return {
             ...baseTransaction,
-            user: transaction.user || null,
+            user: depositData.user || null,
             fees: 0,
-            currency: (transaction as any).currency || 'XAF'
+            currency: depositData.currency || 'XAF'
           };
         }
 
-        return baseTransaction as Transaction;
+        // Fallback
+        return {
+          ...baseTransaction,
+          fees: 0,
+          currency: 'XAF'
+        };
       });
       
       setTransactions(transformedTransactions);
