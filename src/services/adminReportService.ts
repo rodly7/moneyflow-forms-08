@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface WeeklyReport {
@@ -187,23 +186,33 @@ export class AdminReportService {
     try {
       const reports: SubAdminReport[] = [];
       
-      // Use explicit typing to break type inference
-      const { data: subAdmins, error } = await supabase
+      // Simplified query without complex typing
+      const subAdminsResult = await supabase
         .from('profiles')
         .select('id, full_name, country')
-        .eq('role', 'sub_admin') as { 
-          data: Array<{ id: string; full_name: string; country: string }> | null; 
-          error: any 
-        };
+        .eq('role', 'sub_admin');
 
-      if (error || !subAdmins) {
-        console.error('Error fetching sub-admins:', error);
+      if (subAdminsResult.error || !subAdminsResult.data) {
+        console.error('Error fetching sub-admins:', subAdminsResult.error);
         return [];
       }
 
-      for (const admin of subAdmins) {
-        const report = await this.processSubAdminReport(admin);
-        reports.push(report);
+      for (const admin of subAdminsResult.data) {
+        try {
+          const report = await this.buildSubAdminReport(admin);
+          reports.push(report);
+        } catch (error) {
+          console.warn(`Error processing sub-admin ${admin.id}:`, error);
+          // Add fallback report
+          reports.push({
+            sub_admin_id: admin.id,
+            sub_admin_name: admin.full_name || 'Unknown',
+            agents_managed: 0,
+            territory: admin.country || 'Non défini',
+            total_volume: 0,
+            commission_percentage: 0.15
+          });
+        }
       }
 
       return reports;
@@ -213,96 +222,55 @@ export class AdminReportService {
     }
   }
 
-  private static async processSubAdminReport(admin: { id: string; full_name: string; country: string }): Promise<SubAdminReport> {
-    try {
-      // Use explicit typing to avoid deep inference
-      const agentsResponse = await supabase
-        .from('agents')
-        .select('user_id')
-        .eq('territory_admin_id', admin.id) as {
-          data: Array<{ user_id: string }> | null;
-          error: any;
-        };
+  private static async buildSubAdminReport(admin: any): Promise<SubAdminReport> {
+    // Get agents count with simple query
+    const agentsResult = await supabase
+      .from('agents')
+      .select('user_id')
+      .eq('territory_admin_id', admin.id);
 
-      const agentsCount = agentsResponse.data?.length || 0;
-
-      let totalVolume = 0;
-      if (agentsCount > 0) {
-        totalVolume = await this.calculateSubAdminVolume(admin.id);
-      }
-
-      return {
-        sub_admin_id: admin.id,
-        sub_admin_name: admin.full_name || 'Unknown',
-        agents_managed: agentsCount,
-        territory: admin.country || 'Non défini',
-        total_volume: totalVolume,
-        commission_percentage: 0.15
-      };
-    } catch (error) {
-      console.warn(`Error processing sub-admin ${admin.id}:`, error);
-      
-      return {
-        sub_admin_id: admin.id,
-        sub_admin_name: admin.full_name || 'Unknown',
-        agents_managed: 0,
-        territory: admin.country || 'Non défini',
-        total_volume: 0,
-        commission_percentage: 0.15
-      };
+    const agentsCount = agentsResult.data?.length || 0;
+    
+    let totalVolume = 0;
+    if (agentsCount > 0 && agentsResult.data) {
+      totalVolume = await this.getVolumeForAgents(agentsResult.data);
     }
+
+    return {
+      sub_admin_id: admin.id,
+      sub_admin_name: admin.full_name || 'Unknown',
+      agents_managed: agentsCount,
+      territory: admin.country || 'Non défini',
+      total_volume: totalVolume,
+      commission_percentage: 0.15
+    };
   }
 
-  private static async calculateSubAdminVolume(subAdminId: string): Promise<number> {
+  private static async getVolumeForAgents(agents: any[]): Promise<number> {
     try {
-      // Use explicit typing
-      const agentsResponse = await supabase
-        .from('agents')
-        .select('user_id')
-        .eq('territory_admin_id', subAdminId) as {
-          data: Array<{ user_id: string }> | null;
-          error: any;
-        };
-
-      if (!agentsResponse.data || agentsResponse.data.length === 0) {
-        return 0;
-      }
-
-      const userIds: string[] = [];
-      for (const agent of agentsResponse.data) {
-        if (agent.user_id) {
-          userIds.push(agent.user_id);
-        }
-      }
+      const userIds = agents
+        .map(agent => agent.user_id)
+        .filter(Boolean);
 
       if (userIds.length === 0) {
         return 0;
       }
 
-      // Use explicit typing for performance query
-      const performanceResponse = await supabase
+      const performanceResult = await supabase
         .from('agent_monthly_performance')
         .select('total_volume')
-        .in('agent_id', userIds) as {
-          data: Array<{ total_volume: number }> | null;
-          error: any;
-        };
+        .in('agent_id', userIds);
 
-      if (!performanceResponse.data) {
+      if (!performanceResult.data) {
         return 0;
       }
 
-      let totalVolume = 0;
-      for (const perf of performanceResponse.data) {
+      return performanceResult.data.reduce((sum, perf) => {
         const volume = Number(perf.total_volume);
-        if (!isNaN(volume)) {
-          totalVolume += volume;
-        }
-      }
-
-      return totalVolume;
+        return sum + (isNaN(volume) ? 0 : volume);
+      }, 0);
     } catch (error) {
-      console.warn('Error calculating sub-admin volume:', error);
+      console.warn('Error calculating volume:', error);
       return 0;
     }
   }
