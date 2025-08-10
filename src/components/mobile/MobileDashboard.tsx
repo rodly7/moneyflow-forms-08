@@ -11,7 +11,10 @@ import {
   QrCode,
   Receipt,
   Smartphone,
-  Bell
+  Bell,
+  Scan,
+  PiggyBank,
+  History
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/integrations/supabase/client";
@@ -49,16 +52,28 @@ const MobileDashboard: React.FC = () => {
       onClick: () => navigate('/qr-code')
     },
     {
-      title: "Reçus",
-      icon: Receipt,
+      title: "Scanner",
+      icon: Scan,
+      color: "from-indigo-500 to-blue-500",
+      onClick: () => navigate('/qr-payment')
+    },
+    {
+      title: "Épargne",
+      icon: PiggyBank,
+      color: "from-teal-500 to-green-500",
+      onClick: () => navigate('/savings')
+    },
+    {
+      title: "Historique",
+      icon: History,
       color: "from-orange-500 to-amber-500",
-      onClick: () => navigate('/receipts')
+      onClick: () => navigate('/transactions')
     },
     {
       title: "Factures",
       icon: Smartphone,
-      color: "from-indigo-500 to-blue-500",
-      onClick: () => navigate('/bills')
+      color: "from-violet-500 to-purple-500",
+      onClick: () => navigate('/bill-payments')
     }
   ];
 
@@ -109,7 +124,7 @@ const MobileDashboard: React.FC = () => {
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Actions rapides</h2>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               {quickActions.map((action, index) => (
                 <Button
                   key={index}
