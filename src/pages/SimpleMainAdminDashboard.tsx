@@ -9,6 +9,8 @@ import LogoutButton from '@/components/auth/LogoutButton';
 import { AdminUsersManagement } from '@/components/admin/AdminUsersManagement';
 import { AgentManagementPanel } from '@/components/admin/AgentManagementPanel';
 import { RevenueAnalytics } from '@/components/admin/RevenueAnalytics';
+import { SimpleSettingsTab } from '@/components/admin/SimpleSettingsTab';
+import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
 
 export default function SimpleMainAdminDashboard() {
   const { user, profile } = useAuth();
@@ -48,6 +50,7 @@ export default function SimpleMainAdminDashboard() {
     { id: 'agents', label: 'Gestion Agents', icon: '🔧' },
     { id: 'revenue', label: 'Revenus & Analytics', icon: '💰' },
     { id: 'transactions', label: 'Transactions', icon: '💸' },
+    { id: 'messages', label: 'Messages', icon: '📨' },
     { id: 'settings', label: 'Paramètres', icon: '⚙️' },
   ];
 
@@ -63,46 +66,10 @@ export default function SimpleMainAdminDashboard() {
         return <RevenueAnalytics />;
       case 'transactions':
         return <SimpleTransactionsList />;
+      case 'messages':
+        return <SimpleMessagesTab />;
       case 'settings':
-        return (
-          <div style={{ padding: '20px' }}>
-            <h2>Paramètres système</h2>
-            <p>Configuration et paramètres avancés du système.</p>
-            <div style={{ marginTop: '20px' }}>
-              <button
-                style={{
-                  padding: '12px 20px',
-                  backgroundColor: '#cc0000',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  marginRight: '10px'
-                }}
-                onClick={() => {
-                  if (confirm('Êtes-vous sûr de vouloir redémarrer le système ?')) {
-                    alert('Redémarrage du système...');
-                  }
-                }}
-              >
-                Redémarrer système
-              </button>
-              <button
-                style={{
-                  padding: '12px 20px',
-                  backgroundColor: '#ff6600',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-                onClick={() => alert('Sauvegarde en cours...')}
-              >
-                Sauvegarder données
-              </button>
-            </div>
-          </div>
-        );
+        return <SimpleSettingsTab />;
       default:
         return <SimpleAdminDashboard />;
     }

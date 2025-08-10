@@ -1,350 +1,318 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
-interface Message {
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { NotificationService } from '@/services/notificationService';
+
+interface RandomMessage {
   id: string;
-  user_id: string;
+  title: string;
   message: string;
   category: string;
-  status: string;
-  priority: string;
-  created_at: string;
-  profiles: {
-    full_name: string;
-    phone: string;
-  } | null;
+  emoji: string;
+  priority: 'low' | 'normal' | 'high';
 }
 
+const RANDOM_MESSAGES: RandomMessage[] = [
+  {
+    id: '1',
+    title: '🎉 Félicitations !',
+    message: 'Vous êtes un utilisateur exceptionnel ! Continuez à utiliser SendFlow pour tous vos transferts.',
+    category: 'motivation',
+    emoji: '🎉',
+    priority: 'normal'
+  },
+  {
+    id: '2',
+    title: '💰 Économisez plus !',
+    message: 'Saviez-vous que SendFlow offre les meilleurs taux de change ? Transférez plus, payez moins !',
+    category: 'promotion',
+    emoji: '💰',
+    priority: 'high'
+  },
+  {
+    id: '3',
+    title: '🔒 Sécurité renforcée',
+    message: 'Vos transactions sont protégées par un cryptage de niveau bancaire. Transférez en toute sécurité.',
+    category: 'sécurité',
+    emoji: '🔒',
+    priority: 'normal'
+  },
+  {
+    id: '4',
+    title: '⚡ Service rapide',
+    message: 'Transferts instantanés 24h/24, 7j/7. SendFlow ne dort jamais pour vous servir !',
+    category: 'service',
+    emoji: '⚡',
+    priority: 'normal'
+  },
+  {
+    id: '5',
+    title: '🌍 Portée mondiale',
+    message: 'Envoyez de l\'argent dans plus de 50 pays. Le monde est à portée de main avec SendFlow.',
+    category: 'global',
+    emoji: '🌍',
+    priority: 'normal'
+  },
+  {
+    id: '6',
+    title: '📱 Application mobile',
+    message: 'Téléchargez notre app mobile pour des transferts encore plus rapides et pratiques !',
+    category: 'technologie',
+    emoji: '📱',
+    priority: 'high'
+  },
+  {
+    id: '7',
+    title: '🎁 Bonus surprise',
+    message: 'Transférez plus de 100,000 FCFA ce mois-ci et recevez un bonus surprise !',
+    category: 'bonus',
+    emoji: '🎁',
+    priority: 'high'
+  },
+  {
+    id: '8',
+    title: '👨‍👩‍👧‍👦 Pour votre famille',
+    message: 'Rien n\'est plus précieux que la famille. Envoyez de l\'argent rapidement à vos proches.',
+    category: 'famille',
+    emoji: '👨‍👩‍👧‍👦',
+    priority: 'normal'
+  },
+  {
+    id: '9',
+    title: '🏆 Vous êtes un champion',
+    message: 'Merci de faire confiance à SendFlow. Vous faites partie de notre famille !',
+    category: 'reconnaissance',
+    emoji: '🏆',
+    priority: 'normal'
+  },
+  {
+    id: '10',
+    title: '💎 Service premium',
+    message: 'Profitez d\'un service client 24h/24. Notre équipe est toujours là pour vous aider.',
+    category: 'service',
+    emoji: '💎',
+    priority: 'normal'
+  },
+  {
+    id: '11',
+    title: '🚀 Innovation continue',
+    message: 'SendFlow évolue constamment pour vous offrir la meilleure expérience de transfert.',
+    category: 'innovation',
+    emoji: '🚀',
+    priority: 'normal'
+  },
+  {
+    id: '12',
+    title: '💝 Cadeau spécial',
+    message: 'Ce mois-ci, tous les nouveaux utilisateurs reçoivent 1000 FCFA de bonus de bienvenue !',
+    category: 'promotion',
+    emoji: '💝',
+    priority: 'high'
+  }
+];
+
 export const SimpleMessagesTab = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedMessage, setSelectedMessage] = useState<RandomMessage | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [sentMessages, setSentMessages] = useState<string[]>([]);
 
-  // États pour le formulaire de notification
-  const [title, setTitle] = useState('');
-  const [message, setMessage] = useState('');
-  const [notificationType, setNotificationType] = useState('general');
-  const [priority, setPriority] = useState('normal');
-  const [sending, setSending] = useState(false);
+  const sendRandomMessage = async (message: RandomMessage) => {
+    setIsSending(true);
+    setSelectedMessage(message);
 
-  useEffect(() => {
-    fetchMessages();
-  }, []);
-
-  const fetchMessages = async () => {
     try {
-      // First get the messages
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('customer_support_messages')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
+      // Obtenir l'utilisateur actuel
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('Utilisateur non connecté');
+      }
 
-      if (messagesError) throw messagesError;
-
-      // Then get profiles separately
-      const userIds = messagesData?.map(msg => msg.user_id) || [];
-      const { data: profilesData, error: profilesError } = await supabase
+      // Récupérer tous les utilisateurs actifs
+      const { data: users, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone')
-        .in('id', userIds);
+        .eq('is_banned', false);
 
-      if (profilesError) throw profilesError;
+      if (error) throw error;
 
-      // Combine the data
-      const formattedMessages: Message[] = (messagesData || []).map(msg => {
-        const profile = profilesData?.find(p => p.id === msg.user_id);
-        return {
-          id: msg.id,
-          user_id: msg.user_id,
-          message: msg.message,
-          category: msg.category || 'general',
-          status: msg.status,
-          priority: msg.priority,
-          created_at: msg.created_at,
-          profiles: profile ? {
-            full_name: profile.full_name || 'Utilisateur inconnu',
-            phone: profile.phone || 'N/A'
-          } : null
-        };
-      });
-      
-      setMessages(formattedMessages);
-    } catch (error) {
-      console.error('Erreur lors du chargement des messages:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      // Utiliser le service de notification pour envoyer le message
+      const result = await NotificationService.createNotification(
+        message.title,
+        message.message,
+        message.priority,
+        'all',
+        users || [],
+        undefined,
+        undefined,
+        undefined,
+        user.id
+      );
 
-  const handleSendNotification = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !message) return;
-
-    setSending(true);
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .insert({
-          title: title,
-          message: message,
-          notification_type: notificationType,
-          priority: priority,
-          sent_by: user?.id,
-          target_users: [], // Notification globale
-          total_recipients: 0
+      if (result.success) {
+        toast({
+          title: "Message envoyé",
+          description: `Message "${message.title}" envoyé à ${users?.length || 0} utilisateurs`,
         });
 
-      if (error) throw error;
+        // Ajouter à la liste des messages envoyés
+        setSentMessages(prev => [...prev, message.id]);
+      } else {
+        throw new Error(result.message);
+      }
 
-      toast({
-        title: "Notification envoyée",
-        description: "La notification a été envoyée avec succès",
-      });
-
-      // Reset form
-      setTitle('');
-      setMessage('');
-      setNotificationType('general');
-      setPriority('normal');
-
-    } catch (error) {
-      console.error('Erreur:', error);
+    } catch (error: any) {
+      console.error('Erreur lors de l\'envoi du message:', error);
       toast({
         title: "Erreur",
-        description: "Impossible d'envoyer la notification",
+        description: error.message || "Erreur lors de l'envoi du message",
         variant: "destructive"
       });
     } finally {
-      setSending(false);
+      setIsSending(false);
+      setSelectedMessage(null);
     }
   };
 
-  const markAsRead = async (messageId: string) => {
-    try {
-      const { error } = await supabase
-        .from('customer_support_messages')
-        .update({ 
-          status: 'read',
-          read_at: new Date().toISOString()
-        })
-        .eq('id', messageId);
-
-      if (error) throw error;
-      
-      // Refresh messages
-      fetchMessages();
-      
-      toast({
-        title: "Message marqué comme lu",
-      });
-    } catch (error) {
-      console.error('Erreur:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de marquer le message comme lu",
-        variant: "destructive"
-      });
-    }
+  const sendRandomToAll = async () => {
+    const randomMessage = RANDOM_MESSAGES[Math.floor(Math.random() * RANDOM_MESSAGES.length)];
+    await sendRandomMessage(randomMessage);
   };
+
+  // Grouper les messages par catégorie
+  const messagesByCategory = RANDOM_MESSAGES.reduce((acc, message) => {
+    if (!acc[message.category]) {
+      acc[message.category] = [];
+    }
+    acc[message.category].push(message);
+    return acc;
+  }, {} as Record<string, RandomMessage[]>);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2 style={{ marginBottom: '30px', fontSize: '24px', fontWeight: 'bold' }}>
-        Messages & Notifications
-      </h2>
-
-      {/* Formulaire d'envoi de notification */}
-      <div style={{ 
-        backgroundColor: '#f8f9fa', 
-        padding: '20px', 
-        borderRadius: '8px', 
-        marginBottom: '30px' 
-      }}>
-        <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: 'bold' }}>
-          Envoyer une notification globale
-        </h3>
-        
-        <form onSubmit={handleSendNotification}>
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-              Titre:
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px'
-              }}
-              required
-            />
-          </div>
-
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-              Message:
-            </label>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={4}
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                resize: 'vertical'
-              }}
-              required
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                Type:
-              </label>
-              <select
-                value={notificationType}
-                onChange={(e) => setNotificationType(e.target.value)}
-                style={{
-                  padding: '10px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}
-              >
-                <option value="general">Général</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="promotion">Promotion</option>
-                <option value="alert">Alerte</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                Priorité:
-              </label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                style={{
-                  padding: '10px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}
-              >
-                <option value="low">Faible</option>
-                <option value="normal">Normale</option>
-                <option value="high">Élevée</option>
-              </select>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={sending || !title || !message}
-            style={{
-              backgroundColor: sending ? '#ccc' : '#007bff',
-              color: 'white',
-              padding: '10px 20px',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: sending ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {sending ? 'Envoi...' : 'Envoyer la notification'}
-          </button>
-        </form>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-900">
+          Messages automatiques
+        </h2>
+        <Button
+          onClick={sendRandomToAll}
+          disabled={isSending}
+          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+        >
+          {isSending ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Envoi...
+            </>
+          ) : (
+            <>
+              🎲 Envoyer message aléatoire
+            </>
+          )}
+        </Button>
       </div>
 
-      {/* Liste des messages de support */}
-      <div>
-        <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: 'bold' }}>
-          Messages de support client
-        </h3>
+      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+        <CardContent className="p-4">
+          <div className="flex items-start space-x-3">
+            <div className="text-2xl">📨</div>
+            <div>
+              <h3 className="font-medium text-blue-900 mb-1">Messages automatiques</h3>
+              <p className="text-sm text-blue-800">
+                Envoyez des messages motivants et informatifs à tous vos utilisateurs. 
+                Ces messages sont conçus pour améliorer l'engagement et la satisfaction client.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {loading ? (
-          <p>Chargement des messages...</p>
-        ) : messages.length === 0 ? (
-          <p>Aucun message de support</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {messages.map((msg) => (
+      {Object.entries(messagesByCategory).map(([category, messages]) => (
+        <Card key={category} className="bg-white shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold text-gray-800 capitalize flex items-center gap-2">
+              <span className="text-2xl">{messages[0].emoji}</span>
+              {category}
+              <Badge variant="secondary" className="ml-2">
+                {messages.length} messages
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {messages.map((message) => (
               <div
-                key={msg.id}
-                style={{
-                  backgroundColor: msg.status === 'unread' ? '#fff3cd' : '#f8f9fa',
-                  padding: '15px',
-                  borderRadius: '8px',
-                  border: '1px solid #ddd'
-                }}
+                key={message.id}
+                className={`p-4 rounded-lg border transition-all duration-200 ${
+                  sentMessages.includes(message.id)
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                }`}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
-                  <div>
-                    <strong>{msg.profiles?.full_name || 'Utilisateur inconnu'}</strong>
-                    <br />
-                    <small style={{ color: '#666' }}>
-                      {msg.profiles?.phone || 'N/A'} • {new Date(msg.created_at).toLocaleString('fr-FR')}
-                    </small>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-medium text-gray-900">
+                        {message.title}
+                      </h3>
+                      <Badge 
+                        variant={message.priority === 'high' ? 'destructive' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {message.priority === 'high' ? 'Priorité élevée' : 
+                         message.priority === 'low' ? 'Priorité basse' : 'Priorité normale'}
+                      </Badge>
+                      {sentMessages.includes(message.id) && (
+                        <Badge variant="default" className="bg-green-600">
+                          ✓ Envoyé
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-3">
+                      {message.message}
+                    </p>
                   </div>
-                  <div style={{ display: 'flex', gap: '5px' }}>
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      backgroundColor: msg.status === 'unread' ? '#ffc107' : '#28a745',
-                      color: 'white'
-                    }}>
-                      {msg.status === 'unread' ? 'Non lu' : 'Lu'}
-                    </span>
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      backgroundColor: msg.priority === 'high' ? '#dc3545' : msg.priority === 'normal' ? '#17a2b8' : '#6c757d',
-                      color: 'white'
-                    }}>
-                      {msg.priority === 'high' ? 'Urgent' : msg.priority === 'normal' ? 'Normal' : 'Faible'}
-                    </span>
-                  </div>
-                </div>
-                
-                <p style={{ marginBottom: '10px', lineHeight: '1.5' }}>
-                  {msg.message}
-                </p>
-                
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>
-                  Catégorie: {msg.category}
-                </div>
-
-                {msg.status === 'unread' && (
-                  <button
-                    onClick={() => markAsRead(msg.id)}
-                    style={{
-                      backgroundColor: '#28a745',
-                      color: 'white',
-                      padding: '5px 15px',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '14px'
-                    }}
+                  <Button
+                    onClick={() => sendRandomMessage(message)}
+                    disabled={isSending}
+                    size="sm"
+                    className="ml-4 bg-blue-600 hover:bg-blue-700"
                   >
-                    Marquer comme lu
-                  </button>
-                )}
+                    {isSending && selectedMessage?.id === message.id ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                        Envoi...
+                      </>
+                    ) : (
+                      'Envoyer'
+                    )}
+                  </Button>
+                </div>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      ))}
+
+      <Card className="bg-yellow-50 border-yellow-200">
+        <CardContent className="p-4">
+          <div className="flex items-start space-x-3">
+            <div className="text-xl">⚠️</div>
+            <div>
+              <h3 className="font-medium text-yellow-900 mb-1">Conseils d'utilisation</h3>
+              <div className="text-sm text-yellow-800 space-y-1">
+                <p>• Utilisez les messages avec modération pour éviter de surcharger vos utilisateurs</p>
+                <p>• Les messages de priorité élevée sont plus visibles mais à utiliser avec parcimonie</p>
+                <p>• Variez les catégories pour maintenir l'intérêt de vos utilisateurs</p>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
