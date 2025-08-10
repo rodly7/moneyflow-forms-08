@@ -1,5 +1,5 @@
 
-import FastQRScanner from '@/components/shared/FastQRScanner';
+import { FastQRScanner } from '@/components/shared/FastQRScanner';
 
 interface QRScannerProps {
   isOpen: boolean;
