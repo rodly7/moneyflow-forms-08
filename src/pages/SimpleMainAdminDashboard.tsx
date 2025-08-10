@@ -5,6 +5,10 @@ import { useMainAdmin } from '@/hooks/useMainAdmin';
 import { SimpleAdminDashboard } from '@/components/admin/SimpleAdminDashboard';
 import { SimpleUsersList } from '@/components/admin/SimpleUsersList';
 import { SimpleTransactionsList } from '@/components/admin/SimpleTransactionsList';
+import LogoutButton from '@/components/auth/LogoutButton';
+import { AdminUsersManagement } from '@/components/admin/AdminUsersManagement';
+import { AgentManagementPanel } from '@/components/admin/AgentManagementPanel';
+import { RevenueAnalytics } from '@/components/admin/RevenueAnalytics';
 
 export default function SimpleMainAdminDashboard() {
   const { user, profile } = useAuth();
@@ -40,7 +44,9 @@ export default function SimpleMainAdminDashboard() {
 
   const tabs = [
     { id: 'dashboard', label: 'Tableau de bord', icon: '📊' },
-    { id: 'users', label: 'Utilisateurs', icon: '👥' },
+    { id: 'users', label: 'Gestion Utilisateurs', icon: '👥' },
+    { id: 'agents', label: 'Gestion Agents', icon: '🔧' },
+    { id: 'revenue', label: 'Revenus & Analytics', icon: '💰' },
     { id: 'transactions', label: 'Transactions', icon: '💸' },
     { id: 'settings', label: 'Paramètres', icon: '⚙️' },
   ];
@@ -50,7 +56,11 @@ export default function SimpleMainAdminDashboard() {
       case 'dashboard':
         return <SimpleAdminDashboard />;
       case 'users':
-        return <SimpleUsersList />;
+        return <AdminUsersManagement />;
+      case 'agents':
+        return <AgentManagementPanel />;
+      case 'revenue':
+        return <RevenueAnalytics />;
       case 'transactions':
         return <SimpleTransactionsList />;
       case 'settings':
@@ -104,6 +114,24 @@ export default function SimpleMainAdminDashboard() {
       backgroundColor: '#f8f9fa',
       fontFamily: 'Arial, sans-serif'
     }}>
+      {/* Header avec bouton de déconnexion */}
+      <div style={{
+        backgroundColor: 'white',
+        borderBottom: '2px solid #ddd',
+        padding: '10px 20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div>
+          <h1 style={{ margin: 0, color: '#333' }}>Administration Sendflow</h1>
+          <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '14px' }}>
+            Connecté en tant que: {profile.full_name} ({profile.phone})
+          </p>
+        </div>
+        <LogoutButton />
+      </div>
+
       {/* Navigation */}
       <nav style={{ 
         backgroundColor: 'white', 
