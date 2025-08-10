@@ -30,11 +30,11 @@ export const useAgentWithdrawalEnhanced = () => {
   const fetchAgentBalances = useCallback(async () => {
     if (!user?.id) return;
     
+    console.log("🔍 [REFRESH] Récupération des soldes agent...");
     setIsLoadingBalance(true);
+    
     try {
-      console.log("🔍 [REFRESH] Récupération des soldes agent...");
-      
-      // Récupérer le solde principal avec RPC pour garantir la fraîcheur
+      // Récupérer le solde principal via RPC pour garantir la fraîcheur
       const { data: realBalance, error: balanceError } = await supabase.rpc('increment_balance', {
         user_id: user.id,
         amount: 0
@@ -42,19 +42,18 @@ export const useAgentWithdrawalEnhanced = () => {
       
       if (balanceError) {
         console.error("❌ Erreur solde principal:", balanceError);
-        throw balanceError;
+      } else {
+        const newBalance = Number(realBalance) || 0;
+        setAgentBalance(newBalance);
+        console.log("✅ Solde principal récupéré:", newBalance);
       }
-      
-      const newBalance = Number(realBalance) || 0;
-      setAgentBalance(newBalance);
-      console.log("✅ Solde principal récupéré:", newBalance);
       
       // Récupérer le solde commission depuis la table agents
       const { data: agentData, error: commissionError } = await supabase
         .from('agents')
         .select('commission_balance')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
       if (agentData && !commissionError) {
         setAgentCommissionBalance(agentData.commission_balance || 0);
@@ -76,7 +75,7 @@ export const useAgentWithdrawalEnhanced = () => {
     }
   }, [user?.id, toast]);
 
-  const searchClientByPhone = async (phone: string) => {
+  const searchClientByPhone = useCallback(async (phone: string) => {
     if (!phone || phone.length < 6) {
       setClientData(null);
       return;
@@ -112,11 +111,12 @@ export const useAgentWithdrawalEnhanced = () => {
         description: "Impossible de rechercher le client",
         variant: "destructive"
       });
+    } finally {
+      setIsSearchingClient(false);
     }
-    setIsSearchingClient(false);
-  };
+  }, [toast]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
@@ -163,7 +163,7 @@ export const useAgentWithdrawalEnhanced = () => {
 
     try {
       setIsProcessing(true);
-      console.log("🚀 [START] Début du processus de retrait agent");
+      console.log("🚀 [START] Début du processus de retrait agent ATOMIQUE");
 
       const result = await processAgentWithdrawalWithCommission(
         user?.id || '',
@@ -172,7 +172,7 @@ export const useAgentWithdrawalEnhanced = () => {
         phoneNumber
       );
 
-      console.log("✅ [SUCCESS] Retrait terminé avec succès:", result);
+      console.log("✅ [SUCCESS] Retrait atomique terminé avec succès:", result);
 
       toast({
         title: "Retrait effectué avec succès ✅",
@@ -186,7 +186,9 @@ export const useAgentWithdrawalEnhanced = () => {
       
       // Forcer le rafraîchissement immédiat des soldes
       console.log("🔄 Rafraîchissement forcé des soldes...");
-      await fetchAgentBalances();
+      setTimeout(() => {
+        fetchAgentBalances();
+      }, 500); // Délai pour permettre la propagation
       
     } catch (error) {
       console.error("❌ [ERROR] Erreur retrait:", error);
@@ -198,7 +200,7 @@ export const useAgentWithdrawalEnhanced = () => {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [amount, clientData, phoneNumber, user?.id, toast, fetchAgentBalances]);
 
   useEffect(() => {
     fetchAgentBalances();

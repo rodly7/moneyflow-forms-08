@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { getUserBalance } from "./withdrawalService";
 
@@ -34,10 +33,9 @@ export const processAgentWithdrawalWithCommission = async (
     const agentCommission = Math.round(amount * 0.005);
     console.log(`📊 Commission calculée: ${agentCommission} FCFA (0.5%)`);
 
-    // 3. TRANSACTION ATOMIQUE: Débiter le client d'abord
-    console.log(`💸 [ETAPE 1] Débit du client ${clientId} de ${amount} FCFA`);
+    // 3. TRANSACTION ATOMIQUE SÉCURISÉE avec la nouvelle fonction SQL
+    console.log(`💸 [TRANSACTION] Utilisation de la fonction atomique`);
     
-    // Utiliser une transaction pour garantir l'atomicité
     const { data: transactionResult, error: transactionError } = await supabase.rpc('process_withdrawal_transaction', {
       p_client_id: clientId,
       p_agent_id: agentId,
@@ -50,7 +48,7 @@ export const processAgentWithdrawalWithCommission = async (
       throw new Error(`Erreur lors de la transaction: ${transactionError.message}`);
     }
 
-    console.log("✅ Transaction réussie:", transactionResult);
+    console.log("✅ Transaction atomique réussie:", transactionResult);
 
     // 4. Enregistrer le retrait dans la base (non-critique)
     console.log("📝 [ETAPE 2] Enregistrement du retrait");
@@ -75,7 +73,7 @@ export const processAgentWithdrawalWithCommission = async (
       console.error("⚠️ Erreur lors de l'enregistrement du retrait:", withdrawalError);
     }
 
-    // 5. Résultat final
+    // 5. Résultat final avec les données de la transaction atomique
     const result = {
       clientName: clientData.fullName,
       newClientBalance: transactionResult.new_client_balance,

@@ -1805,6 +1805,15 @@ export type Database = {
         }
         Returns: Json
       }
+      process_withdrawal_transaction: {
+        Args: {
+          p_client_id: string
+          p_agent_id: string
+          p_amount: number
+          p_commission: number
+        }
+        Returns: Json
+      }
       savings_deposit: {
         Args: { p_user_id: string; p_account_id: string; p_amount: number }
         Returns: Json
