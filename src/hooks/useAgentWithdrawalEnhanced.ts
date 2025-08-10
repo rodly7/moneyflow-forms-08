@@ -30,7 +30,7 @@ export const useAgentWithdrawalEnhanced = () => {
 
   // Utiliser le hook de rafraîchissement automatique
   const { refreshBalance } = useAutoBalanceRefresh({
-    intervalMs: 3000, // Rafraîchir toutes les 3 secondes
+    intervalMs: 3000,
     onBalanceChange: (newBalance) => {
       console.log("💰 Solde agent mis à jour automatiquement:", newBalance);
       setAgentBalance(newBalance);
@@ -149,6 +149,7 @@ export const useAgentWithdrawalEnhanced = () => {
 
     try {
       setIsProcessing(true);
+      console.log("🚀 Début du processus de retrait");
 
       const result = await processAgentWithdrawalWithCommission(
         user?.id || '',
@@ -157,9 +158,11 @@ export const useAgentWithdrawalEnhanced = () => {
         phoneNumber
       );
 
+      console.log("✅ Retrait terminé avec succès:", result);
+
       toast({
         title: "Retrait effectué avec succès",
-        description: `Retrait de ${formatCurrency(operationAmount, 'XAF')} effectué. Commission: ${formatCurrency(result.agentCommission, 'XAF')}`,
+        description: `Retrait de ${formatCurrency(operationAmount, 'XAF')} effectué pour ${clientData.full_name}. Commission: ${formatCurrency(result.agentCommission, 'XAF')}`,
       });
 
       // Reset form
@@ -167,10 +170,8 @@ export const useAgentWithdrawalEnhanced = () => {
       setPhoneNumber("");
       setClientData(null);
       
-      // Refresh balances automatically
+      // Forcer le rafraîchissement des soldes
       await fetchAgentBalances();
-      
-      // Force refresh balance with the auto-refresh hook
       refreshBalance();
       
     } catch (error) {

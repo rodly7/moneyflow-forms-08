@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { getUserBalance } from "./withdrawalService";
 
@@ -25,67 +24,91 @@ export const processAgentWithdrawalWithCommission = async (
   // Calculer la commission agent (0,5% pour les retraits)
   const agentCommission = amount * 0.005;
 
-  // Débiter le client
-  const { data: newClientBalance, error: debitError } = await supabase.rpc('increment_balance', {
-    user_id: clientId,
-    amount: -amount
-  });
-
-  if (debitError) {
-    console.error("❌ Erreur lors du débit du client:", debitError);
-    throw new Error("Erreur lors du débit du compte client");
-  }
-
-  // Créditer l'agent avec le montant complet
-  const { data: newAgentBalance, error: creditError } = await supabase.rpc('increment_balance', {
-    user_id: agentId,
-    amount: amount
-  });
-
-  if (creditError) {
-    console.error("❌ Erreur lors du crédit de l'agent:", creditError);
-    // En cas d'erreur, recréditer le client
-    await supabase.rpc('increment_balance', {
+  try {
+    // Débiter le client d'abord
+    console.log(`💸 Débit du client ${clientId} de ${amount} FCFA`);
+    const { data: newClientBalance, error: debitError } = await supabase.rpc('increment_balance', {
       user_id: clientId,
+      amount: -amount
+    });
+
+    if (debitError) {
+      console.error("❌ Erreur lors du débit du client:", debitError);
+      throw new Error("Erreur lors du débit du compte client");
+    }
+
+    console.log(`✅ Client débité avec succès. Nouveau solde: ${newClientBalance} FCFA`);
+
+    // Créditer l'agent avec le montant complet
+    console.log(`💰 Crédit de l'agent ${agentId} de ${amount} FCFA`);
+    const { data: newAgentBalance, error: creditError } = await supabase.rpc('increment_balance', {
+      user_id: agentId,
       amount: amount
     });
-    throw new Error("Erreur lors du crédit du compte agent");
+
+    if (creditError) {
+      console.error("❌ Erreur lors du crédit de l'agent:", creditError);
+      
+      // En cas d'erreur, recréditer le client (rollback)
+      console.log("🔄 Rollback: recréditer le client");
+      await supabase.rpc('increment_balance', {
+        user_id: clientId,
+        amount: amount
+      });
+      
+      throw new Error("Erreur lors du crédit du compte agent");
+    }
+
+    console.log(`✅ Agent crédité avec succès. Nouveau solde: ${newAgentBalance} FCFA`);
+
+    // Ajouter la commission au solde commission de l'agent
+    console.log(`📈 Ajout de la commission ${agentCommission} FCFA`);
+    const { error: commissionError } = await supabase.rpc('increment_agent_commission', {
+      agent_user_id: agentId,
+      commission_amount: agentCommission
+    });
+
+    if (commissionError) {
+      console.error("❌ Erreur lors de l'ajout de la commission:", commissionError);
+      // On continue même si la commission échoue, car le retrait principal a réussi
+    } else {
+      console.log("✅ Commission ajoutée avec succès");
+    }
+
+    // Créer l'enregistrement du retrait
+    console.log("📝 Enregistrement du retrait");
+    const { data: withdrawal, error: withdrawalError } = await supabase
+      .from('withdrawals')
+      .insert({
+        user_id: clientId,
+        amount: amount,
+        withdrawal_phone: phoneNumber,
+        status: 'completed'
+      })
+      .select()
+      .single();
+
+    if (withdrawalError) {
+      console.error("❌ Erreur lors de l'enregistrement du retrait:", withdrawalError);
+      // On continue car la transaction financière a réussi
+    } else {
+      console.log("✅ Retrait enregistré avec succès");
+    }
+
+    console.log("🎉 Retrait traité avec succès, commission ajoutée");
+    return {
+      clientName: clientData.fullName,
+      newClientBalance: Number(newClientBalance) || 0,
+      newAgentBalance: Number(newAgentBalance) || 0,
+      agentCommission,
+      amount,
+      success: true
+    };
+
+  } catch (error) {
+    console.error("❌ Erreur générale lors du retrait:", error);
+    throw error;
   }
-
-  // Ajouter la commission au solde commission de l'agent
-  const { error: commissionError } = await supabase.rpc('increment_agent_commission', {
-    agent_user_id: agentId,
-    commission_amount: agentCommission
-  });
-
-  if (commissionError) {
-    console.error("❌ Erreur lors de l'ajout de la commission:", commissionError);
-  }
-
-  // Créer l'enregistrement du retrait
-  const { data: withdrawal, error: withdrawalError } = await supabase
-    .from('withdrawals')
-    .insert({
-      user_id: clientId,
-      amount: amount,
-      withdrawal_phone: phoneNumber,
-      status: 'completed'
-    })
-    .select()
-    .single();
-
-  if (withdrawalError) {
-    console.error("❌ Erreur lors de l'enregistrement du retrait:", withdrawalError);
-  }
-
-  console.log("✅ Retrait traité avec succès, commission ajoutée");
-  return {
-    clientName: clientData.fullName,
-    newClientBalance: Number(newClientBalance) || 0,
-    newAgentBalance: Number(newAgentBalance) || 0,
-    agentCommission,
-    amount
-  };
 };
 
 export const processAgentDepositWithCommission = async (
