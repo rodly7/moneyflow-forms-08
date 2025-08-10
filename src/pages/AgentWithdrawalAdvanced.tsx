@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, supabase } from "@/integrations/supabase/client";
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
 import { getCountryCodeForAgent } from "@/services/withdrawalService";
-import "../styles/agent-mobile.css";
 
 const AgentWithdrawalAdvanced = () => {
   const { user } = useAuth();

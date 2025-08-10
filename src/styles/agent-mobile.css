@@ -2,36 +2,46 @@
 /* Styles spécifiques pour l'interface agent sur mobile */
 @media (max-width: 768px) {
   .agent-mobile-interface {
-    font-size: 1.1rem; /* Augmentation de 10% de la taille de police de base */
+    font-size: 1.15rem; /* Augmentation de 15% de la taille de police de base */
   }
   
   .agent-mobile-interface .text-sm {
-    font-size: 0.95rem;
+    font-size: 1rem; /* Augmenté */
   }
   
   .agent-mobile-interface .text-xs {
-    font-size: 0.85rem;
+    font-size: 0.9rem; /* Augmenté */
   }
   
   .agent-mobile-interface .text-lg {
-    font-size: 1.25rem;
+    font-size: 1.3rem; /* Augmenté */
   }
   
   .agent-mobile-interface .text-xl {
-    font-size: 1.4rem;
+    font-size: 1.5rem; /* Augmenté */
   }
   
   .agent-mobile-interface .text-2xl {
-    font-size: 1.65rem;
+    font-size: 1.75rem; /* Augmenté */
   }
   
   .agent-mobile-interface input,
   .agent-mobile-interface button,
   .agent-mobile-interface select {
-    font-size: 1.1rem;
+    font-size: 1.15rem; /* Augmenté */
+    min-height: 48px; /* Améliore la taille tactile */
   }
   
   .agent-mobile-interface .btn-text {
-    font-size: 1.05rem;
+    font-size: 1.1rem; /* Augmenté */
+  }
+  
+  /* Amélioration de l'espacement pour mobile */
+  .agent-mobile-interface .space-y-4 > * + * {
+    margin-top: 1.25rem;
+  }
+  
+  .agent-mobile-interface .space-y-2 > * + * {
+    margin-top: 0.75rem;
   }
 }
