@@ -45,13 +45,35 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
         throw new Error('Aucune caméra trouvée');
       }
 
-      // Use the first available camera (usually back camera on mobile)
-      const selectedDeviceId = videoInputDevices[0].deviceId;
+      // Force selection of back camera
+      let selectedDeviceId = videoInputDevices[0].deviceId;
+      
+      // Look for back/rear camera specifically
+      const backCamera = videoInputDevices.find(device => {
+        const label = device.label.toLowerCase();
+        return label.includes('back') || 
+               label.includes('rear') || 
+               label.includes('environment') ||
+               label.includes('arrière') ||
+               label.includes('principale');
+      });
+      
+      if (backCamera) {
+        selectedDeviceId = backCamera.deviceId;
+        console.log('📷 Caméra arrière sélectionnée:', backCamera.label);
+      } else {
+        // If no back camera found by label, try to use the last camera (often back camera on mobile)
+        selectedDeviceId = videoInputDevices[videoInputDevices.length - 1].deviceId;
+        console.log('📷 Caméra par défaut (dernière):', videoInputDevices[videoInputDevices.length - 1].label);
+      }
 
-      // Check for flashlight capability with proper type checking
+      // Check for flashlight capability with back camera constraint
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: selectedDeviceId }
+          video: { 
+            deviceId: { exact: selectedDeviceId },
+            facingMode: { ideal: "environment" } // Force back camera
+          }
         });
         const track = stream.getVideoTracks()[0];
         const capabilities = track.getCapabilities();
@@ -65,7 +87,7 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
         setHasFlashlight(false);
       }
 
-      // Start decoding with specific constraints for mobile optimization
+      // Start decoding with back camera constraints
       await readerRef.current.decodeFromVideoDevice(
         selectedDeviceId,
         videoRef.current,
@@ -95,7 +117,7 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
 
     } catch (err) {
       console.error('Erreur camera:', err);
-      setError(err instanceof Error ? err.message : 'Erreur d\'accès à la caméra');
+      setError(err instanceof Error ? err.message : 'Erreur d\'accès à la caméra arrière');
       setIsScanning(false);
     }
   }, [onScanSuccess, onClose]);
@@ -219,7 +241,7 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
             {!error && (
               <div className="text-center mt-3">
                 <p className="text-sm text-gray-600">
-                  Positionnez le QR code dans le cadre
+                  Positionnez le QR code dans le cadre (caméra arrière)
                 </p>
               </div>
             )}
