@@ -4,13 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { getUserBalance, findUserByPhone } from "@/services/withdrawalService";
 import { processAgentWithdrawalWithCommission } from "@/services/agentWithdrawalService";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency, supabase } from "@/integrations/supabase/client";
 
 interface ClientData {
   id: string;
   full_name: string;
   phone: string;
   balance: number;
+  country?: string;
 }
 
 export const useAgentWithdrawalEnhanced = () => {
