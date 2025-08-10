@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Bell, Check, X, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
