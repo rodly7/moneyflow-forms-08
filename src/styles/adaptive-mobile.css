@@ -1,0 +1,129 @@
+
+/* Variables CSS pour l'adaptation mobile dynamique */
+:root {
+  --screen-width: 100vw;
+  --screen-height: 100vh;
+  --dynamic-vh: 1vh;
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+}
+
+/* Adaptation pour les très petits écrans (< 360px) */
+@media (max-width: 359px) {
+  .adaptive-text-xs { font-size: 10px !important; line-height: 1.2 !important; }
+  .adaptive-text-sm { font-size: 11px !important; line-height: 1.3 !important; }
+  .adaptive-text-base { font-size: 12px !important; line-height: 1.4 !important; }
+  .adaptive-text-lg { font-size: 14px !important; line-height: 1.4 !important; }
+  .adaptive-text-xl { font-size: 16px !important; line-height: 1.5 !important; }
+  
+  .adaptive-spacing-xs { padding: 0.25rem !important; gap: 0.25rem !important; }
+  .adaptive-spacing-sm { padding: 0.5rem !important; gap: 0.5rem !important; }
+  .adaptive-spacing-md { padding: 0.75rem !important; gap: 0.75rem !important; }
+  
+  .adaptive-height-xs { height: 2rem !important; min-height: 2rem !important; }
+  .adaptive-height-sm { height: 2.5rem !important; min-height: 2.5rem !important; }
+  .adaptive-height-md { height: 3rem !important; min-height: 3rem !important; }
+}
+
+/* Adaptation pour les petits écrans (360px - 414px) */
+@media (min-width: 360px) and (max-width: 414px) {
+  .adaptive-text-xs { font-size: 11px !important; line-height: 1.3 !important; }
+  .adaptive-text-sm { font-size: 12px !important; line-height: 1.4 !important; }
+  .adaptive-text-base { font-size: 14px !important; line-height: 1.4 !important; }
+  .adaptive-text-lg { font-size: 16px !important; line-height: 1.5 !important; }
+  .adaptive-text-xl { font-size: 18px !important; line-height: 1.5 !important; }
+  
+  .adaptive-spacing-xs { padding: 0.375rem !important; gap: 0.375rem !important; }
+  .adaptive-spacing-sm { padding: 0.75rem !important; gap: 0.75rem !important; }
+  .adaptive-spacing-md { padding: 1rem !important; gap: 1rem !important; }
+  
+  .adaptive-height-xs { height: 2.25rem !important; min-height: 2.25rem !important; }
+  .adaptive-height-sm { height: 2.75rem !important; min-height: 2.75rem !important; }
+  .adaptive-height-md { height: 3.5rem !important; min-height: 3.5rem !important; }
+}
+
+/* Adaptation pour les écrans moyens (414px - 768px) */
+@media (min-width: 414px) and (max-width: 768px) {
+  .adaptive-text-xs { font-size: 12px !important; line-height: 1.4 !important; }
+  .adaptive-text-sm { font-size: 14px !important; line-height: 1.4 !important; }
+  .adaptive-text-base { font-size: 16px !important; line-height: 1.5 !important; }
+  .adaptive-text-lg { font-size: 18px !important; line-height: 1.5 !important; }
+  .adaptive-text-xl { font-size: 20px !important; line-height: 1.6 !important; }
+  
+  .adaptive-spacing-xs { padding: 0.5rem !important; gap: 0.5rem !important; }
+  .adaptive-spacing-sm { padding: 1rem !important; gap: 1rem !important; }
+  .adaptive-spacing-md { padding: 1.25rem !important; gap: 1.25rem !important; }
+  
+  .adaptive-height-xs { height: 2.5rem !important; min-height: 2.5rem !important; }
+  .adaptive-height-sm { height: 3rem !important; min-height: 3rem !important; }
+  .adaptive-height-md { height: 4rem !important; min-height: 4rem !important; }
+}
+
+/* Support pour les changements d'orientation */
+@media (orientation: landscape) and (max-height: 500px) {
+  .adaptive-landscape-compact { 
+    padding: 0.25rem !important; 
+    gap: 0.25rem !important; 
+  }
+  .adaptive-landscape-compact .adaptive-text-base { 
+    font-size: 12px !important; 
+    line-height: 1.3 !important; 
+  }
+}
+
+/* Optimisation pour les appareils avec encoche */
+@supports (padding: max(0px)) {
+  .adaptive-safe-area {
+    padding-top: max(var(--safe-area-inset-top), 0.5rem);
+    padding-bottom: max(var(--safe-area-inset-bottom), 0.5rem);
+    padding-left: max(var(--safe-area-inset-left), 0.5rem);
+    padding-right: max(var(--safe-area-inset-right), 0.5rem);
+  }
+}
+
+/* Scroll optimisé pour mobile */
+.adaptive-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.adaptive-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Support du clavier virtuel */
+@supports (height: 100dvh) {
+  .adaptive-dynamic-height {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+}
+
+/* Animations fluides pour mobile */
+.adaptive-mobile-animation {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
+}
+
+.adaptive-mobile-animation:active {
+  transform: scale(0.98);
+  transition-duration: 0.1s;
+}
+
+/* Amélioration du contraste pour petits écrans */
+@media (max-width: 414px) {
+  .adaptive-high-contrast {
+    font-weight: 500;
+    color: rgb(15, 23, 42);
+  }
+  
+  .adaptive-high-contrast-secondary {
+    font-weight: 400;
+    color: rgb(51, 65, 85);
+  }
+}

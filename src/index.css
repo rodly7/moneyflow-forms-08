@@ -4,6 +4,7 @@
 
 /* Import mobile-specific styles */
 @import './styles/mobile.css';
+@import './styles/adaptive-mobile.css';
 
 /* Configuration pour occupation totale de l'écran */
 html, body, #root {
