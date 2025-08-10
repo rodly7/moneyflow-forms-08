@@ -33,13 +33,16 @@ const EnhancedTransactionsCard = () => {
     try {
       console.log('🔄 Récupération des transactions pour l\'utilisateur:', user.id);
 
-      // Récupérer les transferts envoyés
+      // Récupérer les transferts envoyés avec les informations du destinataire
       const { data: sentTransfers, error: sentError } = await supabase
         .from('transfers')
-        .select('*')
+        .select(`
+          *,
+          recipient:profiles!transfers_recipient_id_fkey(full_name, phone)
+        `)
         .eq('sender_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(10);
 
       if (sentError) {
         console.error('Erreur transferts envoyés:', sentError);
@@ -47,13 +50,16 @@ const EnhancedTransactionsCard = () => {
         console.log('📤 Transferts envoyés récupérés:', sentTransfers?.length || 0);
       }
 
-      // Récupérer les transferts reçus
+      // Récupérer les transferts reçus avec les informations de l'expéditeur
       const { data: receivedTransfers, error: receivedError } = await supabase
         .from('transfers')
-        .select('*')
+        .select(`
+          *,
+          sender:profiles!transfers_sender_id_fkey(full_name, phone)
+        `)
         .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(10);
 
       if (receivedError) {
         console.error('Erreur transferts reçus:', receivedError);
@@ -67,7 +73,7 @@ const EnhancedTransactionsCard = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(10);
 
       if (withdrawalsError) {
         console.error('Erreur retraits:', withdrawalsError);
@@ -81,7 +87,7 @@ const EnhancedTransactionsCard = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(10);
 
       if (rechargesError) {
         console.error('Erreur recharges:', rechargesError);
@@ -89,14 +95,14 @@ const EnhancedTransactionsCard = () => {
         console.log('💰 Recharges/Dépôts récupérés:', recharges?.length || 0);
       }
 
-      // Récupérer les paiements de factures automatiques
+      // Récupérer les paiements de factures
       const { data: billPayments, error: billError } = await supabase
         .from('automatic_bills')
         .select('*')
         .eq('user_id', user.id)
-        .in('status', ['paid', 'completed'])
+        .eq('status', 'paid')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(10);
 
       if (billError) {
         console.error('Erreur paiements factures:', billError);
@@ -110,32 +116,32 @@ const EnhancedTransactionsCard = () => {
       // Ajouter les transferts envoyés
       if (sentTransfers && sentTransfers.length > 0) {
         sentTransfers.forEach(transfer => {
+          const recipientName = transfer.recipient?.full_name || transfer.recipient?.phone || transfer.recipient_phone || 'Destinataire inconnu';
           allTransactions.push({
             id: transfer.id,
             type: 'transfer_sent',
             amount: -Math.abs(transfer.amount),
             created_at: transfer.created_at,
             status: transfer.status || 'completed',
-            description: `Transfert vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
-            recipient_full_name: transfer.recipient_full_name
+            description: `Transfert vers ${recipientName}`,
+            recipient_full_name: recipientName
           });
         });
-        console.log('📤 Transferts envoyés ajoutés:', sentTransfers.length);
       }
 
       // Ajouter les transferts reçus
       if (receivedTransfers && receivedTransfers.length > 0) {
         receivedTransfers.forEach(transfer => {
+          const senderName = transfer.sender?.full_name || transfer.sender?.phone || transfer.sender_phone || 'Expéditeur inconnu';
           allTransactions.push({
             id: transfer.id,
             type: 'transfer_received',
             amount: Math.abs(transfer.amount),
             created_at: transfer.created_at,
             status: transfer.status || 'completed',
-            description: `Transfert reçu de ${transfer.recipient_full_name || 'Expéditeur'}`
+            description: `Transfert reçu de ${senderName}`
           });
         });
-        console.log('📥 Transferts reçus ajoutés:', receivedTransfers.length);
       }
 
       // Ajouter les retraits
@@ -150,7 +156,6 @@ const EnhancedTransactionsCard = () => {
             description: `Retrait ${withdrawal.withdrawal_phone || ''}`
           });
         });
-        console.log('💳 Retraits ajoutés:', withdrawals.length);
       }
 
       // Ajouter les recharges/dépôts
@@ -165,7 +170,6 @@ const EnhancedTransactionsCard = () => {
             description: `Dépôt via ${recharge.payment_method || 'Mobile Money'}`
           });
         });
-        console.log('💰 Recharges ajoutées:', recharges.length);
       }
 
       // Ajouter les paiements de factures
@@ -180,7 +184,6 @@ const EnhancedTransactionsCard = () => {
             description: `Paiement ${bill.bill_name || 'Facture'}`
           });
         });
-        console.log('⚡ Paiements de factures ajoutés:', billPayments.length);
       }
 
       // Trier par date décroissante et prendre les 5 plus récentes
@@ -189,6 +192,7 @@ const EnhancedTransactionsCard = () => {
       
       const recentTransactions = allTransactions.slice(0, 5);
       console.log('📋 Transactions récentes à afficher:', recentTransactions.length);
+      console.log('📋 Détail des transactions:', recentTransactions);
       
       setTransactions(recentTransactions);
 
