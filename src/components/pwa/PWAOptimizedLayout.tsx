@@ -30,19 +30,20 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
         maxWidth: '100vw',
         contain: 'layout style paint',
         zIndex: 0,
-        fontSize: '14px',
-        lineHeight: '1.2',
+        fontSize: '16px',
+        lineHeight: '1.3',
         paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingBottom: '0px',
       }}
     >
       <div 
-        className="h-full w-full overflow-y-auto overflow-x-hidden mobile-scroll ultra-compact-scroll space-y-2"
+        className="h-full w-full overflow-y-auto overflow-x-hidden mobile-scroll ultra-compact-scroll"
         style={{
-          fontSize: '14px',
-          lineHeight: '1.2',
-          paddingBottom: '10px',
-          height: 'calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom))'
+          fontSize: '16px',
+          lineHeight: '1.3',
+          paddingBottom: '0px',
+          height: 'calc(100% - env(safe-area-inset-top))',
+          marginBottom: '0px'
         }}
       >
         {children}
