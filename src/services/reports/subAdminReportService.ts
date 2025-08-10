@@ -2,15 +2,16 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface SubAdminReport {
-  id: string;
-  full_name: string;
+  sub_admin_id: string;
+  sub_admin_name: string;
   phone: string;
   territory: string;
-  totalAgents: number;
+  agents_managed: number;
   activeAgents: number;
   totalTransactions: number;
-  totalVolume: number;
+  total_volume: number;
   pendingWithdrawals: number;
+  commission_percentage: number;
   lastActivity: string;
 }
 
@@ -50,7 +51,7 @@ export class SubAdminReportService {
             .eq('territory_admin_id', subAdmin.id);
 
           let totalTransactions = 0;
-          let totalVolume = 0;
+          let total_volume = 0;
           let pendingWithdrawals = 0;
 
           if (agentIds && agentIds.length > 0) {
@@ -72,7 +73,7 @@ export class SubAdminReportService {
                 .in('sender_id', userIds)
                 .eq('status', 'completed');
 
-              totalVolume = volumeData?.reduce((sum: number, t: any) => sum + (t.amount || 0), 0) || 0;
+              total_volume = volumeData?.reduce((sum: number, t: any) => sum + (t.amount || 0), 0) || 0;
 
               // Compter les retraits en attente
               const { count: withdrawalCount } = await (supabase as any)
@@ -86,15 +87,16 @@ export class SubAdminReportService {
           }
 
           reports.push({
-            id: subAdmin.id,
-            full_name: subAdmin.full_name || '',
+            sub_admin_id: subAdmin.id,
+            sub_admin_name: subAdmin.full_name || '',
             phone: subAdmin.phone || '',
             territory: subAdmin.country || '',
-            totalAgents: agentCount || 0,
+            agents_managed: agentCount || 0,
             activeAgents: activeAgentCount || 0,
             totalTransactions,
-            totalVolume,
+            total_volume,
             pendingWithdrawals,
+            commission_percentage: 0.05, // 5% par défaut
             lastActivity: new Date().toISOString()
           });
 
@@ -102,15 +104,16 @@ export class SubAdminReportService {
           console.error(`Erreur traitement sous-admin ${subAdmin.id}:`, error);
           // Ajouter le sous-admin avec des valeurs par défaut en cas d'erreur
           reports.push({
-            id: subAdmin.id,
-            full_name: subAdmin.full_name || '',
+            sub_admin_id: subAdmin.id,
+            sub_admin_name: subAdmin.full_name || '',
             phone: subAdmin.phone || '',
             territory: subAdmin.country || '',
-            totalAgents: 0,
+            agents_managed: 0,
             activeAgents: 0,
             totalTransactions: 0,
-            totalVolume: 0,
+            total_volume: 0,
             pendingWithdrawals: 0,
+            commission_percentage: 0.05,
             lastActivity: new Date().toISOString()
           });
         }
@@ -124,10 +127,15 @@ export class SubAdminReportService {
     }
   }
 
+  // Add the missing method that AdminReportsTab expects
+  static async getSubAdminsData(): Promise<SubAdminReport[]> {
+    return this.getSubAdminReports();
+  }
+
   static async getSubAdminById(subAdminId: string): Promise<SubAdminReport | null> {
     try {
       const reports = await this.getSubAdminReports();
-      return reports.find(r => r.id === subAdminId) || null;
+      return reports.find(r => r.sub_admin_id === subAdminId) || null;
     } catch (error) {
       console.error('Erreur récupération sous-admin:', error);
       return null;
