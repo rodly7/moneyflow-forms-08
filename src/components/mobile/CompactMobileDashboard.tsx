@@ -84,77 +84,77 @@ const CompactMobileDashboard = memo(({
   if (isLoading) {
     return (
       <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Header agrandi */}
+      {/* Header considérablement agrandi */}
       <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
-        <div className="px-3 py-2">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="p-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded">
-                <Crown className="w-4 h-4 text-white" />
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded">
+                <Crown className="w-6 h-6 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-sm font-bold text-gray-800 truncate">SendFlow</h1>
-                <p className="text-sm text-gray-600 truncate">{userProfile?.full_name || 'Utilisateur'}</p>
+                <h1 className="text-lg font-bold text-gray-800 truncate">SendFlow</h1>
+                <p className="text-base text-gray-600 truncate">{userProfile?.full_name || 'Utilisateur'}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <CustomerServiceButton />
               <Button 
                 variant="ghost"
                 size="sm"
                 onClick={onRefresh}
                 disabled={isLoading}
-                className="h-7 w-7 p-0 bg-gray-100 hover:bg-gray-200 rounded"
+                className="h-9 w-9 p-0 bg-gray-100 hover:bg-gray-200 rounded"
               >
-                <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               </Button>
               <Button 
                 variant="ghost"
                 size="sm"
                 onClick={handleSignOut}
-                className="h-7 w-7 p-0 bg-gray-100 hover:bg-gray-200 rounded"
+                className="h-9 w-9 p-0 bg-gray-100 hover:bg-gray-200 rounded"
               >
-                <LogOut className="w-3 h-3" />
+                <LogOut className="w-4 h-4" />
               </Button>
             </div>
           </div>
           
-          {/* Carte solde agrandie */}
-          <div className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded text-white">
+          {/* Carte solde considérablement agrandie */}
+          <div className="p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded text-white">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1 min-w-0 flex-1">
-                <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
-                  <Eye className="w-2.5 h-2.5" />
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center">
+                  <Eye className="w-4 h-4" />
                 </div>
-                <span className="text-sm font-medium">Solde</span>
+                <span className="text-base font-medium">Solde</span>
               </div>
               <Button 
                 variant="ghost"
                 onClick={() => setShowBalance(!showBalance)}
-                className="h-5 w-5 p-0 text-white/80 hover:text-white hover:bg-white/10"
+                className="h-7 w-7 p-0 text-white/80 hover:text-white hover:bg-white/10"
               >
-                {showBalance ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}
+                {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </Button>
             </div>
-            <p className="text-base font-bold text-yellow-200 mt-1 text-center">
+            <p className="text-xl font-bold text-yellow-200 mt-2 text-center">
               {showBalance ? formatCurrency(convertedBalance, userCurrency) : "••••••"}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Contenu principal avec éléments agrandis */}
-      <OptimizedScrollContainer maxHeight="calc(100vh - 90px)" showScrollbar={false}>
-        <div className="p-2 space-y-2">
-          {/* Grille d'actions agrandie */}
-          <div className="grid grid-cols-3 gap-1">
+      {/* Contenu principal avec éléments considérablement agrandis */}
+      <OptimizedScrollContainer maxHeight="calc(100vh - 110px)" showScrollbar={false}>
+        <div className="p-3 space-y-3">
+          {/* Grille d'actions considérablement agrandie */}
+          <div className="grid grid-cols-3 gap-2">
             {[
               { 
                 key: 'transfer', 
@@ -197,12 +197,12 @@ const CompactMobileDashboard = memo(({
                 <CardContent className="p-0">
                   <button
                     onClick={() => handleAction(key)}
-                    className="w-full h-14 flex flex-col items-center justify-center gap-1 hover:bg-gray-50 transition-colors"
+                    className="w-full h-18 flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
                   >
-                    <div className={`p-1 bg-gradient-to-r ${colors} rounded`}>
-                      <Icon className="w-4 h-4 text-white" />
+                    <div className={`p-2 bg-gradient-to-r ${colors} rounded`}>
+                      <Icon className="w-6 h-6 text-white" />
                     </div>
-                    <span className="text-sm font-medium text-gray-800 text-center leading-tight">
+                    <span className="text-base font-medium text-gray-800 text-center leading-tight">
                       {label}
                     </span>
                   </button>
@@ -213,26 +213,26 @@ const CompactMobileDashboard = memo(({
 
           {/* Infos utilisateur agrandies */}
           <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-l-2 border-l-blue-500">
-            <CardContent className="p-2">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                  {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : <User className="w-3 h-3" />}
+            <CardContent className="p-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-base font-bold flex-shrink-0">
+                  {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1 text-sm text-gray-600">
-                    <Phone className="w-3 h-3" />
+                  <div className="flex items-center gap-2 text-base text-gray-600">
+                    <Phone className="w-4 h-4" />
                     <span className="truncate">{userProfile?.phone || 'N/A'}</span>
                   </div>
                   {userProfile?.country && (
-                    <div className="flex items-center gap-1 text-sm text-gray-500">
-                      <MapPin className="w-3 h-3" />
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <MapPin className="w-4 h-4" />
                       <span className="truncate">{userProfile.country}</span>
                     </div>
                   )}
                 </div>
                 {userProfile?.is_verified && (
-                  <div className="p-1 bg-green-500 rounded-full flex-shrink-0">
-                    <Star className="w-3 h-3 text-white" />
+                  <div className="p-2 bg-green-500 rounded-full flex-shrink-0">
+                    <Star className="w-4 h-4 text-white" />
                   </div>
                 )}
               </div>
@@ -241,21 +241,21 @@ const CompactMobileDashboard = memo(({
 
           {/* Section conseils agrandie */}
           <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-2 border-l-blue-500">
-            <CardContent className="p-2">
-              <h4 className="text-sm font-bold text-blue-900 mb-1 flex items-center gap-1">
+            <CardContent className="p-3">
+              <h4 className="text-base font-bold text-blue-900 mb-2 flex items-center gap-2">
                 💡 Conseils
               </h4>
-              <div className="space-y-1 text-sm text-blue-800">
-                <div className="flex items-center gap-1">
-                  <QrCode className="w-3 h-3 flex-shrink-0" />
+              <div className="space-y-2 text-base text-blue-800">
+                <div className="flex items-center gap-2">
+                  <QrCode className="w-4 h-4 flex-shrink-0" />
                   <span>QR pour retraits rapides</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <ArrowUpRight className="w-3 h-3 flex-shrink-0" />
+                <div className="flex items-center gap-2">
+                  <ArrowUpRight className="w-4 h-4 flex-shrink-0" />
                   <span>Transferts 24h/24</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Zap className="w-3 h-3 flex-shrink-0" />
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 flex-shrink-0" />
                   <span>Factures en ligne</span>
                 </div>
               </div>
@@ -263,7 +263,7 @@ const CompactMobileDashboard = memo(({
           </Card>
 
           {/* Espace pour le scroll */}
-          <div className="h-6"></div>
+          <div className="h-8"></div>
         </div>
       </OptimizedScrollContainer>
     </div>

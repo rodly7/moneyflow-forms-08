@@ -29,30 +29,30 @@ export const CompactTouchButton = ({
   const getSizeClasses = () => {
     if (isSmallMobile) {
       switch (size) {
-        case 'xs': return 'h-10 px-3 text-sm';
-        case 'sm': return 'h-12 px-4 text-base';
-        case 'md': return 'h-14 px-5 text-lg';
-        case 'lg': return 'h-16 px-6 text-xl';
-        default: return 'h-12 px-4 text-base';
+        case 'xs': return 'h-12 px-4 text-base';
+        case 'sm': return 'h-16 px-6 text-lg';
+        case 'md': return 'h-18 px-7 text-xl';
+        case 'lg': return 'h-20 px-8 text-2xl';
+        default: return 'h-16 px-6 text-lg';
       }
     } else {
       switch (size) {
-        case 'xs': return 'h-9 px-3 text-sm';
-        case 'sm': return 'h-11 px-4 text-base';
-        case 'md': return 'h-13 px-5 text-lg';
-        case 'lg': return 'h-15 px-6 text-xl';
-        default: return 'h-11 px-4 text-base';
+        case 'xs': return 'h-11 px-4 text-base';
+        case 'sm': return 'h-14 px-5 text-lg';
+        case 'md': return 'h-16 px-6 text-xl';
+        case 'lg': return 'h-18 px-7 text-2xl';
+        default: return 'h-14 px-5 text-lg';
       }
     }
   };
 
   const getIconSize = () => {
     switch (size) {
-      case 'xs': return 'w-4 h-4';
-      case 'sm': return 'w-5 h-5';
-      case 'md': return 'w-6 h-6';
-      case 'lg': return 'w-7 h-7';
-      default: return 'w-5 h-5';
+      case 'xs': return 'w-5 h-5';
+      case 'sm': return 'w-6 h-6';
+      case 'md': return 'w-7 h-7';
+      case 'lg': return 'w-8 h-8';
+      default: return 'w-6 h-6';
     }
   };
 
