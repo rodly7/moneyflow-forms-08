@@ -1,8 +1,8 @@
 
 /* Mode ultra-compact global pour PWA */
 .ultra-compact-mode {
-  font-size: 15px !important; /* Réduit de 16px à 15px */
-  line-height: 1.25 !important; /* Réduit de 1.3 à 1.25 */
+  font-size: 11px !important; /* Réduit de 15px à 11px (-4px) */
+  line-height: 1.2 !important; /* Réduit de 1.25 à 1.2 */
 }
 
 .ultra-compact-mode * {
@@ -11,43 +11,43 @@
 }
 
 .ultra-compact-mode .text-xs {
-  font-size: 13px !important; /* Réduit de 14px à 13px */
+  font-size: 9px !important; /* Réduit de 13px à 9px (-4px) */
 }
 
 .ultra-compact-mode .text-sm {
-  font-size: 14px !important; /* Réduit de 15px à 14px */
+  font-size: 10px !important; /* Réduit de 14px à 10px (-4px) */
 }
 
 .ultra-compact-mode .text-base {
-  font-size: 15px !important; /* Réduit de 16px à 15px */
+  font-size: 11px !important; /* Réduit de 15px à 11px (-4px) */
 }
 
 .ultra-compact-mode .text-lg {
-  font-size: 17px !important; /* Réduit de 18px à 17px */
+  font-size: 13px !important; /* Réduit de 17px à 13px (-4px) */
 }
 
 .ultra-compact-mode .text-xl {
-  font-size: 19px !important; /* Réduit de 20px à 19px */
+  font-size: 15px !important; /* Réduit de 19px à 15px (-4px) */
 }
 
 .ultra-compact-mode .text-2xl {
-  font-size: 22px !important; /* Réduit de 24px à 22px */
+  font-size: 18px !important; /* Réduit de 22px à 18px (-4px) */
 }
 
 .ultra-compact-mode .text-3xl {
-  font-size: 28px !important; /* Réduit de 30px à 28px */
+  font-size: 24px !important; /* Réduit de 28px à 24px (-4px) */
 }
 
 .ultra-compact-mode .text-4xl {
-  font-size: 34px !important; /* Réduit de 36px à 34px */
+  font-size: 30px !important; /* Réduit de 34px à 30px (-4px) */
 }
 
 .ultra-compact-mode .text-5xl {
-  font-size: 45px !important; /* Réduit de 48px à 45px */
+  font-size: 41px !important; /* Réduit de 45px à 41px (-4px) */
 }
 
 .ultra-compact-mode .text-10xl {
-  font-size: 90px !important; /* Réduit de 96px à 90px */
+  font-size: 86px !important; /* Réduit de 90px à 86px (-4px) */
 }
 
 /* Élimination des espaces vides en bas */
@@ -175,13 +175,13 @@
 
 /* Boutons ultra-compacts */
 .ultra-compact-mode button {
-  font-size: 15px !important; /* Réduit de 16px à 15px */
+  font-size: 11px !important; /* Réduit de 15px à 11px (-4px) */
   padding: 0.5rem 1rem !important;
   min-height: 2.5rem !important;
 }
 
 .ultra-compact-mode .btn-sm {
-  font-size: 13px !important; /* Réduit de 14px à 13px */
+  font-size: 9px !important; /* Réduit de 13px à 9px (-4px) */
   padding: 0.25rem 0.5rem !important;
   min-height: 2rem !important;
 }
@@ -203,11 +203,11 @@
 /* Mode PWA spécifique - ajustements additionnels */
 @media (display-mode: standalone) {
   .ultra-compact-mode {
-    font-size: 15px !important; /* Réduit de 16px à 15px */
+    font-size: 11px !important; /* Réduit de 15px à 11px (-4px) */
   }
   
   .ultra-compact-mode .text-xs {
-    font-size: 13px !important; /* Réduit de 14px à 13px */
+    font-size: 9px !important; /* Réduit de 13px à 9px (-4px) */
   }
   
   .ultra-compact-mode .h-10 {
