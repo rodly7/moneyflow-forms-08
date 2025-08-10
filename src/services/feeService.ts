@@ -20,16 +20,16 @@ export const creditTransactionFees = async (
         // Transfert national : 1% uniquement pour SendFlow
         fees = amount * 0.01;
       } else {
-        // Transfert international : 6,5% si < 600,000 FCFA, sinon 4,5%
-        if (amount < 600000) {
+        // Transfert international : 6,5% si < 800,000 FCFA, sinon 5%
+        if (amount < 800000) {
           fees = amount * 0.065; // 6,5%
         } else {
-          fees = amount * 0.045; // 4,5%
+          fees = amount * 0.05; // 5%
         }
       }
     } else if (transactionType === 'bill_payment') {
-      // Paiement de factures : 1,5%
-      fees = amount * 0.015;
+      // Paiement de factures : 1%
+      fees = amount * 0.01;
     } else if (transactionType === 'withdrawal') {
       // Pas de frais pour les clients sur les retraits
       fees = 0;
@@ -88,16 +88,16 @@ export const calculateTransactionFees = (
       // Transfert national : 1% pour SendFlow
       return amount * 0.01;
     } else {
-      // Transfert international : 6,5% si < 600,000 FCFA, sinon 4,5%
-      if (amount < 600000) {
+      // Transfert international : 6,5% si < 800,000 FCFA, sinon 5%
+      if (amount < 800000) {
         return amount * 0.065; // 6,5%
       } else {
-        return amount * 0.045; // 4,5%
+        return amount * 0.05; // 5%
       }
     }
   } else if (transactionType === 'bill_payment') {
-    // Paiement de factures : 1,5%
-    return amount * 0.015;
+    // Paiement de factures : 1%
+    return amount * 0.01;
   } else if (transactionType === 'withdrawal') {
     // Pas de frais pour les clients sur les retraits
     return 0;

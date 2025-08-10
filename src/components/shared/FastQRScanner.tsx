@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { BrowserMultiFormatReader, NotFoundException, ChecksumException, FormatException } from '@zxing/library';
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { X, Flashlight, FlashlightOff, CreditCard } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { v4 as uuidv4 } from 'uuid';
 
 interface FastQRScannerProps {
   isOpen: boolean;
@@ -10,220 +15,173 @@ interface FastQRScannerProps {
   onMyCard?: () => void;
 }
 
-const FastQRScanner = ({ 
-  isOpen, 
-  onClose, 
-  onScanSuccess, 
-  title = "Scanner QR",
-  variant = 'default',
-  onMyCard 
-}: FastQRScannerProps) => {
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const [error, setError] = useState<string>('');
-  const [isScanning, setIsScanning] = useState(false);
-  const [scannedUsers, setScannedUsers] = useState<Array<{ userId: string; fullName: string; phone: string; timestamp: string }>>([]);
+const FastQRScanner = ({ isOpen, onClose, onScanSuccess, title = "Scanner QR Code", variant = "default", onMyCard }: FastQRScannerProps) => {
+  const [torchEnabled, setTorchEnabled] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const scannerId = useRef(uuidv4()).current;
+  const isMobile = useIsMobile();
 
-  const startScanner = async () => {
+  const codeReader = useRef<BrowserMultiFormatReader | null>(null);
+
+  const initializeScanner = useCallback(async () => {
+    if (!isOpen) return;
+
+    codeReader.current = new BrowserMultiFormatReader();
+
     try {
-      setError('');
-      setIsScanning(true);
-
-      const scanner = new Html5Qrcode("fast-qr-scanner");
-      scannerRef.current = scanner;
-
-      // Configuration optimisée pour détection continue
-      await scanner.start(
-        { facingMode: "environment" },
-        {
-          fps: 15, // FPS élevé pour détection continue
-          aspectRatio: 1.0
-        },
-        (decodedText) => {
-          console.log('QR détecté:', decodedText);
-          
+      await codeReader.current.getVideoInputDevices();
+      codeReader.current.decodeFromInputVideoDevice(undefined, `qr-reader-${scannerId}`).then((result) => {
+        if (result) {
           try {
-            // Tentative de parsing JSON pour les QR codes utilisateur
-            const userData = JSON.parse(decodedText);
-            console.log('Données utilisateur parsées:', userData);
-            
-            let finalUserData;
-            
-            // Vérification stricte des données utilisateur
-            if (userData.userId && userData.fullName && userData.phone) {
-              console.log('QR utilisateur valide détecté');
-              finalUserData = {
-                userId: userData.userId,
-                fullName: userData.fullName,
-                phone: userData.phone
-              };
-            } else if (userData.id && userData.name && userData.phone) {
-              // Format alternatif
-              console.log('QR utilisateur format alternatif détecté');
-              finalUserData = {
-                userId: userData.id,
-                fullName: userData.name,
-                phone: userData.phone
-              };
+            const parsedData = JSON.parse(result.getText());
+            if (parsedData && parsedData.userId && parsedData.fullName && parsedData.phone) {
+              onScanSuccess(parsedData);
+              onClose();
             } else {
-              // Données JSON incomplètes
-              console.log('Données JSON incomplètes, utilisation de fallback');
-              finalUserData = {
-                userId: userData.userId || userData.id || 'user-' + Date.now(),
-                fullName: userData.fullName || userData.name || 'Utilisateur',
-                phone: userData.phone || userData.tel || userData.telephone || decodedText
-              };
+              setError("QR Code invalide");
             }
-            
-            // Ajouter à la liste des utilisateurs scannés avec horodatage
-            const newUser = {
-              ...finalUserData,
-              timestamp: new Date().toLocaleTimeString()
-            };
-            
-            setScannedUsers(prev => {
-              // Éviter les doublons récents (même userId dans les 2 dernières secondes)
-              const now = Date.now();
-              const filtered = prev.filter(user => 
-                user.userId !== finalUserData.userId || 
-                (now - new Date(`1970-01-01 ${user.timestamp}`).getTime()) > 2000
-              );
-              return [newUser, ...filtered].slice(0, 5); // Garder seulement les 5 derniers
-            });
-            
-            // Appeler onScanSuccess pour les composants parents
-            onScanSuccess(finalUserData);
-            
-          } catch (parseError) {
-            console.log('Erreur parsing JSON, traitement comme texte simple:', parseError);
-            
-            // Si ce n'est pas du JSON, traiter comme numéro de téléphone
-            const cleanedText = decodedText.replace(/[^+\d]/g, '');
-            if (cleanedText.length >= 8) {
-              const finalUserData = {
-                userId: 'qr-user-' + Date.now(),
-                fullName: 'Utilisateur QR',
-                phone: cleanedText
-              };
-              
-              const newUser = {
-                ...finalUserData,
-                timestamp: new Date().toLocaleTimeString()
-              };
-              
-              setScannedUsers(prev => [newUser, ...prev].slice(0, 5));
-              onScanSuccess(finalUserData);
-            } else {
-              setError('QR code non reconnu comme données utilisateur');
-              setTimeout(() => setError(''), 3000);
-            }
+          } catch (e) {
+            setError("Format QR Code incorrect");
           }
-        },
-        (errorMessage) => {
-          // Log silencieux des erreurs de scan
         }
-      );
-    } catch (err: any) {
-      console.error('Erreur démarrage scanner:', err);
-      setError('Impossible d\'accéder à la caméra');
-      setIsScanning(false);
+      }).catch((err: any) => {
+        if (err instanceof NotFoundException) {
+          setError("Aucun QR code détecté");
+        } else if (err instanceof ChecksumException) {
+          setError("Erreur de checksum");
+        } else if (err instanceof FormatException) {
+          setError("Format incorrect du QR code");
+        } else {
+          setError("Erreur inconnue lors de la lecture du QR code");
+        }
+      });
+    } catch (e: any) {
+      setError("Impossible d'accéder à la caméra.");
     }
-  };
 
-  const stopScanner = async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current = null;
-      } catch {
-        // Ignorer les erreurs
-      }
-    }
-    setIsScanning(false);
-  };
-
-  const simulateQRScan = () => {
-    onScanSuccess({
-      userId: 'test-user-123',
-      fullName: 'Utilisateur Test',
-      phone: '+242065224790'
-    });
-    onClose();
-  };
+    return () => {
+      codeReader.current?.reset();
+    };
+  }, [isOpen, onClose, onScanSuccess, scannerId]);
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(startScanner, 100);
+      setError(null);
+      initializeScanner();
+    } else {
+      codeReader.current?.reset();
+      setError(null);
     }
-    return () => {
-      if (isOpen) stopScanner();
-    };
-  }, [isOpen]);
+  }, [isOpen, initializeScanner]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (codeReader.current) {
+      if (torchEnabled) {
+        codeReader.current.setTorch(true).catch(e => {
+          setError("Impossible d'activer la torche");
+          setTorchEnabled(false);
+        });
+      } else {
+        codeReader.current.setTorch(false);
+      }
+    }
+  }, [torchEnabled]);
 
   return (
-    <div className="fixed inset-0 bg-black z-[9999] flex flex-col">
-      {/* Header minimaliste */}
-      <div className="absolute top-0 left-0 right-0 z-20 p-4 pt-[env(safe-area-inset-top)]">
-        <div className="flex justify-between items-center">
-          <button 
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-black/50 backdrop-blur flex items-center justify-center text-white"
-          >
-            ✕
-          </button>
-          
-          {variant === 'payment' && onMyCard && (
-            <button
-              onClick={onMyCard}
-              className="px-4 py-2 bg-white/20 backdrop-blur rounded-full text-white text-sm"
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className={`max-w-md mx-auto p-2 ${useIsMobile() ? 'w-[95vw] h-[90vh]' : 'w-full h-full'} bg-black/95 border-none`}>
+        <div className="flex flex-col h-full">
+          {/* Header adapté mobile */}
+          <div className={`flex items-center justify-between ${useIsMobile() ? 'p-2 mb-2' : 'p-4 mb-4'} text-white`}>
+            <h2 className={`${useIsMobile() ? 'text-lg' : 'text-xl'} font-bold`}>{title}</h2>
+            <Button
+              variant="ghost"
+              size={useIsMobile() ? "sm" : "default"}
+              onClick={onClose}
+              className="text-white hover:bg-white/10"
             >
-              Ma carte
-            </button>
-          )}
-        </div>
-      </div>
+              <X className={`${useIsMobile() ? 'w-5 h-5' : 'w-6 h-6'}`} />
+            </Button>
+          </div>
 
-      {/* Zone de scan - Caméra plein écran */}
-      <div className="flex-1 relative">
-        <div 
-          id="fast-qr-scanner" 
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      {/* Affichage des utilisateurs scannés */}
-      {scannedUsers.length > 0 && (
-        <div className="absolute bottom-0 left-0 right-0 p-4 pb-[env(safe-area-inset-bottom)] max-h-64 overflow-y-auto">
-          <div className="space-y-2">
-            {scannedUsers.map((user, index) => (
-              <div key={`${user.userId}-${user.timestamp}`} className="bg-white/90 backdrop-blur rounded-lg p-3 text-black">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-sm">{user.fullName}</h4>
-                    <p className="text-xs text-gray-600">{user.phone}</p>
-                    <p className="text-xs text-gray-500">ID: {user.userId}</p>
-                  </div>
-                  <span className="text-xs text-gray-500 ml-2">{user.timestamp}</span>
+          {/* Zone de scan adaptée */}
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <div className={`relative ${useIsMobile() ? 'w-64 h-64' : 'w-80 h-80'} mb-4`}>
+              <div 
+                id={`qr-reader-${scannerId}`}
+                className="w-full h-full rounded-lg overflow-hidden"
+              />
+              
+              {/* Overlay avec coins */}
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="w-full h-full border-2 border-white/30 rounded-lg relative">
+                  {/* Coins */}
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg"></div>
+                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg"></div>
+                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg"></div>
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg"></div>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Instructions adaptées mobile */}
+            <div className={`text-center ${useIsMobile() ? 'px-2' : 'px-4'} text-white`}>
+              <p className={`${useIsMobile() ? 'text-sm' : 'text-base'} mb-2`}>
+                {variant === 'payment' ? 'Scannez le QR code pour payer' : 'Placez le QR code dans le cadre'}
+              </p>
+              {useIsMobile() && (
+                <p className="text-xs text-white/70">
+                  Tenez votre appareil stable
+                </p>
+              )}
+            </div>
+
+            {/* Boutons adaptés mobile */}
+            <div className={`flex gap-2 mt-4 ${useIsMobile() ? 'px-2' : ''}`}>
+              {variant === 'payment' && onMyCard && (
+                <Button
+                  onClick={onMyCard}
+                  variant="outline"
+                  size={useIsMobile() ? "sm" : "default"}
+                  className={`bg-white/10 text-white border-white/30 hover:bg-white/20 ${useIsMobile() ? 'text-xs px-3' : ''}`}
+                >
+                  <CreditCard className={`${useIsMobile() ? 'w-4 h-4 mr-1' : 'w-5 h-5 mr-2'}`} />
+                  Ma carte
+                </Button>
+              )}
+              
+              <Button
+                onClick={() => setTorchEnabled(!torchEnabled)}
+                variant="outline"
+                size={useIsMobile() ? "sm" : "default"}
+                className={`bg-white/10 text-white border-white/30 hover:bg-white/20 ${useIsMobile() ? 'text-xs px-3' : ''}`}
+              >
+                {torchEnabled ? (
+                  <FlashlightOff className={`${useIsMobile() ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                ) : (
+                  <Flashlight className={`${useIsMobile() ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                )}
+              </Button>
+            </div>
+
+            {/* Statut d'erreur adapté mobile */}
+            {error && (
+              <div className={`mt-4 ${useIsMobile() ? 'mx-2' : 'mx-4'} p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-center`}>
+                <p className={`text-red-200 ${useIsMobile() ? 'text-sm' : ''}`}>{error}</p>
+                <Button
+                  onClick={initializeScanner}
+                  variant="outline"
+                  size="sm"
+                  className={`mt-2 bg-red-500/20 text-red-200 border-red-500/30 hover:bg-red-500/30 ${useIsMobile() ? 'text-xs' : ''}`}
+                >
+                  Réessayer
+                </Button>
+              </div>
+            )}
           </div>
         </div>
-      )}
-
-      {/* Instructions PWA */}
-      <div className="absolute bottom-4 left-4 right-4 text-center">
-        <p className="text-white/80 text-sm">Détection automatique continue - Mode PWA</p>
-      </div>
-
-      {/* Message d'erreur */}
-      {error && (
-        <div className="absolute top-1/2 left-4 right-4 bg-red-500 text-white p-4 rounded-xl text-center">
-          {error}
-        </div>
-      )}
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
