@@ -26,7 +26,7 @@ const MobileDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   // Configuration du rafraîchissement automatique toutes les 5 secondes
-  const { balance } = useAutoBalanceRefresh({
+  const { currentBalance } = useAutoBalanceRefresh({
     intervalMs: 5000,
     enableRealtime: true
   });
@@ -125,7 +125,7 @@ const MobileDashboard: React.FC = () => {
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
           <p className="text-blue-100 text-lg mb-3">Solde disponible</p>
           <p className="text-6xl font-bold mb-3 text-yellow-200">
-            {formatCurrency(balance || profile?.balance || 0, 'XAF')}
+            {formatCurrency(currentBalance || profile?.balance || 0, 'XAF')}
           </p>
           <div className="flex items-center space-x-2 text-base text-blue-100">
             <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
