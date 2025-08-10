@@ -18,7 +18,7 @@ const PWADashboardPage = () => {
       if (!user?.id) return null;
       const { data } = await supabase
         .from('profiles')
-        .select('full_name, avatar_url, updated_at')
+        .select('full_name, avatar_url, balance')
         .eq('id', user.id)
         .single();
       return data;
@@ -35,9 +35,9 @@ const PWADashboardPage = () => {
       
       {/* Dashboard principal */}
       <PWADashboard
-        userBalance={0} // Valeur par défaut car balance n'existe pas encore
+        userBalance={userData?.balance || 0}
         userName={userData?.full_name || 'Utilisateur'}
-        userPhone={user?.email || '+221...'} // Utilisation de l'email en attendant
+        userPhone={user?.email || '+221...'}
       />
     </div>
   );
