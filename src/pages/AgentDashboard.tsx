@@ -2,7 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import ResponsiveAgentDashboard from "@/components/agent/ResponsiveAgentDashboard";
+import MobileDashboard from "@/components/mobile/MobileDashboard";
 
 const AgentDashboardPage = () => {
   const { profile } = useAuth();
@@ -18,7 +18,8 @@ const AgentDashboardPage = () => {
     return null;
   }
 
-  return <ResponsiveAgentDashboard />;
+  // Utiliser directement le MobileDashboard pour les agents
+  return <MobileDashboard />;
 };
 
 export default AgentDashboardPage;
