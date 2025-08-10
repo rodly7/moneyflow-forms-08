@@ -1,253 +1,151 @@
 
-import { memo, Suspense, useMemo, useState, useCallback } from "react";
+import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, QrCode, History, PiggyBank, RefreshCw, LogOut, Crown, Star, Eye, EyeOff, Scan, Zap, Phone, MapPin } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  ArrowUpRight, 
+  ArrowDownLeft, 
+  CreditCard, 
+  QrCode,
+  Receipt,
+  Smartphone,
+  Bell
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
-import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
-import { TouchOptimizedButton } from "./TouchOptimizedButton";
-import { OptimizedScrollContainer } from "./OptimizedScrollContainer";
+import { formatCurrency } from "@/integrations/supabase/client";
 import EnhancedTransactionsCard from "@/components/dashboard/EnhancedTransactionsCard";
-import UnifiedNotificationBell from "@/components/notifications/UnifiedNotificationBell";
+import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
+import { UserSettingsModal } from "@/components/settings/UserSettingsModal";
 
-interface MobileDashboardProps {
-  userBalance: number;
-  userProfile: any;
-  onRefresh: () => void;
-  isLoading: boolean;
-}
-
-const MobileLoadingSkeleton = memo(() => (
-  <div className="h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-    <div className="p-4 space-y-4">
-      {[...Array(4)].map((_, i) => (
-        <Card key={i} className="animate-pulse">
-          <CardContent className="p-4">
-            <div className="h-16 bg-gray-200 rounded"></div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  </div>
-));
-
-const MobileDashboard = memo(({ 
-  userBalance, 
-  userProfile, 
-  onRefresh, 
-  isLoading 
-}: MobileDashboardProps) => {
+const MobileDashboard = () => {
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { signOut } = useAuth();
-  const [showBalance, setShowBalance] = useState(false);
 
-  const userCurrency = useMemo(() => 
-    getCurrencyForCountry(userProfile?.country || "Cameroun"), 
-    [userProfile?.country]
-  );
-
-  const convertedBalance = useMemo(() => 
-    convertCurrency(userBalance, "XAF", userCurrency), 
-    [userBalance, userCurrency]
-  );
-
-  const handleAction = useCallback((action: string) => {
-    switch (action) {
-      case 'transfer':
-        navigate('/transfer');
-        break;
-      case 'qr-code':
-        navigate('/qr-code');
-        break;
-      case 'qr-payment':
-        navigate('/qr-payment');
-        break;
-      case 'savings':
-        navigate('/savings');
-        break;
-      case 'transactions':
-        navigate('/transactions');
-        break;
-      case 'bill-payments':
-        navigate('/bill-payments');
-        break;
-      default:
-        break;
+  const quickActions = [
+    {
+      title: "Envoyer",
+      icon: ArrowUpRight,
+      color: "from-red-500 to-pink-500",
+      onClick: () => navigate('/transfer')
+    },
+    {
+      title: "Recevoir",
+      icon: ArrowDownLeft,
+      color: "from-green-500 to-emerald-500",
+      onClick: () => navigate('/receive')
+    },
+    {
+      title: "Retirer",
+      icon: CreditCard,
+      color: "from-blue-500 to-cyan-500",
+      onClick: () => navigate('/withdraw')
+    },
+    {
+      title: "QR Code",
+      icon: QrCode,
+      color: "from-purple-500 to-violet-500",
+      onClick: () => navigate('/qr-code')
+    },
+    {
+      title: "Reçus",
+      icon: Receipt,
+      color: "from-orange-500 to-amber-500",
+      onClick: () => navigate('/receipts')
+    },
+    {
+      title: "Factures",
+      icon: Smartphone,
+      color: "from-indigo-500 to-blue-500",
+      onClick: () => navigate('/bills')
     }
-  }, [navigate]);
-
-  const handleSignOut = useCallback(async () => {
-    try {
-      await signOut();
-      navigate('/auth');
-      toast({
-        title: "Déconnexion réussie",
-        description: "À bientôt !",
-      });
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la déconnexion",
-        variant: "destructive"
-      });
-    }
-  }, [signOut, navigate, toast]);
-
-  if (isLoading) {
-    return <MobileLoadingSkeleton />;
-  }
+  ];
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm flex-shrink-0">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl">
-                <Crown className="w-6 h-6 text-white" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h1 className="text-xl font-bold text-gray-900 truncate">SendFlow</h1>
-                <p className="text-sm text-gray-600 truncate">Tableau de bord</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <UnifiedNotificationBell />
-              <CustomerServiceButton />
-              <button 
-                onClick={onRefresh}
-                disabled={isLoading}
-                className="p-2 h-10 w-10 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <RefreshCw className={`w-5 h-5 text-gray-700 ${isLoading ? 'animate-spin' : ''}`} />
-              </button>
-              <button 
-                onClick={handleSignOut}
-                className="p-2 h-10 w-10 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <LogOut className="w-5 h-5 text-gray-700" />
-              </button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-20">
+      {/* Header avec notification */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <Avatar className="h-12 w-12 border-2 border-white/20">
+              <AvatarImage src={profile?.avatar_url} />
+              <AvatarFallback className="bg-white/10 text-white font-semibold">
+                {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-lg font-semibold">
+                Bonjour {profile?.full_name || 'Utilisateur'} 👋
+              </h1>
+              <p className="text-blue-100 text-sm">
+                {new Date().toLocaleDateString('fr-FR', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </p>
             </div>
           </div>
+          <UnifiedNotificationBell />
+        </div>
 
-          {/* Carte solde */}
-          <div className="relative group mb-4">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur opacity-75"></div>
-            <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-xl text-white">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-medium text-white/90 text-base mb-2">Solde disponible</h3>
-                  <p className="text-4xl font-bold text-yellow-200 mb-2 break-all">
-                    {showBalance ? formatCurrency(convertedBalance, userCurrency) : "••••••"}
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setShowBalance(!showBalance)}
-                  className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
-                >
-                  {showBalance ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
+        {/* Solde avec taille augmentée */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+          <p className="text-blue-100 text-sm mb-2">Solde disponible</p>
+          <p className="text-4xl font-bold mb-2">
+            {formatCurrency(profile?.balance || 0)}
+          </p>
+          <div className="flex items-center space-x-2 text-xs text-blue-100">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span>Compte actif</span>
           </div>
         </div>
       </div>
 
-      {/* Contenu principal */}
-      <OptimizedScrollContainer className="flex-1 px-4 py-3">
-        <div className="space-y-6">
-          {/* Informations utilisateur */}
-          <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-l-4 border-l-blue-500">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-                  {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'U'}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-xl font-bold text-gray-900 truncate mb-2">
-                    {userProfile?.full_name || 'Utilisateur'}
-                  </h2>
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                    <Phone className="w-4 h-4" />
-                    <span className="truncate">{userProfile?.phone || 'Non disponible'}</span>
-                  </div>
-                  {userProfile?.country && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <MapPin className="w-4 h-4" />
-                      <span className="truncate">{userProfile.country}</span>
-                    </div>
-                  )}
-                </div>
-                {userProfile?.is_verified && (
-                  <div className="p-2 bg-green-500 rounded-full flex-shrink-0">
-                    <Star className="w-5 h-5 text-white" />
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Actions principales */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 px-1">Actions rapides</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { key: 'transfer', icon: ArrowUpRight, label: 'Transférer', colors: 'from-pink-500 to-purple-500' },
-                { key: 'qr-code', icon: QrCode, label: 'QR Code', colors: 'from-green-500 to-teal-500' },
-                { key: 'qr-payment', icon: Scan, label: 'Scanner', colors: 'from-indigo-500 to-blue-500' },
-                { key: 'savings', icon: PiggyBank, label: 'Épargnes', colors: 'from-emerald-500 to-green-500' },
-                { key: 'transactions', icon: History, label: 'Historique', colors: 'from-orange-500 to-red-500' },
-                { key: 'bill-payments', icon: Zap, label: 'Factures', colors: 'from-yellow-500 to-amber-500' },
-              ].map(({ key, icon: Icon, label, colors }) => (
-                <TouchOptimizedButton
-                  key={key}
-                  onClick={() => handleAction(key)}
-                  className="h-20 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 border-0 group relative overflow-hidden active:scale-95"
+      {/* Actions rapides */}
+      <div className="px-6 -mt-8 relative z-10">
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Actions rapides</h2>
+            <div className="grid grid-cols-3 gap-4">
+              {quickActions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="relative h-24 flex-col gap-3 bg-white border-0 hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-lg"
+                  onClick={action.onClick}
                 >
-                  <div className={`absolute inset-0 bg-gradient-to-r ${colors} opacity-0 group-hover:opacity-10 transition-opacity`} />
-                  <div className="flex flex-col items-center justify-center gap-2 relative z-10 p-2">
-                    <div className={`p-2 bg-gradient-to-r ${colors} rounded-lg shadow-sm`}>
-                      <Icon className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="text-xs font-semibold text-gray-700 text-center leading-tight">{label}</div>
+                  <div className={`p-2 bg-gradient-to-r ${action.color} rounded-full min-w-[36px] min-h-[36px] flex items-center justify-center`}>
+                    <action.icon className="w-5 h-5 text-white" />
                   </div>
-                </TouchOptimizedButton>
+                  <span className="text-sm font-medium text-center">{action.title}</span>
+                </Button>
               ))}
             </div>
-          </div>
+          </CardContent>
+        </Card>
+      </div>
 
-          {/* Transactions récentes */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 px-1">Transactions récentes</h3>
-            <Suspense fallback={
-              <Card>
-                <CardContent className="p-4">
-                  <div className="animate-pulse space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="h-12 bg-gray-200 rounded"></div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            }>
-              <EnhancedTransactionsCard />
-            </Suspense>
-          </div>
+      {/* Transactions récentes */}
+      <div className="px-6 mt-6">
+        <EnhancedTransactionsCard />
+      </div>
 
-          {/* Espacement en bas pour la navigation */}
-          <div className="h-20"></div>
-        </div>
-      </OptimizedScrollContainer>
+      {/* Section Paramètres */}
+      <div className="px-6 mt-6">
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Support & Paramètres</h2>
+            <div className="grid grid-cols-1 gap-4">
+              <UserSettingsModal />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
-});
-
-MobileDashboard.displayName = 'MobileDashboard';
-MobileLoadingSkeleton.displayName = 'MobileLoadingSkeleton';
+};
 
 export default MobileDashboard;

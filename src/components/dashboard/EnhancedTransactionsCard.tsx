@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, CreditCard, History, RefreshCw } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, CreditCard, History, RefreshCw, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -12,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface Transaction {
   id: string;
-  type: 'transfer_sent' | 'transfer_received' | 'withdrawal' | 'recharge';
+  type: 'transfer_sent' | 'transfer_received' | 'withdrawal' | 'recharge' | 'bill_payment';
   amount: number;
   created_at: string;
   status: string;
@@ -40,11 +39,11 @@ const EnhancedTransactionsCard = () => {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // Récupérer les transferts reçus
+      // Récupérer les transferts reçus (en utilisant recipient_id)
       const { data: receivedTransfers } = await supabase
         .from('transfers')
         .select('*')
-        .or(`recipient_phone.eq.${user.phone},recipient_email.eq.${user.email}`)
+        .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -56,11 +55,20 @@ const EnhancedTransactionsCard = () => {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // Récupérer les recharges (au lieu de deposits)
+      // Récupérer les recharges
       const { data: recharges } = await supabase
         .from('recharges')
         .select('*')
         .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      // Récupérer les paiements de factures automatiques
+      const { data: billPayments } = await supabase
+        .from('automatic_bills')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('status', ['paid', 'completed'])
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -116,6 +124,18 @@ const EnhancedTransactionsCard = () => {
         });
       });
 
+      // Ajouter les paiements de factures
+      billPayments?.forEach(bill => {
+        allTransactions.push({
+          id: bill.id,
+          type: 'bill_payment',
+          amount: -bill.amount,
+          created_at: bill.created_at,
+          status: 'completed',
+          description: `Paiement ${bill.bill_name || 'Facture'}`
+        });
+      });
+
       // Trier par date décroissante et prendre les 5 plus récentes
       allTransactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setTransactions(allTransactions.slice(0, 5));
@@ -146,6 +166,8 @@ const EnhancedTransactionsCard = () => {
         return <CreditCard className="w-6 h-6 text-orange-500" />;
       case 'recharge':
         return <ArrowDownLeft className="w-6 h-6 text-blue-500" />;
+      case 'bill_payment':
+        return <Zap className="w-6 h-6 text-purple-500" />;
       default:
         return <History className="w-6 h-6 text-gray-500" />;
     }
