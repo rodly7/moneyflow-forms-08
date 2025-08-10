@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ interface Transaction {
   status: string;
   description?: string;
   recipient_full_name?: string;
+  sender_name?: string;
 }
 
 const EnhancedTransactionsCard = () => {
@@ -130,7 +132,7 @@ const EnhancedTransactionsCard = () => {
         });
       }
 
-      // Ajouter les transferts reçus
+      // Ajouter les transferts reçus avec plus de détails
       if (receivedTransfers && receivedTransfers.length > 0) {
         console.log('🔄 Traitement des transferts reçus...');
         for (const transfer of receivedTransfers) {
@@ -157,7 +159,8 @@ const EnhancedTransactionsCard = () => {
             amount: Math.abs(transfer.amount),
             created_at: transfer.created_at,
             status: transfer.status || 'completed',
-            description: `Transfert reçu de ${senderName}`
+            description: `Vous avez reçu ${transfer.amount?.toLocaleString('fr-FR')} FCFA de la part de ${senderName}`,
+            sender_name: senderName
           };
           console.log('📥 Ajout transfert reçu:', transaction);
           allTransactions.push(transaction);
@@ -342,7 +345,7 @@ const EnhancedTransactionsCard = () => {
           <div className="text-center py-8 text-gray-500">
             <History className="w-12 h-12 mx-auto mb-3 text-gray-300" />
             <p className="text-base">Aucune transaction récente</p>
-            <p className="text-sm mt-2">Vérifiez la console pour plus de détails</p>
+            <p className="text-sm mt-2">Vos transactions apparaîtront ici</p>
           </div>
         ) : (
           <div className="space-y-3">

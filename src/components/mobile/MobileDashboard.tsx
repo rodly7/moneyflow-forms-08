@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -96,22 +97,22 @@ const MobileDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-20">
-      {/* Header avec notification et déconnexion */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-16 w-16 border-2 border-white/20">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-0">
+      {/* Header avec notification et déconnexion - Taille agrandie */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-b-3xl shadow-lg">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-6">
+            <Avatar className="h-20 w-20 border-2 border-white/20">
               <AvatarImage src={profile?.avatar_url} />
-              <AvatarFallback className="bg-white/10 text-white font-semibold text-2xl">
+              <AvatarFallback className="bg-white/10 text-white font-semibold text-3xl">
                 {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl font-semibold">
+              <h1 className="text-3xl font-semibold">
                 Bonjour {profile?.full_name || 'Utilisateur'} 👋
               </h1>
-              <p className="text-blue-100 text-xl">
+              <p className="text-blue-100 text-2xl mt-2">
                 {new Date().toLocaleDateString('fr-FR', { 
                   weekday: 'long', 
                   year: 'numeric', 
@@ -127,31 +128,31 @@ const MobileDashboard: React.FC = () => {
               onClick={handleLogout}
               variant="outline"
               size="sm"
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white text-lg p-3"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white text-xl p-4"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-6 h-6" />
             </Button>
           </div>
         </div>
 
-        {/* Solde avec option de masquage */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-blue-100 text-3xl font-medium">Solde disponible</p>
+        {/* Solde avec option de masquage - Taille agrandie */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-10 border border-white/20">
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-blue-100 text-4xl font-medium">Solde disponible</p>
             <Button
               onClick={toggleBalanceVisibility}
               variant="ghost"
               size="sm"
-              className="text-white hover:bg-white/10 p-2"
+              className="text-white hover:bg-white/10 p-3"
             >
-              {isBalanceVisible ? <EyeOff className="w-7 h-7" /> : <Eye className="w-7 h-7" />}
+              {isBalanceVisible ? <EyeOff className="w-8 h-8" /> : <Eye className="w-8 h-8" />}
             </Button>
           </div>
-          <p className="text-8xl font-bold mb-4 text-yellow-200">
+          <p className="text-9xl font-bold mb-6 text-yellow-200">
             {formatBalanceDisplay(currentBalance || profile?.balance || 0)}
           </p>
-          <div className="flex items-center space-x-2 text-lg text-blue-100">
-            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+          <div className="flex items-center space-x-2 text-xl text-blue-100">
+            <div className="w-4 h-4 bg-green-400 rounded-full animate-pulse"></div>
             <span>Mise à jour toutes les 5 secondes</span>
           </div>
         </div>
@@ -186,8 +187,8 @@ const MobileDashboard: React.FC = () => {
         <EnhancedTransactionsCard />
       </div>
 
-      {/* Section Paramètres */}
-      <div className="px-6 mt-8">
+      {/* Section Paramètres - S'étend jusqu'en bas */}
+      <div className="px-6 mt-8 pb-8">
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
           <CardContent className="p-8">
             <h2 className="text-2xl font-semibold text-gray-800 mb-6">Support & Paramètres</h2>
