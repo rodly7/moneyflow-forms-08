@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, CreditCard, Zap, History, RefreshCw } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, CreditCard, History, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -12,15 +12,12 @@ import { useToast } from "@/hooks/use-toast";
 
 interface Transaction {
   id: string;
-  type: 'transfer_sent' | 'transfer_received' | 'withdrawal' | 'deposit' | 'bill_payment';
+  type: 'transfer_sent' | 'transfer_received' | 'withdrawal' | 'recharge';
   amount: number;
   created_at: string;
   status: string;
   description?: string;
   recipient_full_name?: string;
-  sender_full_name?: string;
-  bill_type?: string;
-  provider?: string;
 }
 
 const EnhancedTransactionsCard = () => {
@@ -59,17 +56,9 @@ const EnhancedTransactionsCard = () => {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // Récupérer les dépôts
-      const { data: deposits } = await supabase
-        .from('deposits')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      // Récupérer les paiements de factures
-      const { data: billPayments } = await supabase
-        .from('bill_payments')
+      // Récupérer les recharges (au lieu de deposits)
+      const { data: recharges } = await supabase
+        .from('recharges')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -99,8 +88,7 @@ const EnhancedTransactionsCard = () => {
           amount: transfer.amount,
           created_at: transfer.created_at,
           status: transfer.status,
-          description: `Transfert reçu de ${transfer.sender_full_name || 'Expéditeur'}`,
-          sender_full_name: transfer.sender_full_name
+          description: `Transfert reçu de ${transfer.recipient_full_name || 'Expéditeur'}`
         });
       });
 
@@ -116,29 +104,15 @@ const EnhancedTransactionsCard = () => {
         });
       });
 
-      // Ajouter les dépôts
-      deposits?.forEach(deposit => {
+      // Ajouter les recharges
+      recharges?.forEach(recharge => {
         allTransactions.push({
-          id: deposit.id,
-          type: 'deposit',
-          amount: deposit.amount,
-          created_at: deposit.created_at,
-          status: deposit.status || 'completed',
-          description: `Dépôt sur le compte`
-        });
-      });
-
-      // Ajouter les paiements de factures
-      billPayments?.forEach(payment => {
-        allTransactions.push({
-          id: payment.id,
-          type: 'bill_payment',
-          amount: -payment.amount,
-          created_at: payment.created_at,
-          status: payment.status,
-          description: `Facture ${payment.bill_type || payment.provider || 'Paiement'}`,
-          bill_type: payment.bill_type,
-          provider: payment.provider
+          id: recharge.id,
+          type: 'recharge',
+          amount: recharge.amount,
+          created_at: recharge.created_at,
+          status: recharge.status,
+          description: `Recharge via ${recharge.payment_method || 'Mobile Money'}`
         });
       });
 
@@ -170,10 +144,8 @@ const EnhancedTransactionsCard = () => {
         return <ArrowDownLeft className="w-6 h-6 text-green-500" />;
       case 'withdrawal':
         return <CreditCard className="w-6 h-6 text-orange-500" />;
-      case 'deposit':
+      case 'recharge':
         return <ArrowDownLeft className="w-6 h-6 text-blue-500" />;
-      case 'bill_payment':
-        return <Zap className="w-6 h-6 text-purple-500" />;
       default:
         return <History className="w-6 h-6 text-gray-500" />;
     }
