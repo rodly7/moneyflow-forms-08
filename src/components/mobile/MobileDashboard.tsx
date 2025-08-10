@@ -1,3 +1,4 @@
+
 import { memo, Suspense, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -101,17 +102,17 @@ const MobileDashboard = memo(({
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col overflow-hidden">
-      {/* Header fixe plus compact */}
+      {/* Header */}
       <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm flex-shrink-0">
-        <div className="px-3 py-2">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="p-1.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
-                <Crown className="w-4 h-4 text-white" />
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl">
+                <Crown className="w-6 h-6 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-base font-bold text-gray-900 truncate">SendFlow</h1>
-                <p className="text-xs text-gray-600 truncate">Tableau de bord</p>
+                <h1 className="text-xl font-bold text-gray-900 truncate">SendFlow</h1>
+                <p className="text-sm text-gray-600 truncate">Tableau de bord</p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -132,25 +133,22 @@ const MobileDashboard = memo(({
             </div>
           </div>
 
-          {/* Carte solde avec MONTANT GIGANTESQUE qui occupe presque toute la page */}
+          {/* Carte solde */}
           <div className="relative group mb-4">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur opacity-75"></div>
-            <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-8 rounded-xl text-white min-h-[60vh] flex flex-col justify-center">
-              <div className="flex items-center justify-between h-full">
-                <div className="min-w-0 flex-1 text-center">
-                  <h3 className="font-medium text-white/90 text-xl mb-6">Solde disponible</h3>
-                  <p 
-                    className="font-bold text-yellow-200 mb-4 break-all leading-none tracking-tighter text-center"
-                    style={{ fontSize: 'min(25vw, 200px)' }}
-                  >
+            <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-xl text-white">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium text-white/90 text-base mb-2">Solde disponible</h3>
+                  <p className="text-3xl font-bold text-yellow-200 mb-2 break-all">
                     {showBalance ? formatCurrency(convertedBalance, userCurrency) : "••••••"}
                   </p>
                 </div>
                 <button 
                   onClick={() => setShowBalance(!showBalance)}
-                  className="absolute top-4 right-4 p-3 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                  className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
                 >
-                  {showBalance ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+                  {showBalance ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
@@ -158,66 +156,91 @@ const MobileDashboard = memo(({
         </div>
       </div>
 
-      {/* Contenu principal réduit */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full px-3 py-2 overflow-y-auto">
-          <div className="space-y-3">
-            {/* Informations utilisateur compactes */}
-            <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-l-4 border-l-blue-500">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
-                    {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'U'}
+      {/* Contenu principal */}
+      <OptimizedScrollContainer className="flex-1 px-4 py-3">
+        <div className="space-y-6">
+          {/* Informations utilisateur */}
+          <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-l-4 border-l-blue-500">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+                  {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl font-bold text-gray-900 truncate mb-2">
+                    {userProfile?.full_name || 'Utilisateur'}
+                  </h2>
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                    <Phone className="w-4 h-4" />
+                    <span className="truncate">{userProfile?.phone || 'Non disponible'}</span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-lg font-bold text-gray-900 truncate mb-1">
-                      {userProfile?.full_name || 'Utilisateur'}
-                    </h2>
+                  {userProfile?.country && (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Phone className="w-4 h-4" />
-                      <span className="truncate">{userProfile?.phone || 'Non disponible'}</span>
-                    </div>
-                  </div>
-                  {userProfile?.is_verified && (
-                    <div className="p-1.5 bg-green-500 rounded-full flex-shrink-0">
-                      <Star className="w-4 h-4 text-white" />
+                      <MapPin className="w-4 h-4" />
+                      <span className="truncate">{userProfile.country}</span>
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Actions principales compactes */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-2 px-1">Actions rapides</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { key: 'transfer', icon: ArrowUpRight, label: 'Transférer', colors: 'from-pink-500 to-purple-500' },
-                  { key: 'qr-code', icon: QrCode, label: 'QR Code', colors: 'from-green-500 to-teal-500' },
-                  { key: 'qr-payment', icon: Scan, label: 'Scanner', colors: 'from-indigo-500 to-blue-500' },
-                  { key: 'savings', icon: PiggyBank, label: 'Épargnes', colors: 'from-emerald-500 to-green-500' },
-                  { key: 'transactions', icon: History, label: 'Historique', colors: 'from-orange-500 to-red-500' },
-                  { key: 'bill-payments', icon: Zap, label: 'Factures', colors: 'from-yellow-500 to-amber-500' },
-                ].map(({ key, icon: Icon, label, colors }) => (
-                  <TouchOptimizedButton
-                    key={key}
-                    onClick={() => handleAction(key)}
-                    className="h-16 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 border-0 group relative overflow-hidden active:scale-95"
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-r ${colors} opacity-0 group-hover:opacity-10 transition-opacity`} />
-                    <div className="flex flex-col items-center justify-center gap-1 relative z-10 p-1">
-                      <div className={`p-1.5 bg-gradient-to-r ${colors} rounded-lg shadow-sm`}>
-                        <Icon className="w-4 h-4 text-white" />
-                      </div>
-                      <div className="text-xs font-semibold text-gray-700 text-center leading-tight">{label}</div>
-                    </div>
-                  </TouchOptimizedButton>
-                ))}
+                {userProfile?.is_verified && (
+                  <div className="p-2 bg-green-500 rounded-full flex-shrink-0">
+                    <Star className="w-5 h-5 text-white" />
+                  </div>
+                )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Actions principales */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 px-1">Actions rapides</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { key: 'transfer', icon: ArrowUpRight, label: 'Transférer', colors: 'from-pink-500 to-purple-500' },
+                { key: 'qr-code', icon: QrCode, label: 'QR Code', colors: 'from-green-500 to-teal-500' },
+                { key: 'qr-payment', icon: Scan, label: 'Scanner', colors: 'from-indigo-500 to-blue-500' },
+                { key: 'savings', icon: PiggyBank, label: 'Épargnes', colors: 'from-emerald-500 to-green-500' },
+                { key: 'transactions', icon: History, label: 'Historique', colors: 'from-orange-500 to-red-500' },
+                { key: 'bill-payments', icon: Zap, label: 'Factures', colors: 'from-yellow-500 to-amber-500' },
+              ].map(({ key, icon: Icon, label, colors }) => (
+                <TouchOptimizedButton
+                  key={key}
+                  onClick={() => handleAction(key)}
+                  className="h-20 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300 border-0 group relative overflow-hidden active:scale-95"
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-r ${colors} opacity-0 group-hover:opacity-10 transition-opacity`} />
+                  <div className="flex flex-col items-center justify-center gap-2 relative z-10 p-2">
+                    <div className={`p-2 bg-gradient-to-r ${colors} rounded-lg shadow-sm`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="text-xs font-semibold text-gray-700 text-center leading-tight">{label}</div>
+                  </div>
+                </TouchOptimizedButton>
+              ))}
             </div>
           </div>
+
+          {/* Transactions récentes */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 px-1">Transactions récentes</h3>
+            <Suspense fallback={
+              <Card>
+                <CardContent className="p-4">
+                  <div className="animate-pulse space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-12 bg-gray-200 rounded"></div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            }>
+              <EnhancedTransactionsCard />
+            </Suspense>
+          </div>
+
+          {/* Espacement en bas pour la navigation */}
+          <div className="h-20"></div>
         </div>
-      </div>
+      </OptimizedScrollContainer>
     </div>
   );
 });
