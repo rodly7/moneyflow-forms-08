@@ -1,197 +1,144 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMainAdmin } from '@/hooks/useMainAdmin';
-import SimpleAdvancedTab from '@/components/admin/SimpleAdvancedTab';
-import SimpleAgentsTab from '@/components/admin/SimpleAgentsTab';
-import { SimpleTreasuryTab } from '@/components/admin/SimpleTreasuryTab';
-import SimpleSettingsTab from '@/components/admin/SimpleSettingsTab';
-import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
-import AdminReportsTab from '@/components/admin/AdminReportsTab';
-import ExactTransactionMonitor from '@/components/admin/ExactTransactionMonitor';
-import EnhancedTreasuryTab from '@/components/admin/EnhancedTreasuryTab';
+import { SimpleAdminDashboard } from '@/components/admin/SimpleAdminDashboard';
+import { AdminUsersManagement } from '@/components/admin/AdminUsersManagement';
+import { AgentManagementPanel } from '@/components/admin/AgentManagementPanel';
+import { RevenueAnalytics } from '@/components/admin/RevenueAnalytics';
+import { SimpleTransactionsList } from '@/components/admin/SimpleTransactionsList';
+import LogoutButton from '@/components/auth/LogoutButton';
 
 export default function MainAdminDashboard() {
   const { user, profile } = useAuth();
   const { isMainAdmin } = useMainAdmin();
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  useEffect(() => {
-    if (!user) {
-      console.log('Pas d\'utilisateur connecté.');
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (profile && profile.role !== 'admin') {
-      console.log('Accès non autorisé.');
-    }
-  }, [profile]);
-
   if (!user || !profile) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>Chargement...</h2>
-        <p>Veuillez patienter pendant le chargement des informations d'authentification.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Chargement...</h2>
+          <p className="text-gray-600">Veuillez patienter pendant le chargement des informations d'authentification.</p>
+        </div>
       </div>
     );
   }
 
   if (profile.role !== 'admin') {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>Accès refusé</h2>
-        <p>Vous n'avez pas les autorisations nécessaires pour accéder à cette page.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-red-600 mb-2">Accès refusé</h2>
+          <p className="text-gray-600">Vous n'avez pas les autorisations nécessaires pour accéder à cette page.</p>
+        </div>
       </div>
     );
   }
 
   if (!isMainAdmin) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>Accès refusé</h2>
-        <p>Seul l'administrateur principal peut accéder à cette page.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-red-600 mb-2">Accès refusé</h2>
+          <p className="text-gray-600">Seul l'administrateur principal peut accéder à cette page.</p>
+        </div>
       </div>
     );
   }
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard Principal', icon: '📊' },
-    { id: 'reports', label: 'Rapports Précis', icon: '📈' },
-    { id: 'advanced', label: 'Dashboard Avancé', icon: '⚙️' },
-    { id: 'agents', label: 'Gestion des Agents', icon: '👥' },
-    { id: 'treasury', label: 'Trésorerie Exacte', icon: '💰' },
-    { id: 'monitoring', label: 'Surveillance Transactions', icon: '🔍' },
-    { id: 'settings', label: 'Paramètres Système', icon: '🔧' },
-    { id: 'messages', label: 'Messages & Notifications', icon: '💬' },
+    { id: 'dashboard', label: 'Tableau de bord', icon: '📊' },
+    { id: 'users', label: 'Gestion Utilisateurs', icon: '👥' },
+    { id: 'agents', label: 'Gestion Agents', icon: '🔧' },
+    { id: 'revenue', label: 'Revenus & Analytics', icon: '💰' },
+    { id: 'transactions', label: 'Transactions', icon: '💸' },
+    { id: 'settings', label: 'Paramètres', icon: '⚙️' },
   ];
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
+        return <SimpleAdminDashboard />;
+      case 'users':
+        return <AdminUsersManagement />;
+      case 'agents':
+        return <AgentManagementPanel />;
+      case 'revenue':
+        return <RevenueAnalytics />;
+      case 'transactions':
+        return <SimpleTransactionsList />;
+      case 'settings':
         return (
-          <div style={{ padding: '20px' }}>
-            <h2 style={{ marginBottom: '20px' }}>Dashboard Principal - Administrateur</h2>
-            <p>Bienvenue dans le tableau de bord principal administrateur avec données exactes.</p>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-              gap: '20px', 
-              marginTop: '30px' 
-            }}>
-              <div style={{ 
-                padding: '20px', 
-                backgroundColor: '#f0f9ff', 
-                borderRadius: '8px', 
-                border: '1px solid #0ea5e9' 
-              }}>
-                <h3 style={{ color: '#0369a1', marginBottom: '10px' }}>📈 Nouveautés</h3>
-                <ul style={{ listStyle: 'none', padding: 0 }}>
-                  <li style={{ padding: '5px 0', color: '#0369a1' }}>✅ Rapports hebdomadaires et mensuels précis</li>
-                  <li style={{ padding: '5px 0', color: '#0369a1' }}>✅ Surveillance des transactions en temps réel</li>
-                  <li style={{ padding: '5px 0', color: '#0369a1' }}>✅ Calculs de revenus exacts SendFlow</li>
-                  <li style={{ padding: '5px 0', color: '#0369a1' }}>✅ Données agents et sous-admins détaillées</li>
-                </ul>
-              </div>
+          <div className="p-6 bg-white rounded-lg shadow-sm">
+            <h2 className="text-2xl font-bold mb-4">Paramètres système</h2>
+            <p className="text-gray-600 mb-6">Configuration et paramètres avancés du système.</p>
+            <div className="space-y-4">
+              <button
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                onClick={() => {
+                  if (confirm('Êtes-vous sûr de vouloir redémarrer le système ?')) {
+                    alert('Redémarrage du système...');
+                  }
+                }}
+              >
+                🔄 Redémarrer système
+              </button>
+              <button
+                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors ml-4"
+                onClick={() => alert('Sauvegarde en cours...')}
+              >
+                💾 Sauvegarder données
+              </button>
             </div>
           </div>
         );
-      case 'reports':
-        return <AdminReportsTab />;
-      case 'advanced':
-        return <SimpleAdvancedTab />;
-      case 'agents':
-        return <SimpleAgentsTab />;
-      case 'treasury':
-        return <EnhancedTreasuryTab />;
-      case 'monitoring':
-        return <ExactTransactionMonitor />;
-      case 'settings':
-        return <SimpleSettingsTab />;
-      case 'messages':
-        return <SimpleMessagesTab />;
       default:
-        return (
-          <div style={{ padding: '20px' }}>
-            <h2>Contenu par défaut</h2>
-          </div>
-        );
+        return <SimpleAdminDashboard />;
     }
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      {/* Header */}
-      <div style={{
-        backgroundColor: 'white',
-        padding: '20px',
-        borderBottom: '1px solid #e2e8f0',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header avec bouton de déconnexion */}
+      <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex justify-between items-center">
           <div>
-            <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>
-              Administration SendFlow
-            </h1>
-            <p style={{ color: '#64748b', margin: '5px 0 0 0' }}>
-              Tableau de bord avec données exactes et surveillance avancée
+            <h1 className="text-2xl font-bold text-gray-900">Administration Sendflow</h1>
+            <p className="text-sm text-gray-600">
+              Connecté en tant que: {profile.full_name} ({profile.phone})
             </p>
           </div>
-          <div style={{ 
-            backgroundColor: '#0ea5e9', 
-            color: 'white', 
-            padding: '8px 16px', 
-            borderRadius: '20px',
-            fontSize: '14px',
-            fontWeight: '500'
-          }}>
-            Admin Principal ✨
-          </div>
+          <LogoutButton />
         </div>
-      </div>
+      </header>
 
       {/* Navigation */}
-      <div style={{ 
-        backgroundColor: 'white', 
-        borderBottom: '1px solid #e2e8f0',
-        overflowX: 'auto'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          padding: '0 20px',
-          minWidth: 'max-content'
-        }}>
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '16px 20px',
-                border: 'none',
-                backgroundColor: 'transparent',
-                color: activeTab === tab.id ? '#0ea5e9' : '#64748b',
-                borderBottom: activeTab === tab.id ? '2px solid #0ea5e9' : '2px solid transparent',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: activeTab === tab.id ? '600' : '500',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <span>{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
+      <nav className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex space-x-0">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600 bg-blue-50'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <span className="mr-2">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Content */}
-      <div style={{ flex: 1 }}>
+      {/* Contenu */}
+      <main className="max-w-7xl mx-auto px-6 py-6">
         {renderTabContent()}
-      </div>
+      </main>
     </div>
   );
 }
