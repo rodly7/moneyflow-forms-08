@@ -2,105 +2,135 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface SubAdminReport {
-  sub_admin_id: string;
-  sub_admin_name: string;
-  agents_managed: number;
+  id: string;
+  full_name: string;
+  phone: string;
   territory: string;
-  total_volume: number;
-  commission_percentage: number;
+  totalAgents: number;
+  activeAgents: number;
+  totalTransactions: number;
+  totalVolume: number;
+  pendingWithdrawals: number;
+  lastActivity: string;
 }
 
 export class SubAdminReportService {
-  static async getSubAdminsData(): Promise<SubAdminReport[]> {
+  static async getSubAdminReports(): Promise<SubAdminReport[]> {
     try {
-      const reports: SubAdminReport[] = [];
-      
-      // Simple query to get sub-admins
-      const result = await supabase
+      // Récupérer les sous-admins avec une requête simple
+      const { data: subAdmins, error: subAdminError } = await (supabase as any)
         .from('profiles')
-        .select('id, full_name, country')
+        .select('id, full_name, phone, country')
         .eq('role', 'sub_admin');
 
-      if (result.error || !result.data) {
-        console.error('Error fetching sub-admins:', result.error);
-        return [];
-      }
+      if (subAdminError) throw subAdminError;
 
-      for (const admin of result.data) {
+      const reports: SubAdminReport[] = [];
+
+      // Traiter chaque sous-admin individuellement pour éviter les requêtes complexes
+      for (const subAdmin of subAdmins || []) {
         try {
-          const report = await this.buildSubAdminReport(admin);
-          reports.push(report);
-        } catch (error) {
-          console.warn(`Error processing sub-admin ${admin.id}:`, error);
-          // Add fallback report
+          // Compter les agents de ce territoire
+          const { count: agentCount } = await (supabase as any)
+            .from('agents')
+            .select('*', { count: 'exact', head: true })
+            .eq('territory_admin_id', subAdmin.id);
+
+          // Compter les agents actifs
+          const { count: activeAgentCount } = await (supabase as any)
+            .from('agents')
+            .select('*', { count: 'exact', head: true })
+            .eq('territory_admin_id', subAdmin.id)
+            .eq('status', 'active');
+
+          // Obtenir les IDs des agents pour ce territoire
+          const { data: agentIds } = await (supabase as any)
+            .from('agents')
+            .select('user_id')
+            .eq('territory_admin_id', subAdmin.id);
+
+          let totalTransactions = 0;
+          let totalVolume = 0;
+          let pendingWithdrawals = 0;
+
+          if (agentIds && agentIds.length > 0) {
+            const userIds = agentIds.map((a: any) => a.user_id).filter(Boolean);
+
+            if (userIds.length > 0) {
+              // Compter les transactions
+              const { count: transactionCount } = await (supabase as any)
+                .from('transfers')
+                .select('*', { count: 'exact', head: true })
+                .in('sender_id', userIds);
+
+              totalTransactions = transactionCount || 0;
+
+              // Calculer le volume total
+              const { data: volumeData } = await (supabase as any)
+                .from('transfers')
+                .select('amount')
+                .in('sender_id', userIds)
+                .eq('status', 'completed');
+
+              totalVolume = volumeData?.reduce((sum: number, t: any) => sum + (t.amount || 0), 0) || 0;
+
+              // Compter les retraits en attente
+              const { count: withdrawalCount } = await (supabase as any)
+                .from('withdrawals')
+                .select('*', { count: 'exact', head: true })
+                .in('user_id', userIds)
+                .eq('status', 'pending');
+
+              pendingWithdrawals = withdrawalCount || 0;
+            }
+          }
+
           reports.push({
-            sub_admin_id: admin.id,
-            sub_admin_name: admin.full_name || 'Unknown',
-            agents_managed: 0,
-            territory: admin.country || 'Non défini',
-            total_volume: 0,
-            commission_percentage: 0.15
+            id: subAdmin.id,
+            full_name: subAdmin.full_name || '',
+            phone: subAdmin.phone || '',
+            territory: subAdmin.country || '',
+            totalAgents: agentCount || 0,
+            activeAgents: activeAgentCount || 0,
+            totalTransactions,
+            totalVolume,
+            pendingWithdrawals,
+            lastActivity: new Date().toISOString()
+          });
+
+        } catch (error) {
+          console.error(`Erreur traitement sous-admin ${subAdmin.id}:`, error);
+          // Ajouter le sous-admin avec des valeurs par défaut en cas d'erreur
+          reports.push({
+            id: subAdmin.id,
+            full_name: subAdmin.full_name || '',
+            phone: subAdmin.phone || '',
+            territory: subAdmin.country || '',
+            totalAgents: 0,
+            activeAgents: 0,
+            totalTransactions: 0,
+            totalVolume: 0,
+            pendingWithdrawals: 0,
+            lastActivity: new Date().toISOString()
           });
         }
       }
 
       return reports;
+
     } catch (error) {
-      console.error('Error in getSubAdminsData:', error);
+      console.error('Erreur lors de la génération des rapports sous-admin:', error);
       return [];
     }
   }
 
-  private static async buildSubAdminReport(admin: any): Promise<SubAdminReport> {
-    // Get agents count with simple query
-    const agentsResult = await supabase
-      .from('agents')
-      .select('user_id')
-      .eq('territory_admin_id', admin.id);
-
-    const agentsCount = agentsResult.data?.length || 0;
-    
-    let totalVolume = 0;
-    if (agentsCount > 0 && agentsResult.data) {
-      totalVolume = await this.getVolumeForAgents(agentsResult.data);
-    }
-
-    return {
-      sub_admin_id: admin.id,
-      sub_admin_name: admin.full_name || 'Unknown',
-      agents_managed: agentsCount,
-      territory: admin.country || 'Non défini',
-      total_volume: totalVolume,
-      commission_percentage: 0.15
-    };
-  }
-
-  private static async getVolumeForAgents(agents: any[]): Promise<number> {
+  static async getSubAdminById(subAdminId: string): Promise<SubAdminReport | null> {
     try {
-      const userIds = agents
-        .map(agent => agent.user_id)
-        .filter(Boolean);
-
-      if (userIds.length === 0) {
-        return 0;
-      }
-
-      const performanceResult = await supabase
-        .from('agent_monthly_performance')
-        .select('total_volume')
-        .in('agent_id', userIds);
-
-      if (!performanceResult.data) {
-        return 0;
-      }
-
-      return performanceResult.data.reduce((sum, perf) => {
-        const volume = Number(perf.total_volume);
-        return sum + (isNaN(volume) ? 0 : volume);
-      }, 0);
+      const reports = await this.getSubAdminReports();
+      return reports.find(r => r.id === subAdminId) || null;
     } catch (error) {
-      console.warn('Error calculating volume:', error);
-      return 0;
+      console.error('Erreur récupération sous-admin:', error);
+      return null;
     }
   }
 }
