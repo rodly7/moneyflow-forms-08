@@ -1,9 +1,9 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-// Service pour gérer automatiquement les frais et commissions d'agent
+// Service pour gérer automatiquement les frais et commissions selon les nouvelles règles
 export const creditTransactionFees = async (
-  transactionType: 'transfer' | 'withdrawal' | 'deposit',
+  transactionType: 'transfer' | 'withdrawal' | 'deposit' | 'bill_payment',
   amount: number,
   isNational: boolean = false,
   performedBy?: 'agent' | 'user',
@@ -14,14 +14,27 @@ export const creditTransactionFees = async (
     
     let fees = 0;
     
-    // Calcul des frais selon le type de transaction
+    // Calcul des frais selon le type de transaction et vos nouvelles règles
     if (transactionType === 'transfer') {
-      fees = calculateTransactionFees('transfer', amount, isNational);
+      if (isNational) {
+        // Transfert national : 1% uniquement pour SendFlow
+        fees = amount * 0.01;
+      } else {
+        // Transfert international : 6,5% si < 600,000 FCFA, sinon 4,5%
+        if (amount < 600000) {
+          fees = amount * 0.065; // 6,5%
+        } else {
+          fees = amount * 0.045; // 4,5%
+        }
+      }
+    } else if (transactionType === 'bill_payment') {
+      // Paiement de factures : 1,5%
+      fees = amount * 0.015;
     } else if (transactionType === 'withdrawal') {
       // Pas de frais pour les clients sur les retraits
       fees = 0;
     } else if (transactionType === 'deposit') {
-      // Pas de frais pour les dépôts
+      // Pas de frais sur les dépôts
       fees = 0;
     }
     
@@ -38,21 +51,21 @@ export const creditTransactionFees = async (
         return false;
       }
       
-      // Utiliser la fonction RPC pour créditer les frais
+      // Utiliser la fonction RPC pour créditer les frais à l'admin
       const { error: creditError } = await supabase.rpc('increment_balance', {
         user_id: adminProfile.id,
         amount: fees
       });
       
       if (creditError) {
-        console.error("❌ Erreur lors du crédit des frais:", creditError);
+        console.error("❌ Erreur lors du crédit des frais à l'admin:", creditError);
         return false;
       }
       
-      console.log(`✅ Frais de ${fees} FCFA crédités sur le compte admin`);
+      console.log(`✅ Frais de ${fees} FCFA crédités sur le compte admin SendFlow`);
     }
     
-    // Créditer la commission de l'agent si applicable
+    // Créditer la commission de l'agent si applicable (seulement pour dépôts/retraits)
     if (agentId && (transactionType === 'deposit' || transactionType === 'withdrawal')) {
       await creditAgentCommission(agentId, transactionType, amount);
     }
@@ -65,24 +78,26 @@ export const creditTransactionFees = async (
 };
 
 export const calculateTransactionFees = (
-  transactionType: 'transfer' | 'withdrawal' | 'deposit',
+  transactionType: 'transfer' | 'withdrawal' | 'deposit' | 'bill_payment',
   amount: number,
   isNational: boolean = false,
   performedBy?: 'agent' | 'user'
 ): number => {
   if (transactionType === 'transfer') {
     if (isNational) {
-      return amount * 0.01; // 1% pour les transferts nationaux
+      // Transfert national : 1% pour SendFlow
+      return amount * 0.01;
     } else {
-      // Transferts internationaux : frais progressifs
-      if (amount < 350000) {
+      // Transfert international : 6,5% si < 600,000 FCFA, sinon 4,5%
+      if (amount < 600000) {
         return amount * 0.065; // 6,5%
-      } else if (amount <= 850000) {
-        return amount * 0.055; // 5,5%
       } else {
         return amount * 0.045; // 4,5%
       }
     }
+  } else if (transactionType === 'bill_payment') {
+    // Paiement de factures : 1,5%
+    return amount * 0.015;
   } else if (transactionType === 'withdrawal') {
     // Pas de frais pour les clients sur les retraits
     return 0;
@@ -93,7 +108,7 @@ export const calculateTransactionFees = (
   return 0;
 };
 
-// Fonction pour créditer automatiquement la commission de l'agent
+// Fonction pour créditer automatiquement la commission de l'agent (inchangée)
 export const creditAgentCommission = async (
   agentId: string,
   transactionType: 'deposit' | 'withdrawal',

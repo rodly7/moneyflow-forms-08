@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Download, ArrowRightLeft, Copy, Check } from "lucide-react";
+import { ArrowLeft, Download, ArrowRightLeft, Copy, Check, Zap, CreditCard } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useState, useEffect } from "react";
@@ -37,6 +37,195 @@ const Transactions = () => {
   const [copiedCodes, setCopiedCodes] = useState<{[key: string]: boolean}>({});
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Récupérer toutes les transactions de l'utilisateur
+  const { data: allTransactions, isLoading } = useQuery({
+    queryKey: ['userTransactions', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      console.log('🔄 Récupération de toutes les transactions pour:', user.id);
+
+      const allTransactions: Transaction[] = [];
+
+      try {
+        // 1. Récupérer les retraits
+        const { data: withdrawals, error: withdrawalsError } = await supabase
+          .from('withdrawals')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (withdrawalsError) {
+          console.error('❌ Erreur retraits:', withdrawalsError);
+        } else if (withdrawals && withdrawals.length > 0) {
+          console.log('💳 Retraits trouvés:', withdrawals.length);
+          withdrawals.forEach(withdrawal => {
+            allTransactions.push({
+              id: withdrawal.id,
+              type: 'withdrawal',
+              amount: -Math.abs(withdrawal.amount),
+              date: parseISO(withdrawal.created_at),
+              description: `Retrait vers ${withdrawal.withdrawal_phone || 'Mobile Money'}`,
+              currency: 'XAF',
+              status: withdrawal.status,
+              verification_code: withdrawal.verification_code,
+              created_at: withdrawal.created_at,
+              withdrawal_phone: withdrawal.withdrawal_phone,
+              fees: 0, // Pas de frais pour les retraits
+              userType: isAgent() ? 'agent' : 'user'
+            });
+          });
+        }
+
+        // 2. Récupérer les transferts envoyés
+        const { data: sentTransfers, error: sentError } = await supabase
+          .from('transfers')
+          .select('*')
+          .eq('sender_id', user.id)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false });
+
+        if (sentError) {
+          console.error('❌ Erreur transferts envoyés:', sentError);
+        } else if (sentTransfers && sentTransfers.length > 0) {
+          console.log('📤 Transferts envoyés trouvés:', sentTransfers.length);
+          sentTransfers.forEach(transfer => {
+            allTransactions.push({
+              id: transfer.id,
+              type: 'transfer_sent',
+              amount: -Math.abs(transfer.amount),
+              date: parseISO(transfer.created_at),
+              description: `Transfert à ${transfer.recipient_full_name || transfer.recipient_phone}`,
+              currency: transfer.currency || 'XAF',
+              status: transfer.status,
+              recipient_full_name: transfer.recipient_full_name,
+              recipient_phone: transfer.recipient_phone,
+              fees: transfer.fees || 0,
+              userType: isAgent() ? 'agent' : 'user'
+            });
+          });
+        }
+
+        // 3. Récupérer les transferts reçus
+        const { data: receivedTransfers, error: receivedError } = await supabase
+          .from('transfers')
+          .select('*')
+          .eq('recipient_id', user.id)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false });
+
+        if (receivedError) {
+          console.error('❌ Erreur transferts reçus:', receivedError);
+        } else if (receivedTransfers && receivedTransfers.length > 0) {
+          console.log('📥 Transferts reçus trouvés:', receivedTransfers.length);
+          
+          for (const transfer of receivedTransfers) {
+            let senderName = 'Expéditeur inconnu';
+            
+            // Récupérer le nom de l'expéditeur
+            try {
+              const { data: senderProfile } = await supabase
+                .from('profiles')
+                .select('full_name, phone')
+                .eq('id', transfer.sender_id)
+                .single();
+              
+              if (senderProfile) {
+                senderName = senderProfile.full_name || senderProfile.phone || 'Expéditeur inconnu';
+              }
+            } catch (error) {
+              console.error('❌ Erreur récupération expéditeur:', error);
+            }
+            
+            allTransactions.push({
+              id: transfer.id,
+              type: 'transfer_received',
+              amount: Math.abs(transfer.amount),
+              date: parseISO(transfer.created_at),
+              description: `Transfert reçu de ${senderName}`,
+              currency: transfer.currency || 'XAF',
+              status: transfer.status,
+              fees: 0, // Pas de frais pour le destinataire
+              userType: isAgent() ? 'agent' : 'user'
+            });
+          }
+        }
+
+        // 4. Récupérer les recharges/dépôts
+        const { data: recharges, error: rechargesError } = await supabase
+          .from('recharges')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (rechargesError) {
+          console.error('❌ Erreur recharges:', rechargesError);
+        } else if (recharges && recharges.length > 0) {
+          console.log('💰 Recharges trouvées:', recharges.length);
+          recharges.forEach(recharge => {
+            allTransactions.push({
+              id: recharge.id,
+              type: 'recharge',
+              amount: Math.abs(recharge.amount),
+              date: parseISO(recharge.created_at),
+              description: `Dépôt via ${recharge.payment_method || 'Mobile Money'}`,
+              currency: 'XAF',
+              status: recharge.status,
+              fees: 0, // Pas de frais sur les dépôts
+              userType: isAgent() ? 'agent' : 'user'
+            });
+          });
+        }
+
+        // 5. Récupérer les paiements de factures automatiques
+        const { data: billPayments, error: billError } = await supabase
+          .from('automatic_bills')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'paid')
+          .order('updated_at', { ascending: false });
+
+        if (billError) {
+          console.error('❌ Erreur paiements factures:', billError);
+        } else if (billPayments && billPayments.length > 0) {
+          console.log('⚡ Paiements de factures trouvés:', billPayments.length);
+          billPayments.forEach(bill => {
+            // Calculer les frais pour les factures (1,5%)
+            const billFees = bill.amount * 0.015;
+            
+            allTransactions.push({
+              id: bill.id,
+              type: 'bill_payment',
+              amount: -Math.abs(bill.amount),
+              date: parseISO(bill.updated_at || bill.created_at),
+              description: `Paiement ${bill.bill_name || 'Facture'}`,
+              currency: 'XAF',
+              status: 'completed',
+              fees: billFees,
+              userType: isAgent() ? 'agent' : 'user'
+            });
+          });
+        }
+
+        // Trier toutes les transactions par date décroissante
+        allTransactions.sort((a, b) => b.date.getTime() - a.date.getTime());
+        
+        console.log('📊 Total transactions récupérées:', allTransactions.length);
+        return allTransactions;
+
+      } catch (error) {
+        console.error('❌ Erreur générale lors de la récupération des transactions:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les transactions",
+          variant: "destructive"
+        });
+        return [];
+      }
+    },
+    enabled: !!user,
+  });
 
   const { data: withdrawals } = useQuery({
     queryKey: ['withdrawals'],
@@ -149,68 +338,6 @@ const Transactions = () => {
     setIsModalOpen(false);
   };
 
-  if (!user) {
-    return null;
-  }
-
-  const allTransactions: Transaction[] = [
-    ...(withdrawals?.map(w => ({
-      id: w.id,
-      type: 'withdrawal',
-      amount: -w.amount,
-      date: parseISO(w.created_at),
-      description: `Retrait vers ${w.withdrawal_phone}`,
-      currency: 'XAF',
-      status: w.status,
-      verification_code: w.verification_code,
-      created_at: w.created_at,
-      withdrawal_phone: w.withdrawal_phone,
-      userType: isAgent() ? 'agent' as const : 'user' as const
-    })) || []),
-    ...(sentTransfers?.map(t => ({
-      id: t.id,
-      type: 'transfer_sent',
-      amount: -t.amount,
-      date: parseISO(t.created_at),
-      description: `Transfert à ${t.recipient_full_name}`,
-      currency: 'XAF',
-      status: t.status,
-      recipient_full_name: t.recipient_full_name,
-      recipient_phone: t.recipient_phone,
-      fees: t.fees,
-      userType: isAgent() ? 'agent' as const : 'user' as const
-    })) || []),
-    ...(receivedTransfers?.map(t => ({
-      id: t.id,
-      type: 'transfer_received',
-      amount: t.amount,
-      date: parseISO(t.created_at),
-      description: `Reçu de ${t.recipient_full_name || 'un expéditeur'}`,
-      currency: 'XAF',
-      status: t.status,
-      recipient_full_name: t.recipient_full_name,
-      recipient_phone: t.recipient_phone,
-      fees: t.fees,
-      userType: isAgent() ? 'agent' as const : 'user' as const
-    })) || [])
-  ].sort((a, b) => b.date.getTime() - a.date.getTime());
-
-  // Process transaction to determine which codes should be visible
-  const processedTransactions = allTransactions.map(transaction => {
-    if (transaction.type === 'withdrawal' && transaction.verification_code) {
-      const createdAt = transaction.created_at ? new Date(transaction.created_at) : new Date();
-      const now = new Date();
-      const timeDiffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
-      const showCode = timeDiffMinutes <= 5 && transaction.verification_code && transaction.status === 'pending';
-      
-      return {
-        ...transaction,
-        showCode
-      };
-    }
-    return transaction;
-  });
-
   const getIcon = (type: string) => {
     switch (type) {
       case 'withdrawal':
@@ -219,6 +346,10 @@ const Transactions = () => {
         return <ArrowRightLeft className="h-4 w-4 text-blue-500" />;
       case 'transfer_received':
         return <ArrowRightLeft className="h-4 w-4 text-green-500" />;
+      case 'recharge':
+        return <CreditCard className="h-4 w-4 text-green-500" />;
+      case 'bill_payment':
+        return <Zap className="h-4 w-4 text-purple-500" />;
       default:
         return null;
     }
@@ -236,8 +367,10 @@ const Transactions = () => {
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
               transaction.type === 'withdrawal' 
                 ? 'bg-gradient-to-r from-red-100 to-pink-100' 
-                : transaction.type === 'transfer_received'
+                : transaction.type === 'transfer_received' || transaction.type === 'recharge'
                 ? 'bg-gradient-to-r from-green-100 to-emerald-100'
+                : transaction.type === 'bill_payment'
+                ? 'bg-gradient-to-r from-purple-100 to-violet-100'
                 : 'bg-gradient-to-r from-blue-100 to-purple-100'
             }`}>
               {getIcon(transaction.type)}
@@ -250,8 +383,8 @@ const Transactions = () => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-gray-900 truncate">{transaction.description}</p>
-            <p className="text-sm text-gray-500 flex items-center gap-2">
-              {format(transaction.date, 'dd MMM', { locale: fr })}
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <span>{format(transaction.date, 'dd MMM', { locale: fr })}</span>
               <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
               <span className={`text-xs px-2 py-0.5 rounded-full ${
                 transaction.status === 'completed' ? 'bg-green-100 text-green-700' : 
@@ -261,7 +394,15 @@ const Transactions = () => {
                 {transaction.status === 'completed' ? 'Terminé' : 
                  transaction.status === 'pending' ? 'En cours' : transaction.status}
               </span>
-            </p>
+              {transaction.fees && transaction.fees > 0 && (
+                <>
+                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                  <span className="text-xs text-red-600">
+                    Frais: {transaction.fees.toLocaleString()} FCFA
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <div className="text-right">
@@ -309,10 +450,52 @@ const Transactions = () => {
     </div>
   );
 
+  if (!user) {
+    return null;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50 p-4">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div className="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 p-1 rounded-2xl shadow-xl">
+            <div className="bg-white rounded-2xl p-4">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-2/3"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="flex items-center gap-4 p-4 rounded-lg border">
+                      <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                      <div className="flex-1">
+                        <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                      </div>
+                      <div className="h-6 w-20 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50 p-4">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Gorgeous Header */}
+        {/* Header */}
         <div className="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 p-1 rounded-2xl shadow-xl">
           <div className="bg-white rounded-2xl p-4">
             <div className="flex items-center justify-between">
@@ -331,15 +514,15 @@ const Transactions = () => {
                   </div>
                   <div>
                     <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
-                      Transactions
+                      Historique complet
                     </h1>
-                    <p className="text-sm text-muted-foreground">Votre historique</p>
+                    <p className="text-sm text-muted-foreground">Toutes vos transactions</p>
                   </div>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
-                  {processedTransactions.length}
+                  {allTransactions?.length || 0}
                 </p>
                 <p className="text-xs text-muted-foreground">opérations</p>
               </div>
@@ -347,14 +530,14 @@ const Transactions = () => {
           </div>
         </div>
 
-        {/* Beautiful Transactions List */}
+        {/* Transactions List */}
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000"></div>
           <Card className="relative bg-white border-0 shadow-2xl">
             <CardContent className="p-0">
-              {processedTransactions.length > 0 ? (
+              {allTransactions && allTransactions.length > 0 ? (
                 <div className="divide-y divide-gray-100">
-                  {processedTransactions.map(renderTransaction)}
+                  {allTransactions.map(renderTransaction)}
                 </div>
               ) : (
                 <div className="text-center py-16">
@@ -365,14 +548,14 @@ const Transactions = () => {
                     <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-24 h-24 bg-gradient-to-r from-emerald-300 to-blue-300 rounded-full animate-ping opacity-20"></div>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-700 mb-2">Aucune transaction</h3>
-                  <p className="text-sm text-gray-500">Vos opérations apparaîtront ici</p>
+                  <p className="text-sm text-gray-500">Vos opérations apparaîtront ici avec les frais détaillés</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Détails simples de transaction */}
+        {/* Transaction Detail Modal */}
         <SimpleTransactionDetail 
           transaction={selectedTransaction}
           isVisible={isModalOpen}
