@@ -1,84 +1,123 @@
 
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+interface SystemMetrics {
+  totalUsers: number;
+  totalAgents: number;
+  todayTransactions: number;
+  pendingWithdrawals: number;
+  recentUsers: any[];
+}
+
 export const useSystemMetrics = () => {
-  const { data: metrics, isLoading, error } = useQuery({
-    queryKey: ['system-metrics'],
-    queryFn: async () => {
+  const [metrics, setMetrics] = useState<SystemMetrics>({
+    totalUsers: 0,
+    totalAgents: 0,
+    todayTransactions: 0,
+    pendingWithdrawals: 0,
+    recentUsers: []
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
       try {
-        // Récupérer le nombre total d'utilisateurs
+        setIsLoading(true);
+        
+        // Fetch total users
         const { count: totalUsers } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true });
 
-        // Récupérer le nombre d'agents
+        // Fetch total agents
         const { count: totalAgents } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true })
           .eq('role', 'agent');
 
-        // Récupérer les transactions du jour
+        // Fetch today's transactions
         const today = new Date().toISOString().split('T')[0];
         const { count: todayTransactions } = await supabase
-          .from('transfers')
+          .from('transactions')
           .select('*', { count: 'exact', head: true })
-          .gte('created_at', `${today}T00:00:00.000Z`)
-          .lt('created_at', `${today}T23:59:59.999Z`);
+          .gte('created_at', today);
 
-        // Récupérer les retraits en attente
+        // Fetch pending withdrawals
         const { count: pendingWithdrawals } = await supabase
-          .from('withdrawals')
+          .from('withdrawal_requests')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'pending');
 
-        // Récupérer les utilisateurs récents avec gestion d'erreur
-        let recentUsers: any[] = [];
-        try {
-          const { data: usersData, error: usersError } = await supabase
-            .from('profiles')
-            .select('id, full_name, role, country')
-            .order('created_at', { ascending: false })
-            .limit(5);
+        // Fetch recent users
+        const { data: recentUsersData } = await supabase
+          .from('profiles')
+          .select('id, full_name, role, country')
+          .order('created_at', { ascending: false })
+          .limit(5);
 
-          if (usersError) {
-            console.error('Erreur récupération utilisateurs récents:', usersError);
-          } else if (usersData) {
-            recentUsers = usersData.map(user => ({
-              id: user.id,
-              full_name: user.full_name,
-              role: user.role,
-              country: user.country
-            }));
-          }
-        } catch (error) {
-          console.error('Erreur lors de la récupération des utilisateurs récents:', error);
-        }
+        const recentUsers = Array.isArray(recentUsersData) ? recentUsersData.map(user => ({
+          id: user.id,
+          full_name: user.full_name,
+          role: user.role,
+          country: user.country
+        })) : [];
 
-        return {
+        setMetrics({
           totalUsers: totalUsers || 0,
           totalAgents: totalAgents || 0,
           todayTransactions: todayTransactions || 0,
           pendingWithdrawals: pendingWithdrawals || 0,
           recentUsers
-        };
-      } catch (error) {
-        console.error('Erreur lors de la récupération des métriques système:', error);
-        throw error;
+        });
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setIsLoading(false);
       }
-    },
-    refetchInterval: 30000, // Refetch every 30 seconds
-  });
+    };
 
-  return {
-    metrics: metrics || {
-      totalUsers: 0,
-      totalAgents: 0,
-      todayTransactions: 0,
-      pendingWithdrawals: 0,
-      recentUsers: []
-    },
-    isLoading,
-    error
+    fetchMetrics();
+  }, []);
+
+  return { data: metrics, isLoading, error };
+};
+
+export const useAgentLocationTracker = () => {
+  const updateLocation = async (latitude: number, longitude: number, address: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase
+        .from('agent_locations')
+        .upsert({
+          agent_id: user.id,
+          latitude,
+          longitude,
+          address,
+          is_active: true,
+          last_updated: new Date().toISOString()
+        });
+    } catch (error) {
+      console.error('Erreur mise à jour localisation:', error);
+    }
   };
+
+  const deactivateLocation = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase
+        .from('agent_locations')
+        .update({ is_active: false })
+        .eq('agent_id', user.id);
+    } catch (error) {
+      console.error('Erreur désactivation localisation:', error);
+    }
+  };
+
+  return { updateLocation, deactivateLocation };
 };
