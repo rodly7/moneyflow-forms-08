@@ -24,8 +24,6 @@ import {
   RefreshCw,
   MapPin,
   Plus,
-  Send,
-  Receipt,
   CreditCard
 } from "lucide-react";
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
@@ -43,39 +41,39 @@ const ResponsiveAgentDashboard = () => {
     fetchAgentBalances
   } = useAgentWithdrawalEnhanced();
 
-  // Actions rapides pour agent
+  // Actions principales pour agent
   const quickActions = [
     {
       title: "Retrait Client",
-      description: "Effectuer un retrait",
+      description: "Effectuer retrait",
       icon: ArrowUpRight,
       onClick: () => navigate("/agent-withdrawal-advanced"),
-      color: "bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+      gradient: "from-red-500 to-red-600"
     },
     {
       title: "Dépôt Client", 
-      description: "Effectuer un dépôt",
+      description: "Effectuer dépôt",
       icon: ArrowDownLeft,
       onClick: () => navigate("/agent-deposit"),
-      color: "bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
+      gradient: "from-orange-500 to-orange-600"
     },
     {
       title: "Recharge Mobile",
-      description: "Crédits téléphone",
+      description: "Crédit téléphone",
       icon: Smartphone,
       onClick: () => navigate("/mobile-recharge"),
-      color: "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+      gradient: "from-amber-500 to-amber-600"
     },
     {
-      title: "Paiement QR",
-      description: "Scanner & payer",
-      icon: QrCode,
-      onClick: () => navigate("/qr-payment"),
-      color: "bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-600 hover:to-violet-600"
+      title: "Services Agent",
+      description: "Mes services",
+      icon: Users,
+      onClick: () => navigate("/agent-services"),
+      gradient: "from-yellow-500 to-yellow-600"
     }
   ];
 
-  const additionalActions = [
+  const secondaryActions = [
     {
       title: "Mes Transactions",
       icon: History,
@@ -87,9 +85,9 @@ const ResponsiveAgentDashboard = () => {
       onClick: () => navigate("/agent-performance-dashboard")
     },
     {
-      title: "Services Agent",
-      icon: Users,
-      onClick: () => navigate("/agent-services")
+      title: "Paiement QR",
+      icon: QrCode,
+      onClick: () => navigate("/qr-payment")
     },
     {
       title: "Mes Rapports",
@@ -110,38 +108,40 @@ const ResponsiveAgentDashboard = () => {
 
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-yellow-50 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 p-4">
         <div className="max-w-md mx-auto space-y-6">
           
           {/* Header Agent Mobile */}
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-orange-100">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-2xl font-bold text-orange-700">Agent Dashboard</h1>
-                <p className="text-gray-600">{profile?.full_name || 'Agent'}</p>
-                <p className="text-sm text-orange-600">{profile?.country || 'Congo'}</p>
+          <Card className="bg-gradient-to-r from-orange-500 to-red-500 text-white border-0">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold">Agent Dashboard</h1>
+                  <p className="text-orange-100">{profile?.full_name || 'Agent'}</p>
+                  <p className="text-sm text-orange-100">{profile?.country || 'Congo'}</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={fetchAgentBalances}
+                  disabled={isLoadingBalance}
+                  className="border-white/30 text-white hover:bg-white/20"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+                </Button>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={fetchAgentBalances}
-                disabled={isLoadingBalance}
-                className="border-orange-200 hover:border-orange-400"
-              >
-                <RefreshCw className={`w-4 h-4 ${isLoadingBalance ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Soldes Agent Mobile */}
+          {/* Soldes Agent */}
           <div className="grid grid-cols-1 gap-4">
-            <Card className="bg-gradient-to-r from-orange-100 to-red-100 border-orange-200">
+            <Card className="border-orange-200">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <Wallet className="w-5 h-5 text-orange-600" />
-                      <span className="font-medium text-orange-700">Solde Principal</span>
+                      <span className="font-medium text-orange-700">Solde Agent</span>
                     </div>
                     {isLoadingBalance ? (
                       <div className="animate-pulse bg-orange-200 h-8 w-32 rounded"></div>
@@ -153,9 +153,7 @@ const ResponsiveAgentDashboard = () => {
                   </div>
                   <Button 
                     size="sm" 
-                    variant="outline"
-                    onClick={() => navigate("/agent-recharge")}
-                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                    className="bg-orange-500 hover:bg-orange-600"
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -163,7 +161,7 @@ const ResponsiveAgentDashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-r from-green-100 to-emerald-100 border-green-200">
+            <Card className="border-green-200">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -181,9 +179,7 @@ const ResponsiveAgentDashboard = () => {
                   </div>
                   <Button 
                     size="sm" 
-                    variant="outline"
-                    onClick={() => navigate("/agent-commission-withdrawal")}
-                    className="border-green-300 text-green-700 hover:bg-green-50"
+                    className="bg-green-500 hover:bg-green-600"
                   >
                     <Target className="w-4 h-4" />
                   </Button>
@@ -192,11 +188,11 @@ const ResponsiveAgentDashboard = () => {
             </Card>
           </div>
 
-          {/* Actions Rapides Mobile */}
+          {/* Actions Rapides */}
           <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-orange-600" />
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-700">
+                <TrendingUp className="w-5 h-5" />
                 Actions Rapides
               </CardTitle>
             </CardHeader>
@@ -206,7 +202,7 @@ const ResponsiveAgentDashboard = () => {
                   <Button
                     key={index}
                     onClick={action.onClick}
-                    className={`h-20 flex flex-col items-center justify-center gap-2 ${action.color} text-white shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200`}
+                    className={`h-20 flex flex-col items-center justify-center gap-2 bg-gradient-to-r ${action.gradient} text-white shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200`}
                   >
                     <action.icon className="w-5 h-5" />
                     <div className="text-center">
@@ -219,22 +215,22 @@ const ResponsiveAgentDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Services Additionnels Mobile */}
+          {/* Services Additionnels */}
           <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-gray-600" />
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-gray-700">
+                <Settings className="w-5 h-5" />
                 Mes Services
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-3">
-                {additionalActions.map((action, index) => (
+                {secondaryActions.map((action, index) => (
                   <Button
                     key={index}
                     onClick={action.onClick}
                     variant="outline"
-                    className="h-16 flex flex-col items-center justify-center gap-2 hover:bg-orange-50 border-orange-200 hover:border-orange-300"
+                    className="h-16 flex flex-col items-center justify-center gap-2 hover:bg-orange-50 border-orange-200"
                   >
                     <action.icon className="w-4 h-4" />
                     <div className="text-xs font-medium">{action.title}</div>
@@ -244,20 +240,20 @@ const ResponsiveAgentDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Stats Rapides Mobile */}
+          {/* Stats Rapides */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white rounded-xl p-4 text-center border border-orange-200">
+            <Card className="p-4 text-center border-orange-200">
               <div className="text-xl font-bold text-orange-700">0</div>
               <div className="text-xs text-orange-600">Aujourd'hui</div>
-            </div>
-            <div className="bg-white rounded-xl p-4 text-center border border-green-200">
+            </Card>
+            <Card className="p-4 text-center border-green-200">
               <div className="text-xl font-bold text-green-700">0</div>
               <div className="text-xs text-green-600">Cette semaine</div>
-            </div>
-            <div className="bg-white rounded-xl p-4 text-center border border-blue-200">
+            </Card>
+            <Card className="p-4 text-center border-blue-200">
               <div className="text-xl font-bold text-blue-700">0</div>
               <div className="text-xs text-blue-600">Ce mois</div>
-            </div>
+            </Card>
           </div>
         </div>
       </div>
@@ -266,46 +262,47 @@ const ResponsiveAgentDashboard = () => {
 
   // Version Desktop
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-yellow-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Header Desktop */}
-        <div className="bg-white rounded-3xl p-8 shadow-xl border border-orange-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-orange-700">Dashboard Agent</h1>
-              <p className="text-gray-600 mt-2 text-lg">
-                Bienvenue {profile?.full_name || 'Agent'} - {profile?.country || 'Congo'}
-              </p>
+        <Card className="bg-gradient-to-r from-orange-500 to-red-500 text-white border-0">
+          <CardContent className="p-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold">Dashboard Agent</h1>
+                <p className="text-orange-100 mt-2 text-lg">
+                  Bienvenue {profile?.full_name || 'Agent'} - {profile?.country || 'Congo'}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <Button 
+                  variant="outline" 
+                  className="border-white/30 text-white hover:bg-white/20"
+                >
+                  <Bell className="w-5 h-5" />
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={fetchAgentBalances}
+                  disabled={isLoadingBalance}
+                  className="border-white/30 text-white hover:bg-white/20"
+                >
+                  <TrendingUp className={`w-5 h-5 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+                  Actualiser
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="outline" 
-                onClick={() => navigate("/notifications")}
-                className="border-orange-200 hover:border-orange-400"
-              >
-                <Bell className="w-5 h-5" />
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={fetchAgentBalances}
-                disabled={isLoadingBalance}
-                className="border-green-200 hover:border-green-400"
-              >
-                <TrendingUp className={`w-5 h-5 ${isLoadingBalance ? 'animate-spin' : ''}`} />
-                Actualiser
-              </Button>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Soldes Desktop */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Card className="bg-gradient-to-br from-orange-100 to-red-100 border-orange-200 shadow-xl">
+          <Card className="border-orange-200">
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-3">
                 <Wallet className="w-6 h-6 text-orange-600" />
-                Solde Principal Agent
+                Solde Agent Principal
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -317,10 +314,7 @@ const ResponsiveAgentDashboard = () => {
                     formatCurrency(agentBalance, 'XAF')
                   )}
                 </div>
-                <Button 
-                  onClick={() => navigate("/agent-recharge")}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                >
+                <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white">
                   <Plus className="w-5 h-5 mr-2" />
                   Recharger mon solde
                 </Button>
@@ -328,7 +322,7 @@ const ResponsiveAgentDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-green-200 shadow-xl">
+          <Card className="border-green-200">
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-3">
                 <Award className="w-6 h-6 text-green-600" />
@@ -344,10 +338,7 @@ const ResponsiveAgentDashboard = () => {
                     formatCurrency(agentCommissionBalance, 'XAF')
                   )}
                 </div>
-                <Button 
-                  onClick={() => navigate("/agent-commission-withdrawal")}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white"
-                >
+                <Button className="w-full bg-green-500 hover:bg-green-600 text-white">
                   <Target className="w-5 h-5 mr-2" />
                   Retirer mes commissions
                 </Button>
@@ -357,7 +348,7 @@ const ResponsiveAgentDashboard = () => {
         </div>
 
         {/* Actions Principales Desktop */}
-        <Card className="shadow-xl">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-3 text-2xl">
               <TrendingUp className="w-7 h-7 text-orange-600" />
@@ -370,7 +361,7 @@ const ResponsiveAgentDashboard = () => {
                 <Button
                   key={index}
                   onClick={action.onClick}
-                  className={`h-28 flex flex-col items-center justify-center gap-3 ${action.color} text-white shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300`}
+                  className={`h-28 flex flex-col items-center justify-center gap-3 bg-gradient-to-r ${action.gradient} text-white shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300`}
                 >
                   <action.icon className="w-8 h-8" />
                   <div className="text-center">
@@ -384,7 +375,7 @@ const ResponsiveAgentDashboard = () => {
         </Card>
 
         {/* Services Additionnels Desktop */}
-        <Card className="shadow-xl">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-3 text-2xl">
               <Settings className="w-7 h-7 text-gray-600" />
@@ -393,7 +384,7 @@ const ResponsiveAgentDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {additionalActions.map((action, index) => (
+              {secondaryActions.map((action, index) => (
                 <Button
                   key={index}
                   onClick={action.onClick}
@@ -410,7 +401,7 @@ const ResponsiveAgentDashboard = () => {
 
         {/* Statistiques Desktop */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Card className="bg-gradient-to-br from-purple-100 to-pink-100 border-purple-200 shadow-xl">
+          <Card className="border-purple-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -423,7 +414,7 @@ const ResponsiveAgentDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-orange-100 to-yellow-100 border-orange-200 shadow-xl">
+          <Card className="border-orange-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -436,15 +427,15 @@ const ResponsiveAgentDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-cyan-100 to-blue-100 border-cyan-200 shadow-xl">
+          <Card className="border-green-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-lg text-cyan-600 font-semibold">Ce mois</p>
-                  <p className="text-3xl font-bold text-cyan-800">0 XAF</p>
-                  <p className="text-sm text-cyan-600">Commissions</p>
+                  <p className="text-lg text-green-600 font-semibold">Ce mois</p>
+                  <p className="text-3xl font-bold text-green-800">0 XAF</p>
+                  <p className="text-sm text-green-600">Commissions</p>
                 </div>
-                <Award className="w-10 h-10 text-cyan-600" />
+                <Award className="w-10 h-10 text-green-600" />
               </div>
             </CardContent>
           </Card>
