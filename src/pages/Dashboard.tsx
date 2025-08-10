@@ -154,14 +154,7 @@ const Dashboard = () => {
   }
 
   // For regular users - unified mobile interface for all devices
-  return (
-    <MobileDashboard
-      userBalance={balance || 0}
-      userProfile={profile}
-      onRefresh={handleRefresh}
-      isLoading={isLoading}
-    />
-  );
+  return <MobileDashboard />;
 };
 
 export default Dashboard;
