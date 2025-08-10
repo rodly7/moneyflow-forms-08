@@ -30,48 +30,48 @@ export const AdaptiveText = ({
       const adaptiveSize = getAdaptiveSize(baseSize);
       baseClasses.push(`text-[${adaptiveSize}px]`);
     } else {
-      // Size classes based on variant and screen size - tailles légèrement augmentées
+      // Tailles augmentées pour une meilleure visibilité
       if (variant === 'heading') {
         if (isVerySmallMobile) {
-          baseClasses.push('text-xl font-bold');
+          baseClasses.push('text-2xl font-bold'); // Augmenté de text-xl
         } else if (isSmallMobile) {
-          baseClasses.push('text-2xl font-bold');
+          baseClasses.push('text-3xl font-bold'); // Augmenté de text-2xl
         } else if (isMediumMobile) {
-          baseClasses.push('text-3xl font-bold');
+          baseClasses.push('text-4xl font-bold'); // Augmenté de text-3xl
         } else {
-          baseClasses.push('text-4xl font-bold');
+          baseClasses.push('text-5xl font-bold'); // Augmenté de text-4xl
         }
       } else if (variant === 'subheading') {
         if (isVerySmallMobile) {
-          baseClasses.push('text-lg font-semibold');
+          baseClasses.push('text-xl font-semibold'); // Augmenté de text-lg
         } else if (isSmallMobile) {
-          baseClasses.push('text-xl font-semibold');
+          baseClasses.push('text-2xl font-semibold'); // Augmenté de text-xl
         } else if (isMediumMobile) {
-          baseClasses.push('text-2xl font-semibold');
+          baseClasses.push('text-3xl font-semibold'); // Augmenté de text-2xl
         } else {
-          baseClasses.push('text-3xl font-semibold');
+          baseClasses.push('text-4xl font-semibold'); // Augmenté de text-3xl
         }
       } else if (variant === 'body') {
         if (isVerySmallMobile) {
-          baseClasses.push('text-base');
+          baseClasses.push('text-lg'); // Augmenté de text-base
         } else if (isSmallMobile) {
-          baseClasses.push('text-lg');
+          baseClasses.push('text-xl'); // Augmenté de text-lg
         } else {
-          baseClasses.push('text-xl');
+          baseClasses.push('text-2xl'); // Augmenté de text-xl
         }
       } else if (variant === 'small') {
         if (isVerySmallMobile) {
-          baseClasses.push('text-sm');
+          baseClasses.push('text-base'); // Augmenté de text-sm
         } else if (isSmallMobile) {
-          baseClasses.push('text-base');
+          baseClasses.push('text-lg'); // Augmenté de text-base
         } else {
-          baseClasses.push('text-lg');
+          baseClasses.push('text-xl'); // Augmenté de text-lg
         }
       } else if (variant === 'tiny') {
         if (isVerySmallMobile) {
-          baseClasses.push('text-sm');
+          baseClasses.push('text-base'); // Augmenté de text-sm
         } else {
-          baseClasses.push('text-base');
+          baseClasses.push('text-lg'); // Augmenté de text-base
         }
       }
     }
