@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,14 +57,15 @@ const NotificationSystem = () => {
         if (error) throw error;
 
         const formattedNotifications = recipients?.map(recipient => {
-          if (!recipient.notifications) return null;
+          if (!recipient.notifications || Array.isArray(recipient.notifications)) return null;
+          const notification = recipient.notifications as any;
           return {
-            id: recipient.notifications.id,
-            title: recipient.notifications.title,
-            message: recipient.notifications.message,
-            notification_type: recipient.notifications.notification_type,
-            priority: recipient.notifications.priority,
-            created_at: recipient.notifications.created_at,
+            id: notification.id,
+            title: notification.title,
+            message: notification.message,
+            notification_type: notification.notification_type,
+            priority: notification.priority,
+            created_at: notification.created_at,
             read_at: recipient.read_at
           };
         }).filter(Boolean) || [];

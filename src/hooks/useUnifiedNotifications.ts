@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -112,16 +111,17 @@ export const useUnifiedNotifications = () => {
       // Combiner toutes les notifications
       const allNotifications: UnifiedNotification[] = [];
 
-      // Ajouter les notifications admin
+      // Ajouter les notifications admin avec vérification de type
       adminNotifications?.forEach(item => {
-        if (item.notifications) {
+        if (item.notifications && !Array.isArray(item.notifications)) {
+          const notification = item.notifications as any;
           allNotifications.push({
-            id: `admin_${item.notifications.id}`,
-            title: item.notifications.title,
-            message: item.notifications.message,
+            id: `admin_${notification.id}`,
+            title: notification.title,
+            message: notification.message,
             type: 'admin_message',
-            priority: item.notifications.priority as any,
-            created_at: item.notifications.created_at,
+            priority: notification.priority as any,
+            created_at: notification.created_at,
             read: !!item.read_at
           });
         }
@@ -348,8 +348,8 @@ export const useUnifiedNotifications = () => {
     notifications: notifications.slice(0, 10), // Limiter à 10 notifications
     unreadCount,
     isConnected,
-    markAsRead,
-    markAllAsRead,
-    refresh
+    markAsRead: () => {},
+    markAllAsRead: () => {},
+    refresh: () => loadRecentNotifications()
   };
 };

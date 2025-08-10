@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Camera, X, Flashlight, FlashlightOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { v4 as uuidv4 } from 'uuid';
 
 interface FastQRScannerProps {
   isOpen: boolean;
@@ -49,17 +48,22 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
       // Use the first available camera (usually back camera on mobile)
       const selectedDeviceId = videoInputDevices[0].deviceId;
 
-      // Check for flashlight capability
-      const capabilities = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: selectedDeviceId }
-      }).then(stream => {
+      // Check for flashlight capability with proper type checking
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: selectedDeviceId }
+        });
         const track = stream.getVideoTracks()[0];
-        const caps = track.getCapabilities();
+        const capabilities = track.getCapabilities();
+        
+        // Check if torch is supported (with proper type checking)
+        setHasFlashlight(!!(capabilities as any).torch);
+        
         stream.getTracks().forEach(track => track.stop());
-        return caps;
-      });
-
-      setHasFlashlight(!!capabilities.torch);
+      } catch (capError) {
+        console.log('Could not check flashlight capability:', capError);
+        setHasFlashlight(false);
+      }
 
       // Start decoding with specific constraints for mobile optimization
       await readerRef.current.decodeFromVideoDevice(
@@ -145,36 +149,36 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
   };
 
   const containerClass = variant === 'compact' 
-    ? "max-w-sm mx-auto" 
-    : "max-w-md mx-auto";
+    ? "w-full max-w-xs mx-auto" 
+    : "w-full max-w-md mx-auto";
 
   const videoClass = variant === 'compact'
-    ? "w-full h-48 object-cover rounded-lg"
-    : "w-full h-64 object-cover rounded-lg";
+    ? "w-full h-40 object-cover rounded-lg"
+    : "w-full h-56 object-cover rounded-lg";
 
   const buttonClass = variant === 'compact'
-    ? "text-xs px-2 py-1"
+    ? "text-xs px-3 py-1.5"
     : "text-sm px-4 py-2";
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={`${containerClass} p-3`}>
-        <DialogHeader className="pb-2">
-          <DialogTitle className="text-base font-semibold text-center">
+      <DialogContent className={`${containerClass} p-4`}>
+        <DialogHeader className="pb-3">
+          <DialogTitle className="text-lg font-semibold text-center">
             {title}
           </DialogTitle>
         </DialogHeader>
         
         <Card className="overflow-hidden">
-          <CardContent className="p-2">
+          <CardContent className="p-3">
             {error ? (
               <div className="text-center py-6">
-                <p className="text-red-500 text-xs mb-3">{error}</p>
+                <p className="text-red-500 text-sm mb-4">{error}</p>
                 <Button 
                   onClick={startCamera} 
                   className={`${buttonClass} bg-blue-500 hover:bg-blue-600`}
                 >
-                  <Camera className="h-3 w-3 mr-1" />
+                  <Camera className="h-4 w-4 mr-2" />
                   Réessayer
                 </Button>
               </div>
@@ -199,13 +203,13 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
                 {hasFlashlight && isScanning && (
                   <Button
                     onClick={toggleFlashlight}
-                    className="absolute top-2 right-2 p-1 bg-black/50 hover:bg-black/70"
+                    className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70"
                     size="sm"
                   >
                     {isFlashlightOn ? (
-                      <FlashlightOff className="h-3 w-3 text-white" />
+                      <FlashlightOff className="h-4 w-4 text-white" />
                     ) : (
-                      <Flashlight className="h-3 w-3 text-white" />
+                      <Flashlight className="h-4 w-4 text-white" />
                     )}
                   </Button>
                 )}
@@ -213,8 +217,8 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
             )}
             
             {!error && (
-              <div className="text-center mt-2">
-                <p className="text-xs text-gray-600">
+              <div className="text-center mt-3">
+                <p className="text-sm text-gray-600">
                   Positionnez le QR code dans le cadre
                 </p>
               </div>
@@ -222,13 +226,13 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
           </CardContent>
         </Card>
         
-        <div className="flex justify-center pt-2">
+        <div className="flex justify-center pt-3">
           <Button 
             onClick={handleClose} 
             variant="outline" 
             className={`${buttonClass} border-gray-300`}
           >
-            <X className="h-3 w-3 mr-1" />
+            <X className="h-4 w-4 mr-2" />
             Fermer
           </Button>
         </div>
