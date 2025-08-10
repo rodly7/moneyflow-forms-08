@@ -20,7 +20,13 @@ import {
   DollarSign,
   Target,
   Award,
-  Calendar
+  Calendar,
+  History,
+  UserCog,
+  ChartLine,
+  FileText,
+  Smartphone,
+  QrCode
 } from "lucide-react";
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
 import { formatCurrency } from "@/integrations/supabase/client";
@@ -54,7 +60,7 @@ const EnhancedAgentDashboard = () => {
       textColor: "text-white"
     },
     {
-      title: "Services Agent",
+      title: "Mes Services",
       description: "Gérer mes services",
       icon: Users,
       onClick: () => navigate("/agent-services"),
@@ -62,8 +68,8 @@ const EnhancedAgentDashboard = () => {
       textColor: "text-white"
     },
     {
-      title: "Mes Rapports",
-      description: "Voir mes performances",
+      title: "Mes Performances",
+      description: "Voir mes statistiques",
       icon: BarChart3,
       onClick: () => navigate("/agent-performance-dashboard"),
       color: "bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-600 hover:to-violet-600",
@@ -71,20 +77,51 @@ const EnhancedAgentDashboard = () => {
     }
   ];
 
+  const transactionActions = [
+    {
+      title: "Historique Transactions",
+      description: "Voir toutes mes transactions",
+      icon: History,
+      onClick: () => navigate("/transactions"),
+      color: "bg-gradient-to-r from-amber-500 to-orange-500"
+    },
+    {
+      title: "Recharges Mobiles",
+      description: "Services de recharge",
+      icon: Smartphone,
+      onClick: () => navigate("/mobile-recharge"),
+      color: "bg-gradient-to-r from-sky-500 to-blue-500"
+    },
+    {
+      title: "Paiement QR",
+      description: "Scanner pour payer",
+      icon: QrCode,
+      onClick: () => navigate("/qr-payment"),
+      color: "bg-gradient-to-r from-pink-500 to-rose-500"
+    },
+    {
+      title: "Rapports Détaillés",
+      description: "Rapports de performance",
+      icon: FileText,
+      onClick: () => navigate("/agent-reports"),
+      color: "bg-gradient-to-r from-violet-500 to-purple-500"
+    }
+  ];
+
   const managementActions = [
+    {
+      title: "Mes Paramètres",
+      description: "Configurer mon compte",
+      icon: UserCog,
+      onClick: () => navigate("/agent-settings"),
+      color: "bg-gradient-to-r from-gray-600 to-slate-600"
+    },
     {
       title: "Notifications",
       description: "Voir mes notifications",
       icon: Bell,
       onClick: () => navigate("/notifications"),
       color: "bg-gradient-to-r from-orange-500 to-amber-500"
-    },
-    {
-      title: "Paramètres",
-      description: "Configurer mon compte",
-      icon: Settings,
-      onClick: () => navigate("/agent-settings"),
-      color: "bg-gradient-to-r from-gray-500 to-slate-500"
     },
     {
       title: "Ma Zone",
@@ -106,13 +143,13 @@ const EnhancedAgentDashboard = () => {
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4">
       <div className="container max-w-7xl mx-auto space-y-6">
         {/* En-tête amélioré */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
                 Tableau de Bord Agent
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 mt-2 text-lg">
                 Bienvenue {profile?.full_name || 'Agent'} - {profile?.country || 'Congo Brazzaville'}
               </p>
             </div>
@@ -121,7 +158,7 @@ const EnhancedAgentDashboard = () => {
                 variant="outline" 
                 size="sm"
                 onClick={() => navigate("/notifications")}
-                className="relative"
+                className="relative border-2 border-blue-200 hover:border-blue-400"
               >
                 <Bell className="w-4 h-4" />
                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
@@ -131,6 +168,7 @@ const EnhancedAgentDashboard = () => {
                 size="sm"
                 onClick={fetchAgentBalances}
                 disabled={isLoadingBalance}
+                className="border-2 border-green-200 hover:border-green-400"
               >
                 <TrendingUp className={`w-4 h-4 ${isLoadingBalance ? 'animate-spin' : ''}`} />
                 Actualiser
@@ -142,29 +180,31 @@ const EnhancedAgentDashboard = () => {
         {/* Soldes en première ligne */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Solde Principal */}
-          <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200">
+          <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-blue-600" />
+              <CardTitle className="text-xl flex items-center gap-3">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <Wallet className="w-6 h-6 text-white" />
+                </div>
                 Solde Principal
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="text-3xl font-bold text-blue-800">
+                <div className="text-4xl font-bold text-blue-800">
                   {isLoadingBalance ? (
-                    <div className="animate-pulse bg-blue-200 h-10 w-40 rounded"></div>
+                    <div className="animate-pulse bg-blue-200 h-12 w-48 rounded"></div>
                   ) : (
                     formatCurrency(agentBalance, 'XAF')
                   )}
                 </div>
                 <Button 
-                  size="sm" 
+                  size="lg" 
                   variant="outline"
                   onClick={() => navigate("/agent-recharge")}
-                  className="w-full border-blue-300 text-blue-700 hover:bg-blue-50"
+                  className="w-full border-blue-300 text-blue-700 hover:bg-blue-50 h-12"
                 >
-                  <DollarSign className="w-4 h-4 mr-2" />
+                  <DollarSign className="w-5 h-5 mr-2" />
                   Recharger mon solde
                 </Button>
               </div>
@@ -172,29 +212,31 @@ const EnhancedAgentDashboard = () => {
           </Card>
 
           {/* Commissions */}
-          <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200">
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg hover:shadow-xl transition-all duration-300">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Award className="w-5 h-5 text-green-600" />
+              <CardTitle className="text-xl flex items-center gap-3">
+                <div className="p-2 bg-green-500 rounded-lg">
+                  <Award className="w-6 h-6 text-white" />
+                </div>
                 Mes Commissions
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="text-3xl font-bold text-green-800">
+                <div className="text-4xl font-bold text-green-800">
                   {isLoadingBalance ? (
-                    <div className="animate-pulse bg-green-200 h-10 w-40 rounded"></div>
+                    <div className="animate-pulse bg-green-200 h-12 w-48 rounded"></div>
                   ) : (
                     formatCurrency(agentCommissionBalance, 'XAF')
                   )}
                 </div>
                 <Button 
-                  size="sm" 
+                  size="lg" 
                   variant="outline"
                   onClick={() => navigate("/agent-commission-withdrawal")}
-                  className="w-full border-green-300 text-green-700 hover:bg-green-50"
+                  className="w-full border-green-300 text-green-700 hover:bg-green-50 h-12"
                 >
-                  <Target className="w-4 h-4 mr-2" />
+                  <Target className="w-5 h-5 mr-2" />
                   Retirer mes commissions
                 </Button>
               </div>
@@ -203,25 +245,25 @@ const EnhancedAgentDashboard = () => {
         </div>
 
         {/* Actions Principales */}
-        <Card>
+        <Card className="shadow-xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Banknote className="w-5 h-5" />
+            <CardTitle className="flex items-center gap-3 text-2xl">
+              <Banknote className="w-7 h-7 text-blue-600" />
               Actions Principales
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {quickActions.map((action, index) => (
                 <Button
                   key={index}
                   onClick={action.onClick}
-                  className={`h-24 flex flex-col items-center justify-center gap-2 ${action.color} ${action.textColor} shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200`}
+                  className={`h-28 flex flex-col items-center justify-center gap-3 ${action.color} ${action.textColor} shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 rounded-xl text-base font-semibold`}
                 >
-                  <action.icon className="w-6 h-6" />
+                  <action.icon className="w-8 h-8" />
                   <div className="text-center">
-                    <div className="font-semibold text-sm">{action.title}</div>
-                    <div className="text-xs opacity-90">{action.description}</div>
+                    <div className="font-bold">{action.title}</div>
+                    <div className="text-sm opacity-90">{action.description}</div>
                   </div>
                 </Button>
               ))}
@@ -229,26 +271,54 @@ const EnhancedAgentDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Gestion et Outils */}
-        <Card>
+        {/* Transactions et Historiques */}
+        <Card className="shadow-xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              Gestion et Outils
+            <CardTitle className="flex items-center gap-3 text-2xl">
+              <ChartLine className="w-7 h-7 text-purple-600" />
+              Transactions et Historiques
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {transactionActions.map((action, index) => (
+                <Button
+                  key={index}
+                  onClick={action.onClick}
+                  variant="outline"
+                  className={`h-24 flex flex-col items-center justify-center gap-3 hover:shadow-lg transition-all duration-300 border-2 rounded-xl`}
+                >
+                  <action.icon className="w-6 h-6" />
+                  <div className="text-center">
+                    <div className="font-semibold text-sm">{action.title}</div>
+                    <div className="text-xs text-gray-500">{action.description}</div>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Gestion et Paramètres */}
+        <Card className="shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3 text-2xl">
+              <Settings className="w-7 h-7 text-gray-600" />
+              Gestion et Paramètres
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {managementActions.map((action, index) => (
                 <Button
                   key={index}
                   onClick={action.onClick}
                   variant="outline"
-                  className={`h-20 flex flex-col items-center justify-center gap-2 hover:shadow-md transition-all duration-200 border-2`}
+                  className={`h-24 flex flex-col items-center justify-center gap-3 hover:shadow-lg transition-all duration-300 border-2 rounded-xl`}
                 >
-                  <action.icon className="w-5 h-5" />
+                  <action.icon className="w-6 h-6" />
                   <div className="text-center">
-                    <div className="font-medium text-sm">{action.title}</div>
+                    <div className="font-semibold text-sm">{action.title}</div>
                     <div className="text-xs text-gray-500">{action.description}</div>
                   </div>
                 </Button>
@@ -259,38 +329,41 @@ const EnhancedAgentDashboard = () => {
 
         {/* Statistiques Rapides */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-gradient-to-br from-purple-50 to-pink-100 border-purple-200">
-            <CardContent className="p-4">
+          <Card className="bg-gradient-to-br from-purple-50 to-pink-100 border-purple-200 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-purple-600 font-medium">Aujourd'hui</p>
-                  <p className="text-2xl font-bold text-purple-800">0 XAF</p>
+                  <p className="text-lg text-purple-600 font-semibold">Aujourd'hui</p>
+                  <p className="text-3xl font-bold text-purple-800">0 XAF</p>
+                  <p className="text-sm text-purple-600 mt-1">Transactions du jour</p>
                 </div>
-                <Calendar className="w-8 h-8 text-purple-600" />
+                <Calendar className="w-10 h-10 text-purple-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-orange-50 to-yellow-100 border-orange-200">
-            <CardContent className="p-4">
+          <Card className="bg-gradient-to-br from-orange-50 to-yellow-100 border-orange-200 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-orange-600 font-medium">Cette semaine</p>
-                  <p className="text-2xl font-bold text-orange-800">0 XAF</p>
+                  <p className="text-lg text-orange-600 font-semibold">Cette semaine</p>
+                  <p className="text-3xl font-bold text-orange-800">0 XAF</p>
+                  <p className="text-sm text-orange-600 mt-1">Volume hebdomadaire</p>
                 </div>
-                <TrendingUp className="w-8 h-8 text-orange-600" />
+                <TrendingUp className="w-10 h-10 text-orange-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-cyan-50 to-blue-100 border-cyan-200">
-            <CardContent className="p-4">
+          <Card className="bg-gradient-to-br from-cyan-50 to-blue-100 border-cyan-200 shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-cyan-600 font-medium">Ce mois</p>
-                  <p className="text-2xl font-bold text-cyan-800">0 XAF</p>
+                  <p className="text-lg text-cyan-600 font-semibold">Ce mois</p>
+                  <p className="text-3xl font-bold text-cyan-800">0 XAF</p>
+                  <p className="text-sm text-cyan-600 mt-1">Commissions mensuelles</p>
                 </div>
-                <Award className="w-8 h-8 text-cyan-600" />
+                <Award className="w-10 h-10 text-cyan-600" />
               </div>
             </CardContent>
           </Card>
