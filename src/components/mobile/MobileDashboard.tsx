@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,9 @@ import {
   Scan,
   PiggyBank,
   History,
-  LogOut
+  LogOut,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/integrations/supabase/client";
@@ -24,6 +26,7 @@ import { toast } from "sonner";
 const MobileDashboard: React.FC = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
 
   // Configuration du rafraîchissement automatique toutes les 5 secondes
   const { currentBalance } = useAutoBalanceRefresh({
@@ -40,6 +43,10 @@ const MobileDashboard: React.FC = () => {
       console.error('Erreur lors de la déconnexion:', error);
       toast.error('Erreur lors de la déconnexion');
     }
+  };
+
+  const toggleBalanceVisibility = () => {
+    setIsBalanceVisible(!isBalanceVisible);
   };
 
   // Actions rapides sans "Retirer" et "Recevoir"
@@ -82,6 +89,13 @@ const MobileDashboard: React.FC = () => {
     }
   ];
 
+  const formatBalanceDisplay = (balance: number) => {
+    if (!isBalanceVisible) {
+      return "••••••••";
+    }
+    return formatCurrency(balance, 'XAF');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-20">
       {/* Header avec notification et déconnexion */}
@@ -121,11 +135,21 @@ const MobileDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Solde visible avec rafraîchissement */}
+        {/* Solde avec option de masquage */}
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
-          <p className="text-blue-100 text-lg mb-3">Solde disponible</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-blue-100 text-lg">Solde disponible</p>
+            <Button
+              onClick={toggleBalanceVisibility}
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/10 p-2"
+            >
+              {isBalanceVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </Button>
+          </div>
           <p className="text-6xl font-bold mb-3 text-yellow-200">
-            {formatCurrency(currentBalance || profile?.balance || 0, 'XAF')}
+            {formatBalanceDisplay(currentBalance || profile?.balance || 0)}
           </p>
           <div className="flex items-center space-x-2 text-base text-blue-100">
             <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>

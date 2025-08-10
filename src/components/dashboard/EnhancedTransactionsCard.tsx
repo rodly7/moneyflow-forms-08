@@ -31,46 +31,78 @@ const EnhancedTransactionsCard = () => {
 
     setIsLoading(true);
     try {
+      console.log('🔄 Récupération des transactions pour l\'utilisateur:', user.id);
+
       // Récupérer les transferts envoyés
-      const { data: sentTransfers } = await supabase
+      const { data: sentTransfers, error: sentError } = await supabase
         .from('transfers')
         .select('*')
         .eq('sender_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // Récupérer les transferts reçus (en utilisant recipient_id)
-      const { data: receivedTransfers } = await supabase
+      if (sentError) {
+        console.error('Erreur transferts envoyés:', sentError);
+      } else {
+        console.log('📤 Transferts envoyés:', sentTransfers?.length || 0);
+      }
+
+      // Récupérer les transferts reçus
+      const { data: receivedTransfers, error: receivedError } = await supabase
         .from('transfers')
         .select('*')
         .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
+      if (receivedError) {
+        console.error('Erreur transferts reçus:', receivedError);
+      } else {
+        console.log('📥 Transferts reçus:', receivedTransfers?.length || 0);
+      }
+
       // Récupérer les retraits
-      const { data: withdrawals } = await supabase
+      const { data: withdrawals, error: withdrawalsError } = await supabase
         .from('withdrawals')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // Récupérer les recharges
-      const { data: recharges } = await supabase
+      if (withdrawalsError) {
+        console.error('Erreur retraits:', withdrawalsError);
+      } else {
+        console.log('💳 Retraits:', withdrawals?.length || 0);
+      }
+
+      // Récupérer les recharges/dépôts
+      const { data: recharges, error: rechargesError } = await supabase
         .from('recharges')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
+      if (rechargesError) {
+        console.error('Erreur recharges:', rechargesError);
+      } else {
+        console.log('💰 Recharges/Dépôts:', recharges?.length || 0);
+      }
+
       // Récupérer les paiements de factures automatiques
-      const { data: billPayments } = await supabase
+      const { data: billPayments, error: billError } = await supabase
         .from('automatic_bills')
         .select('*')
         .eq('user_id', user.id)
         .in('status', ['paid', 'completed'])
         .order('created_at', { ascending: false })
         .limit(10);
+
+      if (billError) {
+        console.error('Erreur paiements factures:', billError);
+      } else {
+        console.log('⚡ Paiements de factures:', billPayments?.length || 0);
+      }
 
       // Combiner toutes les transactions
       const allTransactions: Transaction[] = [];
@@ -112,7 +144,7 @@ const EnhancedTransactionsCard = () => {
         });
       });
 
-      // Ajouter les recharges
+      // Ajouter les recharges/dépôts
       recharges?.forEach(recharge => {
         allTransactions.push({
           id: recharge.id,
@@ -120,7 +152,7 @@ const EnhancedTransactionsCard = () => {
           amount: recharge.amount,
           created_at: recharge.created_at,
           status: recharge.status,
-          description: `Recharge via ${recharge.payment_method || 'Mobile Money'}`
+          description: `Dépôt via ${recharge.payment_method || 'Mobile Money'}`
         });
       });
 
@@ -138,6 +170,8 @@ const EnhancedTransactionsCard = () => {
 
       // Trier par date décroissante et prendre les 5 plus récentes
       allTransactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      console.log('📊 Total transactions combinées:', allTransactions.length);
+      
       setTransactions(allTransactions.slice(0, 5));
 
     } catch (error) {
