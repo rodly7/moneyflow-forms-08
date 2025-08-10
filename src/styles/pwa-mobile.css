@@ -1,5 +1,5 @@
 
-/* PWA Mobile Optimizations */
+/* PWA Mobile Optimizations - Enhanced for larger UI */
 
 /* Variables CSS pour les safe areas */
 :root {
@@ -24,10 +24,10 @@
   padding-right: var(--safe-area-inset-right);
 }
 
-/* Boutons optimisés pour le tactile */
+/* Boutons optimisés pour le tactile - tailles augmentées */
 .pwa-button {
-  min-height: 44px; /* Taille minimale recommandée Apple */
-  min-width: 44px;
+  min-height: 48px; /* Augmenté de 44px à 48px */
+  min-width: 48px;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -55,32 +55,8 @@
   }
 }
 
-/* Optimisations pour différentes tailles d'écran */
+/* Optimisations pour différentes tailles d'écran - tailles augmentées */
 @media screen and (max-width: 320px) {
-  .pwa-text-xs { font-size: 10px; }
-  .pwa-text-sm { font-size: 12px; }
-  .pwa-text-base { font-size: 13px; }
-  .pwa-text-lg { font-size: 15px; }
-  .pwa-text-xl { font-size: 17px; }
-}
-
-@media screen and (min-width: 321px) and (max-width: 375px) {
-  .pwa-text-xs { font-size: 11px; }
-  .pwa-text-sm { font-size: 13px; }
-  .pwa-text-base { font-size: 14px; }
-  .pwa-text-lg { font-size: 16px; }
-  .pwa-text-xl { font-size: 18px; }
-}
-
-@media screen and (min-width: 376px) and (max-width: 414px) {
-  .pwa-text-xs { font-size: 12px; }
-  .pwa-text-sm { font-size: 14px; }
-  .pwa-text-base { font-size: 15px; }
-  .pwa-text-lg { font-size: 17px; }
-  .pwa-text-xl { font-size: 19px; }
-}
-
-@media screen and (min-width: 415px) {
   .pwa-text-xs { font-size: 12px; }
   .pwa-text-sm { font-size: 14px; }
   .pwa-text-base { font-size: 16px; }
@@ -88,31 +64,55 @@
   .pwa-text-xl { font-size: 20px; }
 }
 
-/* Grilles responsives */
+@media screen and (min-width: 321px) and (max-width: 375px) {
+  .pwa-text-xs { font-size: 13px; }
+  .pwa-text-sm { font-size: 15px; }
+  .pwa-text-base { font-size: 17px; }
+  .pwa-text-lg { font-size: 19px; }
+  .pwa-text-xl { font-size: 21px; }
+}
+
+@media screen and (min-width: 376px) and (max-width: 414px) {
+  .pwa-text-xs { font-size: 14px; }
+  .pwa-text-sm { font-size: 16px; }
+  .pwa-text-base { font-size: 18px; }
+  .pwa-text-lg { font-size: 20px; }
+  .pwa-text-xl { font-size: 22px; }
+}
+
+@media screen and (min-width: 415px) {
+  .pwa-text-xs { font-size: 14px; }
+  .pwa-text-sm { font-size: 16px; }
+  .pwa-text-base { font-size: 18px; }
+  .pwa-text-lg { font-size: 20px; }
+  .pwa-text-xl { font-size: 22px; }
+}
+
+/* Grilles responsives - espacement augmenté */
 .pwa-grid-adaptive {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1.25rem; /* Augmenté de 1rem à 1.25rem */
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); /* Augmenté de 140px à 160px */
 }
 
 @media screen and (max-width: 400px) {
   .pwa-grid-adaptive {
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
+    gap: 1rem; /* Augmenté de 0.75rem à 1rem */
   }
 }
 
 @media screen and (min-width: 401px) and (max-width: 600px) {
   .pwa-grid-adaptive {
     grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
+    gap: 1.25rem; /* Augmenté de 1rem à 1.25rem */
   }
 }
 
 @media screen and (min-width: 601px) {
   .pwa-grid-adaptive {
     grid-template-columns: repeat(4, 1fr);
-    gap: 1.25rem;
+    gap: 1.5rem; /* Augmenté de 1.25rem à 1.5rem */
   }
 }
 
@@ -154,15 +154,15 @@
   opacity: 1;
 }
 
-/* Indicateurs visuels pour PWA */
+/* Indicateurs visuels pour PWA - tailles augmentées */
 .pwa-status-indicator {
   position: fixed;
   top: var(--safe-area-inset-top, 0);
-  right: 10px;
+  right: 12px; /* Augmenté de 10px à 12px */
   z-index: 1000;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 10px;
+  padding: 6px 10px; /* Augmenté de 4px 8px à 6px 10px */
+  border-radius: 14px; /* Augmenté de 12px à 14px */
+  font-size: 11px; /* Augmenté de 10px à 11px */
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;

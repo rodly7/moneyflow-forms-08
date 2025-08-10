@@ -30,28 +30,36 @@ export const AdaptiveText = ({
       const adaptiveSize = getAdaptiveSize(baseSize);
       baseClasses.push(`text-[${adaptiveSize}px]`);
     } else {
-      // Size classes based on variant and screen size
+      // Size classes based on variant and screen size - tailles légèrement augmentées
       if (variant === 'heading') {
         if (isVerySmallMobile) {
-          baseClasses.push('text-lg font-bold');
-        } else if (isSmallMobile) {
           baseClasses.push('text-xl font-bold');
-        } else if (isMediumMobile) {
+        } else if (isSmallMobile) {
           baseClasses.push('text-2xl font-bold');
-        } else {
+        } else if (isMediumMobile) {
           baseClasses.push('text-3xl font-bold');
+        } else {
+          baseClasses.push('text-4xl font-bold');
         }
       } else if (variant === 'subheading') {
         if (isVerySmallMobile) {
-          baseClasses.push('text-base font-semibold');
-        } else if (isSmallMobile) {
           baseClasses.push('text-lg font-semibold');
-        } else if (isMediumMobile) {
+        } else if (isSmallMobile) {
           baseClasses.push('text-xl font-semibold');
-        } else {
+        } else if (isMediumMobile) {
           baseClasses.push('text-2xl font-semibold');
+        } else {
+          baseClasses.push('text-3xl font-semibold');
         }
       } else if (variant === 'body') {
+        if (isVerySmallMobile) {
+          baseClasses.push('text-base');
+        } else if (isSmallMobile) {
+          baseClasses.push('text-lg');
+        } else {
+          baseClasses.push('text-xl');
+        }
+      } else if (variant === 'small') {
         if (isVerySmallMobile) {
           baseClasses.push('text-sm');
         } else if (isSmallMobile) {
@@ -59,19 +67,11 @@ export const AdaptiveText = ({
         } else {
           baseClasses.push('text-lg');
         }
-      } else if (variant === 'small') {
+      } else if (variant === 'tiny') {
         if (isVerySmallMobile) {
-          baseClasses.push('text-xs');
-        } else if (isSmallMobile) {
           baseClasses.push('text-sm');
         } else {
           baseClasses.push('text-base');
-        }
-      } else if (variant === 'tiny') {
-        if (isVerySmallMobile) {
-          baseClasses.push('text-xs');
-        } else {
-          baseClasses.push('text-sm');
         }
       }
     }
@@ -87,11 +87,11 @@ export const AdaptiveText = ({
 
     // Responsive line height
     if (isVerySmallMobile) {
-      baseClasses.push('leading-tight');
-    } else if (isSmallMobile) {
       baseClasses.push('leading-snug');
-    } else {
+    } else if (isSmallMobile) {
       baseClasses.push('leading-normal');
+    } else {
+      baseClasses.push('leading-relaxed');
     }
 
     return baseClasses.join(' ');

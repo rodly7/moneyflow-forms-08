@@ -4,7 +4,6 @@ import { usePWAOptimization } from '@/hooks/usePWAOptimization';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { PWAOptimizedLayout } from '@/components/pwa/PWAOptimizedLayout';
 import { AdaptiveMobileLayout } from '@/components/mobile/AdaptiveMobileLayout';
-import { AdaptiveActionGrid } from '@/components/mobile/AdaptiveActionGrid';
 import { AdaptiveText } from '@/components/mobile/AdaptiveText';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,7 +45,7 @@ export const PWADashboard = ({
     getResponsiveGrid
   } = useResponsiveLayout();
 
-  // Actions principales adaptées PWA
+  // Actions principales adaptées PWA avec tailles augmentées
   const mainActions = [
     {
       icon: Send,
@@ -109,32 +108,32 @@ export const PWADashboard = ({
   return (
     <PWAOptimizedLayout className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <AdaptiveMobileLayout>
-        {/* Header PWA avec statut */}
+        {/* Header PWA avec statut - taille augmentée */}
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200">
-          <div className="px-4 py-3">
+          <div className="px-5 py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 text-white" />
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <User className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <AdaptiveText
                     variant="body"
-                    className="font-semibold text-gray-900"
+                    className="font-semibold text-gray-900 text-lg"
                   >
                     {userName}
                   </AdaptiveText>
                   <AdaptiveText
                     variant="small"
-                    className="text-gray-500"
+                    className="text-gray-500 text-base"
                   >
                     {userPhone}
                   </AdaptiveText>
                 </div>
               </div>
               
-              {/* Indicateur de connexion */}
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+              {/* Indicateur de connexion - taille augmentée */}
+              <div className={`px-3 py-2 rounded-full text-sm font-medium ${
                 isOnline 
                   ? 'bg-green-100 text-green-700' 
                   : 'bg-orange-100 text-orange-700'
@@ -145,35 +144,35 @@ export const PWADashboard = ({
           </div>
         </div>
 
-        {/* Carte de solde adaptative */}
-        <div className="px-4 py-6">
+        {/* Carte de solde adaptative - taille augmentée */}
+        <div className="px-5 py-8">
           <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
-            <div className="p-6">
+            <div className="p-8">
               <AdaptiveText
                 variant="small"
-                className="text-blue-100 mb-2"
+                className="text-blue-100 mb-3 text-base"
               >
                 Solde disponible
               </AdaptiveText>
               <AdaptiveText
                 variant="heading"
-                className="font-bold mb-4"
+                className="font-bold mb-6 text-4xl"
               >
                 {userBalance.toLocaleString()} FCFA
               </AdaptiveText>
               
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <Button 
-                  size="sm" 
+                  size="default" 
                   variant="secondary"
-                  className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+                  className="bg-white/20 text-white border-white/30 hover:bg-white/30 px-6 py-3 text-base"
                 >
                   Historique
                 </Button>
                 <Button 
-                  size="sm" 
+                  size="default" 
                   variant="secondary"
-                  className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+                  className="bg-white/20 text-white border-white/30 hover:bg-white/30 px-6 py-3 text-base"
                 >
                   Recharger
                 </Button>
@@ -182,32 +181,32 @@ export const PWADashboard = ({
           </Card>
         </div>
 
-        {/* Actions principales - Grille adaptative */}
-        <div className="px-4 mb-6">
+        {/* Actions principales - Grille adaptative avec tailles augmentées */}
+        <div className="px-5 mb-8">
           <AdaptiveText
             variant="subheading"
-            className="font-semibold text-gray-900 mb-4"
+            className="font-semibold text-gray-900 mb-6 text-xl"
           >
             Actions rapides
           </AdaptiveText>
           
-          <div className={`grid gap-3 ${getResponsiveGrid(2, 4)}`}>
+          <div className={`grid gap-4 ${getResponsiveGrid(2, 4)}`}>
             {mainActions.map((action) => (
               <Button
                 key={action.label}
                 onClick={() => handleActionClick(action.route)}
-                className={`${action.color} text-white shadow-lg rounded-2xl h-auto py-4 px-3 flex flex-col items-center gap-2 transition-all duration-200 ${
+                className={`${action.color} text-white shadow-lg rounded-2xl h-auto py-6 px-4 flex flex-col items-center gap-3 transition-all duration-200 ${
                   shouldReduceAnimations ? '' : 'hover:scale-105'
                 }`}
                 style={{ 
-                  minHeight: getAdaptiveSize(80)
+                  minHeight: getAdaptiveSize(100)
                 }}
               >
                 <action.icon 
-                  size={getAdaptiveSize(24)} 
+                  size={getAdaptiveSize(28)} 
                   className="text-white" 
                 />
-                <span className="font-medium text-center leading-tight text-xs">
+                <span className="font-medium text-center leading-tight text-sm">
                   {action.label}
                 </span>
               </Button>
@@ -215,28 +214,28 @@ export const PWADashboard = ({
           </div>
         </div>
 
-        {/* Actions secondaires */}
-        <div className="px-4 mb-6">
+        {/* Actions secondaires - tailles augmentées */}
+        <div className="px-5 mb-8">
           <AdaptiveText
             variant="subheading"
-            className="font-semibold text-gray-900 mb-4"
+            className="font-semibold text-gray-900 mb-6 text-xl"
           >
             Autres services
           </AdaptiveText>
           
-          <div className={`grid gap-3 ${getResponsiveGrid(2, 4)}`}>
+          <div className={`grid gap-4 ${getResponsiveGrid(2, 4)}`}>
             {secondaryActions.map((action) => (
               <Button
                 key={action.label}
                 onClick={() => handleActionClick(action.route)}
                 variant="outline"
-                className="h-auto py-3 px-4 flex items-center gap-3 justify-start bg-white hover:bg-gray-50 border-gray-200 rounded-xl"
+                className="h-auto py-4 px-5 flex items-center gap-4 justify-start bg-white hover:bg-gray-50 border-gray-200 rounded-xl"
               >
                 <action.icon 
-                  size={getAdaptiveSize(20)} 
+                  size={getAdaptiveSize(24)} 
                   className="text-gray-600" 
                 />
-                <span className="font-medium text-gray-700 text-sm">
+                <span className="font-medium text-gray-700 text-base">
                   {action.label}
                 </span>
               </Button>
@@ -244,20 +243,20 @@ export const PWADashboard = ({
           </div>
         </div>
 
-        {/* Informations PWA */}
+        {/* Informations PWA - taille augmentée */}
         {!isOnline && (
-          <div className="px-4 mb-6">
+          <div className="px-5 mb-8">
             <Card className="bg-orange-50 border-orange-200">
-              <div className="p-4">
+              <div className="p-5">
                 <AdaptiveText
-                  variant="small"
-                  className="text-orange-800 font-medium mb-2"
+                  variant="body"
+                  className="text-orange-800 font-medium mb-3 text-base"
                 >
                   Mode hors ligne
                 </AdaptiveText>
                 <AdaptiveText
-                  variant="tiny"
-                  className="text-orange-700"
+                  variant="small"
+                  className="text-orange-700 text-sm"
                 >
                   Certaines fonctionnalités sont limitées sans connexion internet.
                 </AdaptiveText>
@@ -266,21 +265,21 @@ export const PWADashboard = ({
           </div>
         )}
 
-        {/* Informations d'optimisation */}
-        <div className="px-4 mb-6 pb-6">
+        {/* Informations d'optimisation - taille augmentée */}
+        <div className="px-5 mb-8 pb-8">
           <Card className="bg-blue-50 border-blue-200">
-            <div className="p-4">
+            <div className="p-5">
               <AdaptiveText
-                variant="tiny"
-                className="text-blue-700 mb-2"
+                variant="small"
+                className="text-blue-700 mb-3 text-sm"
               >
                 <span className="font-medium">Appareil:</span> {deviceType} • 
                 <span className="font-medium"> Écran:</span> {screenWidth}×{screenHeight} • 
                 <span className="font-medium"> Mode:</span> {isPortrait ? 'Portrait' : 'Paysage'}
               </AdaptiveText>
               <AdaptiveText
-                variant="tiny"
-                className="text-blue-600"
+                variant="small"
+                className="text-blue-600 text-sm"
               >
                 Interface optimisée pour votre appareil
               </AdaptiveText>
