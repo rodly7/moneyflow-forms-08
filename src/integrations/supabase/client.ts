@@ -1,7 +1,8 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase URL or Anon Key');
@@ -14,7 +15,7 @@ export const calculateFee = (
   amount: number,
   senderCountry: string,
   recipientCountry: string,
-  userType: 'user' | 'agent' = 'user'
+  userType: 'user' | 'agent' | 'admin' | 'sub_admin' = 'user'
 ) => {
   const isNational = senderCountry === recipientCountry;
   let fee = 0;
@@ -52,4 +53,57 @@ export const calculateFee = (
     agentCommission: Math.round(agentCommission),
     moneyFlowCommission: Math.round(moneyFlowCommission)
   };
+};
+
+// Fonction pour formater les devises
+export const formatCurrency = (amount: number, currency: string = 'XAF'): string => {
+  if (isNaN(amount)) return '0 ' + currency;
+  
+  const formatted = new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.abs(amount));
+  
+  return `${formatted} ${currency}`;
+};
+
+// Fonction pour obtenir la devise d'un pays
+export const getCurrencyForCountry = (country: string): string => {
+  const currencyMap: { [key: string]: string } = {
+    'Cameroun': 'XAF',
+    'Congo Brazzaville': 'XAF',
+    'Gabon': 'XAF',
+    'Guinée Équatoriale': 'XAF',
+    'République Centrafricaine': 'XAF',
+    'Tchad': 'XAF',
+    'France': 'EUR',
+    'Canada': 'CAD',
+    'États-Unis': 'USD',
+    'Royaume-Uni': 'GBP',
+    'Suisse': 'CHF'
+  };
+  
+  return currencyMap[country] || 'XAF';
+};
+
+// Fonction pour convertir les devises (taux fictifs pour démo)
+export const convertCurrency = (amount: number, fromCurrency: string, toCurrency: string): number => {
+  if (fromCurrency === toCurrency) return amount;
+  
+  // Taux de change fictifs par rapport au XAF
+  const exchangeRates: { [key: string]: number } = {
+    'XAF': 1,
+    'EUR': 655.957,
+    'USD': 580.5,
+    'CAD': 430.2,
+    'GBP': 735.8,
+    'CHF': 640.1
+  };
+  
+  const fromRate = exchangeRates[fromCurrency] || 1;
+  const toRate = exchangeRates[toCurrency] || 1;
+  
+  // Convertir vers XAF puis vers la devise cible
+  const xafAmount = amount / fromRate;
+  return xafAmount * toRate;
 };

@@ -1,188 +1,228 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrowserMultiFormatReader, NotFoundException, ChecksumException, FormatException } from '@zxing/library';
-import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { X, Flashlight, FlashlightOff, CreditCard } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
+
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { BrowserMultiFormatReader, Result } from '@zxing/library';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Camera, X, Zap, RotateCcw } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface FastQRScannerProps {
-  isOpen: boolean;
+  onScan: (data: string) => void;
   onClose: () => void;
-  onScanSuccess: (userData: { userId: string; fullName: string; phone: string }) => void;
   title?: string;
-  variant?: 'default' | 'payment';
-  onMyCard?: () => void;
 }
 
-const FastQRScanner = ({ isOpen, onClose, onScanSuccess, title = "Scanner QR Code", variant = "default", onMyCard }: FastQRScannerProps) => {
-  const [torchEnabled, setTorchEnabled] = useState(false);
+export const FastQRScanner: React.FC<FastQRScannerProps> = ({ 
+  onScan, 
+  onClose, 
+  title = "Scanner QR Code" 
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const scannerId = useRef(uuidv4()).current;
-  const isMobile = useIsMobile();
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  const codeReader = useRef<BrowserMultiFormatReader | null>(null);
+  // Initialiser le scanner
+  useEffect(() => {
+    readerRef.current = new BrowserMultiFormatReader();
+    startScanning();
+    
+    return () => {
+      stopScanning();
+    };
+  }, []);
 
-  const initializeScanner = useCallback(async () => {
-    if (!isOpen) return;
+  const stopScanning = useCallback(() => {
+    if (readerRef.current) {
+      readerRef.current.reset();
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsScanning(false);
+  }, []);
 
-    codeReader.current = new BrowserMultiFormatReader();
+  const startScanning = useCallback(async () => {
+    if (!readerRef.current || !videoRef.current) return;
 
     try {
-      await codeReader.current.getVideoInputDevices();
-      codeReader.current.decodeFromInputVideoDevice(undefined, `qr-reader-${scannerId}`).then((result) => {
-        if (result) {
-          try {
-            const parsedData = JSON.parse(result.getText());
-            if (parsedData && parsedData.userId && parsedData.fullName && parsedData.phone) {
-              onScanSuccess(parsedData);
-              onClose();
-            } else {
-              setError("QR Code invalide");
-            }
-          } catch (e) {
-            setError("Format QR Code incorrect");
+      setError(null);
+      setIsScanning(true);
+
+      // Obtenir les appareils vidéo disponibles
+      const videoDevices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = videoDevices.filter(device => device.kind === 'videoinput');
+      setDevices(cameras);
+
+      // Utiliser la caméra arrière si disponible
+      const backCamera = cameras.find(camera => 
+        camera.label.toLowerCase().includes('back') || 
+        camera.label.toLowerCase().includes('rear')
+      );
+      const selectedDeviceId = deviceId || backCamera?.deviceId || cameras[0]?.deviceId;
+
+      if (selectedDeviceId) {
+        setDeviceId(selectedDeviceId);
+        
+        // Démarrer le scan avec la caméra sélectionnée
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            deviceId: selectedDeviceId,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: deviceId ? undefined : 'environment'
+          }
+        });
+        
+        streamRef.current = stream;
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          
+          // Démarrer la détection
+          const result = await readerRef.current.decodeOnceFromVideoDevice(selectedDeviceId);
+          if (result) {
+            handleScanResult(result);
           }
         }
-      }).catch((err: any) => {
-        if (err instanceof NotFoundException) {
-          setError("Aucun QR code détecté");
-        } else if (err instanceof ChecksumException) {
-          setError("Erreur de checksum");
-        } else if (err instanceof FormatException) {
-          setError("Format incorrect du QR code");
-        } else {
-          setError("Erreur inconnue lors de la lecture du QR code");
-        }
-      });
-    } catch (e: any) {
-      setError("Impossible d'accéder à la caméra.");
-    }
-
-    return () => {
-      codeReader.current?.reset();
-    };
-  }, [isOpen, onClose, onScanSuccess, scannerId]);
-
-  useEffect(() => {
-    if (isOpen) {
-      setError(null);
-      initializeScanner();
-    } else {
-      codeReader.current?.reset();
-      setError(null);
-    }
-  }, [isOpen, initializeScanner]);
-
-  useEffect(() => {
-    if (codeReader.current) {
-      if (torchEnabled) {
-        codeReader.current.setTorch(true).catch(e => {
-          setError("Impossible d'activer la torche");
-          setTorchEnabled(false);
-        });
-      } else {
-        codeReader.current.setTorch(false);
       }
+    } catch (err) {
+      console.error('Erreur scan QR:', err);
+      setError(err instanceof Error ? err.message : 'Erreur de scan');
+      setIsScanning(false);
     }
-  }, [torchEnabled]);
+  }, [deviceId]);
+
+  const handleScanResult = useCallback((result: Result) => {
+    const scannedData = result.getText();
+    console.log('QR Code scanné:', scannedData);
+    onScan(scannedData);
+    stopScanning();
+  }, [onScan, stopScanning]);
+
+  const switchCamera = useCallback(async () => {
+    if (devices.length > 1) {
+      const currentIndex = devices.findIndex(device => device.deviceId === deviceId);
+      const nextIndex = (currentIndex + 1) % devices.length;
+      const nextDevice = devices[nextIndex];
+      
+      stopScanning();
+      setDeviceId(nextDevice.deviceId);
+      
+      // Redémarrer avec la nouvelle caméra
+      setTimeout(() => startScanning(), 100);
+    }
+  }, [devices, deviceId, stopScanning, startScanning]);
+
+  const retryScanning = useCallback(() => {
+    stopScanning();
+    setTimeout(() => startScanning(), 100);
+  }, [stopScanning, startScanning]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`max-w-md mx-auto p-2 ${useIsMobile() ? 'w-[95vw] h-[90vh]' : 'w-full h-full'} bg-black/95 border-none`}>
-        <div className="flex flex-col h-full">
-          {/* Header adapté mobile */}
-          <div className={`flex items-center justify-between ${useIsMobile() ? 'p-2 mb-2' : 'p-4 mb-4'} text-white`}>
-            <h2 className={`${useIsMobile() ? 'text-lg' : 'text-xl'} font-bold`}>{title}</h2>
+    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-2">
+      <Card className="w-full max-w-md bg-white">
+        <CardContent className="p-3">
+          {/* Header mobile optimisé */}
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <Camera className="w-4 h-4" />
+              {title}
+            </h3>
             <Button
               variant="ghost"
-              size={useIsMobile() ? "sm" : "default"}
+              size="sm"
               onClick={onClose}
-              className="text-white hover:bg-white/10"
+              className="h-8 w-8 p-0"
             >
-              <X className={`${useIsMobile() ? 'w-5 h-5' : 'w-6 h-6'}`} />
+              <X className="w-4 h-4" />
             </Button>
           </div>
 
-          {/* Zone de scan adaptée */}
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <div className={`relative ${useIsMobile() ? 'w-64 h-64' : 'w-80 h-80'} mb-4`}>
-              <div 
-                id={`qr-reader-${scannerId}`}
-                className="w-full h-full rounded-lg overflow-hidden"
-              />
-              
-              {/* Overlay avec coins */}
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="w-full h-full border-2 border-white/30 rounded-lg relative">
-                  {/* Coins */}
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg"></div>
-                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg"></div>
-                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg"></div>
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg"></div>
-                </div>
+          {/* Zone de scan mobile optimisée */}
+          <div className="relative bg-black rounded-lg overflow-hidden mb-3" style={{ aspectRatio: '1/1' }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+              style={{ transform: 'scaleX(-1)' }}
+            />
+            
+            {/* Overlay de scan */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-48 h-48 border-2 border-white rounded-lg border-dashed opacity-60">
+                <div className="absolute top-0 left-0 w-6 h-6 border-l-4 border-t-4 border-green-400"></div>
+                <div className="absolute top-0 right-0 w-6 h-6 border-r-4 border-t-4 border-green-400"></div>
+                <div className="absolute bottom-0 left-0 w-6 h-6 border-l-4 border-b-4 border-green-400"></div>
+                <div className="absolute bottom-0 right-0 w-6 h-6 border-r-4 border-b-4 border-green-400"></div>
               </div>
             </div>
 
-            {/* Instructions adaptées mobile */}
-            <div className={`text-center ${useIsMobile() ? 'px-2' : 'px-4'} text-white`}>
-              <p className={`${useIsMobile() ? 'text-sm' : 'text-base'} mb-2`}>
-                {variant === 'payment' ? 'Scannez le QR code pour payer' : 'Placez le QR code dans le cadre'}
-              </p>
-              {useIsMobile() && (
-                <p className="text-xs text-white/70">
-                  Tenez votre appareil stable
-                </p>
-              )}
-            </div>
-
-            {/* Boutons adaptés mobile */}
-            <div className={`flex gap-2 mt-4 ${useIsMobile() ? 'px-2' : ''}`}>
-              {variant === 'payment' && onMyCard && (
-                <Button
-                  onClick={onMyCard}
-                  variant="outline"
-                  size={useIsMobile() ? "sm" : "default"}
-                  className={`bg-white/10 text-white border-white/30 hover:bg-white/20 ${useIsMobile() ? 'text-xs px-3' : ''}`}
-                >
-                  <CreditCard className={`${useIsMobile() ? 'w-4 h-4 mr-1' : 'w-5 h-5 mr-2'}`} />
-                  Ma carte
-                </Button>
-              )}
-              
-              <Button
-                onClick={() => setTorchEnabled(!torchEnabled)}
-                variant="outline"
-                size={useIsMobile() ? "sm" : "default"}
-                className={`bg-white/10 text-white border-white/30 hover:bg-white/20 ${useIsMobile() ? 'text-xs px-3' : ''}`}
-              >
-                {torchEnabled ? (
-                  <FlashlightOff className={`${useIsMobile() ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                ) : (
-                  <Flashlight className={`${useIsMobile() ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                )}
-              </Button>
-            </div>
-
-            {/* Statut d'erreur adapté mobile */}
-            {error && (
-              <div className={`mt-4 ${useIsMobile() ? 'mx-2' : 'mx-4'} p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-center`}>
-                <p className={`text-red-200 ${useIsMobile() ? 'text-sm' : ''}`}>{error}</p>
-                <Button
-                  onClick={initializeScanner}
-                  variant="outline"
-                  size="sm"
-                  className={`mt-2 bg-red-500/20 text-red-200 border-red-500/30 hover:bg-red-500/30 ${useIsMobile() ? 'text-xs' : ''}`}
-                >
-                  Réessayer
-                </Button>
+            {/* Status indicator */}
+            {isScanning && (
+              <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded-full flex items-center gap-1 text-xs">
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                Scan actif
               </div>
             )}
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+
+          {/* Erreur */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Instructions mobile */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+            <p className="text-blue-700 text-xs leading-relaxed">
+              📱 Placez le QR code dans le cadre blanc
+              <br />
+              🔍 Assurez-vous que l'éclairage est suffisant
+              <br />
+              📐 Tenez votre téléphone à environ 20cm
+            </p>
+          </div>
+
+          {/* Contrôles mobiles */}
+          <div className="flex gap-2">
+            <Button
+              onClick={retryScanning}
+              disabled={isScanning}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-10 text-sm"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Réessayer
+            </Button>
+            
+            {devices.length > 1 && (
+              <Button
+                onClick={switchCamera}
+                disabled={isScanning}
+                variant="outline"
+                className="px-3 h-10"
+              >
+                <Camera className="w-4 h-4" />
+              </Button>
+            )}
+            
+            <Button
+              onClick={onClose}
+              variant="outline"
+              className="px-3 h-10"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
-
-export default FastQRScanner;
