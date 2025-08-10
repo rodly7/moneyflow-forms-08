@@ -26,7 +26,7 @@ const MobileDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   // Configuration du rafraîchissement automatique toutes les 5 secondes
-  useAutoBalanceRefresh({
+  const { balance } = useAutoBalanceRefresh({
     intervalMs: 5000,
     enableRealtime: true
   });
@@ -88,17 +88,17 @@ const MobileDashboard: React.FC = () => {
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
-            <Avatar className="h-14 w-14 border-2 border-white/20">
+            <Avatar className="h-16 w-16 border-2 border-white/20">
               <AvatarImage src={profile?.avatar_url} />
-              <AvatarFallback className="bg-white/10 text-white font-semibold text-lg">
+              <AvatarFallback className="bg-white/10 text-white font-semibold text-2xl">
                 {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-xl font-semibold">
+              <h1 className="text-2xl font-semibold">
                 Bonjour {profile?.full_name || 'Utilisateur'} 👋
               </h1>
-              <p className="text-blue-100 text-base">
+              <p className="text-blue-100 text-lg">
                 {new Date().toLocaleDateString('fr-FR', { 
                   weekday: 'long', 
                   year: 'numeric', 
@@ -114,21 +114,21 @@ const MobileDashboard: React.FC = () => {
               onClick={handleLogout}
               variant="outline"
               size="sm"
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white text-lg p-3"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-5 h-5" />
             </Button>
           </div>
         </div>
 
-        {/* Solde masqué automatiquement avec rafraîchissement */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-          <p className="text-blue-100 text-base mb-2">Solde disponible</p>
-          <p className="text-5xl font-bold mb-2">
-            ••••••
+        {/* Solde visible avec rafraîchissement */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
+          <p className="text-blue-100 text-lg mb-3">Solde disponible</p>
+          <p className="text-6xl font-bold mb-3 text-yellow-200">
+            {formatCurrency(balance || profile?.balance || 0, 'XAF')}
           </p>
-          <div className="flex items-center space-x-2 text-sm text-blue-100">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+          <div className="flex items-center space-x-2 text-base text-blue-100">
+            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
             <span>Mise à jour toutes les 5 secondes</span>
           </div>
         </div>
@@ -137,20 +137,20 @@ const MobileDashboard: React.FC = () => {
       {/* Actions rapides */}
       <div className="px-6 -mt-8 relative z-10">
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Actions rapides</h2>
-            <div className="grid grid-cols-2 gap-4">
+          <CardContent className="p-8">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6">Actions rapides</h2>
+            <div className="grid grid-cols-2 gap-6">
               {quickActions.map((action, index) => (
                 <Button
                   key={index}
                   variant="outline"
-                  className="relative h-28 flex-col gap-3 bg-white border-0 hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-lg"
+                  className="relative h-32 flex-col gap-4 bg-white border-0 hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-lg"
                   onClick={action.onClick}
                 >
-                  <div className={`p-3 bg-gradient-to-r ${action.color} rounded-full min-w-[42px] min-h-[42px] flex items-center justify-center`}>
-                    <action.icon className="w-6 h-6 text-white" />
+                  <div className={`p-4 bg-gradient-to-r ${action.color} rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center`}>
+                    <action.icon className="w-7 h-7 text-white" />
                   </div>
-                  <span className="text-base font-medium text-center">{action.title}</span>
+                  <span className="text-lg font-medium text-center">{action.title}</span>
                 </Button>
               ))}
             </div>
@@ -159,16 +159,16 @@ const MobileDashboard: React.FC = () => {
       </div>
 
       {/* Transactions récentes */}
-      <div className="px-6 mt-6">
+      <div className="px-6 mt-8">
         <EnhancedTransactionsCard />
       </div>
 
       {/* Section Paramètres */}
-      <div className="px-6 mt-6">
+      <div className="px-6 mt-8">
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Support & Paramètres</h2>
-            <div className="grid grid-cols-1 gap-4">
+          <CardContent className="p-8">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6">Support & Paramètres</h2>
+            <div className="grid grid-cols-1 gap-6">
               <UserSettingsModal />
             </div>
           </CardContent>
