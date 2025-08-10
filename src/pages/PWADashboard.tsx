@@ -11,14 +11,14 @@ import { useAuth } from '@/contexts/AuthContext';
 const PWADashboardPage = () => {
   const { user } = useAuth();
 
-  // Récupérer les données utilisateur
+  // Récupérer les données utilisateur (utilisation des colonnes existantes)
   const { data: userData } = useQuery({
     queryKey: ['user-profile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       const { data } = await supabase
         .from('profiles')
-        .select('full_name, phone_number, balance')
+        .select('full_name, avatar_url, updated_at')
         .eq('id', user.id)
         .single();
       return data;
@@ -35,9 +35,9 @@ const PWADashboardPage = () => {
       
       {/* Dashboard principal */}
       <PWADashboard
-        userBalance={userData?.balance || 0}
+        userBalance={0} // Valeur par défaut car balance n'existe pas encore
         userName={userData?.full_name || 'Utilisateur'}
-        userPhone={userData?.phone_number || '+221...'}
+        userPhone={user?.email || '+221...'} // Utilisation de l'email en attendant
       />
     </div>
   );

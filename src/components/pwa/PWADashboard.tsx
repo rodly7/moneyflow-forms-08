@@ -119,13 +119,13 @@ export const PWADashboard = ({
                 </div>
                 <div>
                   <AdaptiveText
-                    baseSize={16}
+                    variant="body"
                     className="font-semibold text-gray-900"
                   >
                     {userName}
                   </AdaptiveText>
                   <AdaptiveText
-                    baseSize={12}
+                    variant="small"
                     className="text-gray-500"
                   >
                     {userPhone}
@@ -150,13 +150,13 @@ export const PWADashboard = ({
           <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
             <div className="p-6">
               <AdaptiveText
-                baseSize={14}
+                variant="small"
                 className="text-blue-100 mb-2"
               >
                 Solde disponible
               </AdaptiveText>
               <AdaptiveText
-                baseSize={32}
+                variant="heading"
                 className="font-bold mb-4"
               >
                 {userBalance.toLocaleString()} FCFA
@@ -167,7 +167,6 @@ export const PWADashboard = ({
                   size="sm" 
                   variant="secondary"
                   className="bg-white/20 text-white border-white/30 hover:bg-white/30"
-                  style={{ fontSize: getAdaptiveSize(12) }}
                 >
                   Historique
                 </Button>
@@ -175,7 +174,6 @@ export const PWADashboard = ({
                   size="sm" 
                   variant="secondary"
                   className="bg-white/20 text-white border-white/30 hover:bg-white/30"
-                  style={{ fontSize: getAdaptiveSize(12) }}
                 >
                   Recharger
                 </Button>
@@ -187,17 +185,14 @@ export const PWADashboard = ({
         {/* Actions principales - Grille adaptative */}
         <div className="px-4 mb-6">
           <AdaptiveText
-            baseSize={18}
+            variant="subheading"
             className="font-semibold text-gray-900 mb-4"
           >
             Actions rapides
           </AdaptiveText>
           
-          <AdaptiveActionGrid
-            items={mainActions}
-            minItemWidth={screenWidth < 400 ? 140 : 160}
-            gap={screenWidth < 400 ? 12 : 16}
-            renderItem={(action) => (
+          <div className={`grid gap-3 ${getResponsiveGrid(2, 4)}`}>
+            {mainActions.map((action) => (
               <Button
                 key={action.label}
                 onClick={() => handleActionClick(action.route)}
@@ -205,26 +200,25 @@ export const PWADashboard = ({
                   shouldReduceAnimations ? '' : 'hover:scale-105'
                 }`}
                 style={{ 
-                  minHeight: getAdaptiveSize(80),
-                  fontSize: getAdaptiveSize(12)
+                  minHeight: getAdaptiveSize(80)
                 }}
               >
                 <action.icon 
                   size={getAdaptiveSize(24)} 
                   className="text-white" 
                 />
-                <span className="font-medium text-center leading-tight">
+                <span className="font-medium text-center leading-tight text-xs">
                   {action.label}
                 </span>
               </Button>
-            )}
-          />
+            ))}
+          </div>
         </div>
 
         {/* Actions secondaires */}
         <div className="px-4 mb-6">
           <AdaptiveText
-            baseSize={18}
+            variant="subheading"
             className="font-semibold text-gray-900 mb-4"
           >
             Autres services
@@ -237,13 +231,12 @@ export const PWADashboard = ({
                 onClick={() => handleActionClick(action.route)}
                 variant="outline"
                 className="h-auto py-3 px-4 flex items-center gap-3 justify-start bg-white hover:bg-gray-50 border-gray-200 rounded-xl"
-                style={{ fontSize: getAdaptiveSize(14) }}
               >
                 <action.icon 
                   size={getAdaptiveSize(20)} 
                   className="text-gray-600" 
                 />
-                <span className="font-medium text-gray-700">
+                <span className="font-medium text-gray-700 text-sm">
                   {action.label}
                 </span>
               </Button>
@@ -257,13 +250,13 @@ export const PWADashboard = ({
             <Card className="bg-orange-50 border-orange-200">
               <div className="p-4">
                 <AdaptiveText
-                  baseSize={14}
+                  variant="small"
                   className="text-orange-800 font-medium mb-2"
                 >
                   Mode hors ligne
                 </AdaptiveText>
                 <AdaptiveText
-                  baseSize={12}
+                  variant="tiny"
                   className="text-orange-700"
                 >
                   Certaines fonctionnalités sont limitées sans connexion internet.
@@ -278,7 +271,7 @@ export const PWADashboard = ({
           <Card className="bg-blue-50 border-blue-200">
             <div className="p-4">
               <AdaptiveText
-                baseSize={12}
+                variant="tiny"
                 className="text-blue-700 mb-2"
               >
                 <span className="font-medium">Appareil:</span> {deviceType} • 
@@ -286,7 +279,7 @@ export const PWADashboard = ({
                 <span className="font-medium"> Mode:</span> {isPortrait ? 'Portrait' : 'Paysage'}
               </AdaptiveText>
               <AdaptiveText
-                baseSize={12}
+                variant="tiny"
                 className="text-blue-600"
               >
                 Interface optimisée pour votre appareil

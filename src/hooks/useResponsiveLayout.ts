@@ -9,6 +9,10 @@ interface ResponsiveLayout {
   deviceType: 'mobile' | 'tablet' | 'desktop';
   safeAreaTop: number;
   safeAreaBottom: number;
+  isVerySmallMobile: boolean;
+  isSmallMobile: boolean;
+  isMediumMobile: boolean;
+  dynamicViewportHeight: number;
   getAdaptiveSize: (baseSize: number) => number;
   getResponsiveGrid: (minCols: number, maxCols: number) => string;
   getOptimalColumns: (itemWidth: number, gap: number) => number;
@@ -67,10 +71,18 @@ export const useResponsiveLayout = (): ResponsiveLayout => {
   const isPortrait = screenHeight > screenWidth;
   const isLandscape = !isPortrait;
 
-  // Déterminer le type d'appareil
+  // Déterminer le type d'appareil et les sous-catégories mobiles
   const deviceType: 'mobile' | 'tablet' | 'desktop' = 
     screenWidth < 768 ? 'mobile' :
     screenWidth < 1024 ? 'tablet' : 'desktop';
+
+  // Catégories mobiles détaillées
+  const isVerySmallMobile = screenWidth < 360;
+  const isSmallMobile = screenWidth >= 360 && screenWidth < 414;
+  const isMediumMobile = screenWidth >= 414 && screenWidth < 768;
+
+  // Hauteur dynamique de viewport (pour gérer le clavier virtuel)
+  const dynamicViewportHeight = screenHeight;
 
   // Fonction pour calculer une taille adaptative
   const getAdaptiveSize = useCallback((baseSize: number): number => {
@@ -107,6 +119,10 @@ export const useResponsiveLayout = (): ResponsiveLayout => {
     deviceType,
     safeAreaTop,
     safeAreaBottom,
+    isVerySmallMobile,
+    isSmallMobile,
+    isMediumMobile,
+    dynamicViewportHeight,
     getAdaptiveSize,
     getResponsiveGrid,
     getOptimalColumns
