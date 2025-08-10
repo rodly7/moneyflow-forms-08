@@ -6,26 +6,36 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Banknote, User, Wallet, Phone } from "lucide-react";
+import { ArrowLeft, Banknote, User, Wallet, Phone, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, supabase } from "@/integrations/supabase/client";
-import { processAgentWithdrawal, getCountryCodeForAgent } from "@/services/withdrawalService";
-import { useUserSearch } from "@/hooks/useUserSearch";
+import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
+import { getCountryCodeForAgent } from "@/services/withdrawalService";
+import "../styles/agent-mobile.css";
 
 const AgentWithdrawalAdvanced = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [amount, setAmount] = useState("");
-  const [clientData, setClientData] = useState<any>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [countryCode, setCountryCode] = useState("+242");
   const [agentCountry, setAgentCountry] = useState("Congo Brazzaville");
 
-  // Use the new user search hook
-  const { searchUserByPhone, isSearching } = useUserSearch();
+  const {
+    amount,
+    setAmount,
+    phoneNumber,
+    setPhoneNumber,
+    clientData,
+    isSearchingClient,
+    agentBalance,
+    agentCommissionBalance,
+    isLoadingBalance,
+    isProcessing,
+    fetchAgentBalances,
+    searchClientByPhone,
+    handleSubmit
+  } = useAgentWithdrawalEnhanced();
 
   // Récupérer le pays de l'agent pour définir l'indicatif
   useEffect(() => {
@@ -60,7 +70,6 @@ const AgentWithdrawalAdvanced = () => {
 
   const searchClientAutomatically = async (phone: string) => {
     if (!phone || phone.length < 6) {
-      setClientData(null);
       return;
     }
 
@@ -72,43 +81,15 @@ const AgentWithdrawalAdvanced = () => {
         ? phone 
         : `${countryCode}${phone.startsWith('0') ? phone.substring(1) : phone}`;
       
-      // Utiliser le nouveau système de recherche d'utilisateurs
-      const client = await searchUserByPhone(fullPhone);
-      
-      if (client) {
-        setClientData(client);
-        toast({
-          title: "Client trouvé automatiquement",
-          description: `${client.full_name || 'Utilisateur'} - Solde: ${formatCurrency(client.balance || 0, 'XAF')}`,
-        });
-        console.log("✅ Client trouvé:", client);
-      } else {
-        setClientData(null);
-        toast({
-          title: "Client non trouvé",
-          description: `Ce numéro n'existe pas dans notre base de données`,
-          variant: "destructive"
-        });
-      }
+      await searchClientByPhone(fullPhone);
     } catch (error) {
       console.error("❌ Erreur lors de la recherche:", error);
-      toast({
-        title: "Erreur de recherche",
-        description: "Impossible de rechercher le client",
-        variant: "destructive"
-      });
-      setClientData(null);
     }
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, ''); // Garder seulement les chiffres
     setPhoneNumber(value);
-    
-    // Réinitialiser les données client quand le numéro change
-    if (clientData) {
-      setClientData(null);
-    }
 
     // Recherche automatique quand le numéro semble complet
     if (value.length >= 8) {
@@ -116,85 +97,10 @@ const AgentWithdrawalAdvanced = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!user?.id) {
-      toast({
-        title: "Erreur d'authentification",
-        description: "Vous devez être connecté",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!clientData) {
-      toast({
-        title: "Client requis",
-        description: "Veuillez d'abord saisir un numéro valide pour trouver le client",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      toast({
-        title: "Montant invalide",
-        description: "Veuillez entrer un montant valide",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const withdrawalAmount = Number(amount);
-    
-    if (withdrawalAmount > clientData.balance) {
-      toast({
-        title: "Solde insuffisant",
-        description: `Le client n'a que ${formatCurrency(clientData.balance, 'XAF')} dans son compte`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-
-      const fullPhoneNumber = `${countryCode}${phoneNumber}`;
-      
-      const result = await processAgentWithdrawal(
-        user.id,
-        clientData.id,
-        withdrawalAmount,
-        fullPhoneNumber
-      );
-
-      toast({
-        title: "Retrait effectué avec succès",
-        description: `Retrait de ${formatCurrency(withdrawalAmount, 'XAF')} effectué pour ${result.clientName}. Nouveau solde client: ${formatCurrency(result.newClientBalance, 'XAF')}`,
-      });
-
-      // Réinitialiser le formulaire
-      setPhoneNumber("");
-      setAmount("");
-      setClientData(null);
-      
-    } catch (error) {
-      console.error("❌ Erreur lors du retrait:", error);
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur lors du retrait",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const isAmountExceedsBalance = amount && clientData && Number(amount) > clientData.balance;
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-emerald-500/20 to-blue-500/20 py-4 px-0 sm:py-8 sm:px-4">
+    <div className="min-h-screen w-full bg-gradient-to-br from-emerald-500/20 to-blue-500/20 py-4 px-0 sm:py-8 sm:px-4 agent-mobile-interface">
       <div className="container max-w-lg mx-auto space-y-6">
         <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" onClick={() => navigate('/dashboard')} className="text-gray-700">
@@ -205,11 +111,48 @@ const AgentWithdrawalAdvanced = () => {
           <div className="w-10"></div>
         </div>
 
+        {/* Affichage des soldes agent avec bouton de rafraîchissement */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Mes Soldes</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchAgentBalances}
+                disabled={isLoadingBalance}
+                className="h-8 w-8 p-0"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-600 font-medium">Solde Principal</p>
+                <p className="text-lg font-bold text-blue-800">
+                  {isLoadingBalance ? "..." : formatCurrency(agentBalance, 'XAF')}
+                </p>
+              </div>
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <p className="text-sm text-green-600 font-medium">Commissions</p>
+                <p className="text-lg font-bold text-green-800">
+                  {isLoadingBalance ? "..." : formatCurrency(agentCommissionBalance, 'XAF')}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Retrait pour un client</CardTitle>
             <p className="text-sm text-gray-600">
               Saisissez le numéro du client (avec indicatif {countryCode} - {agentCountry})
+            </p>
+            <p className="text-xs text-orange-600 font-medium">
+              Commission: 0,5% par retrait
             </p>
           </CardHeader>
           <CardContent>
@@ -246,7 +189,7 @@ const AgentWithdrawalAdvanced = () => {
                       required
                       className="h-12"
                     />
-                    {isSearching && (
+                    {isSearchingClient && (
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-500"></div>
                       </div>
@@ -298,6 +241,11 @@ const AgentWithdrawalAdvanced = () => {
                 {isAmountExceedsBalance && (
                   <p className="text-red-600 text-sm">
                     Le montant dépasse le solde disponible ({formatCurrency(clientData.balance, 'XAF')})
+                  </p>
+                )}
+                {amount && clientData && (
+                  <p className="text-green-600 text-sm">
+                    Votre commission: {formatCurrency(Number(amount) * 0.005, 'XAF')}
                   </p>
                 )}
               </div>
