@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,12 +15,28 @@ import {
 import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/integrations/supabase/client";
 import EnhancedTransactionsCard from "@/components/dashboard/EnhancedTransactionsCard";
-import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
+import UnifiedNotificationBell from "@/components/notifications/UnifiedNotificationBell";
 import { UserSettingsModal } from "@/components/settings/UserSettingsModal";
 
-const MobileDashboard = () => {
+interface MobileDashboardProps {
+  userBalance?: number;
+  userProfile?: any;
+  onRefresh?: () => Promise<void>;
+  isLoading?: boolean;
+}
+
+const MobileDashboard: React.FC<MobileDashboardProps> = ({ 
+  userBalance, 
+  userProfile: propProfile, 
+  onRefresh, 
+  isLoading 
+}) => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+
+  // Utiliser les props si disponibles, sinon fallback sur le contexte
+  const currentProfile = propProfile || profile;
+  const currentBalance = userBalance !== undefined ? userBalance : currentProfile?.balance;
 
   const quickActions = [
     {
@@ -69,14 +84,14 @@ const MobileDashboard = () => {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-12 w-12 border-2 border-white/20">
-              <AvatarImage src={profile?.avatar_url} />
+              <AvatarImage src={currentProfile?.avatar_url} />
               <AvatarFallback className="bg-white/10 text-white font-semibold">
-                {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
+                {currentProfile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div>
               <h1 className="text-lg font-semibold">
-                Bonjour {profile?.full_name || 'Utilisateur'} 👋
+                Bonjour {currentProfile?.full_name || 'Utilisateur'} 👋
               </h1>
               <p className="text-blue-100 text-sm">
                 {new Date().toLocaleDateString('fr-FR', { 
@@ -95,7 +110,7 @@ const MobileDashboard = () => {
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
           <p className="text-blue-100 text-sm mb-2">Solde disponible</p>
           <p className="text-4xl font-bold mb-2">
-            {formatCurrency(profile?.balance || 0)}
+            {formatCurrency(currentBalance || 0)}
           </p>
           <div className="flex items-center space-x-2 text-xs text-blue-100">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
