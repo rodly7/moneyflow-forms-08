@@ -1,127 +1,17 @@
-import { supabase } from "@/integrations/supabase/client";
 
-export interface WeeklyReport {
-  week_start: Date;
-  week_end: Date;
-  total_transactions: number;
-  total_volume: number;
-  total_fees: number;
-  platform_revenue: number;
-  agent_commissions: number;
-  active_agents: number;
-  active_users: number;
-  international_transfers: number;
-  domestic_transfers: number;
-  withdrawals_count: number;
-  deposits_count: number;
-}
+import { WeeklyReportService, WeeklyReport } from "./reports/weeklyReportService";
+import { AgentReportService, AgentPerformanceReport } from "./reports/agentReportService";
+import { SubAdminReportService, SubAdminReport } from "./reports/subAdminReportService";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface MonthlyReport extends WeeklyReport {
   month: number;
   year: number;
 }
 
-export interface AgentPerformanceReport {
-  agent_id: string;
-  agent_name: string;
-  total_volume: number;
-  transactions_count: number;
-  commission_earned: number;
-  deposits_count: number;
-  withdrawals_count: number;
-  complaints_count: number;
-}
-
-export interface SubAdminReport {
-  sub_admin_id: string;
-  sub_admin_name: string;
-  agents_managed: number;
-  territory: string;
-  total_volume: number;
-  commission_percentage: number;
-}
-
 export class AdminReportService {
   static async generateWeeklyReport(startDate: Date, endDate: Date): Promise<WeeklyReport> {
-    console.log('📊 Génération rapport hebdomadaire:', { startDate, endDate });
-
-    // Récupérer toutes les transactions de la semaine
-    const { data: transfers, error: transfersError } = await supabase
-      .from('transfers')
-      .select('*')
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
-      .eq('status', 'completed');
-
-    if (transfersError) throw transfersError;
-
-    // Récupérer les retraits
-    const { data: withdrawals, error: withdrawalsError } = await supabase
-      .from('withdrawals')
-      .select('*')
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
-      .eq('status', 'completed');
-
-    if (withdrawalsError) throw withdrawalsError;
-
-    // Récupérer les dépôts/recharges
-    const { data: deposits, error: depositsError } = await supabase
-      .from('recharges')
-      .select('*')
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
-      .eq('status', 'completed');
-
-    if (depositsError) throw depositsError;
-
-    // Calculer les métriques exactes
-    const transfersData = transfers || [];
-    const withdrawalsData = withdrawals || [];
-    const depositsData = deposits || [];
-
-    const totalVolume = transfersData.reduce((sum, t) => sum + t.amount, 0) +
-                       withdrawalsData.reduce((sum, w) => sum + w.amount, 0) +
-                       depositsData.reduce((sum, d) => sum + d.amount, 0);
-
-    const totalFees = transfersData.reduce((sum, t) => sum + (t.fees || 0), 0);
-    const platformRevenue = totalFees * 0.6; // 60% pour la plateforme
-    const agentCommissions = totalFees * 0.4; // 40% pour les agents
-
-    // Compter les transferts internationaux vs domestiques
-    const internationalTransfers = transfersData.filter(t => 
-      t.sender_id && t.recipient_country && t.recipient_country !== 'Congo Brazzaville'
-    ).length;
-
-    const domesticTransfers = transfersData.length - internationalTransfers;
-
-    // Récupérer les agents actifs
-    const { data: activeAgents } = await supabase
-      .from('agents')
-      .select('id')
-      .eq('status', 'active');
-
-    // Récupérer les utilisateurs actifs
-    const { data: activeUsers } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('is_banned', false);
-
-    return {
-      week_start: startDate,
-      week_end: endDate,
-      total_transactions: transfersData.length + withdrawalsData.length + depositsData.length,
-      total_volume: totalVolume,
-      total_fees: totalFees,
-      platform_revenue: platformRevenue,
-      agent_commissions: agentCommissions,
-      active_agents: activeAgents?.length || 0,
-      active_users: activeUsers?.length || 0,
-      international_transfers: internationalTransfers,
-      domestic_transfers: domesticTransfers,
-      withdrawals_count: withdrawalsData.length,
-      deposits_count: depositsData.length
-    };
+    return WeeklyReportService.generateWeeklyReport(startDate, endDate);
   }
 
   static async generateMonthlyReport(month: number, year: number): Promise<MonthlyReport> {
@@ -138,141 +28,11 @@ export class AdminReportService {
   }
 
   static async getAgentsPerformance(startDate: Date, endDate: Date): Promise<AgentPerformanceReport[]> {
-    const { data: agents, error: agentsError } = await supabase
-      .from('agents')
-      .select('user_id, full_name');
-
-    if (agentsError) throw agentsError;
-
-    const agentReports: AgentPerformanceReport[] = [];
-
-    for (const agent of agents || []) {
-      // Récupérer les performances mensuelles calculées
-      const { data: performance } = await supabase
-        .from('agent_monthly_performance')
-        .select('*')
-        .eq('agent_id', agent.user_id)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      const latestPerf = performance?.[0];
-
-      // Récupérer les plaintes
-      const { data: complaints } = await supabase
-        .from('agent_complaints')
-        .select('id')
-        .eq('agent_id', agent.user_id)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
-
-      agentReports.push({
-        agent_id: agent.user_id,
-        agent_name: agent.full_name,
-        total_volume: latestPerf?.total_volume || 0,
-        transactions_count: latestPerf?.total_transactions || 0,
-        commission_earned: latestPerf?.total_earnings || 0,
-        deposits_count: latestPerf?.withdrawals_count || 0,
-        withdrawals_count: latestPerf?.withdrawals_count || 0,
-        complaints_count: complaints?.length || 0
-      });
-    }
-
-    return agentReports;
+    return AgentReportService.getAgentsPerformance(startDate, endDate);
   }
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
-    try {
-      const reports: SubAdminReport[] = [];
-      
-      // Simplified query without complex typing
-      const subAdminsResult = await supabase
-        .from('profiles')
-        .select('id, full_name, country')
-        .eq('role', 'sub_admin');
-
-      if (subAdminsResult.error || !subAdminsResult.data) {
-        console.error('Error fetching sub-admins:', subAdminsResult.error);
-        return [];
-      }
-
-      for (const admin of subAdminsResult.data) {
-        try {
-          const report = await this.buildSubAdminReport(admin);
-          reports.push(report);
-        } catch (error) {
-          console.warn(`Error processing sub-admin ${admin.id}:`, error);
-          // Add fallback report
-          reports.push({
-            sub_admin_id: admin.id,
-            sub_admin_name: admin.full_name || 'Unknown',
-            agents_managed: 0,
-            territory: admin.country || 'Non défini',
-            total_volume: 0,
-            commission_percentage: 0.15
-          });
-        }
-      }
-
-      return reports;
-    } catch (error) {
-      console.error('Error in getSubAdminsData:', error);
-      return [];
-    }
-  }
-
-  private static async buildSubAdminReport(admin: any): Promise<SubAdminReport> {
-    // Get agents count with simple query
-    const agentsResult = await supabase
-      .from('agents')
-      .select('user_id')
-      .eq('territory_admin_id', admin.id);
-
-    const agentsCount = agentsResult.data?.length || 0;
-    
-    let totalVolume = 0;
-    if (agentsCount > 0 && agentsResult.data) {
-      totalVolume = await this.getVolumeForAgents(agentsResult.data);
-    }
-
-    return {
-      sub_admin_id: admin.id,
-      sub_admin_name: admin.full_name || 'Unknown',
-      agents_managed: agentsCount,
-      territory: admin.country || 'Non défini',
-      total_volume: totalVolume,
-      commission_percentage: 0.15
-    };
-  }
-
-  private static async getVolumeForAgents(agents: any[]): Promise<number> {
-    try {
-      const userIds = agents
-        .map(agent => agent.user_id)
-        .filter(Boolean);
-
-      if (userIds.length === 0) {
-        return 0;
-      }
-
-      const performanceResult = await supabase
-        .from('agent_monthly_performance')
-        .select('total_volume')
-        .in('agent_id', userIds);
-
-      if (!performanceResult.data) {
-        return 0;
-      }
-
-      return performanceResult.data.reduce((sum, perf) => {
-        const volume = Number(perf.total_volume);
-        return sum + (isNaN(volume) ? 0 : volume);
-      }, 0);
-    } catch (error) {
-      console.warn('Error calculating volume:', error);
-      return 0;
-    }
+    return SubAdminReportService.getSubAdminsData();
   }
 
   static async getTreasuryRevenue(startDate: Date, endDate: Date) {
@@ -357,3 +117,6 @@ export class AdminReportService {
     return allTransactions;
   }
 }
+
+// Re-export types for backward compatibility
+export { WeeklyReport, AgentPerformanceReport, SubAdminReport };
