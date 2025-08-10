@@ -140,7 +140,7 @@ const MobileDashboard = memo(({
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <h3 className="font-medium text-white/90 text-lg mb-3">Solde disponible</h3>
-                  <p className="text-8xl font-bold text-yellow-200 mb-2 break-all leading-none">
+                  <p className="text-9xl font-bold text-yellow-200 mb-2 break-all leading-none tracking-tighter">
                     {showBalance ? formatCurrency(convertedBalance, userCurrency) : "••••••"}
                   </p>
                 </div>
@@ -159,7 +159,7 @@ const MobileDashboard = memo(({
       {/* Contenu principal qui occupe EXACTEMENT tout l'espace restant */}
       <div className="flex-1 overflow-hidden">
         <div className="h-full px-3 py-3 overflow-y-auto">
-          <div className="space-y-4">
+          <div className="space-y-4 pb-4">
             {/* Informations utilisateur avec avatar et texte agrandis */}
             <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-l-4 border-l-blue-500">
               <CardContent className="p-5">
@@ -226,7 +226,7 @@ const MobileDashboard = memo(({
             {/* Historique des transactions */}
             <EnhancedTransactionsCard />
 
-            {/* Section conseils - DERNIER ÉLÉMENT COLLÉ EN BAS */}
+            {/* Section conseils - DERNIER ÉLÉMENT */}
             <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500">
               <CardContent className="p-3">
                 <h4 className="text-base font-bold text-blue-900 mb-2 flex items-center gap-2">
