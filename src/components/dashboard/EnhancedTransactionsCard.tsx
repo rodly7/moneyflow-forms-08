@@ -33,13 +33,10 @@ const EnhancedTransactionsCard = () => {
     try {
       console.log('🔄 Récupération des transactions pour l\'utilisateur:', user.id);
 
-      // Récupérer les transferts envoyés avec les informations du destinataire
+      // Récupérer les transferts envoyés
       const { data: sentTransfers, error: sentError } = await supabase
         .from('transfers')
-        .select(`
-          *,
-          recipient:profiles!transfers_recipient_id_fkey(full_name, phone)
-        `)
+        .select('*')
         .eq('sender_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
@@ -50,13 +47,10 @@ const EnhancedTransactionsCard = () => {
         console.log('📤 Transferts envoyés récupérés:', sentTransfers?.length || 0);
       }
 
-      // Récupérer les transferts reçus avec les informations de l'expéditeur
+      // Récupérer les transferts reçus
       const { data: receivedTransfers, error: receivedError } = await supabase
         .from('transfers')
-        .select(`
-          *,
-          sender:profiles!transfers_sender_id_fkey(full_name, phone)
-        `)
+        .select('*')
         .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
@@ -116,23 +110,35 @@ const EnhancedTransactionsCard = () => {
       // Ajouter les transferts envoyés
       if (sentTransfers && sentTransfers.length > 0) {
         sentTransfers.forEach(transfer => {
-          const recipientName = transfer.recipient?.full_name || transfer.recipient?.phone || transfer.recipient_phone || 'Destinataire inconnu';
           allTransactions.push({
             id: transfer.id,
             type: 'transfer_sent',
             amount: -Math.abs(transfer.amount),
             created_at: transfer.created_at,
             status: transfer.status || 'completed',
-            description: `Transfert vers ${recipientName}`,
-            recipient_full_name: recipientName
+            description: `Transfert vers ${transfer.recipient_full_name || transfer.recipient_phone || 'Destinataire inconnu'}`,
+            recipient_full_name: transfer.recipient_full_name || transfer.recipient_phone || 'Destinataire inconnu'
           });
         });
       }
 
       // Ajouter les transferts reçus
       if (receivedTransfers && receivedTransfers.length > 0) {
-        receivedTransfers.forEach(transfer => {
-          const senderName = transfer.sender?.full_name || transfer.sender?.phone || transfer.sender_phone || 'Expéditeur inconnu';
+        // Pour chaque transfert reçu, récupérer les infos de l'expéditeur
+        for (const transfer of receivedTransfers) {
+          let senderName = 'Expéditeur inconnu';
+          
+          // Récupérer les informations de l'expéditeur
+          const { data: senderProfile } = await supabase
+            .from('profiles')
+            .select('full_name, phone')
+            .eq('id', transfer.sender_id)
+            .single();
+          
+          if (senderProfile) {
+            senderName = senderProfile.full_name || senderProfile.phone || 'Expéditeur inconnu';
+          }
+          
           allTransactions.push({
             id: transfer.id,
             type: 'transfer_received',
@@ -141,7 +147,7 @@ const EnhancedTransactionsCard = () => {
             status: transfer.status || 'completed',
             description: `Transfert reçu de ${senderName}`
           });
-        });
+        }
       }
 
       // Ajouter les retraits
