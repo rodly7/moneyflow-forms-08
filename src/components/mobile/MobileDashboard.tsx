@@ -101,7 +101,7 @@ const MobileDashboard = memo(({
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col">
       {/* Header fixe plus compact */}
       <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm flex-shrink-0">
         <div className="px-3 py-2">
@@ -133,14 +133,14 @@ const MobileDashboard = memo(({
             </div>
           </div>
 
-          {/* Carte solde avec texte "Solde disponible" agrandi et solde légèrement réduit */}
+          {/* Carte solde avec texte "Solde disponible" très agrandi */}
           <div className="relative group mb-4">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur opacity-75"></div>
             <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-xl text-white">
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-medium text-white/90 text-2xl mb-3">Solde disponible</h3>
-                  <p className="text-3xl font-bold text-yellow-200 mb-2">
+                  <h3 className="font-medium text-white/90 text-4xl mb-3">Solde disponible</h3>
+                  <p className="text-2xl font-bold text-yellow-200 mb-2">
                     {showBalance ? formatCurrency(convertedBalance, userCurrency) : "••••••"}
                   </p>
                 </div>
@@ -156,27 +156,27 @@ const MobileDashboard = memo(({
         </div>
       </div>
 
-      {/* Contenu principal qui occupe tout l'espace restant */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 px-3 py-3 space-y-4 overflow-y-auto">
-          {/* Informations utilisateur légèrement réduites */}
+      {/* Contenu principal qui occupe tout l'espace restant sans espace en bas */}
+      <div className="flex-1 flex flex-col">
+        <div className="flex-1 px-3 py-3 space-y-4 overflow-y-auto pb-0">
+          {/* Informations utilisateur avec avatar et texte agrandis */}
           <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-l-4 border-l-blue-500">
             <CardContent className="p-5">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+                <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
                   {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-xl font-bold text-gray-900 truncate mb-2">
+                  <h2 className="text-2xl font-bold text-gray-900 truncate mb-2">
                     {userProfile?.full_name || 'Utilisateur'}
                   </h2>
-                  <div className="flex items-center gap-2 text-base text-gray-600 mb-1">
-                    <Phone className="w-4 h-4" />
+                  <div className="flex items-center gap-2 text-lg text-gray-600 mb-1">
+                    <Phone className="w-5 h-5" />
                     <span className="truncate">{userProfile?.phone || 'Non disponible'}</span>
                   </div>
                   {userProfile?.country && (
-                    <div className="flex items-center gap-2 text-base text-gray-500">
-                      <MapPin className="w-4 h-4" />
+                    <div className="flex items-center gap-2 text-lg text-gray-500">
+                      <MapPin className="w-5 h-5" />
                       <span className="truncate">{userProfile.country}</span>
                     </div>
                   )}
@@ -225,9 +225,9 @@ const MobileDashboard = memo(({
           {/* Historique des transactions */}
           <EnhancedTransactionsCard />
 
-          {/* Section conseils compacte - dernière section qui touche le bas */}
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500">
-            <CardContent className="p-3">
+          {/* Section conseils compacte - dernière section qui s'étend jusqu'en bas */}
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500 mb-0">
+            <CardContent className="p-3 pb-6">
               <h4 className="text-base font-bold text-blue-900 mb-2 flex items-center gap-2">
                 💡 Conseils & Astuces
               </h4>
