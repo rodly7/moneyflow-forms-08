@@ -112,7 +112,7 @@ const MobileDashboard: React.FC = () => {
               <h1 className="text-2xl font-semibold">
                 Bonjour {profile?.full_name || 'Utilisateur'} 👋
               </h1>
-              <p className="text-blue-100 text-lg">
+              <p className="text-blue-100 text-xl">
                 {new Date().toLocaleDateString('fr-FR', { 
                   weekday: 'long', 
                   year: 'numeric', 
@@ -137,21 +137,21 @@ const MobileDashboard: React.FC = () => {
 
         {/* Solde avec option de masquage */}
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-blue-100 text-lg">Solde disponible</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-blue-100 text-2xl">Solde disponible</p>
             <Button
               onClick={toggleBalanceVisibility}
               variant="ghost"
               size="sm"
               className="text-white hover:bg-white/10 p-2"
             >
-              {isBalanceVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {isBalanceVisible ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
             </Button>
           </div>
-          <p className="text-6xl font-bold mb-3 text-yellow-200">
+          <p className="text-7xl font-bold mb-4 text-yellow-200">
             {formatBalanceDisplay(currentBalance || profile?.balance || 0)}
           </p>
-          <div className="flex items-center space-x-2 text-base text-blue-100">
+          <div className="flex items-center space-x-2 text-lg text-blue-100">
             <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
             <span>Mise à jour toutes les 5 secondes</span>
           </div>

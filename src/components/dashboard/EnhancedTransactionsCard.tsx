@@ -39,12 +39,12 @@ const EnhancedTransactionsCard = () => {
         .select('*')
         .eq('sender_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (sentError) {
         console.error('Erreur transferts envoyés:', sentError);
       } else {
-        console.log('📤 Transferts envoyés:', sentTransfers?.length || 0);
+        console.log('📤 Transferts envoyés récupérés:', sentTransfers?.length || 0);
       }
 
       // Récupérer les transferts reçus
@@ -53,12 +53,12 @@ const EnhancedTransactionsCard = () => {
         .select('*')
         .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (receivedError) {
         console.error('Erreur transferts reçus:', receivedError);
       } else {
-        console.log('📥 Transferts reçus:', receivedTransfers?.length || 0);
+        console.log('📥 Transferts reçus récupérés:', receivedTransfers?.length || 0);
       }
 
       // Récupérer les retraits
@@ -67,12 +67,12 @@ const EnhancedTransactionsCard = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (withdrawalsError) {
         console.error('Erreur retraits:', withdrawalsError);
       } else {
-        console.log('💳 Retraits:', withdrawals?.length || 0);
+        console.log('💳 Retraits récupérés:', withdrawals?.length || 0);
       }
 
       // Récupérer les recharges/dépôts
@@ -81,12 +81,12 @@ const EnhancedTransactionsCard = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (rechargesError) {
         console.error('Erreur recharges:', rechargesError);
       } else {
-        console.log('💰 Recharges/Dépôts:', recharges?.length || 0);
+        console.log('💰 Recharges/Dépôts récupérés:', recharges?.length || 0);
       }
 
       // Récupérer les paiements de factures automatiques
@@ -96,83 +96,101 @@ const EnhancedTransactionsCard = () => {
         .eq('user_id', user.id)
         .in('status', ['paid', 'completed'])
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (billError) {
         console.error('Erreur paiements factures:', billError);
       } else {
-        console.log('⚡ Paiements de factures:', billPayments?.length || 0);
+        console.log('⚡ Paiements de factures récupérés:', billPayments?.length || 0);
       }
 
       // Combiner toutes les transactions
       const allTransactions: Transaction[] = [];
 
       // Ajouter les transferts envoyés
-      sentTransfers?.forEach(transfer => {
-        allTransactions.push({
-          id: transfer.id,
-          type: 'transfer_sent',
-          amount: -transfer.amount,
-          created_at: transfer.created_at,
-          status: transfer.status,
-          description: `Transfert vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
-          recipient_full_name: transfer.recipient_full_name
+      if (sentTransfers && sentTransfers.length > 0) {
+        sentTransfers.forEach(transfer => {
+          allTransactions.push({
+            id: transfer.id,
+            type: 'transfer_sent',
+            amount: -Math.abs(transfer.amount),
+            created_at: transfer.created_at,
+            status: transfer.status || 'completed',
+            description: `Transfert vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
+            recipient_full_name: transfer.recipient_full_name
+          });
         });
-      });
+        console.log('📤 Transferts envoyés ajoutés:', sentTransfers.length);
+      }
 
       // Ajouter les transferts reçus
-      receivedTransfers?.forEach(transfer => {
-        allTransactions.push({
-          id: transfer.id,
-          type: 'transfer_received',
-          amount: transfer.amount,
-          created_at: transfer.created_at,
-          status: transfer.status,
-          description: `Transfert reçu de ${transfer.recipient_full_name || 'Expéditeur'}`
+      if (receivedTransfers && receivedTransfers.length > 0) {
+        receivedTransfers.forEach(transfer => {
+          allTransactions.push({
+            id: transfer.id,
+            type: 'transfer_received',
+            amount: Math.abs(transfer.amount),
+            created_at: transfer.created_at,
+            status: transfer.status || 'completed',
+            description: `Transfert reçu de ${transfer.recipient_full_name || 'Expéditeur'}`
+          });
         });
-      });
+        console.log('📥 Transferts reçus ajoutés:', receivedTransfers.length);
+      }
 
       // Ajouter les retraits
-      withdrawals?.forEach(withdrawal => {
-        allTransactions.push({
-          id: withdrawal.id,
-          type: 'withdrawal',
-          amount: -withdrawal.amount,
-          created_at: withdrawal.created_at,
-          status: withdrawal.status,
-          description: `Retrait ${withdrawal.withdrawal_phone || ''}`
+      if (withdrawals && withdrawals.length > 0) {
+        withdrawals.forEach(withdrawal => {
+          allTransactions.push({
+            id: withdrawal.id,
+            type: 'withdrawal',
+            amount: -Math.abs(withdrawal.amount),
+            created_at: withdrawal.created_at,
+            status: withdrawal.status || 'completed',
+            description: `Retrait ${withdrawal.withdrawal_phone || ''}`
+          });
         });
-      });
+        console.log('💳 Retraits ajoutés:', withdrawals.length);
+      }
 
       // Ajouter les recharges/dépôts
-      recharges?.forEach(recharge => {
-        allTransactions.push({
-          id: recharge.id,
-          type: 'recharge',
-          amount: recharge.amount,
-          created_at: recharge.created_at,
-          status: recharge.status,
-          description: `Dépôt via ${recharge.payment_method || 'Mobile Money'}`
+      if (recharges && recharges.length > 0) {
+        recharges.forEach(recharge => {
+          allTransactions.push({
+            id: recharge.id,
+            type: 'recharge',
+            amount: Math.abs(recharge.amount),
+            created_at: recharge.created_at,
+            status: recharge.status || 'completed',
+            description: `Dépôt via ${recharge.payment_method || 'Mobile Money'}`
+          });
         });
-      });
+        console.log('💰 Recharges ajoutées:', recharges.length);
+      }
 
       // Ajouter les paiements de factures
-      billPayments?.forEach(bill => {
-        allTransactions.push({
-          id: bill.id,
-          type: 'bill_payment',
-          amount: -bill.amount,
-          created_at: bill.created_at,
-          status: 'completed',
-          description: `Paiement ${bill.bill_name || 'Facture'}`
+      if (billPayments && billPayments.length > 0) {
+        billPayments.forEach(bill => {
+          allTransactions.push({
+            id: bill.id,
+            type: 'bill_payment',
+            amount: -Math.abs(bill.amount),
+            created_at: bill.created_at,
+            status: 'completed',
+            description: `Paiement ${bill.bill_name || 'Facture'}`
+          });
         });
-      });
+        console.log('⚡ Paiements de factures ajoutés:', billPayments.length);
+      }
 
       // Trier par date décroissante et prendre les 5 plus récentes
       allTransactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       console.log('📊 Total transactions combinées:', allTransactions.length);
       
-      setTransactions(allTransactions.slice(0, 5));
+      const recentTransactions = allTransactions.slice(0, 5);
+      console.log('📋 Transactions récentes à afficher:', recentTransactions.length);
+      
+      setTransactions(recentTransactions);
 
     } catch (error) {
       console.error('Erreur lors de la récupération des transactions:', error);
@@ -237,8 +255,8 @@ const EnhancedTransactionsCard = () => {
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <History className="w-5 h-5" />
+          <CardTitle className="text-xl flex items-center gap-2">
+            <History className="w-6 h-6" />
             Transactions récentes
           </CardTitle>
         </CardHeader>
@@ -266,8 +284,8 @@ const EnhancedTransactionsCard = () => {
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <History className="w-5 h-5" />
+          <CardTitle className="text-xl flex items-center gap-2">
+            <History className="w-6 h-6" />
             Transactions récentes
           </CardTitle>
           <Button
@@ -284,7 +302,7 @@ const EnhancedTransactionsCard = () => {
         {transactions.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <History className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p className="text-sm">Aucune transaction récente</p>
+            <p className="text-base">Aucune transaction récente</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -298,20 +316,20 @@ const EnhancedTransactionsCard = () => {
                   {getTransactionIcon(transaction.type)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 text-base truncate">
+                  <p className="font-medium text-gray-900 text-lg truncate">
                     {transaction.description}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
-                    <p className="text-sm text-gray-500">
+                    <p className="text-base text-gray-500">
                       {format(new Date(transaction.created_at), 'dd/MM à HH:mm', { locale: fr })}
                     </p>
-                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(transaction.status)}`}>
+                    <span className={`text-sm px-2 py-1 rounded-full ${getStatusColor(transaction.status)}`}>
                       {getStatusText(transaction.status)}
                     </span>
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className={`font-semibold text-base ${
+                  <p className={`font-semibold text-lg ${
                     transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
                     {transaction.amount > 0 ? '+' : ''}
@@ -331,7 +349,7 @@ const EnhancedTransactionsCard = () => {
           <div className="pt-4 border-t mt-4">
             <Button
               variant="outline"
-              className="w-full"
+              className="w-full text-lg py-3"
               onClick={() => navigate('/transactions')}
             >
               Voir toutes les transactions
