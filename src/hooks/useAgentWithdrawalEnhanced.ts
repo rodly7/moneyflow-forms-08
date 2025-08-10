@@ -5,7 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import { getUserBalance, findUserByPhone } from "@/services/withdrawalService";
 import { processAgentWithdrawalWithCommission } from "@/services/agentWithdrawalService";
 import { formatCurrency, supabase } from "@/integrations/supabase/client";
-import { useAutoBalanceRefresh } from "@/hooks/useAutoBalanceRefresh";
 
 interface ClientData {
   id: string;
@@ -27,16 +26,6 @@ export const useAgentWithdrawalEnhanced = () => {
   const [agentCommissionBalance, setAgentCommissionBalance] = useState<number>(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // Utiliser le hook de rafraîchissement automatique
-  const { refreshBalance } = useAutoBalanceRefresh({
-    intervalMs: 3000,
-    onBalanceChange: (newBalance) => {
-      console.log("💰 Solde agent mis à jour automatiquement:", newBalance);
-      setAgentBalance(newBalance);
-    },
-    enableRealtime: true
-  });
 
   const fetchAgentBalances = useCallback(async () => {
     if (!user?.id) return;
@@ -197,10 +186,7 @@ export const useAgentWithdrawalEnhanced = () => {
       
       // Forcer le rafraîchissement immédiat des soldes
       console.log("🔄 Rafraîchissement forcé des soldes...");
-      setTimeout(async () => {
-        await fetchAgentBalances();
-        refreshBalance();
-      }, 500); // Petit délai pour laisser la DB se synchroniser
+      await fetchAgentBalances();
       
     } catch (error) {
       console.error("❌ [ERROR] Erreur retrait:", error);
