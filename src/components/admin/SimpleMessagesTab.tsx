@@ -3,9 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { NotificationService } from '@/services/notificationService';
+import CustomerSupportMessages from './CustomerSupportMessages';
 
 interface RandomMessage {
   id: string;
@@ -194,125 +196,148 @@ export const SimpleMessagesTab = () => {
   }, {} as Record<string, RandomMessage[]>);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">
-          Messages automatiques
-        </h2>
-        <Button
-          onClick={sendRandomToAll}
-          disabled={isSending}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-        >
-          {isSending ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Envoi...
-            </>
-          ) : (
-            <>
-              🎲 Envoyer message aléatoire
-            </>
-          )}
-        </Button>
-      </div>
+    <div className="p-6">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">
+        Gestion des Messages
+      </h2>
 
-      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
-        <CardContent className="p-4">
-          <div className="flex items-start space-x-3">
-            <div className="text-2xl">📨</div>
-            <div>
-              <h3 className="font-medium text-blue-900 mb-1">Messages automatiques</h3>
-              <p className="text-sm text-blue-800">
-                Envoyez des messages motivants et informatifs à tous vos utilisateurs. 
-                Ces messages sont conçus pour améliorer l'engagement et la satisfaction client.
-              </p>
-            </div>
+      <Tabs defaultValue="automated" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="automated" className="flex items-center gap-2">
+            <span>🚀</span>
+            Messages Automatiques
+          </TabsTrigger>
+          <TabsTrigger value="support" className="flex items-center gap-2">
+            <span>💬</span>
+            Support Client & Rendez-vous
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="automated" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold text-gray-800">
+              Envoi de messages automatiques
+            </h3>
+            <Button
+              onClick={sendRandomToAll}
+              disabled={isSending}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            >
+              {isSending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Envoi...
+                </>
+              ) : (
+                <>
+                  🎲 Envoyer message aléatoire
+                </>
+              )}
+            </Button>
           </div>
-        </CardContent>
-      </Card>
 
-      {Object.entries(messagesByCategory).map(([category, messages]) => (
-        <Card key={category} className="bg-white shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-gray-800 capitalize flex items-center gap-2">
-              <span className="text-2xl">{messages[0].emoji}</span>
-              {category}
-              <Badge variant="secondary" className="ml-2">
-                {messages.length} messages
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`p-4 rounded-lg border transition-all duration-200 ${
-                  sentMessages.includes(message.id)
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-medium text-gray-900">
-                        {message.title}
-                      </h3>
-                      <Badge 
-                        variant={message.priority === 'high' ? 'destructive' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {message.priority === 'high' ? 'Priorité élevée' : 
-                         message.priority === 'low' ? 'Priorité basse' : 'Priorité normale'}
-                      </Badge>
-                      {sentMessages.includes(message.id) && (
-                        <Badge variant="default" className="bg-green-600">
-                          ✓ Envoyé
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 mb-3">
-                      {message.message}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => sendRandomMessage(message)}
-                    disabled={isSending}
-                    size="sm"
-                    className="ml-4 bg-blue-600 hover:bg-blue-700"
-                  >
-                    {isSending && selectedMessage?.id === message.id ? (
-                      <>
-                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
-                        Envoi...
-                      </>
-                    ) : (
-                      'Envoyer'
-                    )}
-                  </Button>
+          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-start space-x-3">
+                <div className="text-2xl">📨</div>
+                <div>
+                  <h4 className="font-medium text-blue-900 mb-1">Messages automatiques</h4>
+                  <p className="text-sm text-blue-800">
+                    Envoyez des messages motivants et informatifs à tous vos utilisateurs. 
+                    Ces messages sont conçus pour améliorer l'engagement et la satisfaction client.
+                  </p>
                 </div>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
 
-      <Card className="bg-yellow-50 border-yellow-200">
-        <CardContent className="p-4">
-          <div className="flex items-start space-x-3">
-            <div className="text-xl">⚠️</div>
-            <div>
-              <h3 className="font-medium text-yellow-900 mb-1">Conseils d'utilisation</h3>
-              <div className="text-sm text-yellow-800 space-y-1">
-                <p>• Utilisez les messages avec modération pour éviter de surcharger vos utilisateurs</p>
-                <p>• Les messages de priorité élevée sont plus visibles mais à utiliser avec parcimonie</p>
-                <p>• Variez les catégories pour maintenir l'intérêt de vos utilisateurs</p>
+          {Object.entries(messagesByCategory).map(([category, messages]) => (
+            <Card key={category} className="bg-white shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold text-gray-800 capitalize flex items-center gap-2">
+                  <span className="text-2xl">{messages[0].emoji}</span>
+                  {category}
+                  <Badge variant="secondary" className="ml-2">
+                    {messages.length} messages
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`p-4 rounded-lg border transition-all duration-200 ${
+                      sentMessages.includes(message.id)
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-medium text-gray-900">
+                            {message.title}
+                          </h4>
+                          <Badge 
+                            variant={message.priority === 'high' ? 'destructive' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {message.priority === 'high' ? 'Priorité élevée' : 
+                             message.priority === 'low' ? 'Priorité basse' : 'Priorité normale'}
+                          </Badge>
+                          {sentMessages.includes(message.id) && (
+                            <Badge variant="default" className="bg-green-600">
+                              ✓ Envoyé
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">
+                          {message.message}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => sendRandomMessage(message)}
+                        disabled={isSending}
+                        size="sm"
+                        className="ml-4 bg-blue-600 hover:bg-blue-700"
+                      >
+                        {isSending && selectedMessage?.id === message.id ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                            Envoi...
+                          </>
+                        ) : (
+                          'Envoyer'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+
+          <Card className="bg-yellow-50 border-yellow-200">
+            <CardContent className="p-4">
+              <div className="flex items-start space-x-3">
+                <div className="text-xl">⚠️</div>
+                <div>
+                  <h4 className="font-medium text-yellow-900 mb-1">Conseils d'utilisation</h4>
+                  <div className="text-sm text-yellow-800 space-y-1">
+                    <p>• Utilisez les messages avec modération pour éviter de surcharger vos utilisateurs</p>
+                    <p>• Les messages de priorité élevée sont plus visibles mais à utiliser avec parcimonie</p>
+                    <p>• Variez les catégories pour maintenir l'intérêt de vos utilisateurs</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="support">
+          <CustomerSupportMessages />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
