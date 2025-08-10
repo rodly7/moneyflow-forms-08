@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,36 +37,43 @@ export const AgentManagementPanel = () => {
     try {
       setLoading(true);
       
-      // Récupérer d'abord les agents
-      const { data: agentsData, error: agentsError } = await supabase
-        .from('agents')
-        .select('*');
+      // Récupérer d'abord les profils qui ont le rôle 'agent'
+      const { data: agentProfiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, balance, country')
+        .eq('role', 'agent');
 
-      if (agentsError) throw agentsError;
+      if (profilesError) throw profilesError;
 
-      if (!agentsData || agentsData.length === 0) {
+      if (!agentProfiles || agentProfiles.length === 0) {
         setAgents([]);
         setLoading(false);
         return;
       }
 
-      // Récupérer les profils correspondants
-      const userIds = agentsData.map(agent => agent.user_id);
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, balance')
-        .in('id', userIds);
+      // Récupérer les données des agents correspondants
+      const userIds = agentProfiles.map(profile => profile.id);
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('agents')
+        .select('*')
+        .in('user_id', userIds);
 
-      if (profilesError) throw profilesError;
+      if (agentsError) throw agentsError;
 
-      // Combiner les données agents et profils
-      const formattedAgents = agentsData.map(agent => {
-        const profile = profilesData?.find(p => p.id === agent.user_id);
+      // Combiner les données profils et agents
+      const formattedAgents = agentProfiles.map(profile => {
+        const agentData = agentsData?.find(agent => agent.user_id === profile.id);
         return {
-          ...agent,
-          balance: profile?.balance || 0,
-          full_name: profile?.full_name || agent.full_name || 'Nom inconnu',
-          phone: profile?.phone || agent.phone || 'Téléphone inconnu'
+          id: agentData?.id || profile.id,
+          user_id: profile.id,
+          agent_id: agentData?.agent_id || profile.phone || 'N/A',
+          full_name: profile.full_name || agentData?.full_name || 'Nom inconnu',
+          phone: profile.phone || agentData?.phone || 'Téléphone inconnu',
+          country: profile.country || agentData?.country || 'Pays inconnu',
+          status: agentData?.status || 'pending',
+          commission_balance: agentData?.commission_balance || 0,
+          balance: profile.balance || 0,
+          created_at: agentData?.created_at || new Date().toISOString()
         };
       });
 
@@ -79,6 +85,17 @@ export const AgentManagementPanel = () => {
       setLoading(false);
     }
   };
+
+  // Auto-refresh toutes les 10 secondes
+  useEffect(() => {
+    fetchAgents();
+    
+    const interval = setInterval(() => {
+      fetchAgents();
+    }, 10000); // 10 secondes
+
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchAgentTransactions = async (agentId: string) => {
     try {
@@ -257,10 +274,6 @@ export const AgentManagementPanel = () => {
   };
 
   useEffect(() => {
-    fetchAgents();
-  }, []);
-
-  useEffect(() => {
     if (selectedAgent) {
       fetchAgentTransactions(selectedAgent.user_id);
     }
@@ -287,8 +300,11 @@ export const AgentManagementPanel = () => {
             alignItems: 'center',
             marginBottom: '20px'
           }}>
-            <h2>Gestion des Agents ({agents.length} agents)</h2>
+            <h2>🔄 Gestion des Agents ({agents.length} agents actifs)</h2>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', color: '#666' }}>
+                Auto-refresh: 10s
+              </span>
               <input
                 type="number"
                 value={rechargeAmount}
