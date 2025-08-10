@@ -15,9 +15,6 @@ interface Agent {
   commission_balance: number;
   balance: number;
   created_at: string;
-  profile?: {
-    balance: number;
-  };
 }
 
 interface AgentTransaction {
@@ -41,26 +38,38 @@ export const AgentManagementPanel = () => {
     try {
       setLoading(true);
       
-      // Récupérer les agents avec leurs profils
+      // Récupérer d'abord les agents
       const { data: agentsData, error: agentsError } = await supabase
         .from('agents')
-        .select(`
-          *,
-          profiles!inner(
-            balance,
-            full_name,
-            phone
-          )
-        `);
+        .select('*');
 
       if (agentsError) throw agentsError;
 
-      const formattedAgents = (agentsData || []).map(agent => ({
-        ...agent,
-        balance: agent.profiles?.balance || 0,
-        full_name: agent.profiles?.full_name || agent.full_name,
-        phone: agent.profiles?.phone || agent.phone
-      }));
+      if (!agentsData || agentsData.length === 0) {
+        setAgents([]);
+        setLoading(false);
+        return;
+      }
+
+      // Récupérer les profils correspondants
+      const userIds = agentsData.map(agent => agent.user_id);
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, balance')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combiner les données agents et profils
+      const formattedAgents = agentsData.map(agent => {
+        const profile = profilesData?.find(p => p.id === agent.user_id);
+        return {
+          ...agent,
+          balance: profile?.balance || 0,
+          full_name: profile?.full_name || agent.full_name || 'Nom inconnu',
+          phone: profile?.phone || agent.phone || 'Téléphone inconnu'
+        };
+      });
 
       setAgents(formattedAgents);
     } catch (error) {
