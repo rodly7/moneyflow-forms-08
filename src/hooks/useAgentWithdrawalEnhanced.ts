@@ -39,38 +39,50 @@ export const useAgentWithdrawalEnhanced = () => {
   });
 
   const fetchAgentBalances = useCallback(async () => {
-    if (user?.id) {
-      setIsLoadingBalance(true);
-      try {
-        console.log("🔍 Récupération des soldes agent...");
-        
-        // Récupérer le solde principal
-        const balanceData = await getUserBalance(user.id);
-        setAgentBalance(balanceData.balance);
-        
-        // Récupérer le solde commission depuis la table agents
-        const { data: agentData, error } = await supabase
-          .from('agents')
-          .select('commission_balance')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (agentData && !error) {
-          setAgentCommissionBalance(agentData.commission_balance || 0);
-        }
-        
-        console.log("✅ Soldes récupérés:", {
-          principal: balanceData.balance,
-          commission: agentData?.commission_balance || 0
-        });
-      } catch (error) {
-        console.error("❌ Erreur lors du chargement des soldes:", error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger vos soldes",
-          variant: "destructive"
-        });
+    if (!user?.id) return;
+    
+    setIsLoadingBalance(true);
+    try {
+      console.log("🔍 [REFRESH] Récupération des soldes agent...");
+      
+      // Récupérer le solde principal avec RPC pour garantir la fraîcheur
+      const { data: realBalance, error: balanceError } = await supabase.rpc('increment_balance', {
+        user_id: user.id,
+        amount: 0
+      });
+      
+      if (balanceError) {
+        console.error("❌ Erreur solde principal:", balanceError);
+        throw balanceError;
       }
+      
+      const newBalance = Number(realBalance) || 0;
+      setAgentBalance(newBalance);
+      console.log("✅ Solde principal récupéré:", newBalance);
+      
+      // Récupérer le solde commission depuis la table agents
+      const { data: agentData, error: commissionError } = await supabase
+        .from('agents')
+        .select('commission_balance')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (agentData && !commissionError) {
+        setAgentCommissionBalance(agentData.commission_balance || 0);
+        console.log("✅ Solde commission récupéré:", agentData.commission_balance || 0);
+      } else {
+        console.warn("⚠️ Pas de données commission agent:", commissionError);
+        setAgentCommissionBalance(0);
+      }
+      
+    } catch (error) {
+      console.error("❌ Erreur lors du chargement des soldes:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger vos soldes",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoadingBalance(false);
     }
   }, [user?.id, toast]);
@@ -138,10 +150,23 @@ export const useAgentWithdrawalEnhanced = () => {
 
     const operationAmount = Number(amount);
 
-    if (operationAmount > clientData.balance) {
+    // Vérifier le solde client en temps réel
+    console.log("🔍 Vérification finale du solde client...");
+    try {
+      const currentClientData = await getUserBalance(clientData.id);
+      if (operationAmount > currentClientData.balance) {
+        toast({
+          title: "Solde client insuffisant",
+          description: `Le client n'a que ${formatCurrency(currentClientData.balance, 'XAF')}`,
+          variant: "destructive"
+        });
+        return;
+      }
+    } catch (error) {
+      console.error("❌ Erreur vérification solde client:", error);
       toast({
-        title: "Solde insuffisant",
-        description: `Le client n'a que ${formatCurrency(clientData.balance, 'XAF')}`,
+        title: "Erreur",
+        description: "Impossible de vérifier le solde du client",
         variant: "destructive"
       });
       return;
@@ -149,7 +174,7 @@ export const useAgentWithdrawalEnhanced = () => {
 
     try {
       setIsProcessing(true);
-      console.log("🚀 Début du processus de retrait");
+      console.log("🚀 [START] Début du processus de retrait agent");
 
       const result = await processAgentWithdrawalWithCommission(
         user?.id || '',
@@ -158,10 +183,10 @@ export const useAgentWithdrawalEnhanced = () => {
         phoneNumber
       );
 
-      console.log("✅ Retrait terminé avec succès:", result);
+      console.log("✅ [SUCCESS] Retrait terminé avec succès:", result);
 
       toast({
-        title: "Retrait effectué avec succès",
+        title: "Retrait effectué avec succès ✅",
         description: `Retrait de ${formatCurrency(operationAmount, 'XAF')} effectué pour ${clientData.full_name}. Commission: ${formatCurrency(result.agentCommission, 'XAF')}`,
       });
 
@@ -170,15 +195,18 @@ export const useAgentWithdrawalEnhanced = () => {
       setPhoneNumber("");
       setClientData(null);
       
-      // Forcer le rafraîchissement des soldes
-      await fetchAgentBalances();
-      refreshBalance();
+      // Forcer le rafraîchissement immédiat des soldes
+      console.log("🔄 Rafraîchissement forcé des soldes...");
+      setTimeout(async () => {
+        await fetchAgentBalances();
+        refreshBalance();
+      }, 500); // Petit délai pour laisser la DB se synchroniser
       
     } catch (error) {
-      console.error("❌ Erreur retrait:", error);
+      console.error("❌ [ERROR] Erreur retrait:", error);
       toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur lors du retrait",
+        title: "Erreur lors du retrait",
+        description: error instanceof Error ? error.message : "Erreur inconnue lors du retrait",
         variant: "destructive"
       });
     } finally {
