@@ -133,14 +133,14 @@ const MobileDashboard = memo(({
             </div>
           </div>
 
-          {/* Carte solde avec MONTANT ÉNORME */}
+          {/* Carte solde avec MONTANT VRAIMENT ÉNORME */}
           <div className="relative group mb-4">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur opacity-75"></div>
             <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-xl text-white">
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <h3 className="font-medium text-white/90 text-lg mb-3">Solde disponible</h3>
-                  <p className="text-6xl font-bold text-yellow-200 mb-2 break-all">
+                  <p className="text-8xl font-bold text-yellow-200 mb-2 break-all leading-none">
                     {showBalance ? formatCurrency(convertedBalance, userCurrency) : "••••••"}
                   </p>
                 </div>
@@ -158,76 +158,76 @@ const MobileDashboard = memo(({
 
       {/* Contenu principal qui occupe EXACTEMENT tout l'espace restant */}
       <div className="flex-1 overflow-hidden">
-        <div className="h-full px-3 py-3 space-y-4 overflow-y-auto pb-0">
-          {/* Informations utilisateur avec avatar et texte agrandis */}
-          <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-l-4 border-l-blue-500">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
-                  {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'U'}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-2xl font-bold text-gray-900 truncate mb-2">
-                    {userProfile?.full_name || 'Utilisateur'}
-                  </h2>
-                  <div className="flex items-center gap-2 text-lg text-gray-600 mb-1">
-                    <Phone className="w-5 h-5" />
-                    <span className="truncate">{userProfile?.phone || 'Non disponible'}</span>
+        <div className="h-full px-3 py-3 overflow-y-auto">
+          <div className="space-y-4">
+            {/* Informations utilisateur avec avatar et texte agrandis */}
+            <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-l-4 border-l-blue-500">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+                    {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'U'}
                   </div>
-                  {userProfile?.country && (
-                    <div className="flex items-center gap-2 text-lg text-gray-500">
-                      <MapPin className="w-5 h-5" />
-                      <span className="truncate">{userProfile.country}</span>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-3xl font-bold text-gray-900 truncate mb-2">
+                      {userProfile?.full_name || 'Utilisateur'}
+                    </h2>
+                    <div className="flex items-center gap-2 text-lg text-gray-600 mb-1">
+                      <Phone className="w-5 h-5" />
+                      <span className="truncate">{userProfile?.phone || 'Non disponible'}</span>
+                    </div>
+                    {userProfile?.country && (
+                      <div className="flex items-center gap-2 text-lg text-gray-500">
+                        <MapPin className="w-5 h-5" />
+                        <span className="truncate">{userProfile.country}</span>
+                      </div>
+                    )}
+                  </div>
+                  {userProfile?.is_verified && (
+                    <div className="p-2 bg-green-500 rounded-full flex-shrink-0">
+                      <Star className="w-5 h-5 text-white" />
                     </div>
                   )}
                 </div>
-                {userProfile?.is_verified && (
-                  <div className="p-2 bg-green-500 rounded-full flex-shrink-0">
-                    <Star className="w-5 h-5 text-white" />
-                  </div>
-                )}
+              </CardContent>
+            </Card>
+
+            {/* Actions principales avec design amélioré */}
+            <div>
+              <h3 className="text-base font-semibold text-gray-900 mb-3 px-1">Actions rapides</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { key: 'transfer', icon: ArrowUpRight, label: 'Transférer', description: 'Envoyer de l\'argent', colors: 'from-pink-500 to-purple-500' },
+                  { key: 'qr-code', icon: QrCode, label: 'Mon QR Code', description: 'Partager mon code', colors: 'from-green-500 to-teal-500' },
+                  { key: 'qr-payment', icon: Scan, label: 'Scanner QR', description: 'Payer avec QR', colors: 'from-indigo-500 to-blue-500' },
+                  { key: 'savings', icon: PiggyBank, label: 'Épargnes', description: 'Gérer mes économies', colors: 'from-emerald-500 to-green-500' },
+                  { key: 'transactions', icon: History, label: 'Historique', description: 'Mes transactions', colors: 'from-orange-500 to-red-500' },
+                  { key: 'bill-payments', icon: Zap, label: 'Factures', description: 'Payer mes factures', colors: 'from-yellow-500 to-amber-500' },
+                ].map(({ key, icon: Icon, label, description, colors }) => (
+                  <TouchOptimizedButton
+                    key={key}
+                    onClick={() => handleAction(key)}
+                    className={`h-24 bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-0 group relative overflow-hidden active:scale-95`}
+                  >
+                    <div className={`absolute inset-0 bg-gradient-to-r ${colors} opacity-0 group-hover:opacity-10 transition-opacity`} />
+                    <div className="flex flex-col items-center justify-center gap-1.5 relative z-10 p-2">
+                      <div className={`p-2 bg-gradient-to-r ${colors} rounded-lg shadow-sm`}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-white leading-tight">{label}</div>
+                        <div className="text-xs text-white/90 leading-tight">{description}</div>
+                      </div>
+                    </div>
+                  </TouchOptimizedButton>
+                ))}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Actions principales avec design amélioré */}
-          <div>
-            <h3 className="text-base font-semibold text-gray-900 mb-3 px-1">Actions rapides</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { key: 'transfer', icon: ArrowUpRight, label: 'Transférer', description: 'Envoyer de l\'argent', colors: 'from-pink-500 to-purple-500' },
-                { key: 'qr-code', icon: QrCode, label: 'Mon QR Code', description: 'Partager mon code', colors: 'from-green-500 to-teal-500' },
-                { key: 'qr-payment', icon: Scan, label: 'Scanner QR', description: 'Payer avec QR', colors: 'from-indigo-500 to-blue-500' },
-                { key: 'savings', icon: PiggyBank, label: 'Épargnes', description: 'Gérer mes économies', colors: 'from-emerald-500 to-green-500' },
-                { key: 'transactions', icon: History, label: 'Historique', description: 'Mes transactions', colors: 'from-orange-500 to-red-500' },
-                { key: 'bill-payments', icon: Zap, label: 'Factures', description: 'Payer mes factures', colors: 'from-yellow-500 to-amber-500' },
-              ].map(({ key, icon: Icon, label, description, colors }) => (
-                <TouchOptimizedButton
-                  key={key}
-                  onClick={() => handleAction(key)}
-                  className={`h-24 bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-0 group relative overflow-hidden active:scale-95`}
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-r ${colors} opacity-0 group-hover:opacity-10 transition-opacity`} />
-                  <div className="flex flex-col items-center justify-center gap-1.5 relative z-10 p-2">
-                    <div className={`p-2 bg-gradient-to-r ${colors} rounded-lg shadow-sm`}>
-                      <Icon className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm font-semibold text-white leading-tight">{label}</div>
-                      <div className="text-xs text-white/90 leading-tight">{description}</div>
-                    </div>
-                  </div>
-                </TouchOptimizedButton>
-              ))}
             </div>
-          </div>
 
-          {/* Historique des transactions */}
-          <EnhancedTransactionsCard />
+            {/* Historique des transactions */}
+            <EnhancedTransactionsCard />
 
-          {/* Section conseils - DERNIER ÉLÉMENT SANS MARGE EN BAS */}
-          <div className="mb-0">
-            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500 mb-0">
+            {/* Section conseils - DERNIER ÉLÉMENT COLLÉ EN BAS */}
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-l-blue-500">
               <CardContent className="p-3">
                 <h4 className="text-base font-bold text-blue-900 mb-2 flex items-center gap-2">
                   💡 Conseils & Astuces
