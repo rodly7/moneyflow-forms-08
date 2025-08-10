@@ -118,5 +118,5 @@ export class AdminReportService {
   }
 }
 
-// Re-export types for backward compatibility
-export { WeeklyReport, AgentPerformanceReport, SubAdminReport };
+// Re-export types for backward compatibility - using export type for isolatedModules
+export type { WeeklyReport, AgentPerformanceReport, SubAdminReport };
