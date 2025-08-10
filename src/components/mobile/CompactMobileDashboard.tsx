@@ -1,3 +1,4 @@
+
 import { memo, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -90,9 +91,9 @@ const CompactMobileDashboard = memo(({
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Header considérablement agrandi */}
-      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+    <div className="min-h-screen max-h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-gray-100">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -126,146 +127,147 @@ const CompactMobileDashboard = memo(({
             </div>
           </div>
           
-          {/* Carte solde considérablement agrandie */}
-          <div className="p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded text-white">
+          {/* Carte solde agrandie */}
+          <div className="p-5 bg-gradient-to-r from-blue-600 to-purple-600 rounded text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center">
-                  <Eye className="w-4 h-4" />
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                  <Eye className="w-5 h-5" />
                 </div>
-                <span className="text-base font-medium">Solde</span>
+                <span className="text-lg font-medium">Solde disponible</span>
               </div>
               <Button 
                 variant="ghost"
                 onClick={() => setShowBalance(!showBalance)}
-                className="h-7 w-7 p-0 text-white/80 hover:text-white hover:bg-white/10"
+                className="h-8 w-8 p-0 text-white/80 hover:text-white hover:bg-white/10"
               >
-                {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showBalance ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </Button>
             </div>
-            <p className="text-xl font-bold text-yellow-200 mt-2 text-center">
+            <p className="text-3xl font-bold text-yellow-200 mt-3 text-center">
               {showBalance ? formatCurrency(convertedBalance, userCurrency) : "••••••"}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Contenu principal avec éléments considérablement agrandis */}
-      <OptimizedScrollContainer maxHeight="calc(100vh - 110px)" showScrollbar={false}>
-        <div className="p-3 space-y-3">
-          {/* Grille d'actions considérablement agrandie */}
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { 
-                key: 'transfer', 
-                icon: ArrowUpRight, 
-                label: 'Envoyer', 
-                colors: 'from-pink-500 to-red-500' 
-              },
-              { 
-                key: 'qr-code', 
-                icon: QrCode, 
-                label: 'Mon QR', 
-                colors: 'from-green-500 to-emerald-500' 
-              },
-              { 
-                key: 'qr-payment', 
-                icon: Scan, 
-                label: 'Scanner', 
-                colors: 'from-blue-500 to-indigo-500' 
-              },
-              { 
-                key: 'savings', 
-                icon: PiggyBank, 
-                label: 'Épargne', 
-                colors: 'from-emerald-500 to-teal-500' 
-              },
-              { 
-                key: 'transactions', 
-                icon: History, 
-                label: 'Historique', 
-                colors: 'from-orange-500 to-amber-500' 
-              },
-              { 
-                key: 'bill-payments', 
-                icon: Zap, 
-                label: 'Factures', 
-                colors: 'from-purple-500 to-violet-500' 
-              },
-            ].map(({ key, icon: Icon, label, colors }) => (
-              <Card key={key} className="overflow-hidden shadow-sm">
-                <CardContent className="p-0">
-                  <button
-                    onClick={() => handleAction(key)}
-                    className="w-full h-18 flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className={`p-2 bg-gradient-to-r ${colors} rounded`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    <span className="text-base font-medium text-gray-800 text-center leading-tight">
-                      {label}
-                    </span>
-                  </button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      {/* Contenu principal avec scroll optimisé pour remplir tout l'espace */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <OptimizedScrollContainer maxHeight="100%" showScrollbar={false}>
+          <div className="p-3 space-y-3 pb-0">
+            {/* Grille d'actions */}
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { 
+                  key: 'transfer', 
+                  icon: ArrowUpRight, 
+                  label: 'Envoyer', 
+                  colors: 'from-pink-500 to-red-500' 
+                },
+                { 
+                  key: 'qr-code', 
+                  icon: QrCode, 
+                  label: 'Mon QR', 
+                  colors: 'from-green-500 to-emerald-500' 
+                },
+                { 
+                  key: 'qr-payment', 
+                  icon: Scan, 
+                  label: 'Scanner', 
+                  colors: 'from-blue-500 to-indigo-500' 
+                },
+                { 
+                  key: 'savings', 
+                  icon: PiggyBank, 
+                  label: 'Épargne', 
+                  colors: 'from-emerald-500 to-teal-500' 
+                },
+                { 
+                  key: 'transactions', 
+                  icon: History, 
+                  label: 'Historique', 
+                  colors: 'from-orange-500 to-amber-500' 
+                },
+                { 
+                  key: 'bill-payments', 
+                  icon: Zap, 
+                  label: 'Factures', 
+                  colors: 'from-purple-500 to-violet-500' 
+                },
+              ].map(({ key, icon: Icon, label, colors }) => (
+                <Card key={key} className="overflow-hidden shadow-sm">
+                  <CardContent className="p-0">
+                    <button
+                      onClick={() => handleAction(key)}
+                      className="w-full h-18 flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className={`p-2 bg-gradient-to-r ${colors} rounded`}>
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+                      <span className="text-base font-medium text-gray-800 text-center leading-tight">
+                        {label}
+                      </span>
+                    </button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
 
-          {/* Infos utilisateur agrandies */}
-          <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-l-2 border-l-blue-500">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-base font-bold flex-shrink-0">
-                  {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 text-base text-gray-600">
-                    <Phone className="w-4 h-4" />
-                    <span className="truncate">{userProfile?.phone || 'N/A'}</span>
+            {/* Infos utilisateur agrandies */}
+            <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-l-2 border-l-blue-500">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
+                    {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : <User className="w-5 h-5" />}
                   </div>
-                  {userProfile?.country && (
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <MapPin className="w-4 h-4" />
-                      <span className="truncate">{userProfile.country}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-lg text-gray-600 mb-1">
+                      <Phone className="w-5 h-5" />
+                      <span className="truncate font-medium">{userProfile?.phone || 'N/A'}</span>
+                    </div>
+                    {userProfile?.country && (
+                      <div className="flex items-center gap-2 text-base text-gray-500">
+                        <MapPin className="w-4 h-4" />
+                        <span className="truncate">{userProfile.country}</span>
+                      </div>
+                    )}
+                  </div>
+                  {userProfile?.is_verified && (
+                    <div className="p-2 bg-green-500 rounded-full flex-shrink-0">
+                      <Star className="w-5 h-5 text-white" />
                     </div>
                   )}
                 </div>
-                {userProfile?.is_verified && (
-                  <div className="p-2 bg-green-500 rounded-full flex-shrink-0">
-                    <Star className="w-4 h-4 text-white" />
+              </CardContent>
+            </Card>
+
+            {/* Section conseils */}
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-2 border-l-blue-500">
+              <CardContent className="p-3">
+                <h4 className="text-base font-bold text-blue-900 mb-2 flex items-center gap-2">
+                  💡 Conseils
+                </h4>
+                <div className="space-y-2 text-base text-blue-800">
+                  <div className="flex items-center gap-2">
+                    <QrCode className="w-4 h-4 flex-shrink-0" />
+                    <span>QR pour retraits rapides</span>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="flex items-center gap-2">
+                    <ArrowUpRight className="w-4 h-4 flex-shrink-0" />
+                    <span>Transferts 24h/24</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 flex-shrink-0" />
+                    <span>Factures en ligne</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Section conseils agrandie */}
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-2 border-l-blue-500">
-            <CardContent className="p-3">
-              <h4 className="text-base font-bold text-blue-900 mb-2 flex items-center gap-2">
-                💡 Conseils
-              </h4>
-              <div className="space-y-2 text-base text-blue-800">
-                <div className="flex items-center gap-2">
-                  <QrCode className="w-4 h-4 flex-shrink-0" />
-                  <span>QR pour retraits rapides</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <ArrowUpRight className="w-4 h-4 flex-shrink-0" />
-                  <span>Transferts 24h/24</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 flex-shrink-0" />
-                  <span>Factures en ligne</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Espace pour le scroll */}
-          <div className="h-8"></div>
-        </div>
-      </OptimizedScrollContainer>
+            {/* Espace final éliminé - contenu va jusqu'en bas */}
+          </div>
+        </OptimizedScrollContainer>
+      </div>
     </div>
   );
 });
