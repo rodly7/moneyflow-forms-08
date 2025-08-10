@@ -7,6 +7,8 @@ import { AdminUsersManagement } from '@/components/admin/AdminUsersManagement';
 import { AgentManagementPanel } from '@/components/admin/AgentManagementPanel';
 import { RevenueAnalytics } from '@/components/admin/RevenueAnalytics';
 import { SimpleTransactionsList } from '@/components/admin/SimpleTransactionsList';
+import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
+import { SimpleSettingsTab } from '@/components/admin/SimpleSettingsTab';
 import LogoutButton from '@/components/auth/LogoutButton';
 
 export default function MainAdminDashboard() {
@@ -53,6 +55,7 @@ export default function MainAdminDashboard() {
     { id: 'agents', label: 'Gestion Agents', icon: '🔧' },
     { id: 'revenue', label: 'Revenus & Analytics', icon: '💰' },
     { id: 'transactions', label: 'Transactions', icon: '💸' },
+    { id: 'messages', label: 'Messages', icon: '📧' },
     { id: 'settings', label: 'Paramètres', icon: '⚙️' },
   ];
 
@@ -68,31 +71,10 @@ export default function MainAdminDashboard() {
         return <RevenueAnalytics />;
       case 'transactions':
         return <SimpleTransactionsList />;
+      case 'messages':
+        return <SimpleMessagesTab />;
       case 'settings':
-        return (
-          <div className="p-6 bg-white rounded-lg shadow-sm">
-            <h2 className="text-2xl font-bold mb-4">Paramètres système</h2>
-            <p className="text-gray-600 mb-6">Configuration et paramètres avancés du système.</p>
-            <div className="space-y-4">
-              <button
-                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-                onClick={() => {
-                  if (confirm('Êtes-vous sûr de vouloir redémarrer le système ?')) {
-                    alert('Redémarrage du système...');
-                  }
-                }}
-              >
-                🔄 Redémarrer système
-              </button>
-              <button
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors ml-4"
-                onClick={() => alert('Sauvegarde en cours...')}
-              >
-                💾 Sauvegarder données
-              </button>
-            </div>
-          </div>
-        );
+        return <SimpleSettingsTab />;
       default:
         return <SimpleAdminDashboard />;
     }
