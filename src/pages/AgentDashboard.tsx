@@ -2,7 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import MobileDashboard from "@/components/mobile/MobileDashboard";
+import AgentMobileDashboard from "@/components/agent/AgentMobileDashboard";
 
 const AgentDashboardPage = () => {
   const { profile } = useAuth();
@@ -18,8 +18,8 @@ const AgentDashboardPage = () => {
     return null;
   }
 
-  // Utiliser directement le MobileDashboard pour les agents
-  return <MobileDashboard />;
+  // Interface spécialement conçue pour les agents
+  return <AgentMobileDashboard />;
 };
 
 export default AgentDashboardPage;
