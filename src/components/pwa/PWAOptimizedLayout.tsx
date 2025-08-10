@@ -42,7 +42,8 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
           fontSize: '16px',
           lineHeight: '1.3',
           paddingBottom: '0px',
-          height: 'calc(100% - env(safe-area-inset-top))',
+          paddingTop: '16px', // Ajout d'une marge en haut
+          height: 'calc(100% - env(safe-area-inset-top) - 16px)', // Ajustement de la hauteur
           marginBottom: '0px'
         }}
       >
