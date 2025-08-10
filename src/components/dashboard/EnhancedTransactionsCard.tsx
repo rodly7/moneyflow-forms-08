@@ -1,400 +1,315 @@
 
-import React from 'react';
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownLeft, Eye, History, CreditCard, Plus } from "lucide-react";
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { formatCurrency } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { Button } from "@/components/ui/button";
+import { ArrowUpRight, ArrowDownLeft, CreditCard, Zap, History, RefreshCw } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
 
 interface Transaction {
   id: string;
-  type: 'sent' | 'received' | 'withdrawal' | 'deposit' | 'bill_payment';
+  type: 'transfer_sent' | 'transfer_received' | 'withdrawal' | 'deposit' | 'bill_payment';
   amount: number;
-  description: string;
-  date: string;
+  created_at: string;
   status: string;
+  description?: string;
+  recipient_full_name?: string;
+  sender_full_name?: string;
+  bill_type?: string;
+  provider?: string;
 }
 
 const EnhancedTransactionsCard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Récupérer les transferts envoyés
-  const { data: sentTransfers } = useQuery({
-    queryKey: ['sent-transfers', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      console.log('🔄 Récupération des transferts envoyés pour:', user.id);
-      
-      const { data, error } = await supabase
+  const fetchTransactions = async () => {
+    if (!user?.id) return;
+
+    setIsLoading(true);
+    try {
+      // Récupérer les transferts envoyés
+      const { data: sentTransfers } = await supabase
         .from('transfers')
         .select('*')
         .eq('sender_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) {
-        console.error('❌ Erreur transferts envoyés:', error);
-        throw error;
-      }
-      
-      console.log('✅ Transferts envoyés récupérés:', data?.length || 0);
-      return data || [];
-    },
-    enabled: !!user?.id,
-    refetchInterval: 3000, // Rafraîchir toutes les 3 secondes
-  });
-
-  // Récupérer les transferts reçus - CORRIGÉ
-  const { data: receivedTransfers } = useQuery({
-    queryKey: ['received-transfers-history', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      console.log('🔄 Récupération des transferts reçus pour user.id:', user.id);
-      console.log('🔄 Téléphone utilisateur:', user.phone);
-      
-      // Rechercher par recipient_id ET par recipient_phone pour couvrir tous les cas
-      const { data, error } = await supabase
+      // Récupérer les transferts reçus
+      const { data: receivedTransfers } = await supabase
         .from('transfers')
-        .select('*, sender_profile:profiles!transfers_sender_id_fkey(full_name)')
-        .or(`recipient_id.eq.${user.id},recipient_phone.eq.${user.phone}`)
-        .neq('sender_id', user.id) // Exclure les transferts envoyés par l'utilisateur
-        .eq('status', 'completed')
+        .select('*')
+        .or(`recipient_phone.eq.${user.phone},recipient_email.eq.${user.email}`)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) {
-        console.error('❌ Erreur transferts reçus:', error);
-        return []; // Retourner un tableau vide en cas d'erreur
-      }
-      
-      console.log('✅ Transferts reçus récupérés:', data?.length || 0);
-      console.log('📋 Détails transferts reçus:', data);
-      return data || [];
-    },
-    enabled: !!user?.id && !!user?.phone,
-    refetchInterval: 3000, // Rafraîchir toutes les 3 secondes
-  });
-
-  // Récupérer les retraits
-  const { data: withdrawals } = useQuery({
-    queryKey: ['withdrawals-history', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      console.log('🔄 Récupération des retraits pour:', user.id);
-      
-      const { data, error } = await supabase
+      // Récupérer les retraits
+      const { data: withdrawals } = await supabase
         .from('withdrawals')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) {
-        console.error('❌ Erreur retraits:', error);
-        return [];
-      }
-      
-      console.log('✅ Retraits récupérés:', data?.length || 0);
-      return data || [];
-    },
-    enabled: !!user?.id,
-    refetchInterval: 3000,
-  });
-
-  // Récupérer les dépôts/recharges
-  const { data: deposits } = useQuery({
-    queryKey: ['deposits-history', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      console.log('🔄 Récupération des dépôts pour:', user.id);
-      
-      const { data, error } = await supabase
-        .from('recharges')
+      // Récupérer les dépôts
+      const { data: deposits } = await supabase
+        .from('deposits')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) {
-        console.error('❌ Erreur dépôts:', error);
-        return [];
-      }
-      
-      console.log('✅ Dépôts récupérés:', data?.length || 0);
-      return data || [];
-    },
-    enabled: !!user?.id,
-    refetchInterval: 3000,
-  });
-
-  // Récupérer les paiements de factures depuis les transactions existantes
-  const { data: billPayments } = useQuery({
-    queryKey: ['bill-payments-history', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      console.log('🔄 Récupération des paiements de factures pour:', user.id);
-      
-      // Chercher dans les recharges avec payment_method contenant "bill" ou dans un champ spécifique
-      const { data, error } = await supabase
-        .from('recharges')
+      // Récupérer les paiements de factures
+      const { data: billPayments } = await supabase
+        .from('bill_payments')
         .select('*')
         .eq('user_id', user.id)
-        .or('payment_method.ilike.%bill%,payment_method.ilike.%facture%')
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) {
-        console.error('❌ Erreur paiements factures:', error);
-        return [];
-      }
-      
-      console.log('✅ Paiements de factures récupérés:', data?.length || 0);
-      console.log('📋 Détails paiements factures:', data);
-      return data || [];
-    },
-    enabled: !!user?.id,
-    refetchInterval: 3000,
-  });
+      // Combiner toutes les transactions
+      const allTransactions: Transaction[] = [];
 
-  // Combiner et trier toutes les transactions - CORRIGÉ
-  const allTransactions: Transaction[] = React.useMemo(() => {
-    const transactions: Transaction[] = [];
-
-    console.log('🔄 Combinaison des transactions...');
-    console.log('📊 Données disponibles:', {
-      sentTransfers: sentTransfers?.length || 0,
-      receivedTransfers: receivedTransfers?.length || 0,
-      withdrawals: withdrawals?.length || 0,
-      deposits: deposits?.length || 0,
-      billPayments: billPayments?.length || 0,
-    });
-
-    // Ajouter les transferts envoyés
-    sentTransfers?.forEach(transfer => {
-      console.log('➕ Ajout transfert envoyé:', transfer.id);
-      transactions.push({
-        id: `sent_${transfer.id}`,
-        type: 'sent',
-        amount: transfer.amount,
-        description: `Envoyé à ${transfer.recipient_full_name || transfer.recipient_phone}`,
-        date: transfer.created_at,
-        status: transfer.status
+      // Ajouter les transferts envoyés
+      sentTransfers?.forEach(transfer => {
+        allTransactions.push({
+          id: transfer.id,
+          type: 'transfer_sent',
+          amount: -transfer.amount,
+          created_at: transfer.created_at,
+          status: transfer.status,
+          description: `Transfert vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
+          recipient_full_name: transfer.recipient_full_name
+        });
       });
-    });
 
-    // Ajouter les transferts reçus - CORRIGÉ
-    receivedTransfers?.forEach(transfer => {
-      console.log('➕ Ajout transfert reçu:', transfer.id);
-      const senderName = (transfer as any).sender_profile?.full_name || 'un expéditeur';
-      transactions.push({
-        id: `received_${transfer.id}`,
-        type: 'received',
-        amount: transfer.amount,
-        description: `Reçu de ${senderName}`,
-        date: transfer.created_at,
-        status: transfer.status
+      // Ajouter les transferts reçus
+      receivedTransfers?.forEach(transfer => {
+        allTransactions.push({
+          id: transfer.id,
+          type: 'transfer_received',
+          amount: transfer.amount,
+          created_at: transfer.created_at,
+          status: transfer.status,
+          description: `Transfert reçu de ${transfer.sender_full_name || 'Expéditeur'}`,
+          sender_full_name: transfer.sender_full_name
+        });
       });
-    });
 
-    // Ajouter les retraits
-    withdrawals?.forEach(withdrawal => {
-      console.log('➕ Ajout retrait:', withdrawal.id);
-      transactions.push({
-        id: `withdrawal_${withdrawal.id}`,
-        type: 'withdrawal',
-        amount: withdrawal.amount,
-        description: `Retrait vers ${withdrawal.withdrawal_phone}`,
-        date: withdrawal.created_at,
-        status: withdrawal.status
+      // Ajouter les retraits
+      withdrawals?.forEach(withdrawal => {
+        allTransactions.push({
+          id: withdrawal.id,
+          type: 'withdrawal',
+          amount: -withdrawal.amount,
+          created_at: withdrawal.created_at,
+          status: withdrawal.status,
+          description: `Retrait ${withdrawal.withdrawal_phone || ''}`
+        });
       });
-    });
 
-    // Ajouter les dépôts
-    deposits?.forEach(deposit => {
-      console.log('➕ Ajout dépôt:', deposit.id);
-      transactions.push({
-        id: `deposit_${deposit.id}`,
-        type: 'deposit',
-        amount: deposit.amount,
-        description: `Dépôt ${deposit.payment_method || 'mobile money'}`,
-        date: deposit.created_at,
-        status: deposit.status
+      // Ajouter les dépôts
+      deposits?.forEach(deposit => {
+        allTransactions.push({
+          id: deposit.id,
+          type: 'deposit',
+          amount: deposit.amount,
+          created_at: deposit.created_at,
+          status: deposit.status || 'completed',
+          description: `Dépôt sur le compte`
+        });
       });
-    });
 
-    // Ajouter les paiements de factures - CORRIGÉ
-    billPayments?.forEach(payment => {
-      console.log('➕ Ajout paiement facture:', payment.id);
-      transactions.push({
-        id: `bill_${payment.id}`,
-        type: 'bill_payment',
-        amount: payment.amount,
-        description: `Facture ${payment.payment_method || 'payée'}`,
-        date: payment.created_at,
-        status: payment.status
+      // Ajouter les paiements de factures
+      billPayments?.forEach(payment => {
+        allTransactions.push({
+          id: payment.id,
+          type: 'bill_payment',
+          amount: -payment.amount,
+          created_at: payment.created_at,
+          status: payment.status,
+          description: `Facture ${payment.bill_type || payment.provider || 'Paiement'}`,
+          bill_type: payment.bill_type,
+          provider: payment.provider
+        });
       });
-    });
 
-    console.log('✅ Total transactions combinées:', transactions.length);
-    console.log('📊 Détail par type:', {
-      sent: transactions.filter(t => t.type === 'sent').length,
-      received: transactions.filter(t => t.type === 'received').length,
-      withdrawal: transactions.filter(t => t.type === 'withdrawal').length,
-      deposit: transactions.filter(t => t.type === 'deposit').length,
-      bill_payment: transactions.filter(t => t.type === 'bill_payment').length,
-    });
+      // Trier par date décroissante et prendre les 5 plus récentes
+      allTransactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setTransactions(allTransactions.slice(0, 5));
 
-    // Trier par date décroissante et prendre les 5 plus récentes
-    const sortedTransactions = transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
-    
-    console.log('🔄 Transactions affichées (5 plus récentes):', sortedTransactions);
-    
-    return sortedTransactions;
-  }, [sentTransfers, receivedTransfers, withdrawals, deposits, billPayments, user?.id]);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des transactions:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les transactions récentes",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [user?.id]);
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
-      case 'sent':
-        return <ArrowUpRight className="w-4 h-4 text-red-500" />;
-      case 'received':
-        return <ArrowDownLeft className="w-4 h-4 text-green-500" />;
+      case 'transfer_sent':
+        return <ArrowUpRight className="w-6 h-6 text-red-500" />;
+      case 'transfer_received':
+        return <ArrowDownLeft className="w-6 h-6 text-green-500" />;
       case 'withdrawal':
-        return <ArrowUpRight className="w-4 h-4 text-blue-500" />;
+        return <CreditCard className="w-6 h-6 text-orange-500" />;
       case 'deposit':
-        return <Plus className="w-4 h-4 text-green-500" />;
+        return <ArrowDownLeft className="w-6 h-6 text-blue-500" />;
       case 'bill_payment':
-        return <CreditCard className="w-4 h-4 text-orange-500" />;
+        return <Zap className="w-6 h-6 text-purple-500" />;
       default:
-        return <History className="w-4 h-4 text-gray-500" />;
+        return <History className="w-6 h-6 text-gray-500" />;
     }
   };
 
-  const getTransactionColor = (type: string) => {
-    switch (type) {
-      case 'sent':
-      case 'withdrawal':
-      case 'bill_payment':
-        return 'text-red-600';
-      case 'received':
-      case 'deposit':
-        return 'text-green-600';
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-700';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'failed':
+        return 'bg-red-100 text-red-700';
       default:
-        return 'text-gray-600';
+        return 'bg-gray-100 text-gray-700';
     }
   };
 
-  const getAmountPrefix = (type: string) => {
-    switch (type) {
-      case 'sent':
-      case 'withdrawal':
-      case 'bill_payment':
-        return '-';
-      case 'received':
-      case 'deposit':
-        return '+';
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'Terminé';
+      case 'pending':
+        return 'En cours';
+      case 'failed':
+        return 'Échoué';
       default:
-        return '';
+        return status;
     }
   };
 
-  const getTransactionTypeLabel = (type: string) => {
-    switch (type) {
-      case 'sent':
-        return 'Envoi';
-      case 'received':
-        return 'Reçu';
-      case 'withdrawal':
-        return 'Retrait';
-      case 'deposit':
-        return 'Dépôt';
-      case 'bill_payment':
-        return 'Facture';
-      default:
-        return 'Transaction';
-    }
-  };
-
-  return (
-    <Card className="bg-white shadow-sm">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-            <History className="w-4 h-4" />
-            Historique récent
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <History className="w-5 h-5" />
+            Transactions récentes
           </CardTitle>
-          <button
-            onClick={() => navigate('/transactions')}
-            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-          >
-            <Eye className="w-3 h-3" />
-            Voir tout
-          </button>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="space-y-3">
-          {allTransactions.length === 0 ? (
-            <div className="text-center py-6 text-gray-500">
-              <History className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm">Aucune transaction récente</p>
-              <p className="text-xs text-gray-400 mt-1">Mise à jour automatique toutes les 3 secondes</p>
-            </div>
-          ) : (
-            allTransactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors border border-gray-100"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gray-100 rounded-full">
-                    {getTransactionIcon(transaction.type)}
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="flex items-center gap-4 p-4 rounded-lg border">
+                  <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-2/3"></div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs px-2 py-1 rounded-full bg-gray-200 text-gray-700 font-medium">
-                        {getTransactionTypeLabel(transaction.type)}
-                      </span>
-                    </div>
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {transaction.description}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(transaction.date).toLocaleDateString('fr-FR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className={`text-sm font-semibold ${getTransactionColor(transaction.type)}`}>
-                    {getAmountPrefix(transaction.type)}{formatCurrency(transaction.amount, 'XAF')}
-                  </p>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    transaction.status === 'completed' 
-                      ? 'bg-green-100 text-green-700' 
-                      : transaction.status === 'pending'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}>
-                    {transaction.status === 'completed' ? 'Terminé' : 
-                     transaction.status === 'pending' ? 'En cours' : transaction.status}
-                  </span>
+                  <div className="h-6 w-20 bg-gray-200 rounded"></div>
                 </div>
               </div>
-            ))
-          )}
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <History className="w-5 h-5" />
+            Transactions récentes
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchTransactions}
+            className="h-8 w-8 p-0"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </Button>
         </div>
+      </CardHeader>
+      <CardContent>
+        {transactions.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <History className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p className="text-sm">Aucune transaction récente</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {transactions.map((transaction) => (
+              <div
+                key={transaction.id}
+                className="flex items-center gap-4 p-4 rounded-lg border hover:bg-gray-50 transition-colors cursor-pointer"
+                onClick={() => navigate('/transactions')}
+              >
+                <div className="p-3 rounded-full bg-gray-100 flex-shrink-0">
+                  {getTransactionIcon(transaction.type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-900 text-base truncate">
+                    {transaction.description}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm text-gray-500">
+                      {format(new Date(transaction.created_at), 'dd/MM à HH:mm', { locale: fr })}
+                    </p>
+                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(transaction.status)}`}>
+                      {getStatusText(transaction.status)}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className={`font-semibold text-base ${
+                    transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {transaction.amount > 0 ? '+' : ''}
+                    {new Intl.NumberFormat('fr-FR', {
+                      style: 'currency',
+                      currency: 'XAF',
+                      maximumFractionDigits: 0
+                    }).format(Math.abs(transaction.amount))}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {transactions.length > 0 && (
+          <div className="pt-4 border-t mt-4">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate('/transactions')}
+            >
+              Voir toutes les transactions
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

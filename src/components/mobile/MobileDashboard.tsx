@@ -11,6 +11,7 @@ import { CustomerServiceButton } from "@/components/notifications/CustomerServic
 import { TouchOptimizedButton } from "./TouchOptimizedButton";
 import { OptimizedScrollContainer } from "./OptimizedScrollContainer";
 import EnhancedTransactionsCard from "@/components/dashboard/EnhancedTransactionsCard";
+import UnifiedNotificationBell from "@/components/notifications/UnifiedNotificationBell";
 
 interface MobileDashboardProps {
   userBalance: number;
@@ -116,6 +117,7 @@ const MobileDashboard = memo(({
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
+              <UnifiedNotificationBell />
               <CustomerServiceButton />
               <button 
                 onClick={onRefresh}
@@ -140,7 +142,7 @@ const MobileDashboard = memo(({
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <h3 className="font-medium text-white/90 text-base mb-2">Solde disponible</h3>
-                  <p className="text-3xl font-bold text-yellow-200 mb-2 break-all">
+                  <p className="text-4xl font-bold text-yellow-200 mb-2 break-all">
                     {showBalance ? formatCurrency(convertedBalance, userCurrency) : "••••••"}
                   </p>
                 </div>
