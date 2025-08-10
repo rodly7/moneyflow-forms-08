@@ -98,21 +98,21 @@ const MobileDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header avec notification et déconnexion - Tailles légèrement réduites */}
+      {/* Header avec notification et déconnexion */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
-            <Avatar className="h-16 w-16 border-2 border-white/20">
+            <Avatar className="h-14 w-14 border-2 border-white/20">
               <AvatarImage src={profile?.avatar_url} />
-              <AvatarFallback className="bg-white/10 text-white font-semibold text-xl">
+              <AvatarFallback className="bg-white/10 text-white font-semibold text-lg">
                 {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-xl font-semibold leading-tight">
+              <h1 className="text-lg font-semibold leading-tight">
                 Bonjour {profile?.full_name || 'Utilisateur'} 👋
               </h1>
-              <p className="text-blue-100 text-base mt-2 leading-relaxed">
+              <p className="text-blue-100 text-sm mt-2 leading-relaxed">
                 {new Date().toLocaleDateString('fr-FR', { 
                   weekday: 'long', 
                   year: 'numeric', 
@@ -128,30 +128,30 @@ const MobileDashboard: React.FC = () => {
               onClick={handleLogout}
               variant="outline"
               size="sm"
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white text-base p-2"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white text-sm p-2"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>
 
-        {/* Solde avec option de masquage - Taille légèrement réduite */}
+        {/* Solde avec option de masquage */}
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-blue-100 text-xl font-medium leading-tight">Solde disponible</p>
+            <p className="text-blue-100 text-lg font-medium leading-tight">Solde disponible</p>
             <Button
               onClick={toggleBalanceVisibility}
               variant="ghost"
               size="sm"
               className="text-white hover:bg-white/10 p-2"
             >
-              {isBalanceVisible ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+              {isBalanceVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </Button>
           </div>
-          <p className="text-5xl font-bold mb-4 text-yellow-200 leading-none">
+          <p className="text-4xl font-bold mb-4 text-yellow-200 leading-none">
             {formatBalanceDisplay(currentBalance || profile?.balance || 0)}
           </p>
-          <div className="flex items-center space-x-2 text-base text-blue-100">
+          <div className="flex items-center space-x-2 text-sm text-blue-100">
             <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
             <span>Mise à jour toutes les 5 secondes</span>
           </div>
