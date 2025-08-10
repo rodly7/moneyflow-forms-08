@@ -2,7 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import AgentMobileDashboard from "@/components/agent/AgentMobileDashboard";
+import MobileAgentDashboard from "@/components/agent/MobileAgentDashboard";
 
 const AgentDashboardPage = () => {
   const { profile } = useAuth();
@@ -18,8 +18,7 @@ const AgentDashboardPage = () => {
     return null;
   }
 
-  // Interface spécialement conçue pour les agents
-  return <AgentMobileDashboard />;
+  return <MobileAgentDashboard />;
 };
 
 export default AgentDashboardPage;
