@@ -32,91 +32,86 @@ export class AdminReportService {
   }
 
   static async getSubAdminsData(): Promise<SubAdminReport[]> {
-    return SubAdminReportService.getSubAdminsData();
+    return SubAdminReportService.getSubAdminReports();
   }
 
   static async getTreasuryRevenue(startDate: Date, endDate: Date) {
-    // Récupérer tous les audit logs pour les opérations de revenus
-    const { data: auditLogs } = await supabase
-      .from('audit_logs')
-      .select('*')
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
-      .in('action', ['platform_commission', 'transfer_fee', 'admin_credit']);
+    try {
+      // Récupérer les transferts complétés pour calculer les revenus
+      const { data: transfers } = await supabase
+        .from('transfers')
+        .select('amount, fees, created_at')
+        .eq('status', 'completed')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
 
-    // Calculer les revenus exacts de SendFlow
-    let platformRevenue = 0;
-    let totalFees = 0;
-    let adminCredits = 0;
-
-    auditLogs?.forEach(log => {
-      try {
-        const newValues = log.new_values;
-        if (newValues && typeof newValues === 'object' && !Array.isArray(newValues)) {
-          const amount = (newValues as Record<string, any>).amount;
-          const amountNum = amount ? Number(amount) : 0;
-          
-          if (log.action === 'platform_commission') {
-            platformRevenue += amountNum;
-          } else if (log.action === 'transfer_fee') {
-            totalFees += amountNum;
-          } else if (log.action === 'admin_credit') {
-            adminCredits += amountNum;
-          }
-        }
-      } catch (error) {
-        console.warn('Error parsing audit log:', log.id, error);
-      }
-    });
-
-    return {
-      platformRevenue,
-      totalFees,
-      adminCredits,
-      netRevenue: platformRevenue + totalFees - adminCredits
-    };
+      const totalFees = transfers?.reduce((sum, t) => sum + (t.fees || 0), 0) || 0;
+      const platformRevenue = totalFees * 0.6; // 60% pour la plateforme
+      
+      return {
+        platformRevenue,
+        totalFees,
+        adminCredits: 0,
+        netRevenue: platformRevenue
+      };
+    } catch (error) {
+      console.error('Erreur calcul revenus:', error);
+      return {
+        platformRevenue: 0,
+        totalFees: 0,
+        adminCredits: 0,
+        netRevenue: 0
+      };
+    }
   }
 
   static async getRecentTransactions(limit: number = 50) {
-    // Récupérer toutes les transactions récentes avec tous les détails
-    const { data: transfers } = await supabase
-      .from('transfers')
-      .select(`
-        *,
-        sender:profiles!transfers_sender_id_fkey(full_name, phone)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    try {
+      // Récupérer les transferts récents
+      const { data: transfers } = await supabase
+        .from('transfers')
+        .select(`
+          *,
+          sender:profiles!transfers_sender_id_fkey(full_name, phone)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
-    const { data: withdrawals } = await supabase
-      .from('withdrawals')
-      .select(`
-        *,
-        user:profiles!withdrawals_user_id_fkey(full_name, phone)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+      // Récupérer les retraits récents
+      const { data: withdrawals } = await supabase
+        .from('withdrawals')
+        .select(`
+          *,
+          user:profiles!withdrawals_user_id_fkey(full_name, phone)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
-    const { data: deposits } = await supabase
-      .from('recharges')
-      .select(`
-        *,
-        user:profiles!recharges_user_id_fkey(full_name, phone)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+      // Récupérer les dépôts récents
+      const { data: deposits } = await supabase
+        .from('recharges')
+        .select(`
+          *,
+          user:profiles!recharges_user_id_fkey(full_name, phone)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
-    // Combiner et trier toutes les transactions
-    const allTransactions = [
-      ...(transfers || []).map(t => ({ ...t, type: 'transfer', timestamp: t.created_at })),
-      ...(withdrawals || []).map(w => ({ ...w, type: 'withdrawal', timestamp: w.created_at })),
-      ...(deposits || []).map(d => ({ ...d, type: 'deposit', timestamp: d.created_at }))
-    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-     .slice(0, limit);
+      // Combiner et trier toutes les transactions
+      const allTransactions = [
+        ...(transfers || []).map(t => ({ ...t, type: 'transfer', timestamp: t.created_at })),
+        ...(withdrawals || []).map(w => ({ ...w, type: 'withdrawal', timestamp: w.created_at })),
+        ...(deposits || []).map(d => ({ ...d, type: 'deposit', timestamp: d.created_at }))
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+       .slice(0, limit);
 
-    return allTransactions;
+      return allTransactions;
+    } catch (error) {
+      console.error('Erreur récupération transactions récentes:', error);
+      return [];
+    }
   }
 }
 
-// Re-export types for backward compatibility - using export type for isolatedModules
+// Re-export types for backward compatibility
 export type { WeeklyReport, AgentPerformanceReport, SubAdminReport };

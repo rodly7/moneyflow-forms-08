@@ -1,10 +1,18 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, XCircle, TrendingUp, Calendar } from "lucide-react";
-import { AdminDashboardStats } from "@/hooks/useAdminDashboardData";
+
+interface Anomaly {
+  id: string;
+  type: 'suspicious_transfer' | 'cancelled_transfer' | 'high_volume';
+  description: string;
+  amount?: number;
+  created_at: string;
+}
 
 interface AnomaliesCardProps {
-  anomalies: AdminDashboardStats['anomalies'];
+  anomalies: Anomaly[];
   isLoading: boolean;
 }
 

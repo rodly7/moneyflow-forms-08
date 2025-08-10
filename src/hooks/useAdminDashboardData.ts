@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useSystemMetrics } from './useSystemMetrics';
 
 export interface AgentPerformanceData {
   agent_id: string;
@@ -39,11 +38,6 @@ export interface AdminDashboardStats {
     amount?: number;
     created_at: string;
   }>;
-  systemMetrics?: {
-    onlineUsers: number;
-    agentLocations: number;
-    systemStatus: string;
-  };
 }
 
 export const useAdminDashboardData = () => {
@@ -62,109 +56,85 @@ export const useAdminDashboardData = () => {
     pendingAgents: 0,
     topAgent: null,
     agents: [],
-    anomalies: [],
-    systemMetrics: {
-      onlineUsers: 0,
-      agentLocations: 0,
-      systemStatus: 'operational'
-    }
+    anomalies: []
   });
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { data: systemMetrics } = useSystemMetrics();
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Récupérer tous les utilisateurs pour avoir le compte total
-      const { data: allUsersData, error: usersError } = await supabase
+      console.log('🔄 Chargement des données du tableau de bord admin...');
+
+      // Récupérer les profils utilisateurs
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, role, is_banned, balance, created_at');
+        .select('id, role, is_banned, balance, created_at, full_name, phone');
 
-      if (usersError) throw usersError;
+      if (profilesError) {
+        console.error('Erreur profiles:', profilesError);
+        throw profilesError;
+      }
 
-      // Calculate new users today
+      // Statistiques de base
+      const totalUsers = profilesData?.length || 0;
+      const activeUsers = profilesData?.filter(u => !u.is_banned).length || 0;
+      
+      // Calculer les nouveaux utilisateurs aujourd'hui
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const newUsersToday = allUsersData?.filter(u => 
+      const newUsersToday = profilesData?.filter(u => 
         new Date(u.created_at) >= today
       ).length || 0;
 
-      // Récupérer les agents avec leurs profils
+      // Récupérer les agents
       const { data: agentsData, error: agentsError } = await supabase
         .from('agents')
-        .select(`
-          *,
-          user_id
-        `);
+        .select('*');
 
-      if (agentsError) throw agentsError;
+      if (agentsError) {
+        console.error('Erreur agents:', agentsError);
+      }
 
-      // Count pending agents
+      const totalAgents = agentsData?.length || 0;
+      const activeAgents = agentsData?.filter(a => a.status === 'active').length || 0;
       const pendingAgents = agentsData?.filter(a => a.status === 'pending').length || 0;
 
-      // Get today's transfers for today's transaction count
-      const { data: todayTransfersData } = await supabase
+      // Récupérer les transferts du jour
+      const { data: transfersData, error: transfersError } = await supabase
         .from('transfers')
-        .select('id, amount, status')
-        .gte('created_at', today.toISOString());
+        .select('id, amount, status, created_at')
+        .gte('created_at', today.toISOString())
+        .order('created_at', { ascending: false });
 
-      const todayTransactions = todayTransfersData?.length || 0;
-      const totalTransactionVolume = todayTransfersData?.reduce((sum, t) => sum + t.amount, 0) || 0;
+      if (transfersError) {
+        console.error('Erreur transfers:', transfersError);
+      }
 
-      // Count pending transactions
-      const pendingTransactions = todayTransfersData?.filter(t => t.status === 'pending').length || 0;
+      const todayTransactions = transfersData?.length || 0;
+      const totalTransactionVolume = transfersData?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
+      const pendingTransactions = transfersData?.filter(t => t.status === 'pending').length || 0;
 
-      // Récupérer les profils des agents
-      const agentUserIds = agentsData?.map(a => a.user_id) || [];
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', agentUserIds);
-
-      // Récupérer les performances mensuelles de tous les agents
-      const currentMonth = new Date().getMonth() + 1;
-      const currentYear = new Date().getFullYear();
-
+      // Performance des agents (simplifiée)
       const agentsPerformance: AgentPerformanceData[] = [];
-      let totalCommissions = 0;
-      let totalVolume = 0;
-
-      for (const agent of agentsData || []) {
-        const profile = profilesData?.find(p => p.id === agent.user_id);
-        
-        // Récupérer les performances pour cet agent depuis la table agent_monthly_performance
-        const { data: performance } = await supabase
-          .from('agent_monthly_performance')
-          .select('*')
-          .eq('agent_id', agent.user_id)
-          .eq('month', currentMonth)
-          .eq('year', currentYear)
-          .maybeSingle();
-
-        const perfData = performance || {
-          total_volume: 0,
-          total_transactions: 0,
-          complaints_count: 0,
-          total_earnings: 0
-        };
-
-        const agentPerf: AgentPerformanceData = {
-          agent_id: agent.user_id,
-          agent_name: profile?.full_name || agent.full_name,
-          agent_phone: profile?.phone || agent.phone,
-          status: agent.status,
-          monthly_revenue: perfData.total_earnings,
-          volume_processed: perfData.total_volume,
-          transfers_count: perfData.total_transactions,
-          complaints_count: perfData.complaints_count,
-          commission_earnings: perfData.total_earnings,
-          total_earnings: perfData.total_earnings
-        };
-
-        agentsPerformance.push(agentPerf);
-        totalCommissions += perfData.total_earnings;
-        totalVolume += perfData.total_volume;
+      
+      if (agentsData && agentsData.length > 0) {
+        for (const agent of agentsData) {
+          const profile = profilesData?.find(p => p.id === agent.user_id);
+          
+          agentsPerformance.push({
+            agent_id: agent.user_id,
+            agent_name: profile?.full_name || agent.full_name || 'Agent inconnu',
+            agent_phone: profile?.phone || agent.phone || '',
+            status: agent.status,
+            monthly_revenue: agent.commission_balance || 0,
+            volume_processed: 0, // À calculer avec les vraies données
+            transfers_count: 0, // À calculer avec les vraies données
+            complaints_count: 0, // À calculer avec les vraies données
+            commission_earnings: agent.commission_balance || 0,
+            total_earnings: agent.commission_balance || 0
+          });
+        }
       }
 
       // Trouver le meilleur agent
@@ -173,52 +143,27 @@ export const useAdminDashboardData = () => {
         null as AgentPerformanceData | null
       );
 
-      // Récupérer les anomalies (transactions annulées, transferts suspects)
-      const { data: cancelledTransfers } = await supabase
-        .from('transfers')
-        .select('id, amount, created_at, recipient_full_name')
-        .eq('status', 'cancelled')
-        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-        .limit(10);
+      // Anomalies (transferts suspects)
+      const anomalies = transfersData?.filter(t => t.amount > 500000).map(t => ({
+        id: t.id,
+        type: 'high_volume' as const,
+        description: `Transfert important: ${t.amount.toLocaleString()} XAF`,
+        amount: t.amount,
+        created_at: t.created_at
+      })).slice(0, 10) || [];
 
-      const { data: suspiciousTransfers } = await supabase
-        .from('transfers')
-        .select('id, amount, created_at, recipient_full_name')
-        .gte('amount', 500000) // Transferts > 500k XAF
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-        .limit(5);
-
-      const anomalies = [
-        ...(cancelledTransfers?.map(t => ({
-          id: t.id,
-          type: 'cancelled_transfer' as const,
-          description: `Transfert annulé: ${t.amount.toLocaleString()} XAF vers ${t.recipient_full_name}`,
-          amount: t.amount,
-          created_at: t.created_at
-        })) || []),
-        ...(suspiciousTransfers?.map(t => ({
-          id: t.id,
-          type: 'high_volume' as const,
-          description: `Transfert important: ${t.amount.toLocaleString()} XAF vers ${t.recipient_full_name}`,
-          amount: t.amount,
-          created_at: t.created_at
-        })) || [])
-      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      // Calculer les statistiques utilisateurs
-      const totalUsers = allUsersData?.length || 0;
-      const activeUsers = allUsersData?.filter(u => !u.is_banned).length || 0;
-      const adminUser = allUsersData?.find(u => u.role === 'admin');
+      // Balance admin
+      const adminUser = profilesData?.find(u => u.role === 'admin');
       const adminBalance = adminUser?.balance || 0;
 
-      setData({
-        totalAgents: agentsData?.length || 0,
-        activeAgents: agentsData?.filter(a => a.status === 'active').length || 0,
+      const dashboardStats: AdminDashboardStats = {
+        totalAgents,
+        activeAgents,
         totalUsers,
         activeUsers,
         adminBalance,
-        totalCommissions,
-        totalVolume,
+        totalCommissions: agentsPerformance.reduce((sum, a) => sum + a.commission_earnings, 0),
+        totalVolume: totalTransactionVolume,
         totalTransactionVolume,
         todayTransactions,
         newUsersToday,
@@ -226,20 +171,14 @@ export const useAdminDashboardData = () => {
         pendingAgents,
         topAgent,
         agents: agentsPerformance,
-        anomalies: anomalies.slice(0, 10),
-        systemMetrics: systemMetrics ? {
-          onlineUsers: systemMetrics.onlineUsers.total,
-          agentLocations: systemMetrics.agentLocations,
-          systemStatus: systemMetrics.systemStatus.every(s => s.status_type === 'operational') ? 'operational' : 'degraded'
-        } : {
-          onlineUsers: 0,
-          agentLocations: 0,
-          systemStatus: 'operational'
-        }
-      });
+        anomalies
+      };
+
+      console.log('✅ Données chargées:', dashboardStats);
+      setData(dashboardStats);
 
     } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
+      console.error('❌ Erreur lors du chargement des données:', error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les données du tableau de bord",

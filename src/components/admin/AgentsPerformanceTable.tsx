@@ -1,7 +1,20 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, TrendingUp, DollarSign, AlertTriangle, Award } from "lucide-react";
-import { AgentPerformanceData } from "@/hooks/useAdminDashboardData";
+
+interface AgentPerformanceData {
+  agent_id: string;
+  agent_name: string;
+  agent_phone: string;
+  status: 'active' | 'pending' | 'suspended' | 'rejected';
+  monthly_revenue: number;
+  volume_processed: number;
+  transfers_count: number;
+  complaints_count: number;
+  commission_earnings: number;
+  total_earnings: number;
+}
 
 interface AgentsPerformanceTableProps {
   agents: AgentPerformanceData[];
