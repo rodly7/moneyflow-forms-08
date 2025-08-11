@@ -1,9 +1,9 @@
 
 import React from "react";
-import NewAgentDashboard from "./NewAgentDashboard";
+import AgentDashboard from "./AgentDashboard";
 
 const MobileAgentDashboard = () => {
-  return <NewAgentDashboard />;
+  return <AgentDashboard />;
 };
 
 export default MobileAgentDashboard;

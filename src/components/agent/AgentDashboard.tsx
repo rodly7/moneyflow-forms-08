@@ -18,7 +18,9 @@ import {
   Award,
   Settings,
   FileText,
-  BarChart3
+  BarChart3,
+  RefreshCw,
+  Bell
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/integrations/supabase/client";
@@ -26,7 +28,7 @@ import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotif
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
 import { toast } from "sonner";
 
-const AgentMobileDashboard: React.FC = () => {
+const AgentDashboard: React.FC = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
@@ -53,42 +55,42 @@ const AgentMobileDashboard: React.FC = () => {
     setIsBalanceVisible(!isBalanceVisible);
   };
 
-  // Actions rapides pour agents
+  // Actions rapides pour agents avec thème orange/rouge
   const quickActions = [
     {
       title: "Retrait Client",
       icon: ArrowUpRight,
-      color: "from-red-500 to-pink-500",
+      color: "from-orange-500 to-red-500",
       onClick: () => navigate('/agent-withdrawal-advanced')
     },
     {
       title: "Dépôt Client",
       icon: ArrowDownLeft,
-      color: "from-blue-500 to-cyan-500",
+      color: "from-red-500 to-pink-500",
       onClick: () => navigate('/agent-deposit')
     },
     {
       title: "QR Code",
       icon: QrCode,
-      color: "from-purple-500 to-violet-500",
+      color: "from-orange-600 to-amber-600",
       onClick: () => navigate('/qr-code')
     },
     {
       title: "Scanner",
       icon: Scan,
-      color: "from-indigo-500 to-blue-500",
+      color: "from-red-600 to-orange-600",
       onClick: () => navigate('/qr-payment')
     },
     {
       title: "Services Agent",
       icon: Users,
-      color: "from-teal-500 to-green-500",
+      color: "from-amber-500 to-orange-500",
       onClick: () => navigate('/agent-services')
     },
     {
       title: "Recharge Mobile",
       icon: Smartphone,
-      color: "from-orange-500 to-amber-500",
+      color: "from-pink-500 to-red-500",
       onClick: () => navigate('/mobile-recharge')
     }
   ];
@@ -101,9 +103,9 @@ const AgentMobileDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header avec notification et déconnexion */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50">
+      {/* Header avec thème orange/rouge pour agent */}
+      <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white p-6 rounded-b-3xl shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-14 w-14 border-2 border-white/20">
@@ -113,10 +115,10 @@ const AgentMobileDashboard: React.FC = () => {
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-lg font-semibold leading-tight">
+              <h1 className="text-xl font-semibold leading-tight">
                 Agent {profile?.full_name || 'Dashboard'} 🏪
               </h1>
-              <p className="text-blue-100 text-sm mt-2 leading-relaxed">
+              <p className="text-orange-100 text-sm mt-1 leading-relaxed">
                 {new Date().toLocaleDateString('fr-FR', { 
                   weekday: 'long', 
                   year: 'numeric', 
@@ -129,35 +131,45 @@ const AgentMobileDashboard: React.FC = () => {
           <div className="flex items-center space-x-3">
             <UnifiedNotificationBell />
             <Button
+              onClick={fetchAgentBalances}
+              variant="outline"
+              size="sm"
+              disabled={isLoadingBalance}
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button
               onClick={handleLogout}
               variant="outline"
               size="sm"
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white text-sm p-2"
+              className="bg-red-500/20 border-red-300/30 text-white hover:bg-red-500/30 hover:text-white flex items-center gap-2"
             >
               <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Déconnexion</span>
             </Button>
           </div>
         </div>
 
-        {/* Soldes Agent */}
+        {/* Soldes Agent avec thème orange */}
         <div className="space-y-4">
           {/* Solde Principal */}
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-blue-100 text-sm font-medium leading-tight">Solde Agent</p>
+              <p className="text-orange-100 text-sm font-medium">Solde Agent</p>
               <Button
                 onClick={toggleBalanceVisibility}
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-white/10 p-2"
+                className="text-white hover:bg-white/10"
               >
                 {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </Button>
             </div>
-            <p className="text-3xl font-bold mb-2 text-yellow-200 leading-none">
+            <p className="text-3xl font-bold mb-2 text-yellow-200">
               {formatBalanceDisplay(agentBalance || 0)}
             </p>
-            <div className="flex items-center space-x-2 text-xs text-blue-100">
+            <div className="flex items-center space-x-2 text-xs text-orange-100">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
               <span>Solde principal</span>
             </div>
@@ -168,13 +180,13 @@ const AgentMobileDashboard: React.FC = () => {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Award className="w-4 h-4 text-green-300" />
-                <p className="text-blue-100 text-sm font-medium leading-tight">Mes Commissions</p>
+                <p className="text-orange-100 text-sm font-medium">Mes Commissions</p>
               </div>
             </div>
-            <p className="text-2xl font-bold mb-2 text-green-200 leading-none">
+            <p className="text-2xl font-bold mb-2 text-green-200">
               {formatBalanceDisplay(agentCommissionBalance || 0)}
             </p>
-            <div className="flex items-center space-x-2 text-xs text-blue-100">
+            <div className="flex items-center space-x-2 text-xs text-orange-100">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
               <span>Gains du mois</span>
             </div>
@@ -182,7 +194,7 @@ const AgentMobileDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Actions rapides */}
+      {/* Actions rapides avec thème orange/rouge */}
       <div className="px-6 -mt-8 relative z-10">
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
           <CardContent className="p-6">
@@ -206,7 +218,7 @@ const AgentMobileDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Services Additionnels */}
+      {/* Services Additionnels avec thème orange */}
       <div className="px-6 mt-6">
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
           <CardContent className="p-6">
@@ -215,9 +227,9 @@ const AgentMobileDashboard: React.FC = () => {
               <Button
                 onClick={() => navigate('/transactions')}
                 variant="outline"
-                className="h-16 flex items-center justify-start gap-4 hover:bg-blue-50 border-blue-200"
+                className="h-16 flex items-center justify-start gap-4 hover:bg-orange-50 border-orange-200"
               >
-                <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg">
                   <History className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
@@ -229,9 +241,9 @@ const AgentMobileDashboard: React.FC = () => {
               <Button
                 onClick={() => navigate('/agent-performance-dashboard')}
                 variant="outline"
-                className="h-16 flex items-center justify-start gap-4 hover:bg-green-50 border-green-200"
+                className="h-16 flex items-center justify-start gap-4 hover:bg-red-50 border-red-200"
               >
-                <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg">
                   <BarChart3 className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
@@ -243,9 +255,9 @@ const AgentMobileDashboard: React.FC = () => {
               <Button
                 onClick={() => navigate('/agent-reports')}
                 variant="outline"
-                className="h-16 flex items-center justify-start gap-4 hover:bg-purple-50 border-purple-200"
+                className="h-16 flex items-center justify-start gap-4 hover:bg-amber-50 border-amber-200"
               >
-                <div className="p-2 bg-gradient-to-r from-purple-500 to-violet-500 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg">
                   <FileText className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
@@ -272,20 +284,20 @@ const AgentMobileDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Stats rapides en bas */}
+      {/* Stats rapides en bas avec thème orange */}
       <div className="px-6 mt-6 mb-8">
         <div className="grid grid-cols-3 gap-3">
           <Card className="p-4 text-center bg-gradient-to-br from-orange-50 to-red-50 border-orange-200">
             <div className="text-xl font-bold text-orange-700">0</div>
             <div className="text-xs text-orange-600">Aujourd'hui</div>
           </Card>
-          <Card className="p-4 text-center bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-            <div className="text-xl font-bold text-green-700">0</div>
-            <div className="text-xs text-green-600">Cette semaine</div>
+          <Card className="p-4 text-center bg-gradient-to-br from-red-50 to-pink-50 border-red-200">
+            <div className="text-xl font-bold text-red-700">0</div>
+            <div className="text-xs text-red-600">Cette semaine</div>
           </Card>
-          <Card className="p-4 text-center bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
-            <div className="text-xl font-bold text-blue-700">0</div>
-            <div className="text-xs text-blue-600">Ce mois</div>
+          <Card className="p-4 text-center bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
+            <div className="text-xl font-bold text-amber-700">0</div>
+            <div className="text-xs text-amber-600">Ce mois</div>
           </Card>
         </div>
       </div>
@@ -293,4 +305,4 @@ const AgentMobileDashboard: React.FC = () => {
   );
 };
 
-export default AgentMobileDashboard;
+export default AgentDashboard;
