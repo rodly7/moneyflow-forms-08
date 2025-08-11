@@ -9,11 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Icons } from "@/components/ui/icons";
 import { Shield, Users, Phone, Lock, Eye, EyeOff, CheckCircle2, Crown, Sparkles, Star, KeyRound } from "lucide-react";
 import { ForgotPasswordForm } from "@/components/auth/ForgotPasswordForm";
+import { useNavigate } from "react-router-dom";
 
 const AgentAuthForm = () => {
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { signIn } = useAuth();
+  const navigate = useNavigate();
   
   const [loginPhone, setLoginPhone] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -49,6 +51,9 @@ const AgentAuthForm = () => {
       await signIn(normalizedLoginPhone, loginPassword);
       toast.success("Connexion agent réussie! Redirection en cours...");
       console.log('✅ Connexion agent réussie avec numéro:', normalizedLoginPhone);
+      
+      // Redirection explicite vers le tableau de bord agent
+      navigate('/agent-dashboard');
     } catch (error: any) {
       console.error("Erreur d'authentification agent:", error);
       
