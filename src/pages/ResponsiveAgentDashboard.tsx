@@ -2,7 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import ResponsiveAgentDashboard from "@/components/agent/ResponsiveAgentDashboard";
+import AgentDashboard from "@/components/agent/AgentDashboard";
 
 const ResponsiveAgentDashboardPage = () => {
   const { profile } = useAuth();
@@ -18,7 +18,7 @@ const ResponsiveAgentDashboardPage = () => {
     return null;
   }
 
-  return <ResponsiveAgentDashboard />;
+  return <AgentDashboard />;
 };
 
 export default ResponsiveAgentDashboardPage;
