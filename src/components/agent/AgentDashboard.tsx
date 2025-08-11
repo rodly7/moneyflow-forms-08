@@ -20,7 +20,8 @@ import {
   FileText,
   BarChart3,
   RefreshCw,
-  Bell
+  Bell,
+  DollarSign
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/integrations/supabase/client";
@@ -55,46 +56,6 @@ const AgentDashboard: React.FC = () => {
     setIsBalanceVisible(!isBalanceVisible);
   };
 
-  // Actions rapides pour agents avec thème orange/rouge
-  const quickActions = [
-    {
-      title: "Retrait Client",
-      icon: ArrowUpRight,
-      color: "from-orange-500 to-red-500",
-      onClick: () => navigate('/agent-withdrawal-advanced')
-    },
-    {
-      title: "Dépôt Client",
-      icon: ArrowDownLeft,
-      color: "from-red-500 to-pink-500",
-      onClick: () => navigate('/agent-deposit')
-    },
-    {
-      title: "QR Code",
-      icon: QrCode,
-      color: "from-orange-600 to-amber-600",
-      onClick: () => navigate('/qr-code')
-    },
-    {
-      title: "Scanner",
-      icon: Scan,
-      color: "from-red-600 to-orange-600",
-      onClick: () => navigate('/qr-payment')
-    },
-    {
-      title: "Services Agent",
-      icon: Users,
-      color: "from-amber-500 to-orange-500",
-      onClick: () => navigate('/agent-services')
-    },
-    {
-      title: "Recharge Mobile",
-      icon: Smartphone,
-      color: "from-pink-500 to-red-500",
-      onClick: () => navigate('/mobile-recharge')
-    }
-  ];
-
   const formatBalanceDisplay = (balance: number) => {
     if (!isBalanceVisible) {
       return "••••••••";
@@ -103,9 +64,9 @@ const AgentDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50">
-      {/* Header avec thème orange/rouge pour agent */}
-      <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white p-6 rounded-b-3xl shadow-lg">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      {/* Header avec thème bleu pour agent */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-b-3xl shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-14 w-14 border-2 border-white/20">
@@ -115,16 +76,14 @@ const AgentDashboard: React.FC = () => {
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-xl font-semibold leading-tight">
-                Agent {profile?.full_name || 'Dashboard'} 🏪
+              <h1 className="text-xl font-bold text-blue-100">
+                Tableau de Bord Agent
               </h1>
-              <p className="text-orange-100 text-sm mt-1 leading-relaxed">
-                {new Date().toLocaleDateString('fr-FR', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
+              <p className="text-blue-200 text-sm">
+                Bienvenue {profile?.full_name || 'Agent'}
+              </p>
+              <p className="text-blue-300 text-xs">
+                NGANGOUE - Congo Brazzaville
               </p>
             </div>
           </div>
@@ -138,6 +97,7 @@ const AgentDashboard: React.FC = () => {
               className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
             >
               <RefreshCw className={`w-4 h-4 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline ml-1">Actualiser</span>
             </Button>
             <Button
               onClick={handleLogout}
@@ -146,123 +106,200 @@ const AgentDashboard: React.FC = () => {
               className="bg-red-500/20 border-red-300/30 text-white hover:bg-red-500/30 hover:text-white flex items-center gap-2"
             >
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Déconnexion</span>
             </Button>
-          </div>
-        </div>
-
-        {/* Soldes Agent avec thème orange */}
-        <div className="space-y-4">
-          {/* Solde Principal */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-orange-100 text-sm font-medium">Solde Agent</p>
-              <Button
-                onClick={toggleBalanceVisibility}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/10"
-              >
-                {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </Button>
-            </div>
-            <p className="text-3xl font-bold mb-2 text-yellow-200">
-              {formatBalanceDisplay(agentBalance || 0)}
-            </p>
-            <div className="flex items-center space-x-2 text-xs text-orange-100">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span>Solde principal</span>
-            </div>
-          </div>
-
-          {/* Commissions */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Award className="w-4 h-4 text-green-300" />
-                <p className="text-orange-100 text-sm font-medium">Mes Commissions</p>
-              </div>
-            </div>
-            <p className="text-2xl font-bold mb-2 text-green-200">
-              {formatBalanceDisplay(agentCommissionBalance || 0)}
-            </p>
-            <div className="flex items-center space-x-2 text-xs text-orange-100">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span>Gains du mois</span>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Actions rapides avec thème orange/rouge */}
+      {/* Solde Principal */}
       <div className="px-6 -mt-8 relative z-10">
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 shadow-xl">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-600 rounded-full">
+                  <DollarSign className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-800">Solde Principal</h3>
+                </div>
+              </div>
+              <Button
+                onClick={toggleBalanceVisibility}
+                variant="ghost"
+                size="sm"
+                className="text-blue-600 hover:bg-blue-100"
+              >
+                {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
+            <div className="text-3xl font-bold text-blue-900 mb-2">
+              {formatBalanceDisplay(agentBalance || 0)}
+            </div>
+            <Button
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => navigate('/agent-deposit')}
+            >
+              <DollarSign className="w-4 h-4 mr-2" />
+              Recharger mon solde
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Commissions */}
+      <div className="px-6 mt-4">
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-green-600 rounded-full">
+                <Award className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-green-800">Mes Commissions</h3>
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-green-900">
+              {formatBalanceDisplay(agentCommissionBalance || 0)}
+            </div>
+            <Button
+              variant="outline"
+              className="w-full mt-3 border-green-300 text-green-700 hover:bg-green-50"
+              onClick={() => navigate('/agent-commission-withdrawal')}
+            >
+              Retirer mes commissions
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Actions Principales */}
+      <div className="px-6 mt-6">
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
           <CardContent className="p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-5">Actions Agent</h2>
-            <div className="grid grid-cols-2 gap-5">
-              {quickActions.map((action, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  className="relative h-28 flex-col gap-3 bg-white border-0 hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-lg"
-                  onClick={action.onClick}
-                >
-                  <div className={`p-3 bg-gradient-to-r ${action.color} rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center`}>
-                    <action.icon className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="text-base font-medium text-center">{action.title}</span>
-                </Button>
-              ))}
+            <h2 className="text-xl font-semibold text-gray-800 mb-5">Actions Principales</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="h-24 flex-col gap-3 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 hover:bg-blue-100"
+                onClick={() => navigate('/agent-withdrawal-advanced')}
+              >
+                <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full">
+                  <ArrowUpRight className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-sm font-medium text-center">Retrait Client</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-24 flex-col gap-3 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 hover:bg-green-100"
+                onClick={() => navigate('/agent-deposit')}
+              >
+                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full">
+                  <ArrowDownLeft className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-sm font-medium text-center">Dépôt Client</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-24 flex-col gap-3 bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200 hover:bg-purple-100"
+                onClick={() => navigate('/qr-code')}
+              >
+                <div className="p-3 bg-gradient-to-r from-purple-500 to-violet-500 rounded-full">
+                  <QrCode className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-sm font-medium text-center">QR Code</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-24 flex-col gap-3 bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200 hover:bg-orange-100"
+                onClick={() => navigate('/qr-payment')}
+              >
+                <div className="p-3 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full">
+                  <Scan className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-sm font-medium text-center">Scanner</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Services Additionnels avec thème orange */}
+      {/* Services Additionnels */}
       <div className="px-6 mt-6">
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
           <CardContent className="p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-5">Gestion & Rapports</h2>
+            <h2 className="text-xl font-semibold text-gray-800 mb-5">Services Agent</h2>
             <div className="grid grid-cols-1 gap-4">
+              <Button
+                onClick={() => navigate('/agent-services')}
+                variant="outline"
+                className="h-16 flex items-center justify-start gap-4 hover:bg-blue-50 border-blue-200"
+              >
+                <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
+                  <Users className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold">Services Agent</div>
+                  <div className="text-sm text-gray-500">Gérer mes services client</div>
+                </div>
+              </Button>
+
+              <Button
+                onClick={() => navigate('/mobile-recharge')}
+                variant="outline"
+                className="h-16 flex items-center justify-start gap-4 hover:bg-green-50 border-green-200"
+              >
+                <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+                  <Smartphone className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold">Recharge Mobile</div>
+                  <div className="text-sm text-gray-500">Recharger les téléphones</div>
+                </div>
+              </Button>
+
               <Button
                 onClick={() => navigate('/transactions')}
                 variant="outline"
-                className="h-16 flex items-center justify-start gap-4 hover:bg-orange-50 border-orange-200"
+                className="h-16 flex items-center justify-start gap-4 hover:bg-purple-50 border-purple-200"
               >
-                <div className="p-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-purple-500 to-violet-500 rounded-lg">
                   <History className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <div className="font-semibold">Historique des Transactions</div>
-                  <div className="text-sm text-gray-500">Voir toutes mes opérations</div>
+                  <div className="font-semibold">Historique</div>
+                  <div className="text-sm text-gray-500">Mes transactions</div>
                 </div>
               </Button>
 
               <Button
                 onClick={() => navigate('/agent-performance-dashboard')}
                 variant="outline"
-                className="h-16 flex items-center justify-start gap-4 hover:bg-red-50 border-red-200"
+                className="h-16 flex items-center justify-start gap-4 hover:bg-orange-50 border-orange-200"
               >
-                <div className="p-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg">
                   <BarChart3 className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <div className="font-semibold">Performances Agent</div>
-                  <div className="text-sm text-gray-500">Mes statistiques et objectifs</div>
+                  <div className="font-semibold">Performances</div>
+                  <div className="text-sm text-gray-500">Mes statistiques</div>
                 </div>
               </Button>
 
               <Button
                 onClick={() => navigate('/agent-reports')}
                 variant="outline"
-                className="h-16 flex items-center justify-start gap-4 hover:bg-amber-50 border-amber-200"
+                className="h-16 flex items-center justify-start gap-4 hover:bg-indigo-50 border-indigo-200"
               >
-                <div className="p-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg">
+                <div className="p-2 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-lg">
                   <FileText className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <div className="font-semibold">Mes Rapports</div>
-                  <div className="text-sm text-gray-500">Rapports détaillés d'activité</div>
+                  <div className="font-semibold">Rapports</div>
+                  <div className="text-sm text-gray-500">Rapports d'activité</div>
                 </div>
               </Button>
 
@@ -275,8 +312,8 @@ const AgentDashboard: React.FC = () => {
                   <Settings className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <div className="font-semibold">Paramètres Agent</div>
-                  <div className="text-sm text-gray-500">Configuration de mon compte</div>
+                  <div className="font-semibold">Paramètres</div>
+                  <div className="text-sm text-gray-500">Configuration</div>
                 </div>
               </Button>
             </div>
@@ -284,20 +321,20 @@ const AgentDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Stats rapides en bas avec thème orange */}
+      {/* Stats en bas */}
       <div className="px-6 mt-6 mb-8">
         <div className="grid grid-cols-3 gap-3">
-          <Card className="p-4 text-center bg-gradient-to-br from-orange-50 to-red-50 border-orange-200">
-            <div className="text-xl font-bold text-orange-700">0</div>
-            <div className="text-xs text-orange-600">Aujourd'hui</div>
+          <Card className="p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+            <div className="text-xl font-bold text-blue-700">0</div>
+            <div className="text-xs text-blue-600">Aujourd'hui</div>
           </Card>
-          <Card className="p-4 text-center bg-gradient-to-br from-red-50 to-pink-50 border-red-200">
-            <div className="text-xl font-bold text-red-700">0</div>
-            <div className="text-xs text-red-600">Cette semaine</div>
+          <Card className="p-4 text-center bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+            <div className="text-xl font-bold text-green-700">0</div>
+            <div className="text-xs text-green-600">Cette semaine</div>
           </Card>
-          <Card className="p-4 text-center bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
-            <div className="text-xl font-bold text-amber-700">0</div>
-            <div className="text-xs text-amber-600">Ce mois</div>
+          <Card className="p-4 text-center bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200">
+            <div className="text-xl font-bold text-purple-700">0</div>
+            <div className="text-xs text-purple-600">Ce mois</div>
           </Card>
         </div>
       </div>
