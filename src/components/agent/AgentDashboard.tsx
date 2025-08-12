@@ -132,13 +132,7 @@ const AgentDashboard: React.FC = () => {
               <div className="text-2xl font-bold text-gray-900 mb-3">
                 {formatBalanceDisplay(agentBalance || 0)}
               </div>
-              <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={() => navigate('/deposit')}
-              >
-                <DollarSign className="w-4 h-4 mr-2" />
-                Recharger
-              </Button>
+              {/* Bouton Recharger masqué selon les consignes */}
             </CardContent>
           </Card>
 
@@ -190,23 +184,7 @@ const AgentDashboard: React.FC = () => {
                 <span className="text-sm">Dépôt Client</span>
               </Button>
 
-              <Button
-                variant="outline"
-                className="h-20 flex-col gap-2 hover:bg-purple-50 border-purple-200"
-                onClick={() => navigate('/qr-code')}
-              >
-                <QrCode className="w-6 h-6 text-purple-600" />
-                <span className="text-sm">QR Code</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                className="h-20 flex-col gap-2 hover:bg-orange-50 border-orange-200"
-                onClick={() => navigate('/qr-payment')}
-              >
-                <Scan className="w-6 h-6 text-orange-600" />
-                <span className="text-sm">Scanner</span>
-              </Button>
+              {/* Boutons QR Code et Scanner masqués */}
             </div>
           </CardContent>
         </Card>
@@ -218,23 +196,7 @@ const AgentDashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <Button
-                onClick={() => navigate('/agent-services')}
-                variant="outline"
-                className="w-full h-12 justify-start"
-              >
-                <Users className="w-5 h-5 mr-3 text-blue-600" />
-                Services Client
-              </Button>
-
-              <Button
-                onClick={() => navigate('/mobile-recharge')}
-                variant="outline"
-                className="w-full h-12 justify-start"
-              >
-                <Smartphone className="w-5 h-5 mr-3 text-green-600" />
-                Recharge Mobile
-              </Button>
+              {/* Boutons Services Client et Recharge Mobile masqués */}
 
               <Button
                 onClick={() => navigate('/transactions')}

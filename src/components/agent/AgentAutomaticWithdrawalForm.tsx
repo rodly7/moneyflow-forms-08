@@ -82,19 +82,33 @@ export const AgentAutomaticWithdrawalForm = () => {
     }
   };
 
-  const handleQRScanSuccess = (userData: { userId: string; fullName: string; phone: string }) => {
-    // Vérifier que le QR scanné correspond au client sélectionné
-    if (clientData && clientData.id === userData.userId) {
-      setQrVerified(true);
-      setIsQRScannerOpen(false);
+  const handleQRScanSuccess = async (userData: { userId: string; fullName: string; phone: string }) => {
+    try {
+      // Récupérer automatiquement le client via le numéro contenu dans le QR code
+      const client = await findUserByPhone(userData.phone);
+      if (client) {
+        setClientData(client);
+        setPhoneNumber(client.phone);
+        setQrVerified(true);
+        setIsQRScannerOpen(false);
+        toast({
+          title: "QR Code vérifié",
+          description: `${client.full_name || 'Utilisateur'} identifié automatiquement`,
+        });
+      } else {
+        setClientData(null);
+        setQrVerified(false);
+        toast({
+          title: "Utilisateur introuvable",
+          description: "Aucun profil associé à ce QR code",
+          variant: "destructive"
+        });
+      }
+    } catch (err) {
+      console.error('Erreur lors du traitement du QR:', err);
       toast({
-        title: "QR Code vérifié",
-        description: "Identité du client confirmée. Vous pouvez maintenant effectuer le retrait.",
-      });
-    } else {
-      toast({
-        title: "QR Code incorrect",
-        description: "Le QR code scanné ne correspond pas au client sélectionné",
+        title: "Erreur QR",
+        description: "Impossible de récupérer les informations de l'utilisateur",
         variant: "destructive"
       });
     }
@@ -154,32 +168,24 @@ export const AgentAutomaticWithdrawalForm = () => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Recherche du client */}
-          <div className="space-y-2">
-            <Label htmlFor="phone">Numéro du client</Label>
-            <div className="flex gap-2">
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="Entrez le numéro du client"
-                value={phoneNumber}
-                onChange={handlePhoneChange}
-                required
-                className="h-12"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSearch}
-                disabled={isSearchingClient || !phoneNumber}
-                className="h-12 px-3"
-              >
-                {isSearchingClient ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-500"></div>
-                ) : (
-                  <Search className="w-4 h-4" />
-                )}
-              </Button>
+          {/* Identification du client via QR obligatoire */}
+          <div className="space-y-3">
+            <Label>Identification du client</Label>
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                L'agent doit scanner le QR code du client pour récupérer automatiquement ses informations.
+              </p>
+              <div className="mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsQRScannerOpen(true)}
+                  className="h-12 px-4"
+                >
+                  <QrCode className="w-4 h-4 mr-2" />
+                  Scanner le QR du client
+                </Button>
+              </div>
             </div>
           </div>
 
