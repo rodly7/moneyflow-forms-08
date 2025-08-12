@@ -46,7 +46,6 @@ export const UnifiedNotificationBell = () => {
           notification_id,
           read_at,
           status,
-          created_at,
           notifications (
             id,
             title,
@@ -57,7 +56,7 @@ export const UnifiedNotificationBell = () => {
           )
         `)
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false, foreignTable: 'notifications' })
         .limit(20);
 
       if (error) throw error;
