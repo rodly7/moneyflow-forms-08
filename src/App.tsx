@@ -38,6 +38,12 @@ const AdminTransactionMonitor = lazy(() => import("./pages/AdminTransactionMonit
 const Notifications = lazy(() => import("./pages/Notifications"));
 const ChangePassword = lazy(() => import("./pages/ChangePassword"));
 const BillPayments = lazy(() => import("./pages/BillPayments"));
+const AgentWithdrawalAdvanced = lazy(() => import("./pages/AgentWithdrawalAdvanced"));
+const AgentDeposit = lazy(() => import("./pages/AgentDeposit"));
+const AgentReports = lazy(() => import("./pages/AgentReports"));
+const PrepaidCards = lazy(() => import("./pages/PrepaidCards"));
+const AgentCommissionWithdrawal = lazy(() => import("./pages/AgentCommissionWithdrawal"));
+const AgentSettingsPage = lazy(() => import("./pages/AgentSettings"));
 
 // Mobile-optimized loading component
 const MobileLoader = () => (
@@ -89,6 +95,15 @@ function App() {
             <Route path="deposit" element={<Suspense fallback={<MobileLoader />}><UnifiedDepositWithdrawal /></Suspense>} />
             <Route path="deposit-withdrawal" element={<Suspense fallback={<MobileLoader />}><DepositWithdrawalForm /></Suspense>} />
             <Route path="agent-services" element={<Suspense fallback={<MobileLoader />}><AgentServices /></Suspense>} />
+            
+            {/* Agent aliases and tools */}
+            <Route path="agent-deposit" element={<Suspense fallback={<MobileLoader />}><AgentDeposit /></Suspense>} />
+            <Route path="agent-withdrawal-advanced" element={<Suspense fallback={<MobileLoader />}><AgentWithdrawalAdvanced /></Suspense>} />
+            <Route path="agent-reports" element={<Suspense fallback={<MobileLoader />}><AgentReports /></Suspense>} />
+            <Route path="agent-performance-dashboard" element={<Suspense fallback={<MobileLoader />}><AgentPerformanceDashboard /></Suspense>} />
+            <Route path="mobile-recharge" element={<Suspense fallback={<MobileLoader />}><PrepaidCards /></Suspense>} />
+            <Route path="agent-commission-withdrawal" element={<Suspense fallback={<MobileLoader />}><AgentCommissionWithdrawal /></Suspense>} />
+            <Route path="agent-settings" element={<Suspense fallback={<MobileLoader />}><AgentSettingsPage /></Suspense>} />
             
             <Route path="agent-performance" element={<Suspense fallback={<MobileLoader />}><AgentPerformanceDashboard /></Suspense>} />
             <Route path="savings" element={<Suspense fallback={<MobileLoader />}><Savings /></Suspense>} />

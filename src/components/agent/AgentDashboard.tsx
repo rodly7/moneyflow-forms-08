@@ -134,7 +134,7 @@ const AgentDashboard: React.FC = () => {
               </div>
               <Button 
                 className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={() => navigate('/agent-deposit')}
+                onClick={() => navigate('/deposit')}
               >
                 <DollarSign className="w-4 h-4 mr-2" />
                 Recharger
