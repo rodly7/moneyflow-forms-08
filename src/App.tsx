@@ -14,7 +14,7 @@ const Layout = lazy(() => import("./components/Layout"));
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const NewAgentDashboard = lazy(() => import("./pages/NewAgentDashboard"));
+const ResponsiveAgentDashboard = lazy(() => import("./pages/ResponsiveAgentDashboard"));
 const MainAdminDashboard = lazy(() => import("./pages/MainAdminDashboard"));
 const SubAdminDashboard = lazy(() => import("./pages/SubAdminDashboard"));
 const Transfer = lazy(() => import("./pages/Transfer"));
@@ -74,7 +74,7 @@ function App() {
             <Route path="auth" element={<Suspense fallback={<MobileLoader />}><Auth /></Suspense>} />
             <Route path="agent-auth" element={<Suspense fallback={<MobileLoader />}><AgentAuth /></Suspense>} />
             <Route path="dashboard" element={<Suspense fallback={<MobileLoader />}><Dashboard /></Suspense>} />
-            <Route path="agent-dashboard" element={<Suspense fallback={<MobileLoader />}><NewAgentDashboard /></Suspense>} />
+            <Route path="agent-dashboard" element={<Suspense fallback={<MobileLoader />}><ResponsiveAgentDashboard /></Suspense>} />
             <Route path="admin-dashboard" element={<Suspense fallback={<MobileLoader />}><MainAdminDashboard /></Suspense>} />
             <Route path="main-admin" element={<Suspense fallback={<MobileLoader />}><MainAdminDashboard /></Suspense>} />
             <Route path="admin/treasury" element={<Suspense fallback={<MobileLoader />}><AdminTreasury /></Suspense>} />

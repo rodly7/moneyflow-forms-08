@@ -41,16 +41,41 @@ export const UnifiedNotificationBell = () => {
 
     try {
       const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
+        .from('notification_recipients')
+        .select(`
+          notification_id,
+          read_at,
+          status,
+          created_at,
+          notifications (
+            id,
+            title,
+            message,
+            notification_type,
+            priority,
+            created_at
+          )
+        `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20);
 
       if (error) throw error;
 
-      setNotifications(data || []);
-      setUnreadCount((data || []).filter(n => !n.is_read).length);
+      const mapped = (data || [])
+        .filter((item: any) => item.notifications && !Array.isArray(item.notifications))
+        .map((item: any) => ({
+          id: item.notifications.id,
+          title: item.notifications.title,
+          message: item.notifications.message,
+          notification_type: item.notifications.notification_type,
+          priority: (item.notifications.priority as any) || 'normal',
+          created_at: item.notifications.created_at,
+          is_read: !!item.read_at || item.status === 'read',
+        }));
+
+      setNotifications(mapped);
+      setUnreadCount(mapped.filter(n => !n.is_read).length);
     } catch (error) {
       console.error('Erreur chargement notifications:', error);
     } finally {
@@ -62,9 +87,10 @@ export const UnifiedNotificationBell = () => {
   const markAsRead = async (notificationId: string) => {
     try {
       const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId);
+        .from('notification_recipients')
+        .update({ read_at: new Date().toISOString(), status: 'read' })
+        .eq('notification_id', notificationId)
+        .eq('user_id', user?.id || '');
 
       if (error) throw error;
 
@@ -83,10 +109,10 @@ export const UnifiedNotificationBell = () => {
 
     try {
       const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
+        .from('notification_recipients')
+        .update({ read_at: new Date().toISOString(), status: 'read' })
         .eq('user_id', user.id)
-        .eq('is_read', false);
+        .is('read_at', null);
 
       if (error) throw error;
 
@@ -107,12 +133,12 @@ export const UnifiedNotificationBell = () => {
 
     // Set up real-time subscription
     const subscription = supabase
-      .channel('notifications')
+      .channel('notification_recipients')
       .on('postgres_changes', 
         { 
           event: '*', 
           schema: 'public', 
-          table: 'notifications',
+          table: 'notification_recipients',
           filter: `user_id=eq.${user?.id}`
         }, 
         () => {
