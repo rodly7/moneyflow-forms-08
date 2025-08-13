@@ -1,287 +1,166 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Send, AlertCircle, Loader2, Search, User, Wallet, QrCode } from "lucide-react";
-
-import { useAgentAutomaticWithdrawal } from "@/hooks/useAgentAutomaticWithdrawal";
-import { findUserByPhone } from "@/services/withdrawalService";
-import { useToast } from "@/hooks/use-toast";
-import QRScanner from "@/components/agent/QRScanner";
-
-interface ClientData {
-  id: string;
-  full_name: string;
-  phone: string;
-  balance: number;
-  country?: string;
-}
+import { Button } from "@/components/ui/button";
+import { Minus, User, Shield, Loader2 } from "lucide-react";
+import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
+import { formatCurrency } from "@/integrations/supabase/client";
 
 export const AgentAutomaticWithdrawalForm = () => {
-  const [amount, setAmount] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [clientData, setClientData] = useState<ClientData | null>(null);
-  const [isSearchingClient, setIsSearchingClient] = useState(false);
-  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
-  const [qrVerified, setQrVerified] = useState(false);
-  
-  const { processAgentAutomaticWithdrawal, isProcessing } = useAgentAutomaticWithdrawal();
-  const { toast } = useToast();
-
-  const searchClientByPhone = async (phone: string) => {
-    if (!phone || phone.length < 6) {
-      setClientData(null);
-      return;
-    }
-
-    setIsSearchingClient(true);
-    try {
-      console.log("🔍 Recherche client:", phone);
-      
-      const client = await findUserByPhone(phone);
-      
-      if (client) {
-        setClientData(client);
-        setQrVerified(false); // Reset QR verification when client changes
-        console.log("✅ Client trouvé:", client.full_name);
-        
-        toast({
-          title: "Client trouvé",
-          description: `${client.full_name || 'Utilisateur'} identifié`,
-        });
-      } else {
-        setClientData(null);
-        toast({
-          title: "Client non trouvé",
-          description: "Aucun utilisateur trouvé avec ce numéro",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error("❌ Erreur recherche:", error);
-      setClientData(null);
-      toast({
-        title: "Erreur de recherche",
-        description: "Impossible de rechercher le client",
-        variant: "destructive"
-      });
-    }
-    setIsSearchingClient(false);
-  };
+  const {
+    amount,
+    setAmount,
+    phoneNumber,
+    setPhoneNumber,
+    clientData,
+    isSearchingClient,
+    isProcessing,
+    searchClientByPhone,
+    handleSubmit
+  } = useAgentWithdrawalEnhanced();
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setPhoneNumber(value);
     
-    // Réinitialiser les données client quand le numéro change
     if (clientData) {
-      setClientData(null);
-      setQrVerified(false);
+      // Reset client data when phone changes
+    }
+
+    if (value.length >= 8) {
+      searchClientByPhone(value);
     }
   };
-
-  const handleQRScanSuccess = async (userData: { userId: string; fullName: string; phone: string }) => {
-    try {
-      // Récupérer automatiquement le client via le numéro contenu dans le QR code
-      const client = await findUserByPhone(userData.phone);
-      if (client) {
-        setClientData(client);
-        setPhoneNumber(client.phone);
-        setQrVerified(true);
-        setIsQRScannerOpen(false);
-        toast({
-          title: "QR Code vérifié",
-          description: `${client.full_name || 'Utilisateur'} identifié automatiquement`,
-        });
-      } else {
-        setClientData(null);
-        setQrVerified(false);
-        toast({
-          title: "Utilisateur introuvable",
-          description: "Aucun profil associé à ce QR code",
-          variant: "destructive"
-        });
-      }
-    } catch (err) {
-      console.error('Erreur lors du traitement du QR:', err);
-      toast({
-        title: "Erreur QR",
-        description: "Impossible de récupérer les informations de l'utilisateur",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleSearch = () => {
-    if (phoneNumber) {
-      searchClientByPhone(phoneNumber);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!amount || !phoneNumber || !clientData) return;
-
-    if (!qrVerified) {
-      toast({
-        title: "Scan QR requis",
-        description: "Vous devez scanner le QR code du client avant d'effectuer le retrait",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    const withdrawalAmount = Number(amount);
-    
-    const result = await processAgentAutomaticWithdrawal(
-      clientData.id,
-      withdrawalAmount,
-      phoneNumber,
-      clientData.full_name,
-      clientData.balance
-    );
-    
-    if (result?.success) {
-      // Reset form on success
-      setAmount("");
-      setPhoneNumber("");
-      setClientData(null);
-      setQrVerified(false);
-    }
-  };
-
-  const isValidAmount = !!amount && Number(amount) > 0 && !!clientData;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Send className="w-5 h-5 text-emerald-500" />
-          Demande de retrait pour client
+    <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-orange-50">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-orange-600">
+          <Minus className="w-5 h-5" />
+          Retrait Client Automatique
         </CardTitle>
         <p className="text-sm text-gray-600">
-          Le client recevra une notification pour autoriser ce retrait
+          Le retrait sera effectué immédiatement et vous recevrez votre commission
         </p>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Identification du client via QR obligatoire */}
-          <div className="space-y-3">
-            <Label>Identification du client</Label>
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-sm text-yellow-800">
-                L'agent doit scanner le QR code du client pour récupérer automatiquement ses informations.
-              </p>
-              <div className="mt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsQRScannerOpen(true)}
-                  className="h-12 px-4"
-                >
-                  <QrCode className="w-4 h-4 mr-2" />
-                  Scanner le QR du client
-                </Button>
-              </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Numéro du client</Label>
+            <div className="relative">
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="Entrez le numéro du client"
+                value={phoneNumber}
+                onChange={handlePhoneChange}
+                required
+                className="h-12 text-base"
+              />
+              {isSearchingClient && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+                </div>
+              )}
+            </div>
+            
+            {/* Fixed space for search feedback */}
+            <div className="min-h-[80px] mt-2">
+              {clientData && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-md space-y-2 animate-fade-in">
+                  <div className="flex items-center text-green-800">
+                    <User className="w-4 h-4 mr-2" />
+                    <span className="font-medium">{clientData.full_name || 'Nom non disponible'}</span>
+                  </div>
+                  <div className="text-sm text-green-600">
+                    Solde: {formatCurrency(clientData.balance || 0, 'XAF')}
+                  </div>
+                  <div className="text-xs text-green-500 flex items-center gap-1">
+                    <Shield className="w-3 h-3" />
+                    Client vérifié
+                  </div>
+                </div>
+              )}
+
+              {phoneNumber.length >= 8 && !clientData && !isSearchingClient && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-md animate-fade-in">
+                  <p className="text-red-700 text-sm">
+                    Aucun client trouvé avec ce numéro
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Affichage des informations du client */}
-          {clientData && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-md space-y-2">
-              <div className="flex items-center text-green-800">
-                <User className="w-4 h-4 mr-2" />
-                <span className="font-medium">
-                  {clientData.full_name || 'Nom non disponible'}
-                </span>
-              </div>
-              <div className="text-sm text-green-600">
-                Tél: {clientData.phone}
-              </div>
-              <div className="text-sm text-green-600">
-                Pays: {clientData.country || 'Non spécifié'}
-              </div>
-              
-              {/* Section QR Code */}
-              <div className="mt-4 pt-4 border-t border-green-200">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-green-800">
-                    Vérification QR Code
-                  </span>
-                  {qrVerified ? (
-                    <span className="text-green-600 text-sm">✅ Vérifié</span>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsQRScannerOpen(true)}
-                      className="border-green-300 text-green-700 hover:bg-green-50"
-                    >
-                      <QrCode className="w-4 h-4 mr-2" />
-                      Scanner QR
-                    </Button>
-                  )}
-                </div>
-                {!qrVerified && (
-                  <p className="text-xs text-red-600 mt-1">
-                    ⚠️ Vous devez scanner le QR code du client pour continuer
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Montant */}
           <div className="space-y-2">
             <Label htmlFor="amount">Montant du retrait (XAF)</Label>
             <Input
               id="amount"
               type="number"
-              placeholder="Entrez le montant à retirer"
+              placeholder="Entrez le montant"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
               className="h-12 text-lg"
               disabled={!clientData}
             />
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-            <p className="text-blue-800 text-sm">
-              📱 Le client recevra une notification pour autoriser ce retrait. Le retrait ne sera effectué qu'après son approbation.
-            </p>
+            
+            {/* Fixed space for amount validation */}
+            <div className="min-h-[100px] mt-2">
+              {amount && clientData && (
+                <div className="p-4 bg-orange-50 border border-orange-200 rounded-md animate-fade-in">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Montant du retrait:</span>
+                      <span className="font-medium">{formatCurrency(Number(amount), 'XAF')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Votre commission (0,5%):</span>
+                      <span className="font-medium text-emerald-600">
+                        {formatCurrency(Number(amount) * 0.005, 'XAF')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-semibold border-t pt-2">
+                      <span>Débité du client:</span>
+                      <span>{formatCurrency(Number(amount), 'XAF')}</span>
+                    </div>
+                    {Number(amount) > (clientData.balance || 0) && (
+                      <div className="text-red-600 text-xs mt-2">
+                        ⚠️ Solde client insuffisant
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <Button 
             type="submit" 
-            className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 text-lg"
-            disabled={isProcessing || !isValidAmount || !phoneNumber || !clientData || !qrVerified}
+            className="w-full bg-orange-600 hover:bg-orange-700 h-12 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+            disabled={
+              isProcessing || 
+              !clientData || 
+              !amount || 
+              Number(amount) <= 0 ||
+              Number(amount) > (clientData?.balance || 0)
+            }
           >
             {isProcessing ? (
               <div className="flex items-center">
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                <span>Envoi de la demande...</span>
+                <span>Traitement en cours...</span>
               </div>
             ) : (
               <div className="flex items-center justify-center">
-                <Send className="mr-2 h-5 w-5" />
-                <span>Envoyer la demande de retrait</span>
+                <Minus className="mr-2 h-5 w-5" />
+                <span>Effectuer le retrait</span>
               </div>
             )}
           </Button>
         </form>
       </CardContent>
-
-      {/* QR Scanner Modal */}
-      <QRScanner 
-        isOpen={isQRScannerOpen}
-        onClose={() => setIsQRScannerOpen(false)}
-        onScanSuccess={handleQRScanSuccess}
-      />
     </Card>
   );
 };
