@@ -10,8 +10,6 @@ import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
 import { getCountryCodeForAgent } from "@/services/withdrawalService";
 import { AgentBalanceDisplay } from "@/components/agent/AgentBalanceDisplay";
 import { AgentAutomaticWithdrawalForm } from "@/components/agent/AgentAutomaticWithdrawalForm";
-import { ClientSearchSection } from "@/components/agent/ClientSearchSection";
-import { WithdrawalAmountSection } from "@/components/agent/WithdrawalAmountSection";
 
 const AgentWithdrawalAdvanced = () => {
   const { user } = useAuth();
@@ -22,19 +20,10 @@ const AgentWithdrawalAdvanced = () => {
   const [agentCountry, setAgentCountry] = useState("Congo Brazzaville");
 
   const {
-    amount,
-    setAmount,
-    phoneNumber,
-    setPhoneNumber,
-    clientData,
-    isSearchingClient,
     agentBalance,
     agentCommissionBalance,
     isLoadingBalance,
-    isProcessing,
-    fetchAgentBalances,
-    searchClientByPhone,
-    handleSubmit
+    fetchAgentBalances
   } = useAgentWithdrawalEnhanced();
 
   // Récupérer le pays de l'agent pour définir l'indicatif
@@ -67,35 +56,6 @@ const AgentWithdrawalAdvanced = () => {
 
     fetchAgentCountry();
   }, [user?.id]);
-
-  const searchClientAutomatically = async (phone: string) => {
-    if (!phone || phone.length < 6) {
-      return;
-    }
-
-    try {
-      console.log("🔍 Recherche automatique avec indicatif:", countryCode, phone);
-      
-      // Format the full phone number with country code
-      const fullPhone = phone.startsWith('+') 
-        ? phone 
-        : `${countryCode}${phone.startsWith('0') ? phone.substring(1) : phone}`;
-      
-      await searchClientByPhone(fullPhone);
-    } catch (error) {
-      console.error("❌ Erreur lors de la recherche:", error);
-    }
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ''); // Garder seulement les chiffres
-    setPhoneNumber(value);
-
-    // Recherche automatique quand le numéro semble complet
-    if (value.length >= 8) {
-      searchClientAutomatically(value);
-    }
-  };
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-4 px-0 sm:py-8 sm:px-4">

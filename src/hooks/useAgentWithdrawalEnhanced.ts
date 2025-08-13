@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { findUserByPhone } from "@/services/withdrawalService";
-// import { processAgentWithdrawalWithCommission } from "@/services/agentWithdrawalService"; // No immediate transfers on request send
 import { formatCurrency, supabase } from "@/integrations/supabase/client";
 
 interface ClientData {
@@ -15,7 +14,7 @@ interface ClientData {
 }
 
 export const useAgentWithdrawalEnhanced = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
 
   const [amount, setAmount] = useState("");
@@ -137,28 +136,41 @@ export const useAgentWithdrawalEnhanced = () => {
       return;
     }
 
+    if (!user?.id || !profile) {
+      toast({
+        title: "Erreur d'authentification",
+        description: "Vous devez être connecté pour effectuer cette opération",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const operationAmount = Number(amount);
-
-    // Aucune vérification de solde côté agent à l'envoi de la demande (respect de la confidentialité)
-
 
     try {
       setIsProcessing(true);
-      console.log("📨 [REQUEST] Création d'une demande de retrait (pas de transfert immédiat)");
+      console.log("📨 [REQUEST] Création d'une demande de retrait");
+
+      // Récupérer les informations de l'agent
+      const agentName = profile.full_name || 'Agent';
+      const agentPhone = profile.phone || phoneNumber;
 
       const { error } = await supabase
         .from('withdrawal_requests')
         .insert({
           user_id: clientData.id,
-          agent_id: user?.id || '',
-          agent_name: 'Agent',
-          agent_phone: phoneNumber,
-          withdrawal_phone: phoneNumber,
+          agent_id: user.id,
+          agent_name: agentName,
+          agent_phone: agentPhone,
+          withdrawal_phone: clientData.phone,
           amount: operationAmount,
           status: 'pending'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Erreur lors de la création:", error);
+        throw error;
+      }
 
       toast({
         title: "Demande envoyée",
@@ -179,7 +191,7 @@ export const useAgentWithdrawalEnhanced = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [amount, clientData, phoneNumber, user?.id, toast, fetchAgentBalances]);
+  }, [amount, clientData, phoneNumber, user?.id, profile, toast]);
 
   useEffect(() => {
     fetchAgentBalances();
