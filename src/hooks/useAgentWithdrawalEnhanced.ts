@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { getUserBalance, findUserByPhone } from "@/services/withdrawalService";
-import { processAgentWithdrawalWithCommission } from "@/services/agentWithdrawalService";
+// import { processAgentWithdrawalWithCommission } from "@/services/agentWithdrawalService"; // No immediate transfers on request send
 import { formatCurrency, supabase } from "@/integrations/supabase/client";
 
 interface ClientData {
@@ -163,38 +163,36 @@ export const useAgentWithdrawalEnhanced = () => {
 
     try {
       setIsProcessing(true);
-      console.log("🚀 [START] Début du processus de retrait agent ATOMIQUE");
+      console.log("📨 [REQUEST] Création d'une demande de retrait (pas de transfert immédiat)");
 
-      const result = await processAgentWithdrawalWithCommission(
-        user?.id || '',
-        clientData.id,
-        operationAmount,
-        phoneNumber
-      );
+      const { error } = await supabase
+        .from('withdrawal_requests')
+        .insert({
+          user_id: clientData.id,
+          agent_id: user?.id || '',
+          agent_name: 'Agent',
+          agent_phone: phoneNumber,
+          withdrawal_phone: phoneNumber,
+          amount: operationAmount,
+          status: 'pending'
+        });
 
-      console.log("✅ [SUCCESS] Retrait atomique terminé avec succès:", result);
+      if (error) throw error;
 
       toast({
-        title: "Retrait effectué avec succès ✅",
-        description: `Retrait de ${formatCurrency(operationAmount, 'XAF')} effectué pour ${clientData.full_name}. Commission: ${formatCurrency(result.agentCommission, 'XAF')}`,
+        title: "Demande envoyée",
+        description: `Demande de retrait de ${formatCurrency(operationAmount, 'XAF')} envoyée à ${clientData.full_name}. En attente d'approbation.`,
       });
 
       // Reset form
       setAmount("");
       setPhoneNumber("");
       setClientData(null);
-      
-      // Forcer le rafraîchissement immédiat des soldes
-      console.log("🔄 Rafraîchissement forcé des soldes...");
-      setTimeout(() => {
-        fetchAgentBalances();
-      }, 500); // Délai pour permettre la propagation
-      
     } catch (error) {
-      console.error("❌ [ERROR] Erreur retrait:", error);
+      console.error("❌ [ERROR] Erreur demande de retrait:", error);
       toast({
-        title: "Erreur lors du retrait",
-        description: error instanceof Error ? error.message : "Erreur inconnue lors du retrait",
+        title: "Erreur",
+        description: "Impossible d'envoyer la demande de retrait",
         variant: "destructive"
       });
     } finally {
