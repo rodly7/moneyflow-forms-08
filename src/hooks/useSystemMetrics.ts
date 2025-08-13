@@ -72,7 +72,7 @@ export const useSystemMetrics = () => {
         // Fetch today's transactions
         const today = new Date().toISOString().split('T')[0];
         const { count: todayTransactions } = await supabase
-          .from('transactions')
+          .from('transfers')
           .select('*', { count: 'exact', head: true })
           .gte('created_at', today);
 

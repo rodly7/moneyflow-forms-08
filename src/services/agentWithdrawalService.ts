@@ -74,10 +74,11 @@ export const processAgentWithdrawalWithCommission = async (
     }
 
     // 5. Résultat final avec les données de la transaction atomique
+    const tr: any = transactionResult || {};
     const result = {
       clientName: clientData.fullName,
-      newClientBalance: transactionResult.new_client_balance,
-      newAgentBalance: transactionResult.new_agent_balance,
+      newClientBalance: tr.new_client_balance,
+      newAgentBalance: tr.new_agent_balance,
       agentCommission,
       amount,
       success: true
