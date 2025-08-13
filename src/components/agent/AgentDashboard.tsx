@@ -216,14 +216,7 @@ const AgentDashboard: React.FC = () => {
                 Performances
               </Button>
 
-              <Button
-                onClick={() => navigate('/agent-reports')}
-                variant="outline"
-                className="w-full h-12 justify-start"
-              >
-                <FileText className="w-5 h-5 mr-3 text-indigo-600" />
-                Rapports
-              </Button>
+              {/* Bouton Rapports masqué selon les consignes */}
 
               <Button
                 onClick={() => navigate('/agent-settings')}

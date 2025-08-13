@@ -39,6 +39,7 @@ const Notifications = lazy(() => import("./pages/Notifications"));
 const ChangePassword = lazy(() => import("./pages/ChangePassword"));
 const BillPayments = lazy(() => import("./pages/BillPayments"));
 const AgentWithdrawalAdvanced = lazy(() => import("./pages/AgentWithdrawalAdvanced"));
+const AgentWithdrawalSimple = lazy(() => import("./pages/AgentWithdrawalSimple"));
 const AgentDeposit = lazy(() => import("./pages/AgentDeposit"));
 const AgentReports = lazy(() => import("./pages/AgentReports"));
 const PrepaidCards = lazy(() => import("./pages/PrepaidCards"));

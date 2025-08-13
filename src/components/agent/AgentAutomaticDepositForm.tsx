@@ -3,12 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, AlertCircle, Loader2, User, Wallet, QrCode } from "lucide-react";
+import { Download, AlertCircle, Loader2, User, Wallet } from "lucide-react";
 import { formatCurrency } from "@/integrations/supabase/client";
 import { useDepositOperations } from "@/hooks/useDepositOperations";
 import { findUserByPhone } from "@/services/withdrawalService";
 import { useToast } from "@/hooks/use-toast";
-import QRScanner from "@/components/agent/QRScanner";
+
 
 interface ClientData {
   id: string;
@@ -22,37 +22,37 @@ export const AgentAutomaticDepositForm = () => {
   const [amount, setAmount] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [clientData, setClientData] = useState<ClientData | null>(null);
-  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
-  const [qrVerified, setQrVerified] = useState(false);
+  const [isSearchingClient, setIsSearchingClient] = useState(false);
   
   const { processDeposit, isProcessing } = useDepositOperations();
   const { toast } = useToast();
 
-  const handleQRScanSuccess = async (userData: { userId: string; fullName: string; phone: string }) => {
+  const handlePhoneChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPhoneNumber(value);
+    setClientData(null);
+    
     try {
-      const client = await findUserByPhone(userData.phone);
-      if (client) {
-        setClientData(client);
-        setPhoneNumber(client.phone);
-        setQrVerified(true);
-        setIsQRScannerOpen(false);
-        toast({
-          title: "QR Code vérifié",
-          description: `${client.full_name || 'Utilisateur'} identifié automatiquement`,
-        });
-      } else {
-        setClientData(null);
-        setQrVerified(false);
-        toast({
-          title: "Utilisateur introuvable",
-          description: "Aucun profil associé à ce QR code",
-          variant: "destructive"
-        });
+      if (value.replace(/\D/g, '').length >= 8) {
+        const client = await findUserByPhone(value);
+        if (client) {
+          setClientData(client);
+          toast({
+            title: "Client identifié",
+            description: `${client.full_name || 'Utilisateur'} - Solde: ${formatCurrency(client.balance || 0, 'XAF')}`,
+          });
+        } else {
+          toast({
+            title: "Utilisateur introuvable",
+            description: "Aucun profil associé à ce numéro",
+            variant: "destructive"
+          });
+        }
       }
     } catch (err) {
-      console.error('Erreur lors du traitement du QR:', err);
+      console.error('Erreur lors de la recherche du client:', err);
       toast({
-        title: "Erreur QR",
+        title: "Erreur",
         description: "Impossible de récupérer les informations de l'utilisateur",
         variant: "destructive"
       });
@@ -61,10 +61,10 @@ export const AgentAutomaticDepositForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !clientData || !qrVerified) {
+    if (!amount || !clientData) {
       toast({
         title: "Informations incomplètes",
-        description: "Scannez le QR du client et saisissez un montant",
+        description: "Saisissez le numéro du client et le montant",
         variant: "destructive"
       });
       return;
@@ -83,7 +83,6 @@ export const AgentAutomaticDepositForm = () => {
       setAmount("");
       setPhoneNumber("");
       setClientData(null);
-      setQrVerified(false);
     }
   };
 
@@ -97,29 +96,27 @@ export const AgentAutomaticDepositForm = () => {
           Dépôt pour client
         </CardTitle>
         <p className="text-sm text-gray-600">
-          Scannez le QR du client pour l'identifier puis saisissez le montant à déposer
+          Saisissez le numéro du client pour retrouver automatiquement ses informations puis entrez le montant à déposer
         </p>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Identification via QR */}
+          {/* Identification via numéro de téléphone */}
           <div className="space-y-3">
-            <Label>Identification du client</Label>
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-sm text-yellow-800">
-                L'agent doit scanner le QR code du client pour récupérer automatiquement ses informations.
+            <Label>Numéro du client</Label>
+            <div className="space-y-2">
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="Entrez le numéro du client (ex: +242...)"
+                value={phoneNumber}
+                onChange={handlePhoneChange}
+                className="h-12"
+                required
+              />
+              <p className="text-xs text-gray-600">
+                La recherche se lance automatiquement dès que le numéro est complet.
               </p>
-              <div className="mt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsQRScannerOpen(true)}
-                  className="h-12 px-4"
-                >
-                  <QrCode className="w-4 h-4 mr-2" />
-                  Scanner le QR du client
-                </Button>
-              </div>
             </div>
           </div>
 
@@ -140,9 +137,6 @@ export const AgentAutomaticDepositForm = () => {
               </div>
               <div className="text-sm text-green-600">
                 Téléphone: {clientData.phone}
-              </div>
-              <div className="mt-2 text-sm">
-                {qrVerified ? <span className="text-green-600">✅ Identité vérifiée</span> : <span className="text-red-600">⚠️ QR non vérifié</span>}
               </div>
             </div>
           )}
@@ -165,7 +159,7 @@ export const AgentAutomaticDepositForm = () => {
           <Button 
             type="submit" 
             className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 text-lg"
-            disabled={isProcessing || !isValidAmount || !clientData || !qrVerified}
+            disabled={isProcessing || !isValidAmount || !clientData}
           >
             {isProcessing ? (
               <div className="flex items-center">
@@ -181,12 +175,6 @@ export const AgentAutomaticDepositForm = () => {
           </Button>
         </form>
 
-        {/* QR Scanner Modal */}
-        <QRScanner 
-          isOpen={isQRScannerOpen}
-          onClose={() => setIsQRScannerOpen(false)}
-          onScanSuccess={handleQRScanSuccess}
-        />
       </CardContent>
     </Card>
   );

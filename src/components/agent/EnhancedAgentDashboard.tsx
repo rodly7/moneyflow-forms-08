@@ -99,13 +99,6 @@ const EnhancedAgentDashboard = () => {
       onClick: () => navigate("/qr-payment"),
       color: "bg-gradient-to-r from-pink-500 to-rose-500"
     },
-    {
-      title: "Rapports Détaillés",
-      description: "Rapports de performance",
-      icon: FileText,
-      onClick: () => navigate("/agent-reports"),
-      color: "bg-gradient-to-r from-violet-500 to-purple-500"
-    }
   ];
 
   const managementActions = [

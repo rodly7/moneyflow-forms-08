@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
 import { getCountryCodeForAgent } from "@/services/withdrawalService";
 import { AgentBalanceDisplay } from "@/components/agent/AgentBalanceDisplay";
+import { AgentAutomaticWithdrawalForm } from "@/components/agent/AgentAutomaticWithdrawalForm";
 import { ClientSearchSection } from "@/components/agent/ClientSearchSection";
 import { WithdrawalAmountSection } from "@/components/agent/WithdrawalAmountSection";
 
@@ -124,24 +125,7 @@ const AgentWithdrawalAdvanced = () => {
           userCountry={agentCountry}
         />
 
-        {/* Section de recherche client */}
-        <ClientSearchSection
-          countryCode={countryCode}
-          agentCountry={agentCountry}
-          phoneNumber={phoneNumber}
-          clientData={clientData}
-          isSearchingClient={isSearchingClient}
-          onPhoneChange={handlePhoneChange}
-        />
-
-        {/* Section montant et retrait */}
-        <WithdrawalAmountSection
-          amount={amount}
-          clientData={clientData}
-          isProcessing={isProcessing}
-          onAmountChange={setAmount}
-          onSubmit={handleSubmit}
-        />
+        <AgentAutomaticWithdrawalForm />
       </div>
     </div>
   );

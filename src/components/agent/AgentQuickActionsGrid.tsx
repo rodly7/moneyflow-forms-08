@@ -37,13 +37,6 @@ export const AgentQuickActionsGrid = () => {
       onClick: () => navigate("/agent-services"),
       variant: "primary" as const
     },
-    {
-      title: "Mes Rapports",
-      description: "Voir performances",
-      icon: BarChart3,
-      onClick: () => navigate("/agent-performance-dashboard"),
-      variant: "secondary" as const
-    }
   ];
 
   const secondaryActions = [
