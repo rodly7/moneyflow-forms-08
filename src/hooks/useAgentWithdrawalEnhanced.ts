@@ -118,7 +118,17 @@ export const useAgentWithdrawalEnhanced = () => {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log("🚀 [DEBUG] Début de la soumission de demande de retrait");
+    console.log("📋 [DEBUG] Données:", {
+      amount,
+      phoneNumber,
+      clientData: clientData?.id,
+      userId: user?.id,
+      profileData: profile
+    });
+    
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      console.log("❌ [DEBUG] Montant invalide:", amount);
       toast({
         title: "Montant invalide",
         description: "Veuillez entrer un montant valide",
@@ -128,6 +138,7 @@ export const useAgentWithdrawalEnhanced = () => {
     }
 
     if (!clientData) {
+      console.log("❌ [DEBUG] Client non trouvé");
       toast({
         title: "Client requis",
         description: "Veuillez d'abord rechercher le client",
@@ -137,6 +148,7 @@ export const useAgentWithdrawalEnhanced = () => {
     }
 
     if (!user?.id || !profile) {
+      console.log("❌ [DEBUG] Authentification manquante:", { userId: user?.id, profile });
       toast({
         title: "Erreur d'authentification",
         description: "Vous devez être connecté pour effectuer cette opération",
@@ -149,28 +161,51 @@ export const useAgentWithdrawalEnhanced = () => {
 
     try {
       setIsProcessing(true);
-      console.log("📨 [REQUEST] Création d'une demande de retrait");
-
+      console.log("📨 [DEBUG] Création d'une demande de retrait avec les données:");
+      
       // Récupérer les informations de l'agent
       const agentName = profile.full_name || 'Agent';
       const agentPhone = profile.phone || phoneNumber;
+      
+      console.log("👤 [DEBUG] Infos agent:", {
+        agentName,
+        agentPhone,
+        userId: user.id,
+        clientId: clientData.id,
+        amount: operationAmount
+      });
 
-      const { error } = await supabase
+      const insertData = {
+        user_id: clientData.id,
+        agent_id: user.id,
+        agent_name: agentName,
+        agent_phone: agentPhone,
+        withdrawal_phone: clientData.phone,
+        amount: operationAmount,
+        status: 'pending'
+      };
+      
+      console.log("💾 [DEBUG] Données à insérer:", insertData);
+
+      const { data, error } = await supabase
         .from('withdrawal_requests')
-        .insert({
-          user_id: clientData.id,
-          agent_id: user.id,
-          agent_name: agentName,
-          agent_phone: agentPhone,
-          withdrawal_phone: clientData.phone,
-          amount: operationAmount,
-          status: 'pending'
-        });
+        .insert(insertData)
+        .select();
+
+      console.log("📤 [DEBUG] Résultat insertion:", { data, error });
 
       if (error) {
-        console.error("❌ Erreur lors de la création:", error);
+        console.error("❌ [DEBUG] Erreur lors de la création:", error);
+        console.error("❌ [DEBUG] Détails de l'erreur:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         throw error;
       }
+
+      console.log("✅ [DEBUG] Demande créée avec succès:", data);
 
       toast({
         title: "Demande envoyée",
@@ -181,11 +216,18 @@ export const useAgentWithdrawalEnhanced = () => {
       setAmount("");
       setPhoneNumber("");
       setClientData(null);
-    } catch (error) {
-      console.error("❌ [ERROR] Erreur demande de retrait:", error);
+    } catch (error: any) {
+      console.error("❌ [ERROR] Erreur complète demande de retrait:", error);
+      console.error("❌ [ERROR] Stack trace:", error?.stack);
+      
+      let errorMessage = "Impossible d'envoyer la demande de retrait";
+      if (error?.message) {
+        errorMessage += `: ${error.message}`;
+      }
+      
       toast({
         title: "Erreur",
-        description: "Impossible d'envoyer la demande de retrait",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
