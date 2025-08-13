@@ -38,7 +38,7 @@ export const useAgentAutomaticWithdrawal = () => {
       setIsProcessing(true);
 
       // Créer une demande de retrait au lieu d'effectuer le retrait directement
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('withdrawal_requests')
         .insert({
           user_id: clientId,
@@ -48,9 +48,7 @@ export const useAgentAutomaticWithdrawal = () => {
           withdrawal_phone: clientPhone,
           amount: amount,
           status: 'pending'
-        })
-        .select()
-        .single();
+        });
 
       if (error) {
         console.error("Erreur lors de la création de la demande:", error);
@@ -69,7 +67,6 @@ export const useAgentAutomaticWithdrawal = () => {
 
       return { 
         success: true, 
-        data,
         message: "Demande de retrait créée avec succès" 
       };
     } catch (error) {

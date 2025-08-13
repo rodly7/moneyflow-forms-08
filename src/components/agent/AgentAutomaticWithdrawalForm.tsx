@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Send, AlertCircle, Loader2, Search, User, Wallet, QrCode } from "lucide-react";
-import { formatCurrency } from "@/integrations/supabase/client";
+
 import { useAgentAutomaticWithdrawal } from "@/hooks/useAgentAutomaticWithdrawal";
 import { findUserByPhone } from "@/services/withdrawalService";
 import { useToast } from "@/hooks/use-toast";
@@ -49,7 +49,7 @@ export const AgentAutomaticWithdrawalForm = () => {
         
         toast({
           title: "Client trouvé",
-          description: `${client.full_name || 'Utilisateur'} - Solde: ${formatCurrency(client.balance || 0, 'XAF')}`,
+          description: `${client.full_name || 'Utilisateur'} identifié`,
         });
       } else {
         setClientData(null);
@@ -198,12 +198,6 @@ export const AgentAutomaticWithdrawalForm = () => {
                   {clientData.full_name || 'Nom non disponible'}
                 </span>
               </div>
-              <div className="flex items-center text-green-700">
-                <Wallet className="w-4 h-4 mr-2" />
-                <span>
-                  Solde: {formatCurrency(clientData.balance || 0, 'XAF')}
-                </span>
-              </div>
               <div className="text-sm text-green-600">
                 Pays: {clientData.country || 'Non spécifié'}
               </div>
@@ -249,7 +243,7 @@ export const AgentAutomaticWithdrawalForm = () => {
               onChange={(e) => setAmount(e.target.value)}
               required
               className="h-12 text-lg"
-              max={clientData?.balance || 0}
+              max={clientData ? undefined : 0}
               disabled={!clientData}
             />
             {amount && clientData && Number(amount) > clientData.balance && (

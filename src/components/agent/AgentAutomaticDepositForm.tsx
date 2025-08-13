@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Download, AlertCircle, Loader2, User, Wallet } from "lucide-react";
-import { formatCurrency } from "@/integrations/supabase/client";
+
 import { useDepositOperations } from "@/hooks/useDepositOperations";
 import { findUserByPhone } from "@/services/withdrawalService";
 import { useToast } from "@/hooks/use-toast";
@@ -39,7 +39,7 @@ export const AgentAutomaticDepositForm = () => {
           setClientData(client);
           toast({
             title: "Client identifié",
-            description: `${client.full_name || 'Utilisateur'} - Solde: ${formatCurrency(client.balance || 0, 'XAF')}`,
+            description: `${client.full_name || 'Utilisateur'} identifié`,
           });
         } else {
           toast({
@@ -127,12 +127,6 @@ export const AgentAutomaticDepositForm = () => {
                 <User className="w-4 h-4 mr-2" />
                 <span className="font-medium">
                   {clientData.full_name || 'Nom non disponible'}
-                </span>
-              </div>
-              <div className="flex items-center text-green-700">
-                <Wallet className="w-4 h-4 mr-2" />
-                <span>
-                  Solde: {formatCurrency(clientData.balance || 0, 'XAF')}
                 </span>
               </div>
               <div className="text-sm text-green-600">

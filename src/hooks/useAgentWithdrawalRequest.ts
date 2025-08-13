@@ -66,7 +66,7 @@ export const useAgentWithdrawalRequest = () => {
         return { success: false };
       }
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('withdrawal_requests')
         .insert({
           user_id: recipientId,
@@ -76,9 +76,7 @@ export const useAgentWithdrawalRequest = () => {
           withdrawal_phone: clientProfile.phone || '',
           amount: amount,
           status: 'pending'
-        })
-        .select()
-        .single();
+        });
 
       if (error) {
         console.error("Erreur lors de la création de la demande:", error);
@@ -95,7 +93,7 @@ export const useAgentWithdrawalRequest = () => {
         description: "La demande de retrait a été envoyée au client",
       });
 
-      return { success: true, data };
+      return { success: true };
     } catch (error) {
       console.error("Erreur lors de la création de la demande:", error);
       toast({

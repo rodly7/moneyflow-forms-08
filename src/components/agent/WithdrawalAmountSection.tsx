@@ -62,7 +62,7 @@ export const WithdrawalAmountSection = ({
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
                 <p className="text-red-700 text-sm">
-                  Le montant dépasse le solde disponible ({formatCurrency(clientData.balance, 'XAF')})
+                  Le montant dépasse le solde disponible du client
                 </p>
               </div>
             )}
