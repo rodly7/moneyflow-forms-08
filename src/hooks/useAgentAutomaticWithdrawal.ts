@@ -37,15 +37,67 @@ export const useAgentAutomaticWithdrawal = () => {
     try {
       setIsProcessing(true);
 
-      // Créer une demande de retrait au lieu d'effectuer le retrait directement
+      // Vérifier les informations agent et client avant la création de la demande
+      // Récupérer/valider le profil agent (utiliser le contexte si dispo, sinon fallback DB)
+      let agentName = profile.full_name || 'Agent';
+      let agentPhone = profile.phone || '';
+      let agentCountry = profile.country as string | undefined;
+
+      if (!agentCountry) {
+        const { data: agentProfile, error: agentErr } = await supabase
+          .from('profiles')
+          .select('full_name, phone, country')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (agentErr || !agentProfile) {
+          toast({
+            title: "Erreur",
+            description: "Impossible de récupérer les informations de l'agent",
+            variant: "destructive"
+          });
+          return { success: false };
+        }
+        agentName = agentProfile.full_name || agentName;
+        agentPhone = agentProfile.phone || agentPhone;
+        agentCountry = agentProfile.country || agentCountry;
+      }
+
+      // Récupérer le profil client (téléphone et pays nécessaires pour les règles)
+      const { data: clientProfile, error: clientErr } = await supabase
+        .from('profiles')
+        .select('phone, country')
+        .eq('id', clientId)
+        .maybeSingle();
+
+      if (clientErr || !clientProfile) {
+        console.error("Erreur lors de la récupération du profil client:", clientErr);
+        toast({
+          title: "Erreur",
+          description: "Impossible de récupérer les informations du client",
+          variant: "destructive"
+        });
+        return { success: false };
+      }
+
+      // Vérifier que l'agent et le client sont dans le même pays (conforme RLS)
+      if (agentCountry && clientProfile.country && agentCountry !== clientProfile.country) {
+        toast({
+          title: "Opération non autorisée",
+          description: "Retraits uniquement pour les clients du même pays que l'agent",
+          variant: "destructive"
+        });
+        return { success: false };
+      }
+
+      // Créer une demande de retrait (sans .select() pour éviter RLS sur lecture)
       const { error } = await supabase
         .from('withdrawal_requests')
         .insert({
           user_id: clientId,
           agent_id: user.id,
-          agent_name: profile.full_name || 'Agent',
-          agent_phone: profile.phone || '',
-          withdrawal_phone: clientPhone,
+          agent_name: agentName,
+          agent_phone: agentPhone,
+          withdrawal_phone: clientProfile.phone || clientPhone,
           amount: amount,
           status: 'pending'
         });
