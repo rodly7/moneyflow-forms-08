@@ -62,32 +62,8 @@ export const useAgentAutomaticWithdrawal = () => {
         agentCountry = agentProfile.country || agentCountry;
       }
 
-      // Récupérer le profil client (téléphone et pays nécessaires pour les règles)
-      const { data: clientProfile, error: clientErr } = await supabase
-        .from('profiles')
-        .select('phone, country')
-        .eq('id', clientId)
-        .maybeSingle();
-
-      if (clientErr || !clientProfile) {
-        console.error("Erreur lors de la récupération du profil client:", clientErr);
-        toast({
-          title: "Erreur",
-          description: "Impossible de récupérer les informations du client",
-          variant: "destructive"
-        });
-        return { success: false };
-      }
-
-      // Vérifier que l'agent et le client sont dans le même pays (conforme RLS)
-      if (agentCountry && clientProfile.country && agentCountry !== clientProfile.country) {
-        toast({
-          title: "Opération non autorisée",
-          description: "Retraits uniquement pour les clients du même pays que l'agent",
-          variant: "destructive"
-        });
-        return { success: false };
-      }
+      // Utiliser le téléphone fourni (QR ou saisie) sans requête supplémentaire
+      const clientPhoneNumber = clientPhone;
 
       // Créer une demande de retrait (sans .select() pour éviter RLS sur lecture)
       const { error } = await supabase
@@ -97,7 +73,7 @@ export const useAgentAutomaticWithdrawal = () => {
           agent_id: user.id,
           agent_name: agentName,
           agent_phone: agentPhone,
-          withdrawal_phone: clientProfile.phone || clientPhone,
+          withdrawal_phone: clientPhoneNumber,
           amount: amount,
           status: 'pending'
         });

@@ -153,7 +153,7 @@ export const AgentAutomaticWithdrawalForm = () => {
     }
   };
 
-  const isValidAmount = amount && Number(amount) > 0 && clientData && Number(amount) <= clientData.balance;
+  const isValidAmount = !!amount && Number(amount) > 0 && !!clientData;
 
   return (
     <Card>
@@ -197,6 +197,9 @@ export const AgentAutomaticWithdrawalForm = () => {
                 <span className="font-medium">
                   {clientData.full_name || 'Nom non disponible'}
                 </span>
+              </div>
+              <div className="text-sm text-green-600">
+                Tél: {clientData.phone}
               </div>
               <div className="text-sm text-green-600">
                 Pays: {clientData.country || 'Non spécifié'}
@@ -243,15 +246,8 @@ export const AgentAutomaticWithdrawalForm = () => {
               onChange={(e) => setAmount(e.target.value)}
               required
               className="h-12 text-lg"
-              max={clientData ? undefined : 0}
               disabled={!clientData}
             />
-            {amount && clientData && Number(amount) > clientData.balance && (
-              <p className="text-red-600 text-sm flex items-center gap-1">
-                <AlertCircle className="w-4 h-4" />
-                Le montant dépasse le solde disponible du client
-              </p>
-            )}
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-md p-3">

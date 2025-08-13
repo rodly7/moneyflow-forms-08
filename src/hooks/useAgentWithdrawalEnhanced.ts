@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { getUserBalance, findUserByPhone } from "@/services/withdrawalService";
+import { findUserByPhone } from "@/services/withdrawalService";
 // import { processAgentWithdrawalWithCommission } from "@/services/agentWithdrawalService"; // No immediate transfers on request send
 import { formatCurrency, supabase } from "@/integrations/supabase/client";
 
@@ -93,7 +93,7 @@ export const useAgentWithdrawalEnhanced = () => {
         
         toast({
           title: "Client trouvé",
-          description: `${client.full_name || 'Utilisateur'} - Solde: ${formatCurrency(client.balance || 0, 'XAF')}`,
+          description: `${client.full_name || 'Utilisateur'} identifié`,
         });
       } else {
         setClientData(null);
@@ -139,27 +139,8 @@ export const useAgentWithdrawalEnhanced = () => {
 
     const operationAmount = Number(amount);
 
-    // Vérifier le solde client en temps réel
-    console.log("🔍 Vérification finale du solde client...");
-    try {
-      const currentClientData = await getUserBalance(clientData.id);
-      if (operationAmount > currentClientData.balance) {
-        toast({
-          title: "Solde client insuffisant",
-          description: `Le client n'a que ${formatCurrency(currentClientData.balance, 'XAF')}`,
-          variant: "destructive"
-        });
-        return;
-      }
-    } catch (error) {
-      console.error("❌ Erreur vérification solde client:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de vérifier le solde du client",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Aucune vérification de solde côté agent à l'envoi de la demande (respect de la confidentialité)
+
 
     try {
       setIsProcessing(true);
