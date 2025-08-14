@@ -12,6 +12,7 @@ import { formatCurrency } from "@/integrations/supabase/client";
 import { useUserSearch } from "@/hooks/useUserSearch";
 import { useAgentWithdrawalRequest } from "@/hooks/useAgentWithdrawalRequest";
 import QRScanner from "@/components/agent/QRScanner";
+import { ClientSearchForm } from "@/components/agent/ClientSearchForm";
 
 const AgentWithdrawalSimple = () => {
   const { user, profile } = useAuth();
@@ -77,8 +78,8 @@ const AgentWithdrawalSimple = () => {
     }
   };
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPhoneNumber(e.target.value);
+  const handlePhoneChange = (value: string) => {
+    setPhoneNumber(value);
     if (clientData) {
       setClientData(null);
       setQrVerified(false);
@@ -101,6 +102,10 @@ const AgentWithdrawalSimple = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleQRScan = () => {
+    setIsQRScannerOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -190,81 +195,43 @@ const AgentWithdrawalSimple = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Recherche du client */}
-              <div className="space-y-2">
-                <Label htmlFor="phone">Numéro du client</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="Entrez le numéro du client"
-                    value={phoneNumber}
-                    onChange={handlePhoneChange}
-                    required
-                    className="h-12"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={searchClient}
-                    disabled={isSearching || !phoneNumber}
-                    className="h-12 px-3"
-                  >
-                    {isSearching ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-500"></div>
-                    ) : (
-                      "Rechercher"
-                    )}
-                  </Button>
-                </div>
-              </div>
+              {/* Recherche du client avec saisie manuelle et QR */}
+              <ClientSearchForm
+                phoneNumber={phoneNumber}
+                clientData={clientData}
+                isSearching={isSearching}
+                onPhoneChange={handlePhoneChange}
+                onSearch={searchClient}
+                onQRScan={handleQRScan}
+              />
 
-              {/* Affichage des informations du client */}
+              {/* Section QR Code - seulement si un client est trouvé */}
               {clientData && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-md space-y-2">
-                  <div className="flex items-center text-green-800">
-                    <User className="w-4 h-4 mr-2" />
-                    <span className="font-medium">
-                      {clientData.full_name || 'Nom non disponible'}
+                <div className="mt-4 pt-4 border-t border-green-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-green-800">
+                      Vérification QR Code
                     </span>
-                  </div>
-                  <div className="flex items-center text-green-700">
-                    <Wallet className="w-4 h-4 mr-2" />
-                    <span>
-                      Solde: {formatCurrency(clientData.balance || 0, 'XAF')}
-                    </span>
-                  </div>
-                  <div className="text-sm text-green-600">
-                    Pays: {clientData.country || 'Non spécifié'}
-                  </div>
-                  
-                  {/* Section QR Code */}
-                  <div className="mt-4 pt-4 border-t border-green-200">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-green-800">
-                        Vérification QR Code
-                      </span>
-                      {qrVerified ? (
-                        <span className="text-green-600 text-sm">✅ Vérifié</span>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsQRScannerOpen(true)}
-                          className="border-green-300 text-green-700 hover:bg-green-50"
-                        >
-                          <QrCode className="w-4 h-4 mr-2" />
-                          Scanner QR
-                        </Button>
-                      )}
-                    </div>
-                    {!qrVerified && (
-                      <p className="text-xs text-red-600 mt-1">
-                        ⚠️ Vous devez scanner le QR code du client pour continuer
-                      </p>
+                    {qrVerified ? (
+                      <span className="text-green-600 text-sm">✅ Vérifié</span>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsQRScannerOpen(true)}
+                        className="border-green-300 text-green-700 hover:bg-green-50"
+                      >
+                        <QrCode className="w-4 h-4 mr-2" />
+                        Scanner QR
+                      </Button>
                     )}
                   </div>
+                  {!qrVerified && (
+                    <p className="text-xs text-red-600 mt-1">
+                      ⚠️ Vous devez scanner le QR code du client pour continuer
+                    </p>
+                  )}
                 </div>
               )}
 
