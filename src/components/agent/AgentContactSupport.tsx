@@ -27,14 +27,13 @@ const AgentContactSupport = () => {
     
     try {
       const { error } = await supabase
-        .from('support_messages')
+        .from('customer_support_messages')
         .insert({
           user_id: user?.id,
           message: message.trim(),
           category,
           status: 'pending',
-          user_name: profile?.full_name || 'Agent',
-          user_phone: profile?.phone || ''
+          priority: 'medium'
         });
 
       if (error) throw error;
