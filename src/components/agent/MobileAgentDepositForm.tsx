@@ -111,37 +111,20 @@ export const MobileAgentDepositForm = () => {
     setIsSearchingClient(false);
   };
 
-  const handleQRScan = (scannedData: string) => {
-    try {
-      const qrData = JSON.parse(scannedData);
-      if (qrData.phone && qrData.userId) {
-        setPhoneNumber(qrData.phone);
-        setQrVerified(true);
-        setIsQRScannerOpen(false);
-        
-        toast({
-          title: "QR Code vérifié",
-          description: "Code QR client validé avec succès",
-        });
-        
-        // Rechercher automatiquement le client
-        setTimeout(() => {
-          searchClient();
-        }, 500);
-      } else {
-        toast({
-          title: "QR Code invalide",
-          description: "Ce QR code n'est pas valide pour un dépôt",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Erreur QR",
-        description: "Impossible de lire ce QR code",
-        variant: "destructive"
-      });
-    }
+  const handleQRScanSuccess = (userData: { userId: string; fullName: string; phone: string }) => {
+    setPhoneNumber(userData.phone);
+    setQrVerified(true);
+    setIsQRScannerOpen(false);
+    
+    toast({
+      title: "QR Code vérifié",
+      description: "Code QR client validé avec succès",
+    });
+    
+    // Rechercher automatiquement le client
+    setTimeout(() => {
+      searchClient();
+    }, 500);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -184,13 +167,16 @@ export const MobileAgentDepositForm = () => {
       return;
     }
 
-    const success = await processAgentAutomaticDeposit({
-      clientId: clientData.id,
-      amount: depositAmount,
-      agentId: user?.id || "",
-    });
+    // Corriger l'appel avec tous les paramètres requis
+    const result = await processAgentAutomaticDeposit(
+      clientData.id,
+      depositAmount,
+      clientData.phone,
+      clientData.full_name || 'Client',
+      agentBalance
+    );
 
-    if (success) {
+    if (result.success) {
       setPhoneNumber("");
       setAmount("");
       setClientData(null);
@@ -347,34 +333,12 @@ export const MobileAgentDepositForm = () => {
         </form>
       </div>
 
-      {/* Scanner QR Modal */}
-      {isQRScannerOpen && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-4 m-4 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Scanner QR Client</h3>
-              <Button
-                variant="ghost"
-                onClick={() => setIsQRScannerOpen(false)}
-                className="h-8 w-8 p-0"
-              >
-                ✕
-              </Button>
-            </div>
-            <QRScanner 
-              onScan={handleQRScan}
-              onError={(error) => {
-                console.error("Erreur QR:", error);
-                toast({
-                  title: "Erreur scanner",
-                  description: "Impossible d'accéder à la caméra",
-                  variant: "destructive"
-                });
-              }}
-            />
-          </div>
-        </div>
-      )}
+      {/* Scanner QR */}
+      <QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScanSuccess={handleQRScanSuccess}
+      />
     </div>
   );
 };
