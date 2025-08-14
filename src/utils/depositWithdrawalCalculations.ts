@@ -4,9 +4,9 @@ export const calculateDepositFees = (amount: number, hasCompletedDailyQuota: boo
   const currentHour = new Date().getHours();
   const isBefore19h = currentHour < 19;
   
-  // Commission pour les agents sur les dépôts - nouveau taux de 5%
-  const baseCommissionRate = 0.05; // 5% de base
-  const bonusCommissionRate = 0.05; // 5% (même taux)
+  // Commission pour les agents sur les dépôts - nouveau taux de 0,5%
+  const baseCommissionRate = 0.005; // 0,5% de base
+  const bonusCommissionRate = 0.005; // 0,5% (même taux)
   
   // Vérifier si le quota est atteint avant 19h
   const quotaReachedBefore19h = (dailyVolume + amount) >= DAILY_QUOTA && isBefore19h;

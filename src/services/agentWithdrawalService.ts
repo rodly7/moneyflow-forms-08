@@ -123,9 +123,9 @@ export const processAgentDepositWithCommission = async (
       throw new Error(`Solde agent insuffisant. Disponible: ${agentData.balance} FCFA, demandé: ${amount} FCFA`);
     }
 
-    // 2. Calculer la commission agent (1% pour les dépôts)
-    const agentCommission = Math.round(amount * 0.01);
-    console.log(`📊 Commission calculée: ${agentCommission} FCFA (1%)`);
+    // 2. Calculer la commission agent (0,5% pour les dépôts)
+    const agentCommission = Math.round(amount * 0.005);
+    console.log(`📊 Commission calculée: ${agentCommission} FCFA (0.5%)`);
 
     // 3. TRANSACTION ATOMIQUE: Débiter l'agent
     console.log(`💸 [ETAPE 1] Débit de l'agent ${agentId} de ${amount} FCFA`);
@@ -168,7 +168,7 @@ export const processAgentDepositWithCommission = async (
 
     console.log(`✅ [ETAPE 2 OK] Client crédité. Nouveau solde: ${newClientBalance} FCFA`);
 
-    // 5. Créditer automatiquement la commission de dépôt (1%)
+    // 5. Créditer automatiquement la commission de dépôt (0,5%)
     console.log("💎 [COMMISSION] Crédit automatique de la commission dépôt");
     await creditDepositCommission(agentId, amount);
 

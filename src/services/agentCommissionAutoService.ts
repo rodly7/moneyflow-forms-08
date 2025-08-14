@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface CommissionData {
@@ -6,10 +7,10 @@ export interface CommissionData {
   totalCommission: number;
 }
 
-// Calculer et créditer automatiquement la commission sur un dépôt (5%)
+// Calculer et créditer automatiquement la commission sur un dépôt (0,5%)
 export const creditDepositCommission = async (agentId: string, amount: number): Promise<boolean> => {
   try {
-    const commission = Math.round(amount * 0.05); // 5% pour les dépôts
+    const commission = Math.round(amount * 0.005); // 0,5% pour les dépôts
     
     const { error } = await supabase.rpc('increment_agent_commission', {
       agent_user_id: agentId,
