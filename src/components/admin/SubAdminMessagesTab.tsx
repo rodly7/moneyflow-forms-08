@@ -3,16 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useSubAdmin } from '@/hooks/useSubAdmin';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageSquare, Send, AlertCircle, Clock } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MessageSquare, Send, Eye, User } from 'lucide-react';
 
-interface SupportMessage {
+interface MessageData {
   id: string;
   user_id: string;
   message: string;
@@ -22,59 +19,55 @@ interface SupportMessage {
   created_at: string;
   response?: string;
   responded_at?: string;
-  user_name?: string;
-  user_phone?: string;
+  profiles?: {
+    full_name: string;
+    phone: string;
+    country: string;
+  };
 }
 
 const SubAdminMessagesTab = () => {
   const { toast } = useToast();
-  const { canSendNotifications, userCountry } = useSubAdmin();
-  const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const { canManageMessages, userCountry } = useSubAdmin();
+  const [messages, setMessages] = useState<MessageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
 
-  // États pour envoyer une notification
-  const [notificationTitle, setNotificationTitle] = useState('');
-  const [notificationMessage, setNotificationMessage] = useState('');
-  const [notificationPriority, setNotificationPriority] = useState<'low' | 'medium' | 'high'>('medium');
-  const [sending, setSending] = useState(false);
-
   useEffect(() => {
-    fetchMessages();
-  }, []);
+    if (canManageMessages) {
+      fetchMessages();
+    }
+  }, [canManageMessages]);
 
   const fetchMessages = async () => {
     setLoading(true);
     try {
-      // Récupérer les messages de support avec les informations utilisateur
-      const { data, error } = await supabase
+      let query = supabase
         .from('customer_support_messages')
         .select(`
           *,
-          profiles!customer_support_messages_user_id_fkey (
+          profiles:user_id (
             full_name,
             phone,
             country
           )
         `)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
-      // Filtrer par pays si nécessaire
-      const filteredData = userCountry 
-        ? data?.filter(msg => msg.profiles?.country === userCountry)
-        : data;
+      // Filtrer par territoire si applicable
+      let filteredData = data || [];
+      if (userCountry) {
+        filteredData = filteredData.filter(msg => 
+          msg.profiles && msg.profiles.country === userCountry
+        );
+      }
 
-      const processedMessages = filteredData?.map(msg => ({
-        ...msg,
-        user_name: msg.profiles?.full_name || 'Utilisateur inconnu',
-        user_phone: msg.profiles?.phone || '',
-      })) || [];
-
-      setMessages(processedMessages);
+      setMessages(filteredData);
     } catch (error) {
       console.error('Erreur lors du chargement des messages:', error);
       toast({
@@ -97,6 +90,7 @@ const SubAdminMessagesTab = () => {
           response: responseText,
           status: 'responded',
           responded_at: new Date().toISOString(),
+          responded_by: (await supabase.auth.getUser()).data.user?.id
         })
         .eq('id', messageId);
 
@@ -104,91 +98,60 @@ const SubAdminMessagesTab = () => {
 
       toast({
         title: "Réponse envoyée",
-        description: "Votre réponse a été envoyée à l'utilisateur",
+        description: "Votre réponse a été envoyée avec succès",
       });
 
       setResponding(null);
       setResponseText('');
       fetchMessages();
     } catch (error) {
-      console.error('Erreur lors de l\'envoi de la réponse:', error);
+      console.error('Erreur lors de la réponse:', error);
       toast({
         title: "Erreur",
-        description: "Erreur lors de l'envoi de la réponse",
+        description: "Impossible d'envoyer la réponse",
         variant: "destructive"
       });
     }
   };
 
-  const handleSendNotification = async () => {
-    if (!canSendNotifications) {
-      toast({
-        title: "Accès refusé",
-        description: "Vous n'avez pas les permissions pour envoyer des notifications",
-        variant: "destructive"
-      });
-      return;
-    }
+  if (!canManageMessages) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <MessageSquare className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Accès limité</h3>
+            <p className="text-muted-foreground">
+              Vous n'avez pas les permissions pour gérer les messages.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-    if (!notificationTitle.trim() || !notificationMessage.trim()) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs",
-        variant: "destructive"
-      });
-      return;
-    }
+  const stats = {
+    total: messages.length,
+    unread: messages.filter(m => m.status === 'unread').length,
+    responded: messages.filter(m => m.status === 'responded').length,
+    urgent: messages.filter(m => m.priority === 'urgent').length,
+  };
 
-    setSending(true);
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .insert({
-          title: notificationTitle,
-          message: notificationMessage,
-          notification_type: 'territorial',
-          priority: notificationPriority,
-          target_country: userCountry,
-          total_recipients: 1 // Sera calculé automatiquement
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Notification envoyée",
-        description: "La notification a été envoyée aux utilisateurs de votre territoire",
-      });
-
-      setNotificationTitle('');
-      setNotificationMessage('');
-      setNotificationPriority('medium');
-    } catch (error) {
-      console.error('Erreur lors de l\'envoi de la notification:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de l'envoi de la notification",
-        variant: "destructive"
-      });
-    } finally {
-      setSending(false);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'unread': return 'bg-red-100 text-red-800';
+      case 'read': return 'bg-yellow-100 text-yellow-800';
+      case 'responded': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'responded': return 'bg-green-100 text-green-800';
-      case 'read': return 'bg-blue-100 text-blue-800';
-      case 'unread': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'urgent': return 'bg-red-500 text-white';
+      case 'high': return 'bg-orange-500 text-white';
+      case 'normal': return 'bg-blue-500 text-white';
+      default: return 'bg-gray-500 text-white';
     }
   };
 
@@ -196,9 +159,9 @@ const SubAdminMessagesTab = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Messages et Notifications</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Messages Support</h2>
           <p className="text-muted-foreground">
-            Gestion des messages de support et envoi de notifications
+            Gestion des messages de support de votre territoire{userCountry && ` (${userCountry})`}
           </p>
         </div>
         <Button onClick={fetchMessages} disabled={loading} variant="outline">
@@ -207,67 +170,55 @@ const SubAdminMessagesTab = () => {
         </Button>
       </div>
 
-      {/* Envoi de notifications */}
-      {canSendNotifications && (
+      {/* Statistiques des messages */}
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Envoyer une Notification</CardTitle>
-            <CardDescription>
-              Envoyer une notification aux utilisateurs de votre territoire
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="notification-title">Titre</Label>
-                <Input
-                  id="notification-title"
-                  value={notificationTitle}
-                  onChange={(e) => setNotificationTitle(e.target.value)}
-                  placeholder="Titre de la notification"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notification-priority">Priorité</Label>
-                <Select value={notificationPriority} onValueChange={(value: any) => setNotificationPriority(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">🟢 Faible</SelectItem>
-                    <SelectItem value="medium">🟡 Moyenne</SelectItem>
-                    <SelectItem value="high">🔴 Élevée</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="notification-message">Message</Label>
-              <Textarea
-                id="notification-message"
-                value={notificationMessage}
-                onChange={(e) => setNotificationMessage(e.target.value)}
-                placeholder="Contenu de la notification"
-                rows={3}
-              />
-            </div>
-            <Button 
-              onClick={handleSendNotification}
-              disabled={sending || !notificationTitle.trim() || !notificationMessage.trim()}
-            >
-              <Send className="w-4 h-4 mr-2" />
-              {sending ? 'Envoi...' : 'Envoyer la Notification'}
-            </Button>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Messages de support */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Non lus</CardTitle>
+            <Eye className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{stats.unread}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Répondus</CardTitle>
+            <Send className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.responded}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Urgents</CardTitle>
+            <MessageSquare className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{stats.urgent}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Liste des messages */}
       <Card>
         <CardHeader>
           <CardTitle>Messages de Support</CardTitle>
           <CardDescription>
-            Messages de support des utilisateurs de votre territoire
+            Messages des utilisateurs de votre territoire nécessitant une réponse
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -278,10 +229,23 @@ const SubAdminMessagesTab = () => {
           ) : (
             <div className="space-y-4">
               {messages.map((message) => (
-                <div key={message.id} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
+                <div key={message.id} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-3">
+                      <User className="w-8 h-8 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">
+                          {message.profiles?.full_name || 'Utilisateur inconnu'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {message.profiles?.phone}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {message.profiles?.country}
+                        </p>
+                      </div>
+                    </div>
                     <div className="flex items-center space-x-2">
-                      <span className="font-medium">{message.user_name}</span>
                       <Badge className={getPriorityColor(message.priority)}>
                         {message.priority}
                       </Badge>
@@ -289,77 +253,72 @@ const SubAdminMessagesTab = () => {
                         {message.status}
                       </Badge>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4 inline mr-1" />
-                      {new Date(message.created_at).toLocaleDateString()}
-                    </div>
                   </div>
-                  
-                  <div className="mb-3">
-                    <p className="text-sm text-muted-foreground mb-1">
-                      {message.user_phone} • {message.category}
+
+                  <div className="pl-11">
+                    <p className="text-sm mb-2">{message.message}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(message.created_at).toLocaleString()}
                     </p>
-                    <p className="text-sm">{message.message}</p>
-                  </div>
 
-                  {message.response && (
-                    <div className="bg-green-50 p-3 rounded-lg mb-3">
-                      <p className="text-sm font-medium text-green-800 mb-1">Votre réponse:</p>
-                      <p className="text-sm text-green-700">{message.response}</p>
-                      <p className="text-xs text-green-600 mt-1">
-                        Répondu le {new Date(message.responded_at!).toLocaleDateString()}
-                      </p>
-                    </div>
-                  )}
+                    {message.response && (
+                      <div className="mt-3 p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-1">Réponse:</p>
+                        <p className="text-sm">{message.response}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {message.responded_at && new Date(message.responded_at).toLocaleString()}
+                        </p>
+                      </div>
+                    )}
 
-                  {!message.response && (
-                    <div className="mt-3">
-                      {responding === message.id ? (
-                        <div className="space-y-3">
-                          <Textarea
-                            value={responseText}
-                            onChange={(e) => setResponseText(e.target.value)}
-                            placeholder="Tapez votre réponse..."
-                            rows={3}
-                          />
-                          <div className="flex space-x-2">
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleRespond(message.id)}
-                              disabled={!responseText.trim()}
-                            >
-                              <Send className="w-4 h-4 mr-1" />
-                              Envoyer
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => {
-                                setResponding(null);
-                                setResponseText('');
-                              }}
-                            >
-                              Annuler
-                            </Button>
+                    {message.status !== 'responded' && (
+                      <div className="mt-3">
+                        {responding === message.id ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              placeholder="Tapez votre réponse..."
+                              value={responseText}
+                              onChange={(e) => setResponseText(e.target.value)}
+                            />
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleRespond(message.id)}
+                                disabled={!responseText.trim()}
+                              >
+                                <Send className="w-4 h-4 mr-1" />
+                                Envoyer
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setResponding(null);
+                                  setResponseText('');
+                                }}
+                              >
+                                Annuler
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => setResponding(message.id)}
-                        >
-                          <MessageSquare className="w-4 h-4 mr-1" />
-                          Répondre
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setResponding(message.id)}
+                          >
+                            <Send className="w-4 h-4 mr-1" />
+                            Répondre
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
               {messages.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
-                  Aucun message de support trouvé
+                  Aucun message trouvé dans votre territoire
                 </div>
               )}
             </div>

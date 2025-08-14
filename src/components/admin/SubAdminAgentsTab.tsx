@@ -13,7 +13,7 @@ interface AgentData {
   user_id: string;
   full_name: string;
   phone: string;
-  status: string;
+  status: 'pending' | 'active' | 'suspended' | 'rejected';
   commission_balance: number;
   country: string;
   created_at: string;
@@ -72,13 +72,11 @@ const SubAdminAgentsTab = () => {
     }
 
     try {
-      const updateData = action === 'approve' 
-        ? { status: 'active' }
-        : { status: 'rejected' };
+      const newStatus: 'active' | 'rejected' = action === 'approve' ? 'active' : 'rejected';
       
       const { error } = await supabase
         .from('agents')
-        .update(updateData)
+        .update({ status: newStatus })
         .eq('id', agentId);
 
       if (error) throw error;
