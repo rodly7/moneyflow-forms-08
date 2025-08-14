@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,7 +42,7 @@ const SubAdminTransactionMonitor = () => {
 
     setLoading(true);
     try {
-      // Charger les transferts
+      // Charger les transferts avec les profils des expéditeurs
       const { data: transfersData, error: transfersError } = await supabase
         .from('transfers')
         .select(`
@@ -52,18 +51,25 @@ const SubAdminTransactionMonitor = () => {
           fees,
           status,
           created_at,
-          sender:sender_id(full_name, phone, country),
+          sender_id,
           recipient_full_name,
           recipient_phone,
-          recipient_country
+          recipient_country,
+          currency
         `)
-        .eq('sender.country', userCountry)
         .order('created_at', { ascending: false })
         .limit(100);
 
       if (transfersError) throw transfersError;
 
-      // Charger les retraits
+      // Récupérer les profils des expéditeurs séparément
+      const senderIds = transfersData?.map(t => t.sender_id).filter(Boolean) || [];
+      const { data: sendersData } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, country')
+        .in('id', senderIds);
+
+      // Charger les retraits avec les profils des utilisateurs
       const { data: withdrawalsData, error: withdrawalsError } = await supabase
         .from('withdrawals')
         .select(`
@@ -71,16 +77,22 @@ const SubAdminTransactionMonitor = () => {
           amount,
           status,
           created_at,
-          user:user_id(full_name, phone, country),
+          user_id,
           withdrawal_phone
         `)
-        .eq('user.country', userCountry)
         .order('created_at', { ascending: false })
         .limit(100);
 
       if (withdrawalsError) throw withdrawalsError;
 
-      // Charger les dépôts
+      // Récupérer les profils des utilisateurs pour les retraits
+      const withdrawalUserIds = withdrawalsData?.map(w => w.user_id).filter(Boolean) || [];
+      const { data: withdrawalUsersData } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, country')
+        .in('id', withdrawalUserIds);
+
+      // Charger les dépôts avec les profils des utilisateurs  
       const { data: depositsData, error: depositsError } = await supabase
         .from('recharges')
         .select(`
@@ -88,52 +100,89 @@ const SubAdminTransactionMonitor = () => {
           amount,
           status,
           created_at,
-          user:user_id(full_name, phone, country),
+          user_id,
           payment_phone,
-          currency
+          country
         `)
-        .eq('user.country', userCountry)
         .order('created_at', { ascending: false })
         .limit(100);
 
       if (depositsError) throw depositsError;
 
+      // Récupérer les profils des utilisateurs pour les dépôts
+      const depositUserIds = depositsData?.map(d => d.user_id).filter(Boolean) || [];
+      const { data: depositUsersData } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, country')
+        .in('id', depositUserIds);
+
       // Transformer et combiner les données
       const formattedTransactions: Transaction[] = [
-        ...(transfersData?.map(t => ({
-          id: t.id,
-          type: 'transfer' as const,
-          amount: t.amount,
-          status: t.status,
-          timestamp: t.created_at,
-          sender: t.sender,
-          recipient: {
-            full_name: t.recipient_full_name,
-            phone: t.recipient_phone
-          },
-          fees: t.fees,
-          currency: 'XAF'
-        })) || []),
-        ...(withdrawalsData?.map(w => ({
-          id: w.id,
-          type: 'withdrawal' as const,
-          amount: w.amount,
-          status: w.status,
-          timestamp: w.created_at,
-          user: w.user,
-          fees: 0,
-          currency: 'XAF'
-        })) || []),
-        ...(depositsData?.map(d => ({
-          id: d.id,
-          type: 'deposit' as const,
-          amount: d.amount,
-          status: d.status,
-          timestamp: d.created_at,
-          user: d.user,
-          fees: 0,
-          currency: d.currency || 'XAF'
-        })) || [])
+        ...(transfersData?.map(t => {
+          const sender = sendersData?.find(s => s.id === t.sender_id);
+          return {
+            id: t.id,
+            type: 'transfer' as const,
+            amount: t.amount,
+            status: t.status,
+            timestamp: t.created_at,
+            sender: sender ? { full_name: sender.full_name || '', phone: sender.phone || '' } : null,
+            recipient: {
+              full_name: t.recipient_full_name || '',
+              phone: t.recipient_phone || ''
+            },
+            fees: t.fees || 0,
+            currency: t.currency || 'XAF'
+          };
+        }).filter(t => {
+          // Filtrer par pays si spécifié
+          if (userCountry) {
+            const senderCountry = sendersData?.find(s => s.id === t.sender?.full_name)?.country;
+            return senderCountry === userCountry || t.recipient_country === userCountry;
+          }
+          return true;
+        }) || []),
+        
+        ...(withdrawalsData?.map(w => {
+          const user = withdrawalUsersData?.find(u => u.id === w.user_id);
+          return {
+            id: w.id,
+            type: 'withdrawal' as const,
+            amount: w.amount,
+            status: w.status,
+            timestamp: w.created_at,
+            user: user ? { full_name: user.full_name || '', phone: user.phone || '' } : null,
+            fees: 0,
+            currency: 'XAF'
+          };
+        }).filter(w => {
+          // Filtrer par pays si spécifié
+          if (userCountry) {
+            const userCountryData = withdrawalUsersData?.find(u => u.id === w.user_id)?.country;
+            return userCountryData === userCountry;
+          }
+          return true;
+        }) || []),
+        
+        ...(depositsData?.map(d => {
+          const user = depositUsersData?.find(u => u.id === d.user_id);
+          return {
+            id: d.id,
+            type: 'deposit' as const,
+            amount: d.amount,
+            status: d.status,
+            timestamp: d.created_at,
+            user: user ? { full_name: user.full_name || '', phone: user.phone || '' } : null,
+            fees: 0,
+            currency: d.country === 'Cameroon' ? 'XAF' : 'XAF' // Fallback to XAF
+          };
+        }).filter(d => {
+          // Filtrer par pays si spécifié
+          if (userCountry) {
+            return d.country === userCountry;
+          }
+          return true;
+        }) || [])
       ];
 
       // Trier par date
