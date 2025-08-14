@@ -2,9 +2,14 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, DollarSign, Activity, Users, RefreshCw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { createClient } from '@supabase/supabase-js';
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+
+const SUPABASE_URL = "https://msasycggbiwyxlczknwj.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zYXN5Y2dnYml3eXhsY3prbndqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzczNjU5MTMsImV4cCI6MjA1Mjk0MTkxM30.Ezb5GjSg8ApUWR5iNMvVS9bSA7oxudUuYOP2g2ugB_4";
+
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 interface PerformanceData {
   todayTransactions: number;
@@ -50,7 +55,7 @@ export const AgentRealTimePerformance = () => {
       const today = new Date().toISOString().split('T')[0];
 
       // Récupérer les transactions aujourd'hui
-      const { data: todayData } = await supabase
+      const { data: todayData } = await supabaseClient
         .from('recharges')
         .select('amount')
         .eq('provider_transaction_id', user.id)
@@ -58,7 +63,7 @@ export const AgentRealTimePerformance = () => {
         .lt('created_at', `${today}T23:59:59.999Z`);
 
       // Récupérer les retraits aujourd'hui
-      const { data: withdrawalsData } = await supabase
+      const { data: withdrawalsData } = await supabaseClient
         .from('withdrawals')
         .select('amount')
         .eq('processed_by', user.id)
