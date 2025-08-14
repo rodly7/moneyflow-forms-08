@@ -1,5 +1,7 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { getUserBalance } from "./withdrawalService";
+import { creditWithdrawalCommission, creditDepositCommission } from "./agentCommissionAutoService";
 
 export const processAgentWithdrawalWithCommission = async (
   agentId: string,
@@ -50,7 +52,11 @@ export const processAgentWithdrawalWithCommission = async (
 
     console.log("✅ Transaction atomique réussie:", transactionResult);
 
-    // 4. Enregistrer le retrait dans la base (non-critique)
+    // 4. Créditer automatiquement la commission de retrait (0,5%)
+    console.log("💎 [COMMISSION] Crédit automatique de la commission retrait");
+    await creditWithdrawalCommission(agentId, amount);
+
+    // 5. Enregistrer le retrait dans la base (non-critique)
     console.log("📝 [ETAPE 2] Enregistrement du retrait");
     try {
       const { data: withdrawal, error: withdrawalError } = await supabase
@@ -59,7 +65,8 @@ export const processAgentWithdrawalWithCommission = async (
           user_id: clientId,
           amount: amount,
           withdrawal_phone: phoneNumber,
-          status: 'completed'
+          status: 'completed',
+          processed_by: agentId
         })
         .select()
         .single();
@@ -73,7 +80,7 @@ export const processAgentWithdrawalWithCommission = async (
       console.error("⚠️ Erreur lors de l'enregistrement du retrait:", withdrawalError);
     }
 
-    // 5. Résultat final avec les données de la transaction atomique
+    // 6. Résultat final avec les données de la transaction atomique
     const tr: any = transactionResult || {};
     const result = {
       clientName: clientData.fullName,
@@ -161,22 +168,9 @@ export const processAgentDepositWithCommission = async (
 
     console.log(`✅ [ETAPE 2 OK] Client crédité. Nouveau solde: ${newClientBalance} FCFA`);
 
-    // 5. Ajouter la commission au solde commission de l'agent
-    console.log(`📈 [ETAPE 3] Ajout commission ${agentCommission} FCFA`);
-    try {
-      const { error: commissionError } = await supabase.rpc('increment_agent_commission', {
-        agent_user_id: agentId,
-        commission_amount: agentCommission
-      });
-
-      if (commissionError) {
-        console.error("⚠️ Erreur commission (non-critique):", commissionError);
-      } else {
-        console.log("✅ [ETAPE 3 OK] Commission ajoutée");
-      }
-    } catch (commissionError) {
-      console.error("⚠️ Erreur lors de l'ajout de la commission:", commissionError);
-    }
+    // 5. Créditer automatiquement la commission de dépôt (1%)
+    console.log("💎 [COMMISSION] Crédit automatique de la commission dépôt");
+    await creditDepositCommission(agentId, amount);
 
     // 6. Enregistrer le dépôt dans la base
     console.log("📝 [ETAPE 4] Enregistrement du dépôt");
