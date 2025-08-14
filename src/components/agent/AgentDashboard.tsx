@@ -152,10 +152,7 @@ const AgentDashboard: React.FC = () => {
           </Card>
         </div>
 
-        {/* Performances Temps Réel */}
-        <AgentRealTimePerformance />
-
-        {/* Quick Actions */}
+        {/* Quick Actions - Moved after commissions */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-semibold">Actions Rapides</CardTitle>
@@ -182,6 +179,9 @@ const AgentDashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Performances Temps Réel */}
+        <AgentRealTimePerformance />
 
         {/* Services */}
         <Card>
