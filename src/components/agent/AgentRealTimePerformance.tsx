@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, DollarSign, Activity, Users, RefreshCw } from "lucide-react";
-import { formatCurrency } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,15 @@ interface PerformanceData {
   monthlyVolume: number;
   monthlyCommissions: number;
 }
+
+const formatCurrency = (amount: number, currency: string = 'XAF'): string => {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
 
 export const AgentRealTimePerformance = () => {
   const { user } = useAuth();
@@ -40,11 +48,9 @@ export const AgentRealTimePerformance = () => {
     setIsLoading(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       // Récupérer les transactions aujourd'hui
-      const { data: todayData, error: todayError } = await supabase
+      const { data: todayData } = await supabase
         .from('recharges')
         .select('amount')
         .eq('provider_transaction_id', user.id)
@@ -52,7 +58,7 @@ export const AgentRealTimePerformance = () => {
         .lt('created_at', `${today}T23:59:59.999Z`);
 
       // Récupérer les retraits aujourd'hui
-      const { data: withdrawalsData, error: withdrawalsError } = await supabase
+      const { data: withdrawalsData } = await supabase
         .from('withdrawals')
         .select('amount')
         .eq('processed_by', user.id)
@@ -71,7 +77,7 @@ export const AgentRealTimePerformance = () => {
         todayTransactions,
         todayVolume,
         todayCommissions,
-        weeklyTransactions: todayTransactions, // Simplification pour le moment
+        weeklyTransactions: todayTransactions,
         weeklyVolume: todayVolume,
         weeklyCommissions: todayCommissions,
         monthlyTransactions: todayTransactions,
@@ -87,7 +93,6 @@ export const AgentRealTimePerformance = () => {
 
   useEffect(() => {
     fetchPerformance();
-    // Actualiser toutes les 30 secondes
     const interval = setInterval(fetchPerformance, 30000);
     return () => clearInterval(interval);
   }, [user?.id]);
@@ -130,14 +135,14 @@ export const AgentRealTimePerformance = () => {
                     <DollarSign className="w-3 h-3" />
                     Volume
                   </span>
-                  <span className="font-bold">{formatCurrency(performance.todayVolume, 'XAF')}</span>
+                  <span className="font-bold">{formatCurrency(performance.todayVolume)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
                     Commissions
                   </span>
-                  <span className="font-bold text-green-600">{formatCurrency(performance.todayCommissions, 'XAF')}</span>
+                  <span className="font-bold text-green-600">{formatCurrency(performance.todayCommissions)}</span>
                 </div>
               </div>
             </div>
@@ -160,14 +165,14 @@ export const AgentRealTimePerformance = () => {
                     <DollarSign className="w-3 h-3" />
                     Volume
                   </span>
-                  <span className="font-bold">{formatCurrency(performance.weeklyVolume, 'XAF')}</span>
+                  <span className="font-bold">{formatCurrency(performance.weeklyVolume)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
                     Commissions
                   </span>
-                  <span className="font-bold text-green-600">{formatCurrency(performance.weeklyCommissions, 'XAF')}</span>
+                  <span className="font-bold text-green-600">{formatCurrency(performance.weeklyCommissions)}</span>
                 </div>
               </div>
             </div>
@@ -190,14 +195,14 @@ export const AgentRealTimePerformance = () => {
                     <DollarSign className="w-3 h-3" />
                     Volume
                   </span>
-                  <span className="font-bold">{formatCurrency(performance.monthlyVolume, 'XAF')}</span>
+                  <span className="font-bold">{formatCurrency(performance.monthlyVolume)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
                     Commissions
                   </span>
-                  <span className="font-bold text-green-600">{formatCurrency(performance.monthlyCommissions, 'XAF')}</span>
+                  <span className="font-bold text-green-600">{formatCurrency(performance.monthlyCommissions)}</span>
                 </div>
               </div>
             </div>
