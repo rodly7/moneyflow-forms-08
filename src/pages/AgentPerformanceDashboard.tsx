@@ -9,6 +9,8 @@ import { ArrowLeft, Target, MapPin, Award, TrendingUp, Gift } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AgentRealTimePerformance } from "@/components/agent/AgentRealTimePerformance";
+import AgentEarningsCard from "@/components/agent/AgentEarningsCard";
+import AgentRanking from "@/components/agent/AgentRanking";
 
 const AgentPerformanceDashboard = () => {
   const { user, profile } = useAuth();
@@ -79,49 +81,11 @@ const AgentPerformanceDashboard = () => {
           </TabsContent>
 
           <TabsContent value="progression" className="w-full">
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-blue-600" />
-                  Progression vers SendFlow
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Target className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">Progression SendFlow</h3>
-                  <p className="text-gray-600">Votre progression vers les objectifs SendFlow</p>
-                  <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-700">Fonctionnalité en développement</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <AgentEarningsCard />
           </TabsContent>
 
           <TabsContent value="bonus" className="w-full">
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Gift className="w-5 h-5 text-green-600" />
-                  Bonus Mensuel
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Gift className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">Bonus Mensuel</h3>
-                  <p className="text-gray-600">Suivi de vos bonus mensuels</p>
-                  <div className="mt-6 p-4 bg-green-50 rounded-lg">
-                    <p className="text-sm text-green-700">Fonctionnalité en développement</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <AgentEarningsCard />
           </TabsContent>
 
           <TabsContent value="zones" className="w-full">
@@ -148,26 +112,7 @@ const AgentPerformanceDashboard = () => {
           </TabsContent>
 
           <TabsContent value="ranking" className="w-full">
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-orange-600" />
-                  Classement des Agents
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Award className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">Classement Agents</h3>
-                  <p className="text-gray-600">Votre position dans le classement des agents</p>
-                  <div className="mt-6 p-4 bg-orange-50 rounded-lg">
-                    <p className="text-sm text-orange-700">Fonctionnalité en développement</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <AgentRanking />
           </TabsContent>
         </Tabs>
       </div>
