@@ -65,14 +65,15 @@ export const MobileAgentDepositForm = () => {
     setIsLoadingBalance(false);
   };
 
-  const searchClient = async () => {
-    if (!phoneNumber.trim()) {
+  const searchClient = async (phoneToSearch?: string) => {
+    const searchPhone = phoneToSearch || phoneNumber;
+    if (!searchPhone.trim()) {
       toast({
         title: "Erreur",
         description: "Veuillez saisir un numéro de téléphone",
         variant: "destructive"
       });
-      return;
+      return false;
     }
 
     setIsSearchingClient(true);
@@ -80,7 +81,7 @@ export const MobileAgentDepositForm = () => {
       const { data: client, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, balance, country')
-        .eq('phone', phoneNumber)
+        .eq('phone', searchPhone)
         .single();
 
       if (error) {
@@ -91,16 +92,16 @@ export const MobileAgentDepositForm = () => {
           variant: "destructive"
         });
         setClientData(null);
-        return;
+        return false;
       }
 
       if (client) {
         setClientData(client);
-        setQrVerified(false);
         toast({
           title: "Client trouvé",
           description: `${client.full_name || 'Utilisateur'} trouvé`,
         });
+        return true;
       }
     } catch (error) {
       console.error("Erreur:", error);
@@ -111,22 +112,40 @@ export const MobileAgentDepositForm = () => {
       });
     }
     setIsSearchingClient(false);
+    return false;
   };
 
-  const handleQRScanSuccess = (userData: { userId: string; fullName: string; phone: string }) => {
+  const handleQRScanSuccess = async (userData: { userId: string; fullName: string; phone: string }) => {
+    console.log("QR scan success:", userData);
     setPhoneNumber(userData.phone);
-    setQrVerified(true);
     setIsQRScannerOpen(false);
     
-    toast({
-      title: "QR Code vérifié",
-      description: "Code QR client validé avec succès",
-    });
-    
     // Rechercher automatiquement le client
-    setTimeout(() => {
-      searchClient();
-    }, 500);
+    setIsSearchingClient(true);
+    const clientFound = await searchClient(userData.phone);
+    setIsSearchingClient(false);
+    
+    if (clientFound) {
+      setQrVerified(true);
+      toast({
+        title: "QR Code vérifié",
+        description: "Code QR client validé et client trouvé avec succès",
+      });
+    }
+  };
+
+  const handleManualSearch = async () => {
+    const clientFound = await searchClient();
+    if (clientFound && qrVerified) {
+      // Le client est trouvé et le QR était déjà vérifié
+    } else if (clientFound) {
+      // Client trouvé mais QR pas encore vérifié
+      toast({
+        title: "Client trouvé",
+        description: "Veuillez scanner le QR code du client pour continuer",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -169,7 +188,6 @@ export const MobileAgentDepositForm = () => {
       return;
     }
 
-    // Corriger l'appel avec tous les paramètres requis
     const result = await processAgentAutomaticDeposit(
       clientData.id,
       depositAmount,
@@ -190,6 +208,9 @@ export const MobileAgentDepositForm = () => {
   const handleGoBack = () => {
     navigate('/agent-dashboard');
   };
+
+  // Vérifier si le formulaire est complet
+  const isFormComplete = qrVerified && clientData && amount && parseFloat(amount) > 0;
 
   return (
     <div className="h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col overflow-hidden">
@@ -287,7 +308,7 @@ export const MobileAgentDepositForm = () => {
                   </div>
                   <Button
                     type="button"
-                    onClick={searchClient}
+                    onClick={handleManualSearch}
                     disabled={isSearchingClient}
                     className="h-12 px-6"
                   >
@@ -347,11 +368,25 @@ export const MobileAgentDepositForm = () => {
           {/* Bouton de soumission */}
           <Button 
             type="submit" 
-            className="w-full bg-emerald-600 hover:bg-emerald-700 h-16 text-lg font-semibold"
-            disabled={isProcessing || !qrVerified || !clientData}
+            className={`w-full h-16 text-lg font-semibold ${
+              isFormComplete && !isProcessing
+                ? 'bg-emerald-600 hover:bg-emerald-700' 
+                : 'bg-gray-400 cursor-not-allowed'
+            }`}
+            disabled={isProcessing || !isFormComplete}
           >
             {isProcessing ? "Traitement..." : "Effectuer le Dépôt"}
           </Button>
+
+          {/* Debug info pour vérifier l'état */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs">
+              <p>Debug: QR vérifié: {qrVerified ? 'Oui' : 'Non'}</p>
+              <p>Debug: Client trouvé: {clientData ? 'Oui' : 'Non'}</p>
+              <p>Debug: Montant: {amount}</p>
+              <p>Debug: Formulaire complet: {isFormComplete ? 'Oui' : 'Non'}</p>
+            </div>
+          )}
         </form>
       </div>
 
