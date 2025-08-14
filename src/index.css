@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
@@ -6,6 +5,7 @@
 @import './styles/mobile.css';
 @import './styles/adaptive-mobile.css';
 @import './styles/pwa-mobile.css';
+@import './styles/fluid-animations.css';
 
 @layer base {
   :root {
@@ -46,6 +46,10 @@
     --svh: 1svh;
     --lvh: 1lvh;
     --dvh: 1dvh;
+
+    /* Variables pour animations fluides */
+    --transition-speed: 0.3s;
+    --transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
@@ -99,12 +103,18 @@
     @supports (height: 100dvh) {
       min-height: 100dvh;
     }
+
+    /* Fluid scroll behavior */
+    scroll-behavior: smooth;
   }
 
   html {
     /* Empêcher le zoom sur les inputs iOS */
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    
+    /* Smooth scrolling global */
+    scroll-behavior: smooth;
   }
 
   /* Fix iOS zoom on input focus */
@@ -116,6 +126,18 @@
   textarea,
   select {
     font-size: 16px !important;
+    transition: all var(--transition-speed) var(--transition-easing);
+  }
+
+  /* Amélioration des focus states */
+  input:focus,
+  textarea:focus,
+  select:focus,
+  button:focus {
+    outline: none;
+    ring: 4;
+    ring-color: hsl(var(--primary) / 0.2);
+    border-color: hsl(var(--primary));
   }
 }
 
@@ -162,4 +184,62 @@
 
 .min-h-dvh {
   min-height: 100dvh;
+}
+
+/* Nouvelles classes utilitaires fluides */
+.fluid-container {
+  @apply bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 animated-gradient;
+}
+
+.fluid-card {
+  @apply bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20;
+  @apply transition-all duration-300 ease-out;
+  @apply hover:shadow-xl hover:-translate-y-1 hover:bg-white/95;
+  @apply transform-gpu;
+}
+
+.fluid-button {
+  @apply px-6 py-3 rounded-xl font-semibold;
+  @apply transform transition-all duration-200 ease-out;
+  @apply hover:scale-105 active:scale-95;
+  @apply shadow-lg hover:shadow-xl;
+  @apply focus:outline-none focus:ring-4;
+}
+
+.fluid-input {
+  @apply w-full px-4 py-3 rounded-xl border border-gray-200;
+  @apply bg-white/80 backdrop-blur-sm;
+  @apply transition-all duration-200 ease-out;
+  @apply focus:border-blue-400 focus:ring-4 focus:ring-blue-100;
+  @apply focus:bg-white focus:shadow-lg;
+}
+
+.stagger-animation {
+  @apply opacity-0 transform translate-y-4;
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    @apply opacity-100 transform translate-y-0;
+  }
+}
+
+/* Performance optimizations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform;
+}
+
+/* Mobile touch improvements */
+@media (max-width: 768px) {
+  .touch-optimized {
+    @apply transition-all duration-100 ease-out;
+  }
+  
+  .touch-optimized:active {
+    @apply scale-98 opacity-80;
+  }
 }
