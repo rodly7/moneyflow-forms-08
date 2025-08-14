@@ -1,8 +1,9 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Zap, BarChart3, User2, Users, PackageCheck, ClipboardList, UserPlus, UserMinus, UserCog } from "lucide-react";
+import { Shield, Zap, BarChart3, User2, Users, PackageCheck, ClipboardList, Settings } from "lucide-react";
 import CompactHeader from "@/components/dashboard/CompactHeader";
 import CompactStatsGrid from "@/components/dashboard/CompactStatsGrid";
 import CompactActionGrid from "@/components/dashboard/CompactActionGrid";
@@ -10,7 +11,7 @@ import CompactInfoCard from "@/components/dashboard/CompactInfoCard";
 import UserProfileInfo from "@/components/profile/UserProfileInfo";
 import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
 import { fetchSubAdminStats } from "@/utils/subAdminDashboardQueries";
-import SubAdminAdvancedTools from "@/components/admin/SubAdminAdvancedTools";
+import SubAdminDashboardTabs from "@/components/admin/SubAdminDashboardTabs";
 
 const CompactSubAdminDashboard = () => {
   const { user, profile, signOut } = useAuth();
@@ -23,7 +24,7 @@ const CompactSubAdminDashboard = () => {
     pendingWithdrawals: 0,
     totalTransactions: 0,
   });
-  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
+  const [showFullInterface, setShowFullInterface] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (user?.id) {
@@ -101,22 +102,10 @@ const CompactSubAdminDashboard = () => {
   // Actions pour le sous-admin
   const actionItems = [
     {
-      label: "Gérer les Agents",
-      icon: UserCog,
-      onClick: () => navigate('/manage-agents'),
+      label: "Interface Complète",
+      icon: Settings,
+      onClick: () => setShowFullInterface(!showFullInterface),
       variant: "default" as const
-    },
-    {
-      label: "Ajouter un Agent",
-      icon: UserPlus,
-      onClick: () => navigate('/add-agent'),
-      variant: "outline" as const
-    },
-    {
-      label: "Outils Avancés",
-      icon: Shield,
-      onClick: () => setShowAdvancedTools(!showAdvancedTools),
-      variant: "outline" as const
     },
     {
       label: "Voir l'activité",
@@ -141,6 +130,37 @@ const CompactSubAdminDashboard = () => {
       text: "Assurez la conformité et la sécurité des transactions."
     }
   ];
+
+  if (showFullInterface) {
+    return (
+      <div className="min-h-screen bg-background p-3">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <CompactHeader
+            title="Interface Sous-Admin Complète"
+            subtitle="Gestion territoriale avancée"
+            icon={<Shield className="w-4 h-4 text-primary-foreground" />}
+            onRefresh={fetchData}
+            onSignOut={handleSignOut}
+            isLoading={isLoading}
+            customActions={
+              <button
+                onClick={() => setShowFullInterface(false)}
+                className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+              >
+                Vue compacte
+              </button>
+            }
+          />
+
+          <div className="flex justify-end mb-4">
+            <CustomerServiceButton />
+          </div>
+
+          <SubAdminDashboardTabs />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-3">
@@ -169,13 +189,6 @@ const CompactSubAdminDashboard = () => {
           titleIcon={Zap}
           actions={actionItems}
         />
-
-        {/* Section des outils avancés */}
-        {showAdvancedTools && (
-          <div className="space-y-4">
-            <SubAdminAdvancedTools />
-          </div>
-        )}
 
         <CompactInfoCard
           title="Informations Utiles"
