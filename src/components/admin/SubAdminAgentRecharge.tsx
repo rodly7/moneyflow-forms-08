@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,7 +17,7 @@ interface AgentData {
   full_name: string;
   phone: string;
   country: string;
-  status: 'pending' | 'active' | 'suspended';
+  status: 'pending' | 'active' | 'suspended' | 'rejected';
   commission_balance: number;
   user_balance: number;
 }
@@ -160,6 +159,8 @@ const SubAdminAgentRecharge = () => {
         return <Badge className="bg-red-100 text-red-800">Suspendu</Badge>;
       case 'pending':
         return <Badge className="bg-yellow-100 text-yellow-800">En attente</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800">Rejeté</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
