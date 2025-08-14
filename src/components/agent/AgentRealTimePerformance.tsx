@@ -1,10 +1,11 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, DollarSign, Activity, Users, RefreshCw } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Users, RefreshCw, ChevronRight } from "lucide-react";
 import { createClient } from '@supabase/supabase-js';
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const SUPABASE_URL = "https://msasycggbiwyxlczknwj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zYXN5Y2dnYml3eXhsY3prbndqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzczNjU5MTMsImV4cCI6MjA1Mjk0MTkxM30.Ezb5GjSg8ApUWR5iNMvVS9bSA7oxudUuYOP2g2ugB_4";
@@ -34,6 +35,7 @@ const formatCurrency = (amount: number, currency: string = 'XAF'): string => {
 
 export const AgentRealTimePerformance = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [performance, setPerformance] = useState<PerformanceData>({
     todayTransactions: 0,
     todayVolume: 0,
@@ -62,11 +64,11 @@ export const AgentRealTimePerformance = () => {
         .gte('created_at', `${today}T00:00:00.000Z`)
         .lt('created_at', `${today}T23:59:59.999Z`);
 
-      // Récupérer les retraits aujourd'hui
+      // Récupérer les retraits aujourd'hui - utiliser user_id au lieu de processed_by
       const { data: withdrawalsData } = await supabaseClient
         .from('withdrawals')
         .select('amount')
-        .eq('processed_by', user.id)
+        .eq('user_id', user.id)
         .gte('created_at', `${today}T00:00:00.000Z`)
         .lt('created_at', `${today}T23:59:59.999Z`);
 
@@ -110,15 +112,26 @@ export const AgentRealTimePerformance = () => {
             <Activity className="w-5 h-5 text-blue-600" />
             Performances Temps Réel
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={fetchPerformance}
-            disabled={isLoading}
-            className="h-8 w-8 p-0 hover:bg-blue-100"
-          >
-            <RefreshCw className={`w-4 h-4 text-blue-600 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={fetchPerformance}
+              variant="ghost"
+              size="sm"
+              disabled={isLoading}
+              className="h-8 w-8 p-0 hover:bg-blue-100"
+            >
+              <RefreshCw className={`w-4 h-4 text-blue-600 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button
+              onClick={() => navigate('/agent-performance-dashboard')}
+              variant="ghost"
+              size="sm"
+              className="h-8 px-3 hover:bg-blue-100 text-blue-600"
+            >
+              <span className="text-sm mr-1">Détails</span>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
