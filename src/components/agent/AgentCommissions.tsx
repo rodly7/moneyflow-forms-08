@@ -28,7 +28,6 @@ const AgentCommissions = () => {
 
     try {
       const now = new Date();
-      let startDate: Date;
       let periods: Date[] = [];
 
       if (period === 'daily') {
@@ -66,16 +65,16 @@ const AgentCommissions = () => {
           periodEnd.setMonth(periodEnd.getMonth() + 1);
         }
 
-        // Récupérer les retraits
-        const { data: withdrawals } = await supabase
-          .from('withdrawals')
+        // Récupérer les retraits traités par l'agent
+        const { data: withdrawalRequests } = await supabase
+          .from('withdrawal_requests')
           .select('amount')
-          .eq('user_id', user.id)
+          .eq('agent_id', user.id)
           .gte('created_at', periodStart.toISOString())
           .lt('created_at', periodEnd.toISOString())
           .eq('status', 'completed');
 
-        // Récupérer les dépôts
+        // Récupérer les dépôts traités par l'agent (via recharges où l'agent est le provider)
         const { data: deposits } = await supabase
           .from('recharges')
           .select('amount')
@@ -85,16 +84,16 @@ const AgentCommissions = () => {
           .eq('status', 'completed');
 
         // Calculer les commissions selon les nouveaux taux
-        const withdrawalCommission = withdrawals?.reduce((sum, w) => sum + (Number(w.amount) * 0.002), 0) || 0; // 0,2% sur les retraits
-        const depositCommission = deposits?.reduce((sum, d) => sum + (Number(d.amount) * 0.005), 0) || 0; // 0,5% sur les dépôts
+        const withdrawalCommission = withdrawalRequests?.reduce((sum, w) => sum + (Number(w.amount) * 0.005), 0) || 0; // 0,5% sur les retraits
+        const depositCommission = deposits?.reduce((sum, d) => sum + (Number(d.amount) * 0.01), 0) || 0; // 1% sur les dépôts
 
         console.log(`📊 Période ${periodStart.toLocaleDateString('fr-FR')}:`);
-        console.log(`- Retraits: ${withdrawals?.length || 0}, Volume: ${withdrawals?.reduce((sum, w) => sum + Number(w.amount), 0) || 0}, Commission: ${withdrawalCommission}`);
-        console.log(`- Dépôts: ${deposits?.length || 0}, Volume: ${deposits?.reduce((sum, d) => sum + Number(d.amount), 0) || 0}, Commission: ${depositCommission}`);
+        console.log(`- Retraits traités: ${withdrawalRequests?.length || 0}, Volume: ${withdrawalRequests?.reduce((sum, w) => sum + Number(w.amount), 0) || 0}, Commission: ${withdrawalCommission}`);
+        console.log(`- Dépôts traités: ${deposits?.length || 0}, Volume: ${deposits?.reduce((sum, d) => sum + Number(d.amount), 0) || 0}, Commission: ${depositCommission}`);
 
         commissions.push({
           date: periodStart.toLocaleDateString('fr-FR'),
-          withdrawals: withdrawals?.length || 0,
+          withdrawals: withdrawalRequests?.length || 0,
           deposits: deposits?.length || 0,
           withdrawalCommission,
           depositCommission,
@@ -172,17 +171,17 @@ const AgentCommissions = () => {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="text-center p-2 bg-red-100 rounded">
                 <div className="font-bold text-red-700">{item.withdrawals}</div>
-                <div className="text-red-600">Retraits</div>
+                <div className="text-red-600">Retraits traités</div>
                 <div className="text-xs text-red-500">
-                  {formatCurrency(item.withdrawalCommission, 'XAF')}
+                  Commission 0,5%: {formatCurrency(item.withdrawalCommission, 'XAF')}
                 </div>
               </div>
               
               <div className="text-center p-2 bg-green-100 rounded">
                 <div className="font-bold text-green-700">{item.deposits}</div>
-                <div className="text-green-600">Dépôts</div>
+                <div className="text-green-600">Dépôts traités</div>
                 <div className="text-xs text-green-500">
-                  {formatCurrency(item.depositCommission, 'XAF')}
+                  Commission 1%: {formatCurrency(item.depositCommission, 'XAF')}
                 </div>
               </div>
             </div>
