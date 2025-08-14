@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
@@ -240,6 +241,6 @@
   }
   
   .touch-optimized:active {
-    @apply scale-98 opacity-80;
+    @apply scale-[0.98] opacity-80;
   }
 }
