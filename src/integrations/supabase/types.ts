@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -1663,11 +1663,11 @@ export type Database = {
       }
       create_new_agent: {
         Args: {
-          user_id_param: string
           agent_id_param: string
+          country_param: string
           full_name_param: string
           phone_param: string
-          country_param: string
+          user_id_param: string
         }
         Returns: undefined
       }
@@ -1682,11 +1682,11 @@ export type Database = {
       find_recipient: {
         Args: { search_term: string }
         Returns: {
-          id: string
-          full_name: string
-          email: string
-          phone: string
           country: string
+          email: string
+          full_name: string
+          id: string
+          phone: string
         }[]
       }
       function_name: {
@@ -1723,11 +1723,11 @@ export type Database = {
       get_agent_quota_status: {
         Args: { p_agent_id: string; p_date?: string }
         Returns: {
-          total_deposits: number
+          commission_rate: number
           quota_achieved: boolean
           quota_reached_at: string
           reached_before_19h: boolean
-          commission_rate: number
+          total_deposits: number
         }[]
       }
       get_user_role: {
@@ -1739,7 +1739,7 @@ export type Database = {
         Returns: number
       }
       increment_balance: {
-        Args: { user_id: string; amount: number }
+        Args: { amount: number; user_id: string }
         Returns: number
       }
       is_admin: {
@@ -1776,22 +1776,22 @@ export type Database = {
       }
       process_international_deposit: {
         Args: {
-          target_user_id: string
           deposit_amount: number
           deposit_currency: string
-          target_currency: string
           exchange_rate?: number
-          reference_number?: string
           notes?: string
+          reference_number?: string
+          target_currency: string
+          target_user_id: string
         }
         Returns: string
       }
       process_money_transfer: {
         Args:
-          | { sender_id: number; receiver_id: number; amount: number }
+          | { amount: number; receiver_id: number; sender_id: number }
           | {
-              sender_id: string
               recipient_identifier: string
+              sender_id: string
               transfer_amount: number
               transfer_fees: number
             }
@@ -1799,42 +1799,42 @@ export type Database = {
       }
       process_password_reset: {
         Args: {
-          phone_param: string
           full_name_param: string
           new_password_param: string
+          phone_param: string
         }
         Returns: Json
       }
       process_withdrawal_transaction: {
         Args: {
-          p_client_id: string
           p_agent_id: string
           p_amount: number
+          p_client_id: string
           p_commission: number
         }
         Returns: Json
       }
       savings_deposit: {
-        Args: { p_user_id: string; p_account_id: string; p_amount: number }
+        Args: { p_account_id: string; p_amount: number; p_user_id: string }
         Returns: Json
       }
       savings_withdrawal: {
         Args:
           | { account_id: number; withdrawal_amount: number }
-          | { p_user_id: string; p_account_id: string; p_amount: number }
+          | { p_account_id: string; p_amount: number; p_user_id: string }
         Returns: boolean
       }
       secure_increment_balance: {
         Args: {
-          target_user_id: string
           amount: number
           operation_type?: string
           performed_by?: string
+          target_user_id: string
         }
         Returns: number
       }
       start_user_session: {
-        Args: { p_user_agent?: string; p_ip_address?: unknown }
+        Args: { p_ip_address?: unknown; p_user_agent?: string }
         Returns: string
       }
       transfer_monthly_commissions_to_balance: {
@@ -1851,10 +1851,10 @@ export type Database = {
       }
       update_agent_location: {
         Args: {
+          p_address: string
           p_agent_id: string
           p_latitude: number
           p_longitude: number
-          p_address: string
           p_zone?: string
         }
         Returns: undefined
