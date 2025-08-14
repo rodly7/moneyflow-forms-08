@@ -8,10 +8,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Scan, Eye, EyeOff, RefreshCw, Phone, DollarSign } from "lucide-react";
+import { User, Scan, Eye, EyeOff, RefreshCw, Phone, DollarSign, ArrowLeft } from "lucide-react";
 import { useAgentAutomaticDeposit } from "@/hooks/useAgentAutomaticDeposit";
 import QRScanner from "@/components/agent/QRScanner";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
+import { useNavigate } from "react-router-dom";
 
 interface ClientData {
   id: string;
@@ -26,6 +27,7 @@ export const MobileAgentDepositForm = () => {
   const { toast } = useToast();
   const { processAgentAutomaticDeposit, isProcessing } = useAgentAutomaticDeposit();
   const { isSmallMobile } = useDeviceDetection();
+  const navigate = useNavigate();
 
   const [phoneNumber, setPhoneNumber] = useState("");
   const [amount, setAmount] = useState("");
@@ -185,12 +187,25 @@ export const MobileAgentDepositForm = () => {
     }
   };
 
+  const handleGoBack = () => {
+    navigate('/agent-dashboard');
+  };
+
   return (
     <div className="h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-gray-100">
         <div className="px-4 py-4">
-          <h1 className="text-xl font-bold text-gray-800 mb-4">Dépôt Client</h1>
+          <div className="flex items-center gap-3 mb-4">
+            <Button
+              variant="ghost"
+              onClick={handleGoBack}
+              className="h-10 w-10 p-0 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h1 className="text-xl font-bold text-gray-800">Dépôt Client</h1>
+          </div>
           
           {/* Solde Agent */}
           <Card className="bg-gradient-to-r from-emerald-600 to-green-600 text-white border-0">
@@ -318,6 +333,13 @@ export const MobileAgentDepositForm = () => {
                   min="100"
                   step="100"
                 />
+                {amount && clientData && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+                    <p className="text-blue-700 text-sm font-medium">
+                      💰 Commission agent: {formatCurrency(Number(amount) * 0.01, 'XAF')} (1%)
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
