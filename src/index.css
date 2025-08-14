@@ -6,6 +6,7 @@
 @import './styles/mobile.css';
 @import './styles/adaptive-mobile.css';
 @import './styles/pwa-mobile.css';
+@import './styles/pwa-no-zoom.css';
 @import './styles/fluid-animations.css';
 
 @layer base {
@@ -87,7 +88,7 @@
   }
   
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground pwa-no-zoom;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
     
     /* PWA Optimizations */
@@ -118,7 +119,7 @@
     scroll-behavior: smooth;
   }
 
-  /* Fix iOS zoom on input focus */
+  /* Fix iOS zoom on input focus - CRITICAL for PWA */
   input[type="text"],
   input[type="email"],
   input[type="password"],
@@ -141,6 +142,8 @@
     border-color: hsl(var(--primary));
   }
 }
+
+/* ... keep existing code (utility classes and animations) */
 
 /* Utilitaires PWA */
 .gradient-primary {
@@ -241,6 +244,6 @@
   }
   
   .touch-optimized:active {
-    @apply scale-[0.98] opacity-80;
+    @apply opacity-80;
   }
 }

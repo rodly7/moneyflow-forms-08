@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,7 +84,7 @@ const AgentCommissions = () => {
 
         // Calculer les commissions selon les nouveaux taux
         const withdrawalCommission = withdrawalRequests?.reduce((sum, w) => sum + (Number(w.amount) * 0.005), 0) || 0; // 0,5% sur les retraits
-        const depositCommission = deposits?.reduce((sum, d) => sum + (Number(d.amount) * 0.01), 0) || 0; // 1% sur les dépôts
+        const depositCommission = deposits?.reduce((sum, d) => sum + (Number(d.amount) * 0.05), 0) || 0; // 5% sur les dépôts
 
         console.log(`📊 Période ${periodStart.toLocaleDateString('fr-FR')}:`);
         console.log(`- Retraits traités: ${withdrawalRequests?.length || 0}, Volume: ${withdrawalRequests?.reduce((sum, w) => sum + Number(w.amount), 0) || 0}, Commission: ${withdrawalCommission}`);
@@ -181,7 +180,7 @@ const AgentCommissions = () => {
                 <div className="font-bold text-green-700">{item.deposits}</div>
                 <div className="text-green-600">Dépôts traités</div>
                 <div className="text-xs text-green-500">
-                  Commission 1%: {formatCurrency(item.depositCommission, 'XAF')}
+                  Commission 5%: {formatCurrency(item.depositCommission, 'XAF')}
                 </div>
               </div>
             </div>
