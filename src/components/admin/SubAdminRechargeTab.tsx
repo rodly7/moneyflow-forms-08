@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useSubAdmin } from '@/hooks/useSubAdmin';
 import { useSecureAdminOperations } from '@/hooks/useSecureAdminOperations';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, CreditCard, User, Wallet, AlertCircle } from 'lucide-react';
+import { Search, CreditCard, User, Wallet, AlertCircle, CheckCircle, Globe } from 'lucide-react';
 
 interface UserData {
   id: string;
@@ -48,7 +48,6 @@ const SubAdminRechargeTab = () => {
         .select('id, full_name, phone, balance, country, role')
         .eq('phone', searchPhone.trim());
 
-      // Filtrer par pays pour les sous-admins
       if (userCountry) {
         query = query.eq('country', userCountry);
       }
@@ -108,7 +107,6 @@ const SubAdminRechargeTab = () => {
     try {
       await secureUpdateUserBalance(foundUser.phone, amount);
       
-      // Réinitialiser les champs
       setRechargeAmount('');
       setFoundUser(null);
       setSearchPhone('');
@@ -125,12 +123,14 @@ const SubAdminRechargeTab = () => {
 
   if (!canRechargeNational) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <div className="text-center">
-            <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Accès limité</h3>
-            <p className="text-muted-foreground">
+      <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="text-center space-y-4">
+            <div className="p-4 bg-yellow-100 rounded-full mx-auto w-fit">
+              <AlertCircle className="w-12 h-12 text-yellow-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800">Accès limité</h3>
+            <p className="text-gray-600 max-w-md">
               Vous n'avez pas les permissions pour effectuer des recharges.
             </p>
           </div>
@@ -140,75 +140,102 @@ const SubAdminRechargeTab = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Recharge des Comptes</h2>
-          <p className="text-muted-foreground">
-            Recharge pour les comptes perdus dans votre territoire{userCountry && ` (${userCountry})`}
-          </p>
+    <div className="space-y-8">
+      {/* Header avec gradient */}
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center gap-3">
+          <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl">
+            <CreditCard className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Recharge des Comptes
+            </h2>
+            <p className="text-gray-600">
+              Recharge pour les comptes perdus dans votre territoire{userCountry && ` (${userCountry})`}
+            </p>
+          </div>
         </div>
-        <Badge variant="outline" className="bg-blue-50">
-          <CreditCard className="w-4 h-4 mr-2" />
+        <Badge variant="outline" className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+          <Globe className="w-4 h-4 mr-2" />
           Recharge Nationale
         </Badge>
       </div>
 
       {/* Recherche utilisateur */}
-      <Card>
+      <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="w-5 h-5" />
+          <CardTitle className="flex items-center gap-3 text-xl">
+            <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg">
+              <Search className="w-5 h-5 text-white" />
+            </div>
             Rechercher un utilisateur
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-3">
+        <CardContent className="space-y-6">
+          <div className="flex gap-4">
             <div className="flex-1">
-              <Label htmlFor="phone">Numéro de téléphone</Label>
+              <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
+                Numéro de téléphone
+              </Label>
               <Input
                 id="phone"
                 type="tel"
                 value={searchPhone}
                 onChange={(e) => setSearchPhone(e.target.value)}
                 placeholder="Ex: +241 XX XX XX XX"
-                className="mt-1"
+                className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
             <div className="flex items-end">
               <Button
                 onClick={searchUser}
                 disabled={searchLoading || !searchPhone.trim()}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-2.5"
               >
-                {searchLoading ? 'Recherche...' : 'Rechercher'}
+                {searchLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Recherche...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4 mr-2" />
+                    Rechercher
+                  </>
+                )}
               </Button>
             </div>
           </div>
 
           {foundUser && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="p-6 bg-gradient-to-r from-green-50 to-teal-50 border-2 border-green-200 rounded-xl">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <User className="w-8 h-8 text-green-600" />
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-green-500 to-teal-600 rounded-full">
+                    <User className="w-8 h-8 text-white" />
+                  </div>
                   <div>
-                    <h4 className="font-medium text-green-800">{foundUser.full_name}</h4>
-                    <p className="text-sm text-green-600">{foundUser.phone}</p>
-                    <p className="text-xs text-green-600">{foundUser.country}</p>
+                    <h4 className="text-xl font-semibold text-green-800">{foundUser.full_name}</h4>
+                    <p className="text-green-600 font-medium">{foundUser.phone}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Globe className="w-4 h-4 text-green-600" />
+                      <p className="text-sm text-green-600">{foundUser.country}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-1">
-                    <Wallet className="w-4 h-4 text-green-600" />
-                    <span className="font-semibold text-green-800">
+                <div className="text-right space-y-2">
+                  <div className="flex items-center gap-2 justify-end">
+                    <Wallet className="w-5 h-5 text-green-600" />
+                    <span className="text-2xl font-bold text-green-800">
                       {foundUser.balance.toLocaleString()} FCFA
                     </span>
                   </div>
                   <Badge 
                     variant={foundUser.role === 'agent' ? 'default' : 'secondary'}
-                    className="text-xs mt-1"
+                    className="text-xs"
                   >
-                    {foundUser.role === 'agent' ? 'Agent' : 'Utilisateur'}
+                    {foundUser.role === 'agent' ? '🏢 Agent' : '👤 Utilisateur'}
                   </Badge>
                 </div>
               </div>
@@ -219,16 +246,20 @@ const SubAdminRechargeTab = () => {
 
       {/* Formulaire de recharge */}
       {foundUser && (
-        <Card>
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-blue-600" />
+            <CardTitle className="flex items-center gap-3 text-xl">
+              <div className="p-2 bg-gradient-to-br from-green-500 to-green-600 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-white" />
+              </div>
               Recharger le compte
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div>
-              <Label htmlFor="amount">Montant à créditer (FCFA)</Label>
+              <Label htmlFor="amount" className="text-sm font-medium text-gray-700">
+                Montant à créditer (FCFA)
+              </Label>
               <Input
                 id="amount"
                 type="number"
@@ -237,24 +268,24 @@ const SubAdminRechargeTab = () => {
                 value={rechargeAmount}
                 onChange={(e) => setRechargeAmount(e.target.value)}
                 placeholder="Ex: 50000"
-                className="mt-1"
+                className="mt-2 text-lg border-gray-200 focus:border-green-500 focus:ring-green-500"
               />
             </div>
 
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl">
               <div className="text-sm text-gray-600">
-                Solde actuel: <span className="font-semibold">{foundUser.balance.toLocaleString()} FCFA</span>
+                Solde actuel: <span className="text-lg font-semibold text-gray-800">{foundUser.balance.toLocaleString()} FCFA</span>
               </div>
               {rechargeAmount && !isNaN(parseFloat(rechargeAmount)) && (
                 <div className="text-sm text-green-600">
-                  Nouveau solde: <span className="font-semibold">
+                  Nouveau solde: <span className="text-lg font-semibold text-green-700">
                     {(foundUser.balance + parseFloat(rechargeAmount)).toLocaleString()} FCFA
                   </span>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-4 pt-4">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -262,30 +293,40 @@ const SubAdminRechargeTab = () => {
                   setRechargeAmount('');
                   setSearchPhone('');
                 }}
-                className="flex-1"
+                className="flex-1 border-gray-300 hover:bg-gray-50"
               >
                 Annuler
               </Button>
               <Button
                 onClick={handleRecharge}
                 disabled={isProcessing || !rechargeAmount}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                className="flex-1 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white"
               >
-                {isProcessing ? 'Traitement...' : 'Recharger'}
+                {isProcessing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Traitement...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Recharger
+                  </>
+                )}
               </Button>
             </div>
 
             {/* Montants rapides */}
-            <div className="space-y-2 pt-2">
-              <Label className="text-sm">Montants rapides:</Label>
-              <div className="grid grid-cols-4 gap-2">
+            <div className="space-y-3 pt-2">
+              <Label className="text-sm font-medium text-gray-700">Montants rapides:</Label>
+              <div className="grid grid-cols-4 gap-3">
                 {[10000, 25000, 50000, 100000].map((amount) => (
                   <Button
                     key={amount}
                     variant="outline"
                     size="sm"
                     onClick={() => setRechargeAmount(amount.toString())}
-                    className="text-xs"
+                    className="text-xs hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:border-blue-300 transition-all duration-200"
                   >
                     {amount.toLocaleString()}
                   </Button>
