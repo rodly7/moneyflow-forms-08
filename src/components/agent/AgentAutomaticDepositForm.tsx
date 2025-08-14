@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { formatCurrency } from "@/integrations/supabase/client";
 import { useAgentAutomaticDeposit } from "@/hooks/useAgentAutomaticDeposit";
 import QRScanner from "@/components/agent/QRScanner";
 import { ClientSearchForm } from "@/components/agent/ClientSearchForm";
+import { AgentBalanceCard } from "@/components/agent/AgentBalanceCard";
 
 interface ClientData {
   id: string;
@@ -22,7 +23,7 @@ interface ClientData {
 }
 
 export const AgentAutomaticDepositForm = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const { processAgentAutomaticDeposit, isProcessing } = useAgentAutomaticDeposit();
 
@@ -32,13 +33,35 @@ export const AgentAutomaticDepositForm = () => {
   const [isSearchingClient, setIsSearchingClient] = useState(false);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [qrVerified, setQrVerified] = useState(false);
-  const [agentBalance, setAgentBalance] = useState<number>(0);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
-  // Simuler le solde agent (à remplacer par un hook approprié)
-  const fetchAgentBalance = async () => {
-    // Cette fonction devrait récupérer le vrai solde de l'agent
-    // Pour l'instant, on utilise une valeur simulée
-    setAgentBalance(profile?.balance || 0);
+  // Utiliser le solde du profil directement
+  const agentBalance = profile?.balance || 0;
+
+  // Rafraîchir le profil au chargement pour s'assurer d'avoir le bon solde
+  useEffect(() => {
+    if (user?.id && profile) {
+      refreshProfile();
+    }
+  }, [user?.id, refreshProfile]);
+
+  const handleRefreshBalance = async () => {
+    setIsLoadingBalance(true);
+    try {
+      await refreshProfile();
+      toast({
+        title: "Solde actualisé",
+        description: "Votre solde agent a été mis à jour",
+      });
+    } catch (error) {
+      console.error("Erreur lors du rafraîchissement:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'actualiser le solde",
+        variant: "destructive"
+      });
+    }
+    setIsLoadingBalance(false);
   };
 
   const searchClient = async () => {
@@ -71,7 +94,7 @@ export const AgentAutomaticDepositForm = () => {
         setQrVerified(false);
         toast({
           title: "Client trouvé",
-          description: `${client.full_name || 'Utilisateur'} - Solde: ${formatCurrency(client.balance || 0, 'XAF')}`,
+          description: `${client.full_name || 'Utilisateur'} - Solde masqué pour la sécurité`,
         });
       } else {
         setClientData(null);
@@ -174,7 +197,7 @@ export const AgentAutomaticDepositForm = () => {
       setClientData(null);
       setQrVerified(false);
       // Rafraîchir le solde agent
-      fetchAgentBalance();
+      await refreshProfile();
     }
   };
 
@@ -196,6 +219,14 @@ export const AgentAutomaticDepositForm = () => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Affichage du solde agent */}
+          <AgentBalanceCard
+            balance={agentBalance}
+            isLoading={isLoadingBalance}
+            onRefresh={handleRefreshBalance}
+            userCountry={profile?.country}
+          />
+
           {/* Recherche du client */}
           <ClientSearchForm
             phoneNumber={phoneNumber}
@@ -261,12 +292,6 @@ export const AgentAutomaticDepositForm = () => {
                 </p>
               </div>
             )}
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-            <p className="text-blue-800 text-sm">
-              💰 Votre solde: {formatCurrency(agentBalance, 'XAF')}
-            </p>
           </div>
 
           <Button 
