@@ -11,7 +11,6 @@ import {
   Eye,
   EyeOff,
   Settings,
-  BarChart3,
   RefreshCw,
   Wallet
 } from "lucide-react";
@@ -127,13 +126,13 @@ const AgentDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Commissions */}
+          {/* Commissions - Total (Dépôt 1% + Retrait 0,5%) */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                Mes Commissions
+                Commissions Totales
               </CardTitle>
-              <BarChart3 className="w-4 h-4 text-green-600" />
+              <Wallet className="w-4 h-4 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-gray-900 mb-3">
@@ -147,7 +146,7 @@ const AgentDashboard: React.FC = () => {
                 className="w-full"
                 onClick={() => navigate('/agent-commission-withdrawal')}
               >
-                Retirer
+                Retirer Commissions
               </Button>
             </CardContent>
           </Card>
