@@ -19,11 +19,11 @@ interface MessageData {
   created_at: string;
   response?: string;
   responded_at?: string;
-  profiles?: {
+  user_profile?: {
     full_name: string;
     phone: string;
     country: string;
-  };
+  } | null;
 }
 
 const SubAdminMessagesTab = () => {
@@ -43,31 +43,39 @@ const SubAdminMessagesTab = () => {
   const fetchMessages = async () => {
     setLoading(true);
     try {
-      let query = supabase
+      // Récupérer d'abord les messages
+      const { data: messagesData, error: messagesError } = await supabase
         .from('customer_support_messages')
-        .select(`
-          *,
-          profiles:user_id (
-            full_name,
-            phone,
-            country
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      const { data, error } = await query;
+      if (messagesError) throw messagesError;
 
-      if (error) throw error;
+      // Enrichir avec les profils utilisateur
+      const enrichedMessages = await Promise.all(
+        (messagesData || []).map(async (message) => {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name, phone, country')
+            .eq('id', message.user_id)
+            .single();
+
+          return {
+            ...message,
+            user_profile: profileData
+          };
+        })
+      );
 
       // Filtrer par territoire si applicable
-      let filteredData = data || [];
+      let filteredMessages = enrichedMessages;
       if (userCountry) {
-        filteredData = filteredData.filter(msg => 
-          msg.profiles && msg.profiles.country === userCountry
+        filteredMessages = enrichedMessages.filter(msg => 
+          msg.user_profile && msg.user_profile.country === userCountry
         );
       }
 
-      setMessages(filteredData);
+      setMessages(filteredMessages);
     } catch (error) {
       console.error('Erreur lors du chargement des messages:', error);
       toast({
@@ -235,13 +243,13 @@ const SubAdminMessagesTab = () => {
                       <User className="w-8 h-8 text-muted-foreground" />
                       <div>
                         <p className="font-medium">
-                          {message.profiles?.full_name || 'Utilisateur inconnu'}
+                          {message.user_profile?.full_name || 'Utilisateur inconnu'}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {message.profiles?.phone}
+                          {message.user_profile?.phone}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {message.profiles?.country}
+                          {message.user_profile?.country}
                         </p>
                       </div>
                     </div>

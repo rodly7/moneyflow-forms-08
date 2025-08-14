@@ -72,6 +72,16 @@ export const useSubAdmin = () => {
     return isSubAdmin();
   };
 
+  const canManageMessages = () => {
+    // Les sous-admins peuvent gérer les messages de support de leur territoire
+    return isSubAdmin();
+  };
+
+  const canViewReports = () => {
+    // Les sous-admins peuvent voir les rapports de leur territoire
+    return isSubAdmin();
+  };
+
   return {
     isSubAdmin: isSubAdmin(),
     userCountry: getUserCountry(),
@@ -86,6 +96,8 @@ export const useSubAdmin = () => {
     canViewTerritorialStats: canViewTerritorialStats(),
     canViewCommissionReports: canViewCommissionReports(),
     canReportBugsAndNeeds: canReportBugsAndNeeds(),
-    canTrackTransfersInZone: canTrackTransfersInZone()
+    canTrackTransfersInZone: canTrackTransfersInZone(),
+    canManageMessages: canManageMessages(),
+    canViewReports: canViewReports()
   };
 };

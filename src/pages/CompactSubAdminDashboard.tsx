@@ -22,7 +22,7 @@ import {
   Clock,
   XCircle
 } from 'lucide-react';
-import { CompactHeader } from '@/components/dashboard/CompactHeader';
+import CompactHeader from '@/components/dashboard/CompactHeader';
 import SubAdminDashboardTabs from '@/components/admin/SubAdminDashboardTabs';
 
 const CompactSubAdminDashboard = () => {
@@ -91,19 +91,20 @@ const CompactSubAdminDashboard = () => {
       if (canManageMessages) {
         const { data: messagesData } = await supabase
           .from('customer_support_messages')
-          .select(`
-            status,
-            profiles:user_id (
-              country
-            )
-          `);
+          .select('status, user_id');
         
         if (messagesData) {
           let filteredMessages = messagesData;
           if (userCountry) {
-            filteredMessages = messagesData.filter(msg => 
-              msg.profiles && msg.profiles.country === userCountry
-            );
+            // Filtrer par territoire - récupérer les profils des utilisateurs
+            const userIds = messagesData.map(m => m.user_id);
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('id, country')
+              .in('id', userIds);
+            
+            const territoryUserIds = profiles?.filter(p => p.country === userCountry)?.map(p => p.id) || [];
+            filteredMessages = messagesData.filter(msg => territoryUserIds.includes(msg.user_id));
           }
           stats.totalMessages = filteredMessages.length;
           stats.unreadMessages = filteredMessages.filter(m => m.status === 'unread').length;
