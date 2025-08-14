@@ -26,6 +26,9 @@ interface Transaction {
   user?: { full_name: string; phone: string } | null;
   fees?: number;
   currency?: string;
+  recipient_country?: string;
+  sender_country?: string;
+  user_country?: string;
 }
 
 const SubAdminTransactionMonitor = () => {
@@ -42,7 +45,7 @@ const SubAdminTransactionMonitor = () => {
 
     setLoading(true);
     try {
-      // Charger les transferts avec les profils des expéditeurs
+      // Charger les transferts
       const { data: transfersData, error: transfersError } = await supabase
         .from('transfers')
         .select(`
@@ -69,7 +72,7 @@ const SubAdminTransactionMonitor = () => {
         .select('id, full_name, phone, country')
         .in('id', senderIds);
 
-      // Charger les retraits avec les profils des utilisateurs
+      // Charger les retraits
       const { data: withdrawalsData, error: withdrawalsError } = await supabase
         .from('withdrawals')
         .select(`
@@ -92,7 +95,7 @@ const SubAdminTransactionMonitor = () => {
         .select('id, full_name, phone, country')
         .in('id', withdrawalUserIds);
 
-      // Charger les dépôts avec les profils des utilisateurs  
+      // Charger les dépôts
       const { data: depositsData, error: depositsError } = await supabase
         .from('recharges')
         .select(`
@@ -117,12 +120,15 @@ const SubAdminTransactionMonitor = () => {
         .in('id', depositUserIds);
 
       // Transformer et combiner les données
-      const formattedTransactions: Transaction[] = [
-        ...(transfersData?.map(t => {
+      const formattedTransactions: Transaction[] = [];
+
+      // Ajouter les transferts
+      if (transfersData) {
+        transfersData.forEach(t => {
           const sender = sendersData?.find(s => s.id === t.sender_id);
-          return {
+          const transaction: Transaction = {
             id: t.id,
-            type: 'transfer' as const,
+            type: 'transfer',
             amount: t.amount,
             status: t.status,
             timestamp: t.created_at,
@@ -132,58 +138,75 @@ const SubAdminTransactionMonitor = () => {
               phone: t.recipient_phone || ''
             },
             fees: t.fees || 0,
-            currency: t.currency || 'XAF'
+            currency: t.currency || 'XAF',
+            recipient_country: t.recipient_country,
+            sender_country: sender?.country
           };
-        }).filter(t => {
+
           // Filtrer par pays si spécifié
           if (userCountry) {
-            const senderCountry = sendersData?.find(s => s.id === t.sender?.full_name)?.country;
-            return senderCountry === userCountry || t.recipient_country === userCountry;
+            if (transaction.sender_country === userCountry || transaction.recipient_country === userCountry) {
+              formattedTransactions.push(transaction);
+            }
+          } else {
+            formattedTransactions.push(transaction);
           }
-          return true;
-        }) || []),
-        
-        ...(withdrawalsData?.map(w => {
+        });
+      }
+
+      // Ajouter les retraits
+      if (withdrawalsData) {
+        withdrawalsData.forEach(w => {
           const user = withdrawalUsersData?.find(u => u.id === w.user_id);
-          return {
+          const transaction: Transaction = {
             id: w.id,
-            type: 'withdrawal' as const,
+            type: 'withdrawal',
             amount: w.amount,
             status: w.status,
             timestamp: w.created_at,
             user: user ? { full_name: user.full_name || '', phone: user.phone || '' } : null,
             fees: 0,
-            currency: 'XAF'
+            currency: 'XAF',
+            user_country: user?.country
           };
-        }).filter(w => {
+
           // Filtrer par pays si spécifié
           if (userCountry) {
-            const userCountryData = withdrawalUsersData?.find(u => u.id === w.user_id)?.country;
-            return userCountryData === userCountry;
+            if (transaction.user_country === userCountry) {
+              formattedTransactions.push(transaction);
+            }
+          } else {
+            formattedTransactions.push(transaction);
           }
-          return true;
-        }) || []),
-        
-        ...(depositsData?.map(d => {
+        });
+      }
+
+      // Ajouter les dépôts
+      if (depositsData) {
+        depositsData.forEach(d => {
           const user = depositUsersData?.find(u => u.id === d.user_id);
-          return {
+          const transaction: Transaction = {
             id: d.id,
-            type: 'deposit' as const,
+            type: 'deposit',
             amount: d.amount,
             status: d.status,
             timestamp: d.created_at,
             user: user ? { full_name: user.full_name || '', phone: user.phone || '' } : null,
             fees: 0,
-            currency: d.country === 'Cameroon' ? 'XAF' : 'XAF' // Fallback to XAF
+            currency: 'XAF',
+            user_country: user?.country || d.country
           };
-        }).filter(d => {
+
           // Filtrer par pays si spécifié
           if (userCountry) {
-            return d.country === userCountry;
+            if (transaction.user_country === userCountry) {
+              formattedTransactions.push(transaction);
+            }
+          } else {
+            formattedTransactions.push(transaction);
           }
-          return true;
-        }) || [])
-      ];
+        });
+      }
 
       // Trier par date
       formattedTransactions.sort((a, b) => 
