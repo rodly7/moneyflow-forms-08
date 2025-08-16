@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { MobilePaymentForm } from '@/components/recharge/MobilePaymentForm';
-import { PaymentStatusMonitor } from '@/components/recharge/PaymentStatusMonitor';
+import MobilePaymentForm from '@/components/recharge/MobilePaymentForm';
+import PaymentStatusMonitor from '@/components/recharge/PaymentStatusMonitor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
