@@ -1,4 +1,3 @@
-
 import { memo, Suspense, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -129,15 +128,16 @@ const MobileDashboard = memo(() => {
   }
 
   return (
-    <div className="w-full bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600 overflow-y-auto overflow-x-hidden"
-         style={{ 
-           minHeight: 'calc(100vh - 34px)',
-           paddingBottom: '20px',
-           WebkitOverflowScrolling: 'touch',
-           scrollBehavior: 'smooth'
-         }}>
-      {/* Header Section */}
-      <div className="p-4 text-white">
+    <div 
+      className="w-full bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600"
+      style={{ 
+        minHeight: '100vh',
+        paddingTop: '40px', // Marge en haut pour l'en-tête
+        paddingBottom: '20px',
+      }}
+    >
+      {/* Header Section avec marges appropriées */}
+      <div className="px-6 py-4 text-white"> {/* Augmenté le padding horizontal de p-4 à px-6 */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white text-lg font-bold">
@@ -161,8 +161,8 @@ const MobileDashboard = memo(() => {
           </div>
         </div>
 
-        {/* Balance Card */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-6">
+        {/* Balance Card avec marges */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-6 mx-2"> {/* Ajouté mx-2 pour marge horizontale */}
           <div className="flex items-center justify-between mb-3">
             <span className="text-white/90">Solde disponible</span>
             <button 
@@ -194,8 +194,8 @@ const MobileDashboard = memo(() => {
         </div>
       </div>
 
-      {/* Actions Section */}
-      <div className="bg-white rounded-t-3xl flex-1 p-4 min-h-[60vh]">
+      {/* Actions Section avec marges */}
+      <div className="bg-white rounded-t-3xl flex-1 px-6 py-4 min-h-[60vh]"> {/* Augmenté le padding horizontal */}
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Actions rapides</h2>
         
         <div className="grid grid-cols-2 gap-4 pb-8">
@@ -260,7 +260,7 @@ const MobileDashboard = memo(() => {
           {/* Factures */}
           <button 
             onClick={() => handleAction('bill-payments')}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-gender-100 flex flex-col items-center gap-3"
+            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-3"
           >
             <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
               <CreditCard className="w-6 h-6 text-white" />
