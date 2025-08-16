@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
@@ -58,57 +58,55 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/transfer" element={<Transfer />} />
-            <Route path="/receive" element={<Receive />} />
-            <Route path="/qr-code" element={<QRCode />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/withdraw" element={<Withdraw />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/verify-identity" element={<VerifyIdentity />} />
-            <Route path="/change-password" element={<ChangePassword />} />
-            <Route path="/receipts" element={<Receipts />} />
-            <Route path="/bill-payments" element={<BillPayments />} />
-            <Route path="/prepaid-cards" element={<PrepaidCards />} />
-            <Route path="/savings" element={<Savings />} />
-            <Route path="/commission" element={<Commission />} />
-            <Route path="/agent-auth" element={<AgentAuth />} />
-            <Route path="/agent-dashboard" element={<AgentDashboard />} />
-            <Route path="/agent-deposit" element={<AgentDeposit />} />
-            <Route path="/agent-withdrawal" element={<AgentWithdrawal />} />
-            <Route path="/agent-services" element={<AgentServices />} />
-            <Route path="/agent-settings" element={<AgentSettings />} />
-            <Route path="/agent-commission-withdrawal" element={<AgentCommissionWithdrawal />} />
-            <Route path="/agent-reports" element={<AgentReports />} />
-            <Route path="/agent-withdrawal-simple" element={<AgentWithdrawalSimple />} />
-            <Route path="/agent-withdrawal-advanced" element={<AgentWithdrawalAdvanced />} />
-            <Route path="/agent-performance" element={<AgentPerformanceDashboard />} />
-            <Route path="/mobile-agent" element={<MobileAgentDashboard />} />
-            <Route path="/new-agent" element={<NewAgentDashboard />} />
-            <Route path="/responsive-agent" element={<ResponsiveAgentDashboard />} />
-            <Route path="/main-admin" element={<MainAdminDashboard />} />
-            <Route path="/simple-admin" element={<SimpleMainAdminDashboard />} />
-            <Route path="/sub-admin" element={<SubAdminDashboard />} />
-            <Route path="/compact-sub-admin" element={<CompactSubAdminDashboard />} />
-            <Route path="/admin-users" element={<AdminUsers />} />
-            <Route path="/admin-settings" element={<AdminSettings />} />
-            <Route path="/admin-notifications" element={<AdminNotifications />} />
-            <Route path="/admin-transactions" element={<AdminTransactionMonitor />} />
-            <Route path="/admin-treasury" element={<AdminTreasury />} />
-            <Route path="/admin-balance" element={<AdminBalanceUpdate />} />
-            <Route path="/admin-agent-reports" element={<AdminAgentReports />} />
-            <Route path="/pwa" element={<PWADashboard />} />
-            <Route path="/qr-payment" element={<QRPayment />} />
-            <Route path="/deposit-withdrawal" element={<UnifiedDepositWithdrawal />} />
-            <Route path="/mobile-recharge" element={<MobileRecharge />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/transfer" element={<Transfer />} />
+          <Route path="/receive" element={<Receive />} />
+          <Route path="/qr-code" element={<QRCode />} />
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/withdraw" element={<Withdraw />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/verify-identity" element={<VerifyIdentity />} />
+          <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/receipts" element={<Receipts />} />
+          <Route path="/bill-payments" element={<BillPayments />} />
+          <Route path="/prepaid-cards" element={<PrepaidCards />} />
+          <Route path="/savings" element={<Savings />} />
+          <Route path="/commission" element={<Commission />} />
+          <Route path="/agent-auth" element={<AgentAuth />} />
+          <Route path="/agent-dashboard" element={<AgentDashboard />} />
+          <Route path="/agent-deposit" element={<AgentDeposit />} />
+          <Route path="/agent-withdrawal" element={<AgentWithdrawal />} />
+          <Route path="/agent-services" element={<AgentServices />} />
+          <Route path="/agent-settings" element={<AgentSettings />} />
+          <Route path="/agent-commission-withdrawal" element={<AgentCommissionWithdrawal />} />
+          <Route path="/agent-reports" element={<AgentReports />} />
+          <Route path="/agent-withdrawal-simple" element={<AgentWithdrawalSimple />} />
+          <Route path="/agent-withdrawal-advanced" element={<AgentWithdrawalAdvanced />} />
+          <Route path="/agent-performance" element={<AgentPerformanceDashboard />} />
+          <Route path="/mobile-agent" element={<MobileAgentDashboard />} />
+          <Route path="/new-agent" element={<NewAgentDashboard />} />
+          <Route path="/responsive-agent" element={<ResponsiveAgentDashboard />} />
+          <Route path="/main-admin" element={<MainAdminDashboard />} />
+          <Route path="/simple-admin" element={<SimpleMainAdminDashboard />} />
+          <Route path="/sub-admin" element={<SubAdminDashboard />} />
+          <Route path="/compact-sub-admin" element={<CompactSubAdminDashboard />} />
+          <Route path="/admin-users" element={<AdminUsers />} />
+          <Route path="/admin-settings" element={<AdminSettings />} />
+          <Route path="/admin-notifications" element={<AdminNotifications />} />
+          <Route path="/admin-transactions" element={<AdminTransactionMonitor />} />
+          <Route path="/admin-treasury" element={<AdminTreasury />} />
+          <Route path="/admin-balance" element={<AdminBalanceUpdate />} />
+          <Route path="/admin-agent-reports" element={<AdminAgentReports />} />
+          <Route path="/pwa" element={<PWADashboard />} />
+          <Route path="/qr-payment" element={<QRPayment />} />
+          <Route path="/deposit-withdrawal" element={<UnifiedDepositWithdrawal />} />
+          <Route path="/mobile-recharge" element={<MobileRecharge />} />
+        </Routes>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
