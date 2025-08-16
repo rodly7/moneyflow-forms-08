@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,14 +15,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Gérer automatiquement les sessions utilisateur
-  // Note: useUserSession sera appelé de façon conditionnelle dans un composant enfant
-
   // Mémoriser la fonction de rafraîchissement pour éviter les re-renders inutiles
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return;
     
     try {
+      console.log('🔄 Rafraîchissement du profil pour:', user.id);
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
@@ -29,19 +28,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (error) {
-        console.error('Erreur lors du rafraîchissement du profil:', error);
+        console.error('❌ Erreur lors du rafraîchissement du profil:', error);
         return;
       }
       
+      console.log('✅ Profil rafraîchi:', profileData);
       setProfile(profileData);
     } catch (error) {
-      console.error('Erreur lors du rafraîchissement du profil:', error);
+      console.error('❌ Erreur lors du rafraîchissement du profil:', error);
     }
   }, [user?.id]);
 
   // Fonction utilitaire pour charger le profil avec optimisation
   const loadProfile = useCallback(async (userId: string) => {
     try {
+      console.log('📊 Chargement du profil pour:', userId);
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
@@ -49,75 +50,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (!error && profileData) {
+        console.log('✅ Profil chargé:', profileData);
         setProfile(profileData);
         return true;
       } else {
-        console.error('Erreur profil:', error);
+        console.error('❌ Erreur profil:', error);
         return false;
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération du profil:', error);
+      console.error('❌ Erreur lors de la récupération du profil:', error);
       return false;
     }
   }, []);
 
   useEffect(() => {
     let mounted = true;
-    let timeoutId: NodeJS.Timeout;
 
     const initAuth = async () => {
       try {
+        console.log('🚀 Initialisation de l\'authentification...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Erreur lors de la récupération de la session:', error);
+          console.error('❌ Erreur lors de la récupération de la session:', error);
           if (mounted) setLoading(false);
           return;
         }
         
         if (session?.user && mounted) {
+          console.log('👤 Session utilisateur trouvée:', session.user.id);
           setUser(session.user);
           await loadProfile(session.user.id);
+        } else {
+          console.log('❌ Aucune session utilisateur trouvée');
         }
         
         if (mounted) {
           setLoading(false);
         }
       } catch (error) {
-        console.error('Erreur lors de l\'initialisation de l\'auth:', error);
+        console.error('❌ Erreur lors de l\'initialisation de l\'auth:', error);
         if (mounted) {
           setLoading(false);
         }
       }
     };
 
-    // Utiliser un timeout pour éviter le blocage de l'UI
-    timeoutId = setTimeout(initAuth, 0);
+    initAuth();
 
     // Optimiser la gestion des changements d'état d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
       
-      // Traitement différé pour éviter le blocage de l'UI
-      setTimeout(async () => {
-        if (event === 'SIGNED_OUT' || !session) {
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-          return;
-        }
-        
-        if (session?.user) {
-          setUser(session.user);
-          await loadProfile(session.user.id);
-          setLoading(false);
-        }
-      }, 0);
+      console.log('🔄 Changement d\'état auth:', event, session?.user?.id);
+      
+      if (event === 'SIGNED_OUT' || !session) {
+        console.log('🚪 Utilisateur déconnecté');
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+      
+      if (session?.user) {
+        console.log('✅ Utilisateur connecté:', session.user.id);
+        setUser(session.user);
+        await loadProfile(session.user.id);
+        setLoading(false);
+      }
     });
 
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, [loadProfile]);
@@ -125,9 +129,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Optimiser les fonctions d'authentification avec useCallback
   const signIn = useCallback(async (phone: string, password: string) => {
     try {
+      console.log('🔐 Début de la connexion...');
       setLoading(true);
       await authService.signIn(phone, password);
+      console.log('✅ Connexion terminée');
     } catch (error) {
+      console.error('❌ Erreur de connexion:', error);
       setLoading(false);
       throw error;
     }
@@ -135,9 +142,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = useCallback(async (phone: string, password: string, metadata: SignUpMetadata) => {
     try {
+      console.log('📝 Début de l\'inscription...');
       setLoading(true);
       await authService.signUp(phone, password, metadata);
+      console.log('✅ Inscription terminée');
     } catch (error) {
+      console.error('❌ Erreur d\'inscription:', error);
       setLoading(false);
       throw error;
     }
@@ -145,6 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = useCallback(async () => {
     try {
+      console.log('🚪 Début de la déconnexion...');
       setLoading(true);
       
       // Nettoyer d'abord l'état local
@@ -157,9 +168,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Forcer un nettoyage complet de la session
       await supabase.auth.signOut({ scope: 'local' });
       
+      console.log('✅ Déconnexion réussie');
       setLoading(false);
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
+      console.error('❌ Erreur lors de la déconnexion:', error);
       // Même en cas d'erreur, nettoyer l'état local
       setUser(null);
       setProfile(null);

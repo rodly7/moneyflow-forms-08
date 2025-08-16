@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,7 @@ const Auth = () => {
   
   const [isSignUp, setIsSignUp] = useState(isAgentMode);
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
   
   // Login fields
@@ -39,6 +38,12 @@ const Auth = () => {
   
   // Appointment state
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
+
+  // Rediriger si l'utilisateur est déjà connecté
+  if (user) {
+    navigate('/dashboard', { replace: true });
+    return null;
+  }
 
   const handleCountryChange = (value: string) => {
     const selectedCountry = countries.find(c => c.name === value);
@@ -78,6 +83,8 @@ const Auth = () => {
         
         const userRole = isAgentMode ? "agent" : "user";
         
+        console.log('📝 Tentative d\'inscription avec:', { phone, role: userRole });
+        
         await signUp(phone, password, {
           full_name: fullName,
           country: country,
@@ -89,19 +96,26 @@ const Auth = () => {
         const successMessage = isAgentMode ? "Compte agent créé avec succès!" : "Compte créé avec succès!";
         toast.success(successMessage);
         
-        if (!isAgentMode) {
-          setIsSignUp(false);
-        }
+        // Après inscription réussie, rediriger vers le dashboard
+        console.log('✅ Inscription réussie, redirection vers dashboard...');
+        navigate('/dashboard', { replace: true });
+        
       } else {
         if (!loginPhone || !loginPassword) {
           throw new Error("Veuillez remplir tous les champs");
         }
 
+        console.log('🔐 Tentative de connexion avec:', loginPhone);
+        
         await signIn(loginPhone, loginPassword);
         toast.success("Connexion réussie!");
+        
+        // Après connexion réussie, rediriger vers le dashboard
+        console.log('✅ Connexion réussie, redirection vers dashboard...');
+        navigate('/dashboard', { replace: true });
       }
     } catch (error: any) {
-      console.error("Erreur d'authentification:", error);
+      console.error("❌ Erreur d'authentification:", error);
       
       let errorMessage = "Une erreur est survenue";
       

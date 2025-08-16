@@ -13,42 +13,19 @@ import CompactActionGrid from '@/components/dashboard/CompactActionGrid';
 import CompactStatsGrid from '@/components/dashboard/CompactStatsGrid';
 import TransactionsCard from '@/components/dashboard/TransactionsCard';
 import MobileDashboard from '@/components/mobile/MobileDashboard';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { User, Wallet, Plus, Minus, QrCode, History, CreditCard, PiggyBank } from 'lucide-react';
 import { useTransferNotifications } from '@/hooks/useTransferNotifications';
 
 const Dashboard = () => {
   // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY CONDITIONAL LOGIC
-  const { user, signOut } = useAuth();
+  const { user, profile, loading } = useAuth();
   const { isMobile } = useDeviceDetection();
   const navigate = useNavigate();
   const { toast } = useToast();
   
   // Activer les notifications de transfert
   useTransferNotifications();
-
-  const { 
-    data: profile, 
-    isLoading: isProfileLoading,
-    refetch: refetchProfile 
-  } = useQuery({
-    queryKey: ['user-profile', user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single();
-      
-      if (error) {
-        console.error('Erreur lors du chargement du profil:', error);
-        throw error;
-      }
-      
-      return data;
-    },
-    enabled: !!user?.id,
-  });
 
   const { 
     data: balance, 
@@ -110,6 +87,7 @@ const Dashboard = () => {
 
   const handleSignOut = useCallback(async () => {
     try {
+      const { signOut } = useAuth();
       await signOut();
       navigate('/auth');
       toast({
@@ -123,10 +101,10 @@ const Dashboard = () => {
         variant: "destructive"
       });
     }
-  }, [signOut, navigate, toast]);
+  }, [navigate, toast]);
 
   const handleRefresh = async () => {
-    await Promise.all([refetchProfile(), refetchBalance()]);
+    await refetchBalance();
   };
 
   const handleDeleteTransaction = useCallback((id: string, type: string) => {
@@ -134,26 +112,47 @@ const Dashboard = () => {
     console.log('Delete transaction:', id, type);
   }, []);
 
-  const isLoading = isProfileLoading || isBalanceLoading;
+  // Gérer les redirections selon le rôle SEULEMENT après que les données soient chargées
+  useEffect(() => {
+    if (loading || !profile) return;
 
-  // NOW we can do conditional returns after ALL hooks have been called
-  // Check user role and redirect to appropriate dashboard if needed
-  if (profile?.role === 'admin') {
-    navigate('/admin-dashboard');
-    return null;
-  }
-  
-  if (profile?.role === 'sub_admin') {
-    navigate('/sub-admin-dashboard');
-    return null;
-  }
-  
-  if (profile?.role === 'agent') {
-    navigate('/agent-dashboard');
-    return null;
+    console.log('🔍 Vérification du rôle utilisateur:', profile.role);
+    
+    // Redirections conditionnelles selon le rôle
+    if (profile.role === 'admin') {
+      console.log('👤 Redirection vers admin dashboard');
+      navigate('/admin-dashboard', { replace: true });
+      return;
+    }
+    
+    if (profile.role === 'sub_admin') {
+      console.log('👤 Redirection vers sub-admin dashboard'); 
+      navigate('/sub-admin-dashboard', { replace: true });
+      return;
+    }
+    
+    if (profile.role === 'agent') {
+      console.log('👤 Redirection vers agent dashboard');
+      navigate('/agent-dashboard', { replace: true });
+      return;
+    }
+
+    console.log('👤 Utilisateur standard, reste sur dashboard');
+  }, [profile, loading, navigate]);
+
+  // Afficher le loading pendant que les données se chargent
+  if (loading || !profile || isBalanceLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary mx-auto mb-4"></div>
+          <p className="text-lg font-semibold">Chargement de votre tableau de bord...</p>
+        </div>
+      </div>
+    );
   }
 
-  // For regular users - unified mobile interface for all devices
+  // Pour les utilisateurs normaux - interface mobile unifiée
   return <MobileDashboard />;
 };
 
