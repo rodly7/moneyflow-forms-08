@@ -1,226 +1,229 @@
-
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
-import { User } from '@supabase/supabase-js';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { Profile, AuthContextType, SignUpMetadata } from '@/types/auth';
-import { authService } from '@/services/authService';
-import { useUserSession } from '@/hooks/useUserSession';
-import SessionManager from '@/components/SessionManager';
-import { toast } from 'sonner';
+
+interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  avatar_url: string;
+  phone: string;
+  address: string;
+  country: string;
+  role: string;
+  is_verified: boolean;
+  balance: number;
+  created_at: string;
+}
+
+interface SignUpData {
+  email: string;
+  password: string;
+  full_name: string;
+  phone: string;
+  country: string;
+  address?: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  profile: UserProfile | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<any>;
+  signUp: (signUpData: SignUpData) => Promise<any>;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Mémoriser la fonction de rafraîchissement pour éviter les re-renders inutiles
+  // Optimisation: mémoriser les fonctions pour éviter les re-renders
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return;
-    
+
     try {
-      console.log('🔄 Rafraîchissement du profil pour:', user.id);
-      const { data: profileData, error } = await supabase
+      console.log('🔄 Refreshing profile for user:', user.id);
+      
+      // Utiliser RPC pour obtenir le solde le plus récent
+      const { data: currentBalance, error: balanceError } = await supabase.rpc('increment_balance', {
+        user_id: user.id,
+        amount: 0
+      });
+
+      if (balanceError) {
+        console.error('Error fetching balance:', balanceError);
+      }
+
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
-      
+
       if (error) {
-        console.error('❌ Erreur lors du rafraîchissement du profil:', error);
+        console.error('Error fetching profile:', error);
         return;
       }
-      
-      console.log('✅ Profil rafraîchi:', profileData);
-      setProfile(profileData);
+
+      // Mettre à jour avec le solde le plus récent si disponible
+      const updatedProfile = {
+        ...data,
+        balance: currentBalance !== null ? Number(currentBalance) : data.balance
+      };
+
+      console.log('✅ Profile refreshed:', updatedProfile);
+      setProfile(updatedProfile);
     } catch (error) {
-      console.error('❌ Erreur lors du rafraîchissement du profil:', error);
+      console.error('Error in refreshProfile:', error);
     }
   }, [user?.id]);
 
-  // Fonction utilitaire pour charger le profil avec optimisation
-  const loadProfile = useCallback(async (userId: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
+    console.log('🔐 Attempting sign in for:', email);
+    setLoading(true);
+    
     try {
-      console.log('📊 Chargement du profil pour:', userId);
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (!error && profileData) {
-        console.log('✅ Profil chargé:', profileData);
-        setProfile(profileData);
-        return true;
-      } else {
-        console.error('❌ Erreur profil:', error);
-        return false;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        console.error('❌ Sign in error:', error);
+        throw error;
       }
+
+      console.log('✅ Sign in successful');
+      return data;
     } catch (error) {
-      console.error('❌ Erreur lors de la récupération du profil:', error);
-      return false;
+      console.error('❌ Sign in failed:', error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  const signUp = useCallback(async (signUpData: SignUpData) => {
+    console.log('📝 Attempting sign up');
+    setLoading(true);
+    
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: signUpData.email,
+        password: signUpData.password,
+        options: {
+          data: {
+            full_name: signUpData.full_name,
+            phone: signUpData.phone,
+            country: signUpData.country,
+            address: signUpData.address || ''
+          }
+        }
+      });
+
+      if (error) {
+        console.error('❌ Sign up error:', error);
+        throw error;
+      }
+
+      console.log('✅ Sign up successful');
+      return data;
+    } catch (error) {
+      console.error('❌ Sign up failed:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const signOut = useCallback(async () => {
+    console.log('🚪 Signing out...');
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('❌ Sign out error:', error);
+      throw error;
+    }
+    console.log('✅ Signed out successfully');
   }, []);
 
   useEffect(() => {
     let mounted = true;
-
-    const initAuth = async () => {
+    
+    const getInitialSession = async () => {
       try {
-        console.log('🚀 Initialisation de l\'authentification...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('❌ Erreur lors de la récupération de la session:', error);
-          if (mounted) setLoading(false);
+          console.error('❌ Error getting session:', error);
           return;
         }
-        
-        if (session?.user && mounted) {
-          console.log('👤 Session utilisateur trouvée:', session.user.id);
-          setUser(session.user);
-          await loadProfile(session.user.id);
-        } else {
-          console.log('❌ Aucune session utilisateur trouvée');
-        }
-        
+
         if (mounted) {
-          setLoading(false);
+          if (session?.user) {
+            console.log('👤 Initial session found, setting user:', session.user.id);
+            setUser(session.user);
+          } else {
+            console.log('❌ No initial session found');
+            setLoading(false);
+          }
         }
       } catch (error) {
-        console.error('❌ Erreur lors de l\'initialisation de l\'auth:', error);
+        console.error('❌ Error in getSession:', error);
         if (mounted) {
           setLoading(false);
         }
       }
     };
 
-    initAuth();
+    getInitialSession();
 
-    // Optimiser la gestion des changements d'état d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-      
-      console.log('🔄 Changement d\'état auth:', event, session?.user?.id);
-      
-      if (event === 'SIGNED_OUT' || !session) {
-        console.log('🚪 Utilisateur déconnecté');
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-        return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+        
+        console.log('🔄 Auth state changed:', event, session?.user?.id);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log('✅ User signed in:', session.user.id);
+          setUser(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          console.log('👋 User signed out');
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+        }
       }
-      
-      if (session?.user) {
-        console.log('✅ Utilisateur connecté:', session.user.id);
-        setUser(session.user);
-        await loadProfile(session.user.id);
-        setLoading(false);
-      }
-    });
+    );
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [loadProfile]);
-
-  // Optimiser les fonctions d'authentification avec useCallback
-  const signIn = useCallback(async (phone: string, password: string) => {
-    try {
-      console.log('🔐 Début de la connexion...');
-      setLoading(true);
-      await authService.signIn(phone, password);
-      console.log('✅ Connexion terminée');
-    } catch (error) {
-      console.error('❌ Erreur de connexion:', error);
-      setLoading(false);
-      throw error;
-    }
   }, []);
 
-  const signUp = useCallback(async (phone: string, password: string, metadata: SignUpMetadata) => {
-    try {
-      console.log('📝 Début de l\'inscription...');
-      setLoading(true);
-      await authService.signUp(phone, password, metadata);
-      console.log('✅ Inscription terminée');
-    } catch (error) {
-      console.error('❌ Erreur d\'inscription:', error);
-      setLoading(false);
-      throw error;
+  useEffect(() => {
+    if (user && !profile) {
+      refreshProfile();
     }
-  }, []);
+  }, [user, profile, refreshProfile]);
 
-  const signOut = useCallback(async () => {
-    try {
-      console.log('🚪 Début de la déconnexion...');
-      setLoading(true);
-      
-      // Nettoyer d'abord l'état local
-      setUser(null);
-      setProfile(null);
-      
-      // Puis appeler Supabase pour la déconnexion
-      await authService.signOut();
-      
-      // Forcer un nettoyage complet de la session
-      await supabase.auth.signOut({ scope: 'local' });
-      
-      console.log('✅ Déconnexion réussie');
-      setLoading(false);
-    } catch (error) {
-      console.error('❌ Erreur lors de la déconnexion:', error);
-      // Même en cas d'erreur, nettoyer l'état local
-      setUser(null);
-      setProfile(null);
-      setLoading(false);
-      
-      // Ne pas relancer l'erreur pour éviter de bloquer la déconnexion
-      toast.error('Déconnexion effectuée avec nettoyage forcé');
-    }
-  }, []);
-
-  // Mémoriser les fonctions utilitaires pour éviter les re-renders
-  const isAdmin = useCallback(() => profile?.role === 'admin', [profile?.role]);
-  const isAgent = useCallback(() => profile?.role === 'agent', [profile?.role]);
-  const isAgentOrAdmin = useCallback(() => 
-    profile?.role === 'agent' || profile?.role === 'admin' || profile?.role === 'sub_admin'
-  , [profile?.role]);
-  
-  const userRole = profile?.role || null;
-
-  // Mémoriser la valeur du contexte pour éviter les re-renders inutiles
-  const contextValue = useMemo(() => ({
+  const value = useMemo(() => ({
     user,
     profile,
-    userRole,
     loading,
     signIn,
     signUp,
     signOut,
-    isAdmin,
-    isAgent,
-    isAgentOrAdmin,
-    refreshProfile,
-  }), [
-    user,
-    profile,
-    userRole,
-    loading,
-    signIn,
-    signUp,
-    signOut,
-    isAdmin,
-    isAgent,
-    isAgentOrAdmin,
-    refreshProfile,
-  ]);
+    refreshProfile
+  }), [user, profile, loading, signIn, signUp, signOut, refreshProfile]);
 
   return (
-    <AuthContext.Provider value={contextValue}>
-      <SessionManager />
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
@@ -229,20 +232,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    console.warn('useAuth called outside AuthProvider. Providing safe defaults.');
-    return {
-      user: null,
-      profile: null,
-      userRole: null,
-      loading: true,
-      signIn: async () => {},
-      signUp: async () => {},
-      signOut: async () => {},
-      isAdmin: () => false,
-      isAgent: () => false,
-      isAgentOrAdmin: () => false,
-      refreshProfile: async () => {}
-    } as AuthContextType;
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
