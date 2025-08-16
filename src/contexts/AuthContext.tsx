@@ -14,7 +14,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Optimisation: mémoriser les fonctions pour éviter les re-renders
   const refreshProfile = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('❌ No user ID for profile refresh');
+      return;
+    }
 
     try {
       console.log('🔄 Refreshing profile for user:', user.id);
@@ -40,10 +43,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
+      if (!data) {
+        console.error('No profile data found');
+        return;
+      }
+
       // Mettre à jour avec le solde le plus récent si disponible
       const updatedProfile: Profile = {
         ...data,
-        balance: currentBalance !== null ? Number(currentBalance) : data.balance
+        balance: currentBalance !== null ? Number(currentBalance) : (data.balance || 0)
       };
 
       console.log('✅ Profile refreshed:', updatedProfile);
@@ -140,20 +148,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  // Fonctions de rôle mémorisées
+  // Fonctions de rôle mémorisées avec vérifications de sécurité
   const isAdmin = useCallback(() => {
-    return profileService.isAdmin(profile);
+    try {
+      return profileService.isAdmin(profile);
+    } catch (error) {
+      console.error('Error checking admin role:', error);
+      return false;
+    }
   }, [profile]);
 
   const isAgent = useCallback(() => {
-    return profileService.isAgent(profile);
+    try {
+      return profileService.isAgent(profile);
+    } catch (error) {
+      console.error('Error checking agent role:', error);
+      return false;
+    }
   }, [profile]);
 
   const isAgentOrAdmin = useCallback(() => {
-    return profileService.isAgentOrAdmin(profile);
+    try {
+      return profileService.isAgentOrAdmin(profile);
+    } catch (error) {
+      console.error('Error checking agent or admin role:', error);
+      return false;
+    }
   }, [profile]);
 
-  // Mémoriser userRole
+  // Mémoriser userRole avec vérification de sécurité
   const userRole = useMemo(() => {
     return profile?.role || null;
   }, [profile?.role]);
@@ -167,6 +190,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (error) {
           console.error('❌ Error getting session:', error);
+          if (mounted) {
+            setLoading(false);
+          }
           return;
         }
 
@@ -195,14 +221,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         console.log('🔄 Auth state changed:', event, session?.user?.id);
         
-        if (event === 'SIGNED_IN' && session?.user) {
-          console.log('✅ User signed in:', session.user.id);
-          setUser(session.user);
-        } else if (event === 'SIGNED_OUT') {
-          console.log('👋 User signed out');
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
+        try {
+          if (event === 'SIGNED_IN' && session?.user) {
+            console.log('✅ User signed in:', session.user.id);
+            setUser(session.user);
+          } else if (event === 'SIGNED_OUT') {
+            console.log('👋 User signed out');
+            setUser(null);
+            setProfile(null);
+            setLoading(false);
+          }
+        } catch (error) {
+          console.error('❌ Error in auth state change:', error);
+          if (mounted) {
+            setLoading(false);
+          }
         }
       }
     );
