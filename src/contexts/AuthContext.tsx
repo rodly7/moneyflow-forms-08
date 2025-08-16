@@ -3,49 +3,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { profileService } from '@/services/profileService';
-
-interface UserProfile {
-  id: string;
-  email: string;
-  full_name: string;
-  avatar_url: string;
-  phone: string;
-  address: string;
-  country: string;
-  role: 'user' | 'agent' | 'admin' | 'sub_admin';
-  is_verified: boolean;
-  balance: number;
-  created_at: string;
-}
-
-interface SignUpData {
-  email: string;
-  password: string;
-  full_name: string;
-  phone: string;
-  country: string;
-  address?: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  profile: UserProfile | null;
-  userRole: 'user' | 'agent' | 'admin' | 'sub_admin' | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<any>;
-  signUp: (signUpData: SignUpData) => Promise<any>;
-  signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
-  isAdmin: () => boolean;
-  isAgent: () => boolean;
-  isAgentOrAdmin: () => boolean;
-}
+import { Profile, AuthContextType } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Optimisation: mémoriser les fonctions pour éviter les re-renders
@@ -77,9 +41,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Mettre à jour avec le solde le plus récent si disponible
-      const updatedProfile = {
+      const updatedProfile: Profile = {
         ...data,
-        email: user.email || '',
         balance: currentBalance !== null ? Number(currentBalance) : data.balance
       };
 
@@ -88,13 +51,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error('Error in refreshProfile:', error);
     }
-  }, [user?.id, user?.email]);
+  }, [user?.id]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    console.log('🔐 Attempting sign in for:', email);
+  const signIn = useCallback(async (phone: string, password: string) => {
+    console.log('🔐 Attempting sign in for:', phone);
     setLoading(true);
     
     try {
+      // Normaliser le numéro - enlever espaces et garder seulement les chiffres et +
+      const normalizedPhone = phone.replace(/[^\d+]/g, '');
+      const email = `${normalizedPhone}@sendflow.app`;
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -115,20 +82,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  const signUp = useCallback(async (signUpData: SignUpData) => {
+  const signUp = useCallback(async (phone: string, password: string, metadata: any) => {
     console.log('📝 Attempting sign up');
     setLoading(true);
     
     try {
+      // Normaliser le numéro
+      const normalizedPhone = phone.replace(/[^\d+]/g, '');
+      const email = `${normalizedPhone}@sendflow.app`;
+      
       const { data, error } = await supabase.auth.signUp({
-        email: signUpData.email,
-        password: signUpData.password,
+        email,
+        password,
         options: {
           data: {
-            full_name: signUpData.full_name,
-            phone: signUpData.phone,
-            country: signUpData.country,
-            address: signUpData.address || ''
+            ...metadata,
+            phone: normalizedPhone
           }
         }
       });

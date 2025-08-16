@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -48,11 +49,7 @@ const Auth = () => {
     try {
       console.log('🔐 Tentative de connexion...');
       
-      // Normaliser le numéro - enlever espaces et garder seulement les chiffres et +
-      const normalizedPhone = phone.replace(/[^\d+]/g, '');
-      const email = `${normalizedPhone}@sendflow.app`;
-      
-      await signIn(email, password);
+      await signIn(phone, password);
       
       toast({
         title: "Connexion réussie",
@@ -89,17 +86,12 @@ const Auth = () => {
     try {
       console.log('📝 Tentative d\'inscription...');
       
-      // Normaliser le numéro
-      const normalizedPhone = phone.replace(/[^\d+]/g, '');
-      const email = `${normalizedPhone}@sendflow.app`;
-      
-      await signUp({
-        email,
-        password,
+      await signUp(phone, password, {
         full_name: fullName,
-        phone: normalizedPhone,
+        phone: phone,
         country,
-        address
+        address,
+        role: 'user'
       });
       
       toast({
