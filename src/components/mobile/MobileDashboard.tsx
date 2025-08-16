@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
 import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
+import { UserBalanceRechargeButton } from "@/components/user/UserBalanceRechargeButton";
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -202,6 +203,9 @@ const MobileDashboard = memo(() => {
             </div>
             <span className="font-medium text-gray-800">Envoyer</span>
           </button>
+
+          {/* Recharger */}
+          <UserBalanceRechargeButton />
 
           {/* QR Code */}
           <button 
