@@ -40,17 +40,18 @@ const Layout = () => {
     setViewport();
     setFullScreenVars();
 
-    // Basic layout styles
+    // Layout styles - Allow scrolling
     document.documentElement.style.height = '100%';
     document.documentElement.style.width = '100%';
     document.documentElement.style.margin = '0';
     document.documentElement.style.padding = '0';
-    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden'; // Only hide on html
+    
     document.body.style.height = '100%';
     document.body.style.width = '100%';
     document.body.style.margin = '0';
     document.body.style.padding = '0';
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden'; // Only hide on body
 
     const root = document.getElementById('root');
     if (root) {
@@ -59,7 +60,7 @@ const Layout = () => {
       root.style.margin = '0';
       root.style.padding = '0';
       root.style.position = 'relative';
-      root.style.overflow = 'hidden';
+      root.style.overflow = 'hidden'; // Only hide on root
     }
 
     // Resize handler
@@ -117,9 +118,9 @@ const Layout = () => {
 
   return (
     <PWAOptimizedLayout className="full-screen-app">
-      <div className="flex flex-col h-full w-full">
+      <div className="flex flex-col h-full w-full relative">
         <OfflineIndicator />
-        <main className="flex-1 w-full min-h-0">
+        <main className="flex-1 w-full min-h-0 overflow-y-auto overflow-x-hidden">
           <Outlet />
         </main>
         <Toaster />

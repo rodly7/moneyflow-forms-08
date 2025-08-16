@@ -30,8 +30,8 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
         maxWidth: '100vw',
         contain: 'layout style paint',
         zIndex: 0,
-        fontSize: '11px',
-        lineHeight: '1.2',
+        fontSize: '16px',
+        lineHeight: '1.5',
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: '0px',
         overflow: 'hidden',
@@ -40,14 +40,18 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
       <div 
         className="h-full w-full overflow-y-auto overflow-x-hidden mobile-scroll ultra-compact-scroll"
         style={{
-          fontSize: '11px',
-          lineHeight: '1.2',
-          paddingTop: '34px', // Marge en haut de 34px comme demandé
+          fontSize: '16px',
+          lineHeight: '1.5',
+          paddingTop: '34px', // Marge en haut de 34px
           paddingBottom: '0px', // Pas de marge en bas
-          height: 'calc(100% - env(safe-area-inset-top))',
+          paddingLeft: '0px',
+          paddingRight: '0px',
+          height: '100%',
           WebkitOverflowScrolling: 'touch',
           scrollBehavior: 'smooth',
           overscrollBehavior: 'contain',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
         }}
       >
         {children}
