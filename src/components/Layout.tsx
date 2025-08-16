@@ -1,4 +1,3 @@
-
 import { useAuth } from '@/contexts/AuthContext';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
@@ -45,13 +44,13 @@ const Layout = () => {
     document.documentElement.style.width = '100%';
     document.documentElement.style.margin = '0';
     document.documentElement.style.padding = '0';
-    document.documentElement.style.overflow = 'hidden'; // Changed to hidden to allow PWAOptimizedLayout to handle scroll
+    document.documentElement.style.overflow = 'visible'; // Allow scrolling
     
     document.body.style.height = '100%';
     document.body.style.width = '100%';
     document.body.style.margin = '0';
     document.body.style.padding = '0';
-    document.body.style.overflow = 'hidden'; // Changed to hidden
+    document.body.style.overflow = 'visible'; // Allow scrolling
 
     const root = document.getElementById('root');
     if (root) {
@@ -60,7 +59,7 @@ const Layout = () => {
       root.style.margin = '0';
       root.style.padding = '0';
       root.style.position = 'relative';
-      root.style.overflow = 'hidden'; // Changed to hidden
+      root.style.overflow = 'visible'; // Allow scrolling
     }
 
     // Resize handler

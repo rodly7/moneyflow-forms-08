@@ -18,14 +18,14 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
       )}
       style={{
         position: 'fixed',
-        top: '29px', // Adjusted from 0 to 29px
+        top: '30px', // Changed from 29px to 30px
         left: 0,
         right: 0,
         bottom: 0,
-        height: 'calc(100vh - 29px)', // Adjusted height
+        height: 'calc(100vh - 30px)', // Adjusted height
         width: '100vw',
-        minHeight: 'calc(100vh - 29px)',
-        maxHeight: 'calc(100vh - 29px)',
+        minHeight: 'calc(100vh - 30px)',
+        maxHeight: 'calc(100vh - 30px)',
         minWidth: '100vw',
         maxWidth: '100vw',
         contain: 'layout style paint',
@@ -36,11 +36,12 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
       }}
     >
       <div 
-        className="h-full w-full overflow-y-auto overflow-x-hidden"
+        className="h-full w-full"
         style={{
           fontSize: '16px',
           lineHeight: '1.5',
           height: '100%',
+          overflow: 'auto', // Changed from overflow-y-auto overflow-x-hidden
           WebkitOverflowScrolling: 'touch',
           scrollBehavior: 'smooth',
           overscrollBehavior: 'contain',

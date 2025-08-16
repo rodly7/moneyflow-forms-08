@@ -132,14 +132,14 @@ const MobileDashboard = memo(() => {
 
   return (
     <div 
-      className="w-full bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600 overflow-y-auto"
+      className="w-full bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600"
       style={{ 
         minHeight: '100vh',
-        paddingBottom: '20px',
+        overflow: 'visible',
       }}
     >
       {/* Header Section */}
-      <div className="px-6 py-4 text-white">
+      <div className="px-6 py-6 text-white" style={{ paddingTop: '30px' }}>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white text-lg font-bold">
@@ -197,7 +197,7 @@ const MobileDashboard = memo(() => {
       </div>
 
       {/* Actions Section */}
-      <div className="bg-white rounded-t-3xl flex-1 px-6 py-4 min-h-[60vh]">
+      <div className="bg-white rounded-t-3xl flex-1 px-6 py-6" style={{ minHeight: 'calc(100vh - 200px)' }}>
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Actions rapides</h2>
         
         <div className="grid grid-cols-2 gap-4 pb-8">
