@@ -18,14 +18,14 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
       )}
       style={{
         position: 'fixed',
-        top: 0,
+        top: '29px', // Adjusted from 0 to 29px
         left: 0,
         right: 0,
         bottom: 0,
-        height: '100vh',
+        height: 'calc(100vh - 29px)', // Adjusted height
         width: '100vw',
-        minHeight: '100vh',
-        maxHeight: '100vh',
+        minHeight: 'calc(100vh - 29px)',
+        maxHeight: 'calc(100vh - 29px)',
         minWidth: '100vw',
         maxWidth: '100vw',
         contain: 'layout style paint',
@@ -40,7 +40,7 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
         style={{
           fontSize: '16px',
           lineHeight: '1.5',
-          height: '100vh',
+          height: '100%',
           WebkitOverflowScrolling: 'touch',
           scrollBehavior: 'smooth',
           overscrollBehavior: 'contain',

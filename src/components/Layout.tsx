@@ -40,18 +40,18 @@ const Layout = () => {
     setViewport();
     setFullScreenVars();
 
-    // Layout styles pour permettre le scroll natif
+    // Layout styles for proper scrolling
     document.documentElement.style.height = '100%';
     document.documentElement.style.width = '100%';
     document.documentElement.style.margin = '0';
     document.documentElement.style.padding = '0';
-    document.documentElement.style.overflow = 'visible'; // Permettre le scroll
+    document.documentElement.style.overflow = 'hidden'; // Changed to hidden to allow PWAOptimizedLayout to handle scroll
     
     document.body.style.height = '100%';
     document.body.style.width = '100%';
     document.body.style.margin = '0';
     document.body.style.padding = '0';
-    document.body.style.overflow = 'visible'; // Permettre le scroll
+    document.body.style.overflow = 'hidden'; // Changed to hidden
 
     const root = document.getElementById('root');
     if (root) {
@@ -60,7 +60,7 @@ const Layout = () => {
       root.style.margin = '0';
       root.style.padding = '0';
       root.style.position = 'relative';
-      root.style.overflow = 'visible'; // Permettre le scroll
+      root.style.overflow = 'hidden'; // Changed to hidden
     }
 
     // Resize handler
