@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Layout } from '@/components/Layout';
+import Layout from '@/components/Layout';
 import MobilePaymentForm from '@/components/recharge/MobilePaymentForm';
 import PaymentStatusMonitor from '@/components/recharge/PaymentStatusMonitor';
 
