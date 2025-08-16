@@ -118,13 +118,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = useCallback(async () => {
-    console.log('🚪 Signing out...');
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('❌ Sign out error:', error);
+    try {
+      console.log('🚪 Signing out...');
+      
+      // Nettoyer les états locaux d'abord
+      setUser(null);
+      setProfile(null);
+      setLoading(false);
+      
+      // Puis déconnecter de Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('❌ Sign out error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Signed out successfully');
+    } catch (error) {
+      console.error('❌ Sign out failed:', error);
       throw error;
     }
-    console.log('✅ Signed out successfully');
   }, []);
 
   // Fonctions de rôle mémorisées

@@ -12,11 +12,13 @@ const LogoutButton = () => {
 
   const handleLogout = async () => {
     try {
+      console.log('🚪 Tentative de déconnexion...');
       await signOut();
-      navigate('/auth');
+      console.log('✅ Déconnexion réussie, redirection vers /auth');
+      navigate('/auth', { replace: true });
       toast.success('Déconnexion réussie');
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
+      console.error('❌ Erreur lors de la déconnexion:', error);
       toast.error('Erreur lors de la déconnexion');
     }
   };
