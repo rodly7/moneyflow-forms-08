@@ -7,14 +7,13 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useTransferNotifications } from '@/hooks/useTransferNotifications';
 import MobileDashboard from '@/components/mobile/MobileDashboard';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
 const Dashboard = () => {
   const { user, profile, loading } = useAuth();
   const { isMobile } = useDeviceDetection();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const hasRedirected = useRef(false);
   
   // Activer les notifications de transfert
   useTransferNotifications();
@@ -40,41 +39,35 @@ const Dashboard = () => {
       return data?.balance || 0;
     },
     enabled: !!user?.id,
-    staleTime: 30000, // 30 secondes
-    refetchInterval: 60000, // 1 minute
+    staleTime: 30000,
+    refetchInterval: 60000,
   });
 
-  // Gérer les redirections selon le rôle - une seule fois
+  // Gérer les redirections selon le rôle
   useEffect(() => {
-    if (loading || !profile || hasRedirected.current) return;
+    if (loading || !profile) return;
 
     console.log('🔍 Vérification du rôle utilisateur:', profile.role);
     
-    // Marquer comme ayant redirigé pour éviter les boucles
-    hasRedirected.current = true;
+    if (profile.role === 'admin') {
+      console.log('👤 Redirection vers admin dashboard');
+      navigate('/admin-dashboard', { replace: true });
+      return;
+    }
     
-    // Redirections conditionnelles selon le rôle avec timeout pour éviter les conflits
-    setTimeout(() => {
-      if (profile.role === 'admin') {
-        console.log('👤 Redirection vers admin dashboard');
-        navigate('/admin-dashboard', { replace: true });
-        return;
-      }
-      
-      if (profile.role === 'sub_admin') {
-        console.log('👤 Redirection vers sub-admin dashboard'); 
-        navigate('/sub-admin-dashboard', { replace: true });
-        return;
-      }
-      
-      if (profile.role === 'agent') {
-        console.log('👤 Redirection vers agent dashboard');
-        navigate('/agent-dashboard', { replace: true });
-        return;
-      }
+    if (profile.role === 'sub_admin') {
+      console.log('👤 Redirection vers sub-admin dashboard'); 
+      navigate('/sub-admin-dashboard', { replace: true });
+      return;
+    }
+    
+    if (profile.role === 'agent') {
+      console.log('👤 Redirection vers agent dashboard');
+      navigate('/agent-dashboard', { replace: true });
+      return;
+    }
 
-      console.log('👤 Utilisateur standard, reste sur dashboard');
-    }, 100);
+    console.log('👤 Utilisateur standard, reste sur dashboard');
   }, [profile?.role, loading, navigate]);
 
   // Afficher le loading pendant que les données se chargent

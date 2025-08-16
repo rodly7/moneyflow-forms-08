@@ -8,7 +8,6 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
 import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
-import { UserBalanceRechargeButton } from "@/components/user/UserBalanceRechargeButton";
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -129,8 +128,8 @@ const MobileDashboard = memo(() => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-x-hidden">
-      {/* Mobile Header - Optimized for small screens */}
+    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      {/* Mobile Header */}
       <div className="sticky top-0 z-50 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 p-0.5">
         <div className="bg-white rounded-b-xl">
           <div className="p-3 space-y-3">
@@ -167,7 +166,7 @@ const MobileDashboard = memo(() => {
               </div>
             </div>
             
-            {/* User Info Section - Compact for mobile */}
+            {/* User Info Section */}
             <div className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg">
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
@@ -191,9 +190,9 @@ const MobileDashboard = memo(() => {
         </div>
       </div>
 
-      {/* Content - Optimized spacing for mobile with proper scrolling */}
-      <div className="p-3 space-y-4 pb-20" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        {/* Balance Card - Mobile optimized with recharge button */}
+      {/* Content */}
+      <div className="p-3 space-y-4 pb-20">
+        {/* Balance Card */}
         <div className="relative group">
           <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-1000"></div>
           <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 p-4 rounded-xl text-white shadow-xl">
@@ -223,11 +222,6 @@ const MobileDashboard = memo(() => {
                 </p>
               </div>
               
-              {/* Bouton de recharge dans la carte de solde */}
-              <div className="flex justify-center">
-                <UserBalanceRechargeButton />
-              </div>
-              
               <div className="flex justify-center space-x-1">
                 <div className="w-1.5 h-1.5 bg-white/60 rounded-full animate-pulse"></div>
                 <div className="w-1.5 h-1.5 bg-white/40 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
@@ -237,7 +231,7 @@ const MobileDashboard = memo(() => {
           </div>
         </div>
 
-        {/* Actions Grid - 2x3 layout for mobile */}
+        {/* Actions Grid */}
         <div className="grid grid-cols-2 gap-3">
           {[
             { key: 'transfer', icon: ArrowUpRight, label: 'Transférer', colors: 'from-pink-500 to-purple-500', bg: 'from-pink-600 to-purple-600' },
@@ -262,16 +256,16 @@ const MobileDashboard = memo(() => {
           ))}
         </div>
 
-        {/* Tips Section - Compact for mobile */}
+        {/* Tips Section */}
         <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-3 rounded-lg border-l-4 border-l-indigo-500">
           <div className="text-xs">
             <div className="flex items-center gap-1 mb-1">
               <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-              <span className="font-semibold text-indigo-900">Recharge disponible en haut</span>
+              <span className="font-semibold text-indigo-900">Transferts instantanés</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <span className="font-semibold text-purple-900">Transferts instantanés</span>
+              <span className="font-semibold text-purple-900">Support client 24/7</span>
             </div>
           </div>
         </div>
