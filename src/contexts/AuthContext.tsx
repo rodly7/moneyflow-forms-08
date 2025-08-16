@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   // Optimisation: mémoriser les fonctions pour éviter les re-renders
   const refreshProfile = useCallback(async () => {
@@ -132,7 +133,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Nettoyer les états locaux d'abord
       setUser(null);
       setProfile(null);
-      setLoading(false);
       
       // Puis déconnecter de Supabase
       const { error } = await supabase.auth.signOut();
@@ -192,6 +192,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('❌ Error getting session:', error);
           if (mounted) {
             setLoading(false);
+            setInitialized(true);
           }
           return;
         }
@@ -202,13 +203,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(session.user);
           } else {
             console.log('❌ No initial session found');
-            setLoading(false);
           }
+          setLoading(false);
+          setInitialized(true);
         }
       } catch (error) {
         console.error('❌ Error in getSession:', error);
         if (mounted) {
           setLoading(false);
+          setInitialized(true);
         }
       }
     };
@@ -225,17 +228,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (event === 'SIGNED_IN' && session?.user) {
             console.log('✅ User signed in:', session.user.id);
             setUser(session.user);
+            setProfile(null); // Reset profile to trigger refresh
           } else if (event === 'SIGNED_OUT') {
             console.log('👋 User signed out');
             setUser(null);
             setProfile(null);
-            setLoading(false);
           }
         } catch (error) {
           console.error('❌ Error in auth state change:', error);
-          if (mounted) {
-            setLoading(false);
-          }
+        }
+        
+        if (mounted && !loading) {
+          setLoading(false);
         }
       }
     );
@@ -246,11 +250,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
+  // Effet séparé pour refreshProfile pour éviter les boucles infinies
   useEffect(() => {
-    if (user && !profile) {
+    if (initialized && user && !profile) {
       refreshProfile();
     }
-  }, [user, profile, refreshProfile]);
+  }, [user, profile, refreshProfile, initialized]);
 
   const value = useMemo(() => ({
     user,
