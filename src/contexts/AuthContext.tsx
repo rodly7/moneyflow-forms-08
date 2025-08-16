@@ -1,6 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { profileService } from '@/services/profileService';
 
 interface UserProfile {
   id: string;
@@ -10,7 +12,7 @@ interface UserProfile {
   phone: string;
   address: string;
   country: string;
-  role: string;
+  role: 'user' | 'agent' | 'admin' | 'sub_admin';
   is_verified: boolean;
   balance: number;
   created_at: string;
@@ -28,11 +30,15 @@ interface SignUpData {
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
+  userRole: 'user' | 'agent' | 'admin' | 'sub_admin' | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<any>;
   signUp: (signUpData: SignUpData) => Promise<any>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  isAdmin: () => boolean;
+  isAgent: () => boolean;
+  isAgentOrAdmin: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,6 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Mettre à jour avec le solde le plus récent si disponible
       const updatedProfile = {
         ...data,
+        email: user.email || '',
         balance: currentBalance !== null ? Number(currentBalance) : data.balance
       };
 
@@ -81,7 +88,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error('Error in refreshProfile:', error);
     }
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     console.log('🔐 Attempting sign in for:', email);
@@ -151,6 +158,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     console.log('✅ Signed out successfully');
   }, []);
 
+  // Fonctions de rôle mémorisées
+  const isAdmin = useCallback(() => {
+    return profileService.isAdmin(profile);
+  }, [profile]);
+
+  const isAgent = useCallback(() => {
+    return profileService.isAgent(profile);
+  }, [profile]);
+
+  const isAgentOrAdmin = useCallback(() => {
+    return profileService.isAgentOrAdmin(profile);
+  }, [profile]);
+
+  // Mémoriser userRole
+  const userRole = useMemo(() => {
+    return profile?.role || null;
+  }, [profile?.role]);
+
   useEffect(() => {
     let mounted = true;
     
@@ -215,12 +240,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const value = useMemo(() => ({
     user,
     profile,
+    userRole,
     loading,
     signIn,
     signUp,
     signOut,
-    refreshProfile
-  }), [user, profile, loading, signIn, signUp, signOut, refreshProfile]);
+    refreshProfile,
+    isAdmin,
+    isAgent,
+    isAgentOrAdmin
+  }), [user, profile, userRole, loading, signIn, signUp, signOut, refreshProfile, isAdmin, isAgent, isAgentOrAdmin]);
 
   return (
     <AuthContext.Provider value={value}>
