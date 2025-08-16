@@ -45,10 +45,12 @@ const Layout = () => {
     document.documentElement.style.width = '100%';
     document.documentElement.style.margin = '0';
     document.documentElement.style.padding = '0';
+    document.documentElement.style.overflow = 'hidden';
     document.body.style.height = '100%';
     document.body.style.width = '100%';
     document.body.style.margin = '0';
     document.body.style.padding = '0';
+    document.body.style.overflow = 'hidden';
 
     const root = document.getElementById('root');
     if (root) {
@@ -57,6 +59,7 @@ const Layout = () => {
       root.style.margin = '0';
       root.style.padding = '0';
       root.style.position = 'relative';
+      root.style.overflow = 'hidden';
     }
 
     // Resize handler
@@ -114,9 +117,9 @@ const Layout = () => {
 
   return (
     <PWAOptimizedLayout className="full-screen-app">
-      <div className="flex flex-col h-full w-full overflow-auto">
+      <div className="flex flex-col h-full w-full">
         <OfflineIndicator />
-        <main className="flex-1 w-full min-h-0 overflow-auto">
+        <main className="flex-1 w-full min-h-0">
           <Outlet />
         </main>
         <Toaster />

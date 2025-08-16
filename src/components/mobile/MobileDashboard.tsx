@@ -1,4 +1,3 @@
-
 import { memo, Suspense, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -128,7 +127,8 @@ const MobileDashboard = memo(() => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600 overflow-hidden">
+    <div className="min-h-screen w-full bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600" 
+         style={{ paddingBottom: '20px' }}>
       {/* Header Section */}
       <div className="p-4 text-white">
         <div className="flex items-center justify-between mb-6">
@@ -148,7 +148,7 @@ const MobileDashboard = memo(() => {
                 <span className="text-xs font-bold text-white">6</span>
               </div>
             </div>
-            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10" onClick={handleSignOut}>
               <LogOut className="w-5 h-5" />
             </Button>
           </div>
@@ -191,7 +191,7 @@ const MobileDashboard = memo(() => {
       <div className="bg-white rounded-t-3xl flex-1 p-4 min-h-[60vh]">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Actions rapides</h2>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 pb-8">
           {/* Envoyer */}
           <button 
             onClick={() => handleAction('transfer')}

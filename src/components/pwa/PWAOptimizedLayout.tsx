@@ -12,7 +12,7 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
     <div 
       className={cn(
         "full-screen-container ultra-compact-mode",
-        "h-screen w-screen overflow-hidden",
+        "h-screen w-screen",
         "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100",
         className
       )}
@@ -30,21 +30,24 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
         maxWidth: '100vw',
         contain: 'layout style paint',
         zIndex: 0,
-        fontSize: '11px', // Réduit de 15px à 11px (-4px)
-        lineHeight: '1.2', // Réduit de 1.25 à 1.2
+        fontSize: '11px',
+        lineHeight: '1.2',
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: '0px',
+        overflow: 'hidden',
       }}
     >
       <div 
         className="h-full w-full overflow-y-auto overflow-x-hidden mobile-scroll ultra-compact-scroll"
         style={{
-          fontSize: '11px', // Réduit de 15px à 11px (-4px)
-          lineHeight: '1.2', // Réduit de 1.25 à 1.2
-          paddingBottom: '0px',
-          paddingTop: '39px', // Augmenté de 32px à 39px pour plus de marge en haut
-          height: 'calc(100% - env(safe-area-inset-top) - 39px)', // Ajustement de la hauteur
-          marginBottom: '0px'
+          fontSize: '11px',
+          lineHeight: '1.2',
+          paddingTop: '34px', // Marge en haut de 34px comme demandé
+          paddingBottom: '0px', // Pas de marge en bas
+          height: 'calc(100% - env(safe-area-inset-top))',
+          WebkitOverflowScrolling: 'touch',
+          scrollBehavior: 'smooth',
+          overscrollBehavior: 'contain',
         }}
       >
         {children}
