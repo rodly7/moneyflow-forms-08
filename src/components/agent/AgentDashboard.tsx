@@ -1,4 +1,3 @@
-
 import React, { memo, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,51 +37,44 @@ const AgentDashboard = memo(() => {
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch agent stats with simplified structure
-  const { data: agentStats } = useQuery({
+  // Fetch agent stats with explicit typing to avoid type inference issues
+  const { data: agentStats } = useQuery<AgentStatsData | null>({
     queryKey: ['agentStats', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
 
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Fetch withdrawals
-        const withdrawalsQuery = await supabase
-          .from('withdrawals')
-          .select('amount, created_at')
-          .eq('agent_id', user.id)
-          .gte('created_at', `${today}T00:00:00`)
-          .lt('created_at', `${today}T23:59:59`);
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Fetch withdrawals
+      const { data: withdrawals } = await supabase
+        .from('withdrawals')
+        .select('amount')
+        .eq('agent_id', user.id)
+        .gte('created_at', `${today}T00:00:00`)
+        .lt('created_at', `${today}T23:59:59`);
 
-        // Fetch recharges
-        const rechargesQuery = await supabase
-          .from('recharges')
-          .select('amount, created_at')
-          .eq('user_id', user.id)
-          .gte('created_at', `${today}T00:00:00`)
-          .lt('created_at', `${today}T23:59:59`);
+      // Fetch recharges
+      const { data: recharges } = await supabase
+        .from('recharges')
+        .select('amount')
+        .eq('user_id', user.id)
+        .gte('created_at', `${today}T00:00:00`)
+        .lt('created_at', `${today}T23:59:59`);
 
-        const withdrawals = withdrawalsQuery.data || [];
-        const recharges = rechargesQuery.data || [];
+      const withdrawalsList = withdrawals || [];
+      const rechargesList = recharges || [];
 
-        const todayWithdrawals = withdrawals.length;
-        const todayRecharges = recharges.length;
-        const todayVolume = withdrawals.reduce((sum, w) => sum + (w.amount || 0), 0) +
-                           recharges.reduce((sum, r) => sum + (r.amount || 0), 0);
+      const todayWithdrawals = withdrawalsList.length;
+      const todayRecharges = rechargesList.length;
+      const todayVolume = withdrawalsList.reduce((sum, w) => sum + (w.amount || 0), 0) +
+                         rechargesList.reduce((sum, r) => sum + (r.amount || 0), 0);
 
-        const result: AgentStatsData = {
-          todayTransactions: todayWithdrawals + todayRecharges,
-          todayVolume,
-          todayWithdrawals,
-          todayRecharges
-        };
-
-        return result;
-      } catch (error) {
-        console.error('Erreur récupération stats agent:', error);
-        return null;
-      }
+      return {
+        todayTransactions: todayWithdrawals + todayRecharges,
+        todayVolume,
+        todayWithdrawals,
+        todayRecharges
+      };
     },
     enabled: !!user,
     refetchInterval: 30000
