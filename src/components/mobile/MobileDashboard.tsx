@@ -67,9 +67,9 @@ const MobileDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-y-auto">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -101,7 +101,8 @@ const MobileDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="px-4 py-6 space-y-6">
+      {/* Scrollable Content */}
+      <div className="px-4 py-6 space-y-6 pb-20">
         {/* Balance Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

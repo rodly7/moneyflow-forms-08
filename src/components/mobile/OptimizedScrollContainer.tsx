@@ -18,13 +18,14 @@ export const OptimizedScrollContainer = ({
   return (
     <div
       className={cn(
-        "w-full h-full",
+        "w-full overflow-y-auto overflow-x-hidden",
         !showScrollbar && "scrollbar-hide",
         className
       )}
       style={{
         maxHeight: maxHeight || 'none',
         WebkitOverflowScrolling: 'touch',
+        scrollBehavior: 'smooth'
       }}
     >
       {children}
@@ -43,15 +44,20 @@ export const PageScrollContainer = ({
   padding?: boolean;
 }) => {
   return (
-    <OptimizedScrollContainer
+    <div
       className={cn(
+        "w-full overflow-y-auto overflow-x-hidden",
         padding && "p-4",
         className
       )}
+      style={{
+        WebkitOverflowScrolling: 'touch',
+        scrollBehavior: 'smooth'
+      }}
     >
       <div className="space-y-4">
         {children}
       </div>
-    </OptimizedScrollContainer>
+    </div>
   );
 };

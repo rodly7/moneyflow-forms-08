@@ -76,9 +76,9 @@ const Layout = () => {
   }
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden">
+    <div className="min-h-screen w-full">
       <OfflineIndicator />
-      <main className="w-full h-full">
+      <main className="w-full min-h-screen">
         <Outlet />
       </main>
       <Toaster />
