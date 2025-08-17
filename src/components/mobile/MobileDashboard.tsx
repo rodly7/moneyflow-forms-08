@@ -31,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import LogoutButton from "@/components/auth/LogoutButton";
 
 const MobileDashboard: React.FC = () => {
   const { user, profile, refreshProfile } = useAuth();
@@ -124,19 +125,19 @@ const MobileDashboard: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-600 to-purple-700 pt-[30px]">
+    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-600 to-purple-700 pt-[30px] pb-6 overflow-y-auto">
       {/* Header avec dégradé */}
-      <div className="px-6 py-6">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-14 w-14 border-2 border-white/30">
+      <div className="px-4 py-4">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <Avatar className="h-12 w-12 border-2 border-white/30">
               <AvatarImage src={userInfo.avatar} />
-              <AvatarFallback className="bg-white/20 text-white text-lg font-bold">
+              <AvatarFallback className="bg-white/20 text-white text-sm font-bold">
                 {userInfo.initials}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-xl font-bold text-white mb-1">
+              <h1 className="text-lg font-bold text-white mb-1">
                 Bonjour {userInfo.name} 👋
               </h1>
               <p className="text-white/80 text-xs">
@@ -149,19 +150,22 @@ const MobileDashboard: React.FC = () => {
               <UnifiedNotificationBell />
             </div>
             <Button
+              onClick={handleRefreshProfile}
               variant="ghost"
               size="sm"
               className="text-white hover:bg-white/20 rounded-full p-2"
+              disabled={isRefreshing}
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
+            <LogoutButton />
           </div>
         </div>
 
         {/* Carte de solde avec dégradé et coins arrondis */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 mb-8 border border-white/20">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white/90 text-base font-medium">Solde disponible</h2>
+        <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-5 mb-6 border border-white/20">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-white/90 text-sm font-medium">Solde disponible</h2>
             <Button
               onClick={toggleBalanceVisibility}
               variant="ghost"
@@ -172,33 +176,33 @@ const MobileDashboard: React.FC = () => {
             </Button>
           </div>
           
-          <div className="text-3xl font-bold text-white mb-6">
+          <div className="text-2xl font-bold text-white mb-4">
             {formatBalanceDisplay(profile?.balance || 0)}
           </div>
           
-          <div className="flex items-center text-green-400 text-xs mb-4">
+          <div className="flex items-center text-green-400 text-xs mb-2">
             <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
             Mise à jour toutes les 5 secondes
           </div>
         </div>
       </div>
 
-      {/* Actions Rapides sur fond blanc */}
-      <div className="bg-white rounded-t-3xl px-6 py-8 min-h-[60vh]">
-        <h3 className="text-lg font-bold text-gray-900 mb-6">Actions rapides</h3>
+      {/* Actions Rapides sur fond blanc avec scrolling amélioré */}
+      <div className="bg-white rounded-t-3xl px-4 py-6 flex-grow min-h-[50vh] overflow-y-auto">
+        <h3 className="text-base font-bold text-gray-900 mb-5">Actions rapides</h3>
         
-        <div className="grid grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-2 gap-4 mb-6">
           {quickActions.map((action, index) => (
             <Button
               key={index}
               onClick={() => navigate(action.route)}
               variant="ghost"
-              className="h-auto p-5 flex flex-col items-center gap-3 hover:bg-gray-50 rounded-2xl border border-gray-100"
+              className="h-auto p-4 flex flex-col items-center gap-2 hover:bg-gray-50 rounded-2xl border border-gray-100"
             >
-              <div className={`w-14 h-14 rounded-full ${action.bgColor} flex items-center justify-center`}>
-                <action.icon className="w-7 h-7 text-white" />
+              <div className={`w-12 h-12 rounded-full ${action.bgColor} flex items-center justify-center`}>
+                <action.icon className="w-6 h-6 text-white" />
               </div>
-              <span className="text-gray-700 font-medium text-sm">
+              <span className="text-gray-700 font-medium text-xs">
                 {action.title}
               </span>
             </Button>
@@ -206,22 +210,22 @@ const MobileDashboard: React.FC = () => {
         </div>
 
         {/* Services supplémentaires */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <Button
             onClick={() => navigate('/mobile-recharge')}
             variant="outline"
-            className="w-full h-12 justify-start rounded-2xl border-gray-200"
+            className="w-full h-11 justify-start rounded-2xl border-gray-200"
           >
-            <Plus className="w-5 h-5 mr-3 text-green-600" />
+            <Plus className="w-4 h-4 mr-3 text-green-600" />
             <span className="text-sm font-medium">Recharge Mobile</span>
           </Button>
           
           <Button
             onClick={() => navigate('/withdraw')}
             variant="outline"
-            className="w-full h-12 justify-start rounded-2xl border-gray-200"
+            className="w-full h-11 justify-start rounded-2xl border-gray-200"
           >
-            <ArrowDownLeft className="w-5 h-5 mr-3 text-red-600" />
+            <ArrowDownLeft className="w-4 h-4 mr-3 text-red-600" />
             <span className="text-sm font-medium">Retirer de l'argent</span>
           </Button>
         </div>
