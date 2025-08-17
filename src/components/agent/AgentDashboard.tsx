@@ -38,44 +38,47 @@ const AgentDashboard = memo(() => {
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch agent stats with simplified query structure
-  const { data: agentStats } = useQuery<AgentStatsData | null>({
+  // Fetch agent stats with simplified structure
+  const { data: agentStats } = useQuery({
     queryKey: ['agentStats', user?.id],
-    queryFn: async (): Promise<AgentStatsData | null> => {
+    queryFn: async () => {
       if (!user?.id) return null;
 
       try {
         const today = new Date().toISOString().split('T')[0];
         
-        const [withdrawalsResponse, rechargesResponse] = await Promise.all([
-          supabase
-            .from('withdrawals')
-            .select('amount, created_at')
-            .eq('agent_id', user.id)
-            .gte('created_at', `${today}T00:00:00`)
-            .lt('created_at', `${today}T23:59:59`),
-          supabase
-            .from('recharges')
-            .select('amount, created_at')
-            .eq('user_id', user.id)
-            .gte('created_at', `${today}T00:00:00`)
-            .lt('created_at', `${today}T23:59:59`)
-        ]);
+        // Fetch withdrawals
+        const withdrawalsQuery = await supabase
+          .from('withdrawals')
+          .select('amount, created_at')
+          .eq('agent_id', user.id)
+          .gte('created_at', `${today}T00:00:00`)
+          .lt('created_at', `${today}T23:59:59`);
 
-        const withdrawals = withdrawalsResponse.data || [];
-        const recharges = rechargesResponse.data || [];
+        // Fetch recharges
+        const rechargesQuery = await supabase
+          .from('recharges')
+          .select('amount, created_at')
+          .eq('user_id', user.id)
+          .gte('created_at', `${today}T00:00:00`)
+          .lt('created_at', `${today}T23:59:59`);
+
+        const withdrawals = withdrawalsQuery.data || [];
+        const recharges = rechargesQuery.data || [];
 
         const todayWithdrawals = withdrawals.length;
         const todayRecharges = recharges.length;
         const todayVolume = withdrawals.reduce((sum, w) => sum + (w.amount || 0), 0) +
                            recharges.reduce((sum, r) => sum + (r.amount || 0), 0);
 
-        return {
+        const result: AgentStatsData = {
           todayTransactions: todayWithdrawals + todayRecharges,
           todayVolume,
           todayWithdrawals,
           todayRecharges
         };
+
+        return result;
       } catch (error) {
         console.error('Erreur récupération stats agent:', error);
         return null;
@@ -185,7 +188,7 @@ const AgentDashboard = memo(() => {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Volume</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(agentStats?.todayVolume || 0, 'XAF')}
+                    {formatCurrency(agentStats?.todayVolume || 0)}
                   </p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-green-500" />
