@@ -2,123 +2,115 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Routes, Route } from "react-router-dom";
-import { Suspense, lazy, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { PWAInstallBanner } from "./components/pwa/PWAInstallBanner";
-import { PWAUpdateBanner } from "./components/pwa/PWAUpdateBanner";
-import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
-
-// Lazy load all pages for better performance
-import Layout from "./components/Layout";
-const Index = lazy(() => import("./pages/Index"));
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import Index from "./pages/Index";
+import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const ResponsiveAgentDashboard = lazy(() => import("./pages/ResponsiveAgentDashboard"));
-const MainAdminDashboard = lazy(() => import("./pages/MainAdminDashboard"));
-const SubAdminDashboard = lazy(() => import("./pages/SubAdminDashboard"));
-const Transfer = lazy(() => import("./pages/Transfer"));
-const Transactions = lazy(() => import("./pages/Transactions"));
-const UnifiedDepositWithdrawal = lazy(() => import("./pages/UnifiedDepositWithdrawal"));
+import Transfer from "./pages/Transfer";
+import Receive from "./pages/Receive";
+import QRCode from "./pages/QRCode";
+import Transactions from "./pages/Transactions";
+import Withdraw from "./pages/Withdraw";
+import Notifications from "./pages/Notifications";
+import VerifyIdentity from "./pages/VerifyIdentity";
+import ChangePassword from "./pages/ChangePassword";
+import Receipts from "./pages/Receipts";
+import BillPayments from "./pages/BillPayments";
+import PrepaidCards from "./pages/PrepaidCards";
+import Savings from "./pages/Savings";
+import Commission from "./pages/Commission";
+import AgentAuth from "./pages/AgentAuth";
+import AgentDashboard from "./pages/AgentDashboard";
+import AgentDeposit from "./pages/AgentDeposit";
+import AgentWithdrawal from "./pages/AgentWithdrawal";
+import AgentServices from "./pages/AgentServices";
+import AgentSettings from "./pages/AgentSettings";
+import AgentCommissionWithdrawal from "./pages/AgentCommissionWithdrawal";
+import AgentReports from "./pages/AgentReports";
+import AgentWithdrawalSimple from "./pages/AgentWithdrawalSimple";
+import AgentWithdrawalAdvanced from "./pages/AgentWithdrawalAdvanced";
+import AgentPerformanceDashboard from "./pages/AgentPerformanceDashboard";
+import MobileAgentDashboard from "./pages/MobileAgentDashboard";
+import NewAgentDashboard from "./pages/NewAgentDashboard";
+import ResponsiveAgentDashboard from "./pages/ResponsiveAgentDashboard";
+import MainAdminDashboard from "./pages/MainAdminDashboard";
+import SimpleMainAdminDashboard from "./pages/SimpleMainAdminDashboard";
+import SubAdminDashboard from "./pages/SubAdminDashboard";
+import CompactSubAdminDashboard from "./pages/CompactSubAdminDashboard";
+import AdminUsers from "./pages/AdminUsers";
+import AdminSettings from "./pages/AdminSettings";
+import AdminNotifications from "./pages/AdminNotifications";
+import AdminTransactionMonitor from "./pages/AdminTransactionMonitor";
+import AdminTreasury from "./pages/AdminTreasury";
+import AdminBalanceUpdate from "./pages/AdminBalanceUpdate";
+import AdminAgentReports from "./pages/AdminAgentReports";
+import PWADashboard from "./pages/PWADashboard";
+import QRPayment from "./pages/QRPayment";
+import UnifiedDepositWithdrawal from "./pages/UnifiedDepositWithdrawal";
+import MobileRecharge from "./pages/MobileRecharge";
 
-const AgentPerformanceDashboard = lazy(() => import("./pages/AgentPerformanceDashboard"));
-const Savings = lazy(() => import("./pages/Savings"));
-const Receipts = lazy(() => import("./pages/Receipts"));
-const QRCode = lazy(() => import("./pages/QRCode"));
-const QRPayment = lazy(() => import("./pages/QRPayment"));
-const AgentAuth = lazy(() => import("./pages/AgentAuth"));
-const AgentServices = lazy(() => import("./pages/AgentServices"));
-const DepositWithdrawalForm = lazy(() => import("./components/deposit-withdrawal/DepositWithdrawalForm"));
-const AdminTreasury = lazy(() => import("./pages/AdminTreasury"));
-const AdminUsers = lazy(() => import("./pages/AdminUsers"));
-const AdminAgentReports = lazy(() => import("./pages/AdminAgentReports"));
-const AdminSettings = lazy(() => import("./pages/AdminSettings"));
-const AdminNotifications = lazy(() => import("./pages/AdminNotifications"));
-const AdminTransactionMonitor = lazy(() => import("./pages/AdminTransactionMonitor"));
-const Notifications = lazy(() => import("./pages/Notifications"));
-const ChangePassword = lazy(() => import("./pages/ChangePassword"));
-const BillPayments = lazy(() => import("./pages/BillPayments"));
-const AgentWithdrawalAdvanced = lazy(() => import("./pages/AgentWithdrawalAdvanced"));
-const AgentWithdrawalSimple = lazy(() => import("./pages/AgentWithdrawalSimple"));
-const AgentDeposit = lazy(() => import("./pages/AgentDeposit"));
-const AgentReports = lazy(() => import("./pages/AgentReports"));
-const PrepaidCards = lazy(() => import("./pages/PrepaidCards"));
-const AgentCommissionWithdrawal = lazy(() => import("./pages/AgentCommissionWithdrawal"));
-const AgentSettingsPage = lazy(() => import("./pages/AgentSettings"));
+const queryClient = new QueryClient();
 
-// Mobile-optimized loading component
-const MobileLoader = () => (
-  <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-    <Card className="w-full max-w-sm">
-      <CardContent className="p-6 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-sm text-muted-foreground">Chargement...</p>
-      </CardContent>
-    </Card>
-  </div>
-);
-
-function App() {
-  // Optimize viewport for all devices
-  useEffect(() => {
-    const viewport = document.querySelector('meta[name=viewport]');
-    if (viewport) {
-      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
-    }
-  }, []);
-
-  return (
+const App = () => (
+  <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <OfflineIndicator />
-      <PWAInstallBanner />
-      <PWAUpdateBanner />
-      <Suspense fallback={<MobileLoader />}>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Suspense fallback={<MobileLoader />}><Index /></Suspense>} />
-            <Route path="auth" element={<Suspense fallback={<MobileLoader />}><Auth /></Suspense>} />
-            <Route path="agent-auth" element={<Suspense fallback={<MobileLoader />}><AgentAuth /></Suspense>} />
-            <Route path="dashboard" element={<Suspense fallback={<MobileLoader />}><Dashboard /></Suspense>} />
-            <Route path="agent-dashboard" element={<Suspense fallback={<MobileLoader />}><ResponsiveAgentDashboard /></Suspense>} />
-            <Route path="admin-dashboard" element={<Suspense fallback={<MobileLoader />}><MainAdminDashboard /></Suspense>} />
-            <Route path="main-admin" element={<Suspense fallback={<MobileLoader />}><MainAdminDashboard /></Suspense>} />
-            <Route path="admin/treasury" element={<Suspense fallback={<MobileLoader />}><AdminTreasury /></Suspense>} />
-            <Route path="admin/users" element={<Suspense fallback={<MobileLoader />}><AdminUsers /></Suspense>} />
-            <Route path="admin/agent-reports" element={<Suspense fallback={<MobileLoader />}><AdminAgentReports /></Suspense>} />
-            <Route path="admin/settings" element={<Suspense fallback={<MobileLoader />}><AdminSettings /></Suspense>} />
-            <Route path="admin/notifications" element={<Suspense fallback={<MobileLoader />}><AdminNotifications /></Suspense>} />
-            <Route path="admin/transaction-monitor" element={<Suspense fallback={<MobileLoader />}><AdminTransactionMonitor /></Suspense>} />
-            <Route path="sub-admin-dashboard" element={<Suspense fallback={<MobileLoader />}><SubAdminDashboard /></Suspense>} />
-            <Route path="transfer" element={<Suspense fallback={<MobileLoader />}><Transfer /></Suspense>} />
-            <Route path="transactions" element={<Suspense fallback={<MobileLoader />}><Transactions /></Suspense>} />
-            <Route path="deposit" element={<Suspense fallback={<MobileLoader />}><UnifiedDepositWithdrawal /></Suspense>} />
-            <Route path="deposit-withdrawal" element={<Suspense fallback={<MobileLoader />}><DepositWithdrawalForm /></Suspense>} />
-            <Route path="agent-services" element={<Suspense fallback={<MobileLoader />}><AgentServices /></Suspense>} />
-            
-            {/* Agent aliases and tools */}
-            <Route path="agent-deposit" element={<Suspense fallback={<MobileLoader />}><AgentDeposit /></Suspense>} />
-            <Route path="agent-withdrawal-advanced" element={<Suspense fallback={<MobileLoader />}><AgentWithdrawalAdvanced /></Suspense>} />
-            <Route path="agent-reports" element={<Suspense fallback={<MobileLoader />}><AgentReports /></Suspense>} />
-            <Route path="agent-performance-dashboard" element={<Suspense fallback={<MobileLoader />}><AgentPerformanceDashboard /></Suspense>} />
-            <Route path="mobile-recharge" element={<Suspense fallback={<MobileLoader />}><PrepaidCards /></Suspense>} />
-            <Route path="agent-commission-withdrawal" element={<Suspense fallback={<MobileLoader />}><AgentCommissionWithdrawal /></Suspense>} />
-            <Route path="agent-settings" element={<Suspense fallback={<MobileLoader />}><AgentSettingsPage /></Suspense>} />
-            
-            <Route path="agent-performance" element={<Suspense fallback={<MobileLoader />}><AgentPerformanceDashboard /></Suspense>} />
-            <Route path="savings" element={<Suspense fallback={<MobileLoader />}><Savings /></Suspense>} />
-            <Route path="receipts" element={<Suspense fallback={<MobileLoader />}><Receipts /></Suspense>} />
-            <Route path="qr-code" element={<Suspense fallback={<MobileLoader />}><QRCode /></Suspense>} />
-            <Route path="qr-payment" element={<Suspense fallback={<MobileLoader />}><QRPayment /></Suspense>} />
-            <Route path="notifications" element={<Suspense fallback={<MobileLoader />}><Notifications /></Suspense>} />
-            <Route path="change-password" element={<Suspense fallback={<MobileLoader />}><ChangePassword /></Suspense>} />
-            <Route path="bill-payments" element={<Suspense fallback={<MobileLoader />}><BillPayments /></Suspense>} />
-          </Route>
-        </Routes>
-      </Suspense>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/transfer" element={<Transfer />} />
+            <Route path="/receive" element={<Receive />} />
+            <Route path="/qr-code" element={<QRCode />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/withdraw" element={<Withdraw />} />
+            <Route path="/notifications" element={<Notifications />} />
+            <Route path="/verify-identity" element={<VerifyIdentity />} />
+            <Route path="/change-password" element={<ChangePassword />} />
+            <Route path="/receipts" element={<Receipts />} />
+            <Route path="/bill-payments" element={<BillPayments />} />
+            <Route path="/prepaid-cards" element={<PrepaidCards />} />
+            <Route path="/savings" element={<Savings />} />
+            <Route path="/commission" element={<Commission />} />
+            <Route path="/agent-auth" element={<AgentAuth />} />
+            <Route path="/agent-dashboard" element={<AgentDashboard />} />
+            <Route path="/agent-deposit" element={<AgentDeposit />} />
+            <Route path="/agent-withdrawal" element={<AgentWithdrawal />} />
+            <Route path="/agent-services" element={<AgentServices />} />
+            <Route path="/agent-settings" element={<AgentSettings />} />
+            <Route path="/agent-commission-withdrawal" element={<AgentCommissionWithdrawal />} />
+            <Route path="/agent-reports" element={<AgentReports />} />
+            <Route path="/agent-withdrawal-simple" element={<AgentWithdrawalSimple />} />
+            <Route path="/agent-withdrawal-advanced" element={<AgentWithdrawalAdvanced />} />
+            <Route path="/agent-performance" element={<AgentPerformanceDashboard />} />
+            <Route path="/mobile-agent" element={<MobileAgentDashboard />} />
+            <Route path="/new-agent" element={<NewAgentDashboard />} />
+            <Route path="/responsive-agent" element={<ResponsiveAgentDashboard />} />
+            <Route path="/main-admin" element={<MainAdminDashboard />} />
+            <Route path="/simple-admin" element={<SimpleMainAdminDashboard />} />
+            <Route path="/sub-admin" element={<SubAdminDashboard />} />
+            <Route path="/compact-sub-admin" element={<CompactSubAdminDashboard />} />
+            <Route path="/admin-users" element={<AdminUsers />} />
+            <Route path="/admin-settings" element={<AdminSettings />} />
+            <Route path="/admin-notifications" element={<AdminNotifications />} />
+            <Route path="/admin-transactions" element={<AdminTransactionMonitor />} />
+            <Route path="/admin-treasury" element={<AdminTreasury />} />
+            <Route path="/admin-balance" element={<AdminBalanceUpdate />} />
+            <Route path="/admin-agent-reports" element={<AdminAgentReports />} />
+            <Route path="/pwa" element={<PWADashboard />} />
+            <Route path="/qr-payment" element={<QRPayment />} />
+            <Route path="/deposit-withdrawal" element={<UnifiedDepositWithdrawal />} />
+            <Route path="/mobile-recharge" element={<MobileRecharge />} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
     </TooltipProvider>
-  );
-}
+  </QueryClientProvider>
+);
 
 export default App;
