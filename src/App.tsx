@@ -4,6 +4,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { Toaster as Toaster2 } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route, Navigate } from "react-router-dom";
+
+// Import direct des composants pour éviter les problèmes de lazy loading
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";

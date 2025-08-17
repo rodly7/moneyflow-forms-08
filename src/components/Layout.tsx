@@ -1,17 +1,17 @@
+
 import { useAuth } from '@/contexts/AuthContext';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/toaster';
 import { PWAInstallPrompt } from './pwa/PWAInstallPrompt';
 import { OfflineIndicator } from './pwa/OfflineIndicator';
-import { PWAOptimizedLayout } from './pwa/PWAOptimizedLayout';
 
 const Layout = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
   useEffect(() => {
-    // Basic viewport configuration
+    // Configuration basique du viewport
     const setViewport = () => {
       let viewport = document.querySelector('meta[name=viewport]');
       if (!viewport) {
@@ -39,18 +39,16 @@ const Layout = () => {
     setViewport();
     setFullScreenVars();
 
-    // Layout styles for proper scrolling
+    // Styles de base simplifiés
     document.documentElement.style.height = '100%';
     document.documentElement.style.width = '100%';
     document.documentElement.style.margin = '0';
     document.documentElement.style.padding = '0';
-    document.documentElement.style.overflow = 'visible'; // Allow scrolling
     
     document.body.style.height = '100%';
     document.body.style.width = '100%';
     document.body.style.margin = '0';
     document.body.style.padding = '0';
-    document.body.style.overflow = 'visible'; // Allow scrolling
 
     const root = document.getElementById('root');
     if (root) {
@@ -59,16 +57,7 @@ const Layout = () => {
       root.style.margin = '0';
       root.style.padding = '0';
       root.style.position = 'relative';
-      root.style.overflow = 'visible'; // Allow scrolling
     }
-
-    // Resize handler
-    const handleResize = () => {
-      setFullScreenVars();
-    };
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
 
     // Service Worker registration
     if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -82,6 +71,13 @@ const Layout = () => {
       });
     }
 
+    const handleResize = () => {
+      setFullScreenVars();
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
@@ -90,17 +86,15 @@ const Layout = () => {
 
   if (loading) {
     return (
-      <PWAOptimizedLayout className="full-screen-app">
-        <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-50 to-blue-100">
-          <div className="text-center p-8 animate-fade-in">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
-            <div className="space-y-2">
-              <p className="text-xl font-semibold text-blue-800">SendFlow</p>
-              <p className="text-sm text-blue-600">Chargement de votre application...</p>
-            </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className="text-center p-8 animate-fade-in">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
+          <div className="space-y-2">
+            <p className="text-xl font-semibold text-blue-800">SendFlow</p>
+            <p className="text-sm text-blue-600">Chargement de votre application...</p>
           </div>
         </div>
-      </PWAOptimizedLayout>
+      </div>
     );
   }
 
@@ -116,16 +110,14 @@ const Layout = () => {
   }
 
   return (
-    <PWAOptimizedLayout className="full-screen-app">
-      <div className="flex flex-col h-full w-full relative">
-        <OfflineIndicator />
-        <main className="flex-1 w-full min-h-0">
-          <Outlet />
-        </main>
-        <Toaster />
-        <PWAInstallPrompt />
-      </div>
-    </PWAOptimizedLayout>
+    <div className="min-h-screen w-full">
+      <OfflineIndicator />
+      <main className="w-full">
+        <Outlet />
+      </main>
+      <Toaster />
+      <PWAInstallPrompt />
+    </div>
   );
 };
 

@@ -6,8 +6,10 @@ import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useTransferNotifications } from '@/hooks/useTransferNotifications';
-import MobileDashboard from '@/components/mobile/MobileDashboard';
 import { useEffect } from 'react';
+
+// Import direct du composant pour éviter les problèmes d'importation dynamique
+import MobileDashboard from '@/components/mobile/MobileDashboard';
 
 const Dashboard = () => {
   const { user, profile, loading } = useAuth();
