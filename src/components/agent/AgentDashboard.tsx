@@ -21,12 +21,10 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/integrations/supabase/client";
-import AgentBalanceCard from "./AgentBalanceCard";
+import { AgentBalanceCard } from "./AgentBalanceCard";
 import AgentCommissions from "./AgentCommissions";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 
 const AgentDashboard = memo(() => {
   const { user, profile } = useAuth();
@@ -148,7 +146,12 @@ const AgentDashboard = memo(() => {
       {/* Scrollable Content */}
       <div className="px-4 py-6 space-y-6 pb-20">
         {/* Balance Card */}
-        <AgentBalanceCard />
+        <AgentBalanceCard 
+          balance={profile?.balance || 0}
+          isLoading={isRefreshing}
+          onRefresh={handleRefresh}
+          userCountry={profile?.country}
+        />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -173,7 +176,7 @@ const AgentDashboard = memo(() => {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Volume</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(agentStats?.todayVolume || 0, 'XAF', false)}
+                    {formatCurrency(agentStats?.todayVolume || 0, 'XAF')}
                   </p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-green-500" />

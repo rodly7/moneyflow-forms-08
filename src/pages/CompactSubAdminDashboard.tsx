@@ -19,12 +19,12 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { SubAdminUsersTab } from '@/components/admin/SubAdminUsersTab';
-import { SubAdminAgentsTab } from '@/components/admin/SubAdminAgentsTab';
-import { SubAdminStatsTab } from '@/components/admin/SubAdminStatsTab';
-import { SubAdminRechargeTab } from '@/components/admin/SubAdminRechargeTab';
-import { SubAdminMessagesTab } from '@/components/admin/SubAdminMessagesTab';
-import { SubAdminSettingsTab } from '@/components/admin/SubAdminSettingsTab';
+import SubAdminUsersTab from '@/components/admin/SubAdminUsersTab';
+import SubAdminAgentsTab from '@/components/admin/SubAdminAgentsTab';
+import SubAdminStatsTab from '@/components/admin/SubAdminStatsTab';
+import SubAdminRechargeTab from '@/components/admin/SubAdminRechargeTab';
+import SubAdminMessagesTab from '@/components/admin/SubAdminMessagesTab';
+import SubAdminSettingsTab from '@/components/admin/SubAdminSettingsTab';
 import LogoutButton from '@/components/auth/LogoutButton';
 
 const CompactSubAdminDashboard = () => {
@@ -114,7 +114,7 @@ const CompactSubAdminDashboard = () => {
       </div>
 
       {/* Scrollable Content */}
-      <div className="px-4 py-6">
+      <div className="px-4 py-6 pb-20">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-none lg:inline-flex">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
