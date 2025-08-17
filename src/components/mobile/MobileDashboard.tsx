@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,14 +13,20 @@ import {
   EyeOff,
   Settings,
   RefreshCw,
-  Plus
+  Plus,
+  ArrowRightLeft,
+  Download
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/integrations/supabase/client";
 import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
 import { UserBalanceRechargeButton } from "@/components/user/UserBalanceRechargeButton";
 import { useAutoBalanceRefresh } from "@/hooks/useAutoBalanceRefresh";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 const MobileDashboard: React.FC = () => {
   const { user, profile, refreshProfile } = useAuth();
@@ -33,6 +40,110 @@ const MobileDashboard: React.FC = () => {
     onBalanceChange: useCallback((newBalance: number) => {
       console.log('💰 Balance updated:', newBalance);
     }, [])
+  });
+
+  // Récupérer les transactions récentes
+  const { data: recentTransactions = [] } = useQuery({
+    queryKey: ['recentTransactions', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const transactions: any[] = [];
+
+      try {
+        // Récupérer les dernières transactions (transferts envoyés et reçus)
+        const { data: sentTransfers } = await supabase
+          .from('transfers')
+          .select('*')
+          .eq('sender_id', user.id)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false })
+          .limit(3);
+
+        const { data: receivedTransfers } = await supabase
+          .from('transfers')
+          .select('*')
+          .eq('recipient_id', user.id)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false })
+          .limit(3);
+
+        // Récupérer les derniers retraits
+        const { data: withdrawals } = await supabase
+          .from('withdrawals')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(2);
+
+        // Ajouter les transferts envoyés
+        if (sentTransfers) {
+          sentTransfers.forEach(transfer => {
+            transactions.push({
+              id: transfer.id,
+              type: 'transfer_sent',
+              amount: -Math.abs(transfer.amount),
+              date: new Date(transfer.created_at),
+              description: `Vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
+              status: transfer.status
+            });
+          });
+        }
+
+        // Ajouter les transferts reçus
+        if (receivedTransfers) {
+          for (const transfer of receivedTransfers) {
+            let senderName = 'Expéditeur';
+            try {
+              const { data: senderProfile } = await supabase
+                .from('profiles')
+                .select('full_name, phone')
+                .eq('id', transfer.sender_id)
+                .single();
+              
+              if (senderProfile) {
+                senderName = senderProfile.full_name || senderProfile.phone || 'Expéditeur';
+              }
+            } catch (error) {
+              console.error('Erreur récupération expéditeur:', error);
+            }
+            
+            transactions.push({
+              id: transfer.id,
+              type: 'transfer_received',
+              amount: Math.abs(transfer.amount),
+              date: new Date(transfer.created_at),
+              description: `De ${senderName}`,
+              status: transfer.status
+            });
+          }
+        }
+
+        // Ajouter les retraits
+        if (withdrawals) {
+          withdrawals.forEach(withdrawal => {
+            transactions.push({
+              id: withdrawal.id,
+              type: 'withdrawal',
+              amount: -Math.abs(withdrawal.amount),
+              date: new Date(withdrawal.created_at),
+              description: `Retrait ${withdrawal.withdrawal_phone || 'Mobile'}`,
+              status: withdrawal.status
+            });
+          });
+        }
+
+        // Trier par date décroissante et prendre les 5 plus récentes
+        return transactions
+          .sort((a, b) => b.date.getTime() - a.date.getTime())
+          .slice(0, 5);
+
+      } catch (error) {
+        console.error('Erreur récupération transactions récentes:', error);
+        return [];
+      }
+    },
+    enabled: !!user,
   });
 
   const handleRefreshProfile = useCallback(async () => {
@@ -59,6 +170,19 @@ const MobileDashboard: React.FC = () => {
     return formatCurrency(balance, 'XAF');
   }, [isBalanceVisible]);
 
+  const getTransactionIcon = (type: string) => {
+    switch (type) {
+      case 'withdrawal':
+        return <Download className="h-4 w-4 text-red-500" />;
+      case 'transfer_sent':
+        return <ArrowRightLeft className="h-4 w-4 text-blue-500" />;
+      case 'transfer_received':
+        return <ArrowRightLeft className="h-4 w-4 text-green-500" />;
+      default:
+        return <ArrowRightLeft className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
   const userInfo = {
     name: profile?.full_name || 'Utilisateur',
     avatar: profile?.avatar_url,
@@ -66,7 +190,7 @@ const MobileDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-y-auto pt-[30px]">
+    <div className="min-h-screen bg-gray-50 pt-[30px]">
       {/* Header */}
       <div className="bg-white shadow-sm border-b sticky top-[30px] z-10">
         <div className="px-4 py-4">
@@ -171,6 +295,62 @@ const MobileDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* Transactions Récentes */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-lg font-semibold">Transactions Récentes</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/transactions')}
+              className="text-blue-600 hover:text-blue-700"
+            >
+              Voir tout
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {recentTransactions.length > 0 ? (
+              <div className="space-y-3">
+                {recentTransactions.map((transaction) => (
+                  <div key={transaction.id} className="flex items-center justify-between p-3 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gray-100 rounded-full">
+                        {getTransactionIcon(transaction.type)}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{transaction.description}</p>
+                        <p className="text-xs text-gray-500">
+                          {format(transaction.date, 'dd MMM à HH:mm', { locale: fr })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-bold text-sm ${
+                        transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {transaction.amount > 0 ? '+' : ''}{transaction.amount.toLocaleString()} FCFA
+                      </p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        transaction.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                        transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {transaction.status === 'completed' ? 'Terminé' : 
+                         transaction.status === 'pending' ? 'En cours' : transaction.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <ArrowRightLeft className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">Aucune transaction récente</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Services */}
         <Card>
           <CardHeader>
@@ -183,7 +363,7 @@ const MobileDashboard: React.FC = () => {
                 variant="outline"
                 className="w-full h-12 justify-start"
               >
-                <ArrowDownLeft className="w-5 h-5 mr-3 text-blue-600" />
+                <ArrowRightLeft className="w-5 h-5 mr-3 text-blue-600" />
                 Historique des Transactions
               </Button>
               <Button
@@ -210,21 +390,25 @@ const MobileDashboard: React.FC = () => {
         <div className="grid grid-cols-3 gap-4">
           <Card className="p-4 text-center">
             <div className="text-2xl font-bold text-blue-600">
-              {Math.floor(Math.random() * 10)}
+              {recentTransactions.filter(t => t.date.toDateString() === new Date().toDateString()).length}
             </div>
             <div className="text-xs text-gray-500">Aujourd'hui</div>
           </Card>
           <Card className="p-4 text-center">
             <div className="text-2xl font-bold text-green-600">
-              {Math.floor(Math.random() * 50)}
+              {recentTransactions.filter(t => {
+                const weekAgo = new Date();
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                return t.date >= weekAgo;
+              }).length}
             </div>
             <div className="text-xs text-gray-500">Cette semaine</div>
           </Card>
           <Card className="p-4 text-center">
             <div className="text-2xl font-bold text-purple-600">
-              {Math.floor(Math.random() * 200)}
+              {recentTransactions.length}
             </div>
-            <div className="text-xs text-gray-500">Ce mois</div>
+            <div className="text-xs text-gray-500">Récentes</div>
           </Card>
         </div>
       </div>

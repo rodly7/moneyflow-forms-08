@@ -18,7 +18,7 @@ export default function MainAdminDashboard() {
 
   if (!user || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 pt-[30px]">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-2">Chargement...</h2>
           <p className="text-gray-600">Veuillez patienter pendant le chargement des informations d'authentification.</p>
@@ -29,7 +29,7 @@ export default function MainAdminDashboard() {
 
   if (profile.role !== 'admin') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 pt-[30px]">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-red-600 mb-2">Accès refusé</h2>
           <p className="text-gray-600">Vous n'avez pas les autorisations nécessaires pour accéder à cette page.</p>
@@ -40,7 +40,7 @@ export default function MainAdminDashboard() {
 
   if (!isMainAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 pt-[30px]">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-red-600 mb-2">Accès refusé</h2>
           <p className="text-gray-600">Seul l'administrateur principal peut accéder à cette page.</p>
@@ -81,9 +81,9 @@ export default function MainAdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-[30px]">
       {/* Header avec bouton de déconnexion */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 sticky top-[30px] z-10">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Administration Sendflow</h1>
@@ -96,14 +96,14 @@ export default function MainAdminDashboard() {
       </header>
 
       {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200">
+      <nav className="bg-white border-b border-gray-200 sticky top-[88px] z-10">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex space-x-0">
+          <div className="flex space-x-0 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600 bg-blue-50'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'

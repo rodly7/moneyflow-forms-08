@@ -43,7 +43,7 @@ const Layout = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 pt-[30px]">
         <div className="text-center p-8 animate-fade-in">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
           <div className="space-y-2">
@@ -76,14 +76,14 @@ const Layout = () => {
   }
 
   return (
-    <div className="min-h-screen w-full">
+    <>
       <OfflineIndicator />
-      <main className="w-full min-h-screen">
+      <main className="w-full">
         <Outlet />
       </main>
       <Toaster />
       <PWAInstallPrompt />
-    </div>
+    </>
   );
 };
 
