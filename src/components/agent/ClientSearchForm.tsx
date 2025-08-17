@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, Shield, QrCode } from "lucide-react";
+import { Search, Shield } from "lucide-react";
 
 interface ClientData {
   id: string;
@@ -18,7 +18,6 @@ interface ClientSearchFormProps {
   isSearching: boolean;
   onPhoneChange: (value: string) => void;
   onSearch: () => void;
-  onQRScan?: () => void;
 }
 
 export const ClientSearchForm = ({ 
@@ -26,8 +25,7 @@ export const ClientSearchForm = ({
   clientData, 
   isSearching, 
   onPhoneChange, 
-  onSearch,
-  onQRScan 
+  onSearch 
 }: ClientSearchFormProps) => {
   return (
     <div className="space-y-2">
@@ -36,11 +34,11 @@ export const ClientSearchForm = ({
         <Input
           id="phone"
           type="tel"
-          placeholder="Entrez le numéro du client manuellement"
+          placeholder="Entrez le numéro du client"
           value={phoneNumber}
           onChange={(e) => onPhoneChange(e.target.value)}
           required
-          className="h-12 flex-1"
+          className="h-12"
         />
         <Button
           type="button"
@@ -55,21 +53,7 @@ export const ClientSearchForm = ({
             <Search className="w-4 h-4" />
           )}
         </Button>
-        {onQRScan && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onQRScan}
-            className="h-12 px-3 border-blue-300 text-blue-700 hover:bg-blue-50"
-          >
-            <QrCode className="w-4 h-4" />
-          </Button>
-        )}
       </div>
-      
-      <p className="text-xs text-gray-600">
-        💡 Vous pouvez saisir le numéro manuellement ou utiliser le scanner QR
-      </p>
       
       {clientData && (
         <div className="p-3 bg-green-50 border border-green-200 rounded-md">

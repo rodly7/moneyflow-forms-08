@@ -39,29 +39,10 @@
   border-radius: 0; /* Reset iOS styling */
 }
 
-/* Scroll optimisé - CORRECTION DES PROBLÈMES */
+/* Scroll optimisé */
 .pwa-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  scroll-behavior: smooth;
-}
-
-/* Correction globale pour le scroll naturel */
-html, body {
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Éviter les contraintes de hauteur qui bloquent le scroll */
-.min-h-screen {
-  min-height: 100vh !important;
-  /* Ne pas forcer une hauteur fixe */
-}
-
-/* Conteneurs scrollables */
-.scroll-container {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
 }
 
@@ -176,7 +157,7 @@ html, body {
 /* Indicateurs visuels pour PWA - tailles augmentées */
 .pwa-status-indicator {
   position: fixed;
-  top: calc(var(--safe-area-inset-top, 0px) + 30px);
+  top: var(--safe-area-inset-top, 0);
   right: 12px; /* Augmenté de 10px à 12px */
   z-index: 1000;
   padding: 6px 10px; /* Augmenté de 4px 8px à 6px 10px */
@@ -195,17 +176,4 @@ html, body {
 .pwa-status-offline {
   background: rgba(239, 68, 68, 0.9);
   color: white;
-}
-
-/* Corrections spécifiques pour les sticky headers avec marge top 30px */
-.sticky-header-30 {
-  position: sticky;
-  top: 30px;
-  z-index: 10;
-}
-
-.sticky-nav-30 {
-  position: sticky;
-  top: 88px; /* 30px + hauteur du header */
-  z-index: 9;
 }

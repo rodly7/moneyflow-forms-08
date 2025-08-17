@@ -1,172 +1,187 @@
-
-import React, { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Users, 
-  TrendingUp, 
-  DollarSign, 
-  Activity,
-  Settings,
-  MessageSquare,
-  BarChart3,
-  UserCheck,
-  Bell,
-  RefreshCw
-} from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import SubAdminUsersTab from '@/components/admin/SubAdminUsersTab';
-import SubAdminAgentsTab from '@/components/admin/SubAdminAgentsTab';
-import SubAdminStatsTab from '@/components/admin/SubAdminStatsTab';
-import SubAdminRechargeTab from '@/components/admin/SubAdminRechargeTab';
-import SubAdminMessagesTab from '@/components/admin/SubAdminMessagesTab';
-import SubAdminSettingsTab from '@/components/admin/SubAdminSettingsTab';
-import LogoutButton from '@/components/auth/LogoutButton';
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { Shield, Zap, BarChart3, User2, Users, PackageCheck, ClipboardList, UserPlus, UserMinus, UserCog } from "lucide-react";
+import CompactHeader from "@/components/dashboard/CompactHeader";
+import CompactStatsGrid from "@/components/dashboard/CompactStatsGrid";
+import CompactActionGrid from "@/components/dashboard/CompactActionGrid";
+import CompactInfoCard from "@/components/dashboard/CompactInfoCard";
+import UserProfileInfo from "@/components/profile/UserProfileInfo";
+import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
+import { fetchSubAdminStats } from "@/utils/subAdminDashboardQueries";
+import SubAdminAdvancedTools from "@/components/admin/SubAdminAdvancedTools";
 
 const CompactSubAdminDashboard = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [territoryStats, setTerritoryStats] = useState({
+    totalAgents: 0,
+    activeAgents: 0,
+    pendingWithdrawals: 0,
+    totalTransactions: 0,
+  });
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
+  const fetchData = useCallback(async () => {
+    if (user?.id) {
+      setIsLoading(true);
+      try {
+        const stats = await fetchSubAdminStats(user.id);
+        setTerritoryStats(stats);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }, [user?.id, toast]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/auth');
+      toast({
+        title: "Déconnexion réussie",
+        description: "À bientôt !",
+      });
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la déconnexion",
+        variant: "destructive"
+      });
+    }
   };
 
-  if (!user || !profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 pt-[30px]">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Chargement...</h2>
-          <p className="text-gray-600">Veuillez patienter...</p>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  if (profile.role !== 'sub_admin') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 pt-[30px]">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-red-600 mb-2">Accès refusé</h2>
-          <p className="text-gray-600">Vous n'avez pas les autorisations nécessaires.</p>
-        </div>
-      </div>
-    );
-  }
+  // Stats pour le grid compact
+  const statsData = [
+    {
+      label: "Agents Totaux",
+      value: territoryStats.totalAgents.toString(),
+      icon: Users,
+      gradient: "bg-gradient-to-r from-blue-600 to-cyan-600",
+      textColor: "text-blue-100",
+    },
+    {
+      label: "Agents Actifs",
+      value: territoryStats.activeAgents.toString(),
+      icon: User2,
+      gradient: "bg-gradient-to-r from-green-500 to-emerald-500",
+      textColor: "text-green-100",
+    },
+    {
+      label: "Retraits en Attente",
+      value: territoryStats.pendingWithdrawals.toString(),
+      icon: PackageCheck,
+      gradient: "bg-gradient-to-r from-yellow-500 to-orange-500",
+      textColor: "text-yellow-100",
+    },
+    {
+      label: "Transactions Totales",
+      value: territoryStats.totalTransactions.toString(),
+      icon: ClipboardList,
+      gradient: "bg-gradient-to-r from-purple-500 to-pink-500",
+      textColor: "text-purple-100",
+    },
+  ];
 
-  const userInfo = {
-    name: profile?.full_name || 'Sous-Admin',
-    avatar: profile?.avatar_url,
-    initials: profile?.full_name?.[0]?.toUpperCase() || 'SA',
-    phone: profile?.phone || ''
-  };
+  // Actions pour le sous-admin
+  const actionItems = [
+    {
+      label: "Gérer les Agents",
+      icon: UserCog,
+      onClick: () => navigate('/manage-agents'),
+      variant: "default" as const
+    },
+    {
+      label: "Ajouter un Agent",
+      icon: UserPlus,
+      onClick: () => navigate('/add-agent'),
+      variant: "outline" as const
+    },
+    {
+      label: "Outils Avancés",
+      icon: Shield,
+      onClick: () => setShowAdvancedTools(!showAdvancedTools),
+      variant: "outline" as const
+    },
+    {
+      label: "Voir l'activité",
+      icon: BarChart3,
+      onClick: () => navigate('/sub-admin-activity'),
+      variant: "outline" as const
+    }
+  ];
+
+  // Informations pour le sous-admin
+  const infoItems = [
+    {
+      icon: "📍",
+      text: "Supervisez l'activité des agents dans votre territoire."
+    },
+    {
+      icon: "📊",
+      text: "Analysez les performances pour optimiser les opérations."
+    },
+    {
+      icon: "🛡️",
+      text: "Assurez la conformité et la sécurité des transactions."
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-[30px]">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b sticky top-[30px] z-10">
-        <div className="px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={userInfo.avatar} />
-                <AvatarFallback className="bg-purple-100 text-purple-600">
-                  {userInfo.initials}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">
-                  {userInfo.name}
-                </h1>
-                <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                  Sous-Administrateur
-                </Badge>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/notifications')}
-              >
-                <Bell className="w-4 h-4" />
-              </Button>
-              <Button
-                onClick={handleRefresh}
-                variant="ghost"
-                size="sm"
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
-              <LogoutButton />
-            </div>
-          </div>
+    <div className="min-h-screen bg-background p-3">
+      <div className="max-w-6xl mx-auto space-y-4">
+        <CompactHeader
+          title="Espace Sous-Admin"
+          subtitle="Gestion territoriale"
+          icon={<Shield className="w-4 h-4 text-primary-foreground" />}
+          onRefresh={fetchData}
+          onSignOut={handleSignOut}
+          isLoading={isLoading}
+        />
+
+        <div className="flex justify-end mb-4">
+          <CustomerServiceButton />
         </div>
-      </div>
 
-      {/* Scrollable Content */}
-      <div className="px-4 py-6 pb-20">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-none lg:inline-flex">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Utilisateurs</span>
-            </TabsTrigger>
-            <TabsTrigger value="agents" className="flex items-center gap-2">
-              <UserCheck className="w-4 h-4" />
-              <span className="hidden sm:inline">Agents</span>
-            </TabsTrigger>
-            <TabsTrigger value="recharge" className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
-              <span className="hidden sm:inline">Recharges</span>
-            </TabsTrigger>
-            <TabsTrigger value="messages" className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              <span className="hidden sm:inline">Messages</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Paramètres</span>
-            </TabsTrigger>
-          </TabsList>
+        <div className="bg-card p-3 rounded-lg">
+          <UserProfileInfo />
+        </div>
 
-          <TabsContent value="dashboard" className="space-y-6">
-            <SubAdminStatsTab />
-          </TabsContent>
+        <CompactStatsGrid stats={statsData} />
 
-          <TabsContent value="users" className="space-y-6">
-            <SubAdminUsersTab />
-          </TabsContent>
+        <CompactActionGrid
+          title="Actions de Gestion"
+          titleIcon={Zap}
+          actions={actionItems}
+        />
 
-          <TabsContent value="agents" className="space-y-6">
-            <SubAdminAgentsTab />
-          </TabsContent>
+        {/* Section des outils avancés */}
+        {showAdvancedTools && (
+          <div className="space-y-4">
+            <SubAdminAdvancedTools />
+          </div>
+        )}
 
-          <TabsContent value="recharge" className="space-y-6">
-            <SubAdminRechargeTab />
-          </TabsContent>
-
-          <TabsContent value="messages" className="space-y-6">
-            <SubAdminMessagesTab />
-          </TabsContent>
-
-          <TabsContent value="settings" className="space-y-6">
-            <SubAdminSettingsTab />
-          </TabsContent>
-        </Tabs>
+        <CompactInfoCard
+          title="Informations Utiles"
+          titleIcon={Shield}
+          items={infoItems}
+        />
       </div>
     </div>
   );

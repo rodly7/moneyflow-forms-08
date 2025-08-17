@@ -1,5 +1,7 @@
 
 import React from 'react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 
@@ -26,7 +28,7 @@ export const MobileFormField = ({
 
   return (
     <div className={cn('space-y-2', className)}>
-      <label
+      <Label
         htmlFor={id}
         className={cn(
           'text-gray-700 font-medium flex items-center gap-1',
@@ -35,7 +37,7 @@ export const MobileFormField = ({
       >
         {label}
         {required && <span className="text-red-500">*</span>}
-      </label>
+      </Label>
       
       <div className="relative">
         {children}
@@ -66,87 +68,14 @@ export const MobileInput = ({ error, className, ...props }: MobileInputProps) =>
   const { isSmallMobile } = useDeviceDetection();
 
   return (
-    <input
+    <Input
       className={cn(
-        'w-full px-3 py-3 border-2 rounded-xl transition-all duration-200',
-        'focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none',
-        'bg-white text-gray-900',
-        // Critical: Prevent zoom on iOS
-        'text-[16px]',
-        isSmallMobile ? 'h-12' : 'h-13',
+        'mobile-touch-target border-2 rounded-xl transition-all duration-200',
+        'focus:ring-2 focus:ring-primary/20 focus:border-primary',
+        isSmallMobile ? 'h-12 text-base' : 'h-13 text-lg',
         error && 'border-red-300 focus:border-red-500',
         className
       )}
-      style={{
-        fontSize: '16px', // Critical: prevents zoom on iOS
-        WebkitAppearance: 'none',
-        borderRadius: '12px'
-      }}
-      {...props}
-    />
-  );
-};
-
-interface MobileSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  error?: boolean;
-  options: { value: string; label: string }[];
-}
-
-export const MobileSelect = ({ error, className, options, ...props }: MobileSelectProps) => {
-  const { isSmallMobile } = useDeviceDetection();
-
-  return (
-    <select
-      className={cn(
-        'w-full px-3 py-3 border-2 rounded-xl transition-all duration-200',
-        'focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none',
-        'bg-white text-gray-900',
-        // Critical: Prevent zoom on iOS
-        'text-[16px]',
-        isSmallMobile ? 'h-12' : 'h-13',
-        error && 'border-red-300 focus:border-red-500',
-        className
-      )}
-      style={{
-        fontSize: '16px', // Critical: prevents zoom on iOS
-        WebkitAppearance: 'none',
-        borderRadius: '12px'
-      }}
-      {...props}
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  );
-};
-
-interface MobileTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  error?: boolean;
-}
-
-export const MobileTextarea = ({ error, className, ...props }: MobileTextareaProps) => {
-  const { isSmallMobile } = useDeviceDetection();
-
-  return (
-    <textarea
-      className={cn(
-        'w-full px-3 py-3 border-2 rounded-xl transition-all duration-200',
-        'focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none',
-        'bg-white text-gray-900 resize-none',
-        // Critical: Prevent zoom on iOS
-        'text-[16px]',
-        'min-h-[80px]',
-        error && 'border-red-300 focus:border-red-500',
-        className
-      )}
-      style={{
-        fontSize: '16px', // Critical: prevents zoom on iOS
-        WebkitAppearance: 'none',
-        borderRadius: '12px'
-      }}
       {...props}
     />
   );

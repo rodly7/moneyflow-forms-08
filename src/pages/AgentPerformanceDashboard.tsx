@@ -5,12 +5,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Target, MapPin, Award, TrendingUp, Gift } from "lucide-react";
+import { ArrowLeft, Target, TrendingUp, Calendar, Award, MapPin, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { AgentRealTimePerformance } from "@/components/agent/AgentRealTimePerformance";
-import AgentEarningsCard from "@/components/agent/AgentEarningsCard";
+import AgentDailyHistory from "@/components/agent/AgentDailyHistory";
+import AgentCommissions from "@/components/agent/AgentCommissions";
+import AgentYesterdaySummary from "@/components/agent/AgentYesterdaySummary";
+import AgentPersonalChallenge from "@/components/agent/AgentPersonalChallenge";
+import AgentZoneAnalysis from "@/components/agent/AgentZoneAnalysis";
 import AgentRanking from "@/components/agent/AgentRanking";
+import AgentEarningsCard from "@/components/agent/AgentEarningsCard";
 
 const AgentPerformanceDashboard = () => {
   const { user, profile } = useAuth();
@@ -47,24 +51,32 @@ const AgentPerformanceDashboard = () => {
               Retour
             </Button>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Performances Temps Réel
+              Tableau de Performance
             </h1>
           </div>
         </div>
 
-        <Tabs defaultValue="realtime" className="space-y-6 w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-white/80 backdrop-blur-sm shadow-lg rounded-xl h-14">
-            <TabsTrigger value="realtime" className="flex items-center gap-2 h-10">
+        <Tabs defaultValue="earnings" className="space-y-6 w-full">
+          <TabsList className="grid w-full grid-cols-7 bg-white/80 backdrop-blur-sm shadow-lg rounded-xl h-14">
+            <TabsTrigger value="earnings" className="flex items-center gap-2 h-10">
+              <DollarSign className="w-4 h-4" />
+              <span className="hidden sm:inline">Revenus</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2 h-10">
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Historique</span>
+            </TabsTrigger>
+            <TabsTrigger value="commissions" className="flex items-center gap-2 h-10">
               <TrendingUp className="w-4 h-4" />
-              <span className="hidden sm:inline">Temps Réel</span>
+              <span className="hidden sm:inline">Commissions</span>
             </TabsTrigger>
-            <TabsTrigger value="progression" className="flex items-center gap-2 h-10">
+            <TabsTrigger value="yesterday" className="flex items-center gap-2 h-10">
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Hier</span>
+            </TabsTrigger>
+            <TabsTrigger value="challenge" className="flex items-center gap-2 h-10">
               <Target className="w-4 h-4" />
-              <span className="hidden sm:inline">Progression</span>
-            </TabsTrigger>
-            <TabsTrigger value="bonus" className="flex items-center gap-2 h-10">
-              <Gift className="w-4 h-4" />
-              <span className="hidden sm:inline">Bonus</span>
+              <span className="hidden sm:inline">Défi</span>
             </TabsTrigger>
             <TabsTrigger value="zones" className="flex items-center gap-2 h-10">
               <MapPin className="w-4 h-4" />
@@ -76,39 +88,28 @@ const AgentPerformanceDashboard = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="realtime" className="w-full">
-            <AgentRealTimePerformance />
-          </TabsContent>
-
-          <TabsContent value="progression" className="w-full">
+          <TabsContent value="earnings" className="w-full">
             <AgentEarningsCard />
           </TabsContent>
 
-          <TabsContent value="bonus" className="w-full">
-            <AgentEarningsCard />
+          <TabsContent value="history" className="w-full">
+            <AgentDailyHistory />
+          </TabsContent>
+
+          <TabsContent value="commissions" className="w-full">
+            <AgentCommissions />
+          </TabsContent>
+
+          <TabsContent value="yesterday" className="w-full">
+            <AgentYesterdaySummary />
+          </TabsContent>
+
+          <TabsContent value="challenge" className="w-full">
+            <AgentPersonalChallenge />
           </TabsContent>
 
           <TabsContent value="zones" className="w-full">
-            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-purple-600" />
-                  Analyse des Zones Performantes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <MapPin className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">Zones Performantes</h3>
-                  <p className="text-gray-600">Analyse de vos zones d'activité les plus performantes</p>
-                  <div className="mt-6 p-4 bg-purple-50 rounded-lg">
-                    <p className="text-sm text-purple-700">Fonctionnalité en développement</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <AgentZoneAnalysis />
           </TabsContent>
 
           <TabsContent value="ranking" className="w-full">

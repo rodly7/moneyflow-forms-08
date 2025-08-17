@@ -1,27 +1,27 @@
-
-import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
-import { MobileAgentDepositForm } from "@/components/agent/MobileAgentDepositForm";
-import { useDeviceDetection } from "@/hooks/useDeviceDetection";
+import { AgentAutomaticDepositForm } from "@/components/agent/AgentAutomaticDepositForm";
 
 const AgentDeposit = () => {
-  const { profile } = useAuth();
   const navigate = useNavigate();
-  const { isMobile } = useDeviceDetection();
 
-  useEffect(() => {
-    if (profile && profile.role !== 'agent') {
-      navigate('/dashboard');
-    }
-  }, [profile, navigate]);
+  return (
+    <div className="min-h-screen w-full bg-gradient-to-br from-emerald-500/20 to-blue-500/20 py-4 px-0 sm:py-8 sm:px-4">
+      <div className="container max-w-lg mx-auto space-y-6">
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Retour
+          </Button>
+          <h1 className="text-2xl font-bold">Dépôt Client</h1>
+          <div className="w-10"></div>
+        </div>
 
-  if (!profile || profile.role !== 'agent') {
-    return null;
-  }
-
-  // Utiliser toujours la version mobile optimisée
-  return <MobileAgentDepositForm />;
+        <AgentAutomaticDepositForm />
+      </div>
+    </div>
+  );
 };
 
 export default AgentDeposit;

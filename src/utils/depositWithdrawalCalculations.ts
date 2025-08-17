@@ -4,9 +4,9 @@ export const calculateDepositFees = (amount: number, hasCompletedDailyQuota: boo
   const currentHour = new Date().getHours();
   const isBefore19h = currentHour < 19;
   
-  // Commission pour les agents sur les dépôts - nouveau taux de 0,5%
+  // Commission pour les agents sur les dépôts
   const baseCommissionRate = 0.005; // 0,5% de base
-  const bonusCommissionRate = 0.005; // 0,5% (même taux)
+  const bonusCommissionRate = 0.01; // 1% si quota atteint avant 19h
   
   // Vérifier si le quota est atteint avant 19h
   const quotaReachedBefore19h = (dailyVolume + amount) >= DAILY_QUOTA && isBefore19h;
@@ -36,8 +36,8 @@ export const calculateWithdrawalFees = (amount: number, userRole: string = 'user
   }
   
   // Pour les utilisateurs normaux : pas de frais pour le client
-  // L'agent reçoit 0,5% de commission sur les retraits
-  const agentCommissionRate = 0.005; // 0,5%
+  // L'agent reçoit 0,2% de commission sur les retraits
+  const agentCommissionRate = 0.002; // 0,2%
   const agentCommission = Math.round(amount * agentCommissionRate);
   
   const totalFee = 0; // Pas de frais pour le client

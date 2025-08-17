@@ -1,7 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { getUserBalance } from "./withdrawalService";
-import { creditWithdrawalCommission, creditDepositCommission } from "./agentCommissionAutoService";
 
 export const processAgentWithdrawalWithCommission = async (
   agentId: string,
@@ -52,11 +50,7 @@ export const processAgentWithdrawalWithCommission = async (
 
     console.log("✅ Transaction atomique réussie:", transactionResult);
 
-    // 4. Créditer automatiquement la commission de retrait (0,5%)
-    console.log("💎 [COMMISSION] Crédit automatique de la commission retrait");
-    await creditWithdrawalCommission(agentId, amount);
-
-    // 5. Enregistrer le retrait dans la base (non-critique)
+    // 4. Enregistrer le retrait dans la base (non-critique)
     console.log("📝 [ETAPE 2] Enregistrement du retrait");
     try {
       const { data: withdrawal, error: withdrawalError } = await supabase
@@ -65,8 +59,7 @@ export const processAgentWithdrawalWithCommission = async (
           user_id: clientId,
           amount: amount,
           withdrawal_phone: phoneNumber,
-          status: 'completed',
-          processed_by: agentId
+          status: 'completed'
         })
         .select()
         .single();
@@ -80,7 +73,7 @@ export const processAgentWithdrawalWithCommission = async (
       console.error("⚠️ Erreur lors de l'enregistrement du retrait:", withdrawalError);
     }
 
-    // 6. Résultat final avec les données de la transaction atomique
+    // 5. Résultat final avec les données de la transaction atomique
     const tr: any = transactionResult || {};
     const result = {
       clientName: clientData.fullName,
@@ -123,9 +116,9 @@ export const processAgentDepositWithCommission = async (
       throw new Error(`Solde agent insuffisant. Disponible: ${agentData.balance} FCFA, demandé: ${amount} FCFA`);
     }
 
-    // 2. Calculer la commission agent (0,5% pour les dépôts)
-    const agentCommission = Math.round(amount * 0.005);
-    console.log(`📊 Commission calculée: ${agentCommission} FCFA (0.5%)`);
+    // 2. Calculer la commission agent (1% pour les dépôts)
+    const agentCommission = Math.round(amount * 0.01);
+    console.log(`📊 Commission calculée: ${agentCommission} FCFA (1%)`);
 
     // 3. TRANSACTION ATOMIQUE: Débiter l'agent
     console.log(`💸 [ETAPE 1] Débit de l'agent ${agentId} de ${amount} FCFA`);
@@ -168,9 +161,22 @@ export const processAgentDepositWithCommission = async (
 
     console.log(`✅ [ETAPE 2 OK] Client crédité. Nouveau solde: ${newClientBalance} FCFA`);
 
-    // 5. Créditer automatiquement la commission de dépôt (0,5%)
-    console.log("💎 [COMMISSION] Crédit automatique de la commission dépôt");
-    await creditDepositCommission(agentId, amount);
+    // 5. Ajouter la commission au solde commission de l'agent
+    console.log(`📈 [ETAPE 3] Ajout commission ${agentCommission} FCFA`);
+    try {
+      const { error: commissionError } = await supabase.rpc('increment_agent_commission', {
+        agent_user_id: agentId,
+        commission_amount: agentCommission
+      });
+
+      if (commissionError) {
+        console.error("⚠️ Erreur commission (non-critique):", commissionError);
+      } else {
+        console.log("✅ [ETAPE 3 OK] Commission ajoutée");
+      }
+    } catch (commissionError) {
+      console.error("⚠️ Erreur lors de l'ajout de la commission:", commissionError);
+    }
 
     // 6. Enregistrer le dépôt dans la base
     console.log("📝 [ETAPE 4] Enregistrement du dépôt");

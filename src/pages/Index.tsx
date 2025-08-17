@@ -67,7 +67,7 @@ const Index = () => {
           <div className="flex justify-center items-center animate-scale-in">
             <Button 
               onClick={() => navigate('/auth')}
-              size="lg"
+              size="xl"
               className="bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 hover:from-blue-600 hover:via-blue-700 hover:to-blue-800 text-white font-bold px-12 py-6 h-16 text-xl shadow-2xl hover:shadow-blue-500/25 transform hover:-translate-y-2 hover:scale-110 transition-all duration-300 rounded-2xl border-2 border-blue-300/30"
             >
               <Sparkles className="mr-3 h-7 w-7" />

@@ -12,18 +12,19 @@ interface ScrollableContainerProps {
 export const ScrollableContainer = ({ 
   children, 
   className, 
-  maxHeight,
+  maxHeight = "calc(var(--vh, 1vh) * 100 - 80px)",
   padding = true 
 }: ScrollableContainerProps) => {
   return (
     <div 
       className={cn(
-        "w-full overflow-y-auto overflow-x-hidden",
+        "scrollable overflow-y-auto overflow-x-hidden",
+        "w-full",
         padding && "p-2 sm:p-4",
         className
       )}
       style={{ 
-        maxHeight: maxHeight || 'none',
+        maxHeight,
         WebkitOverflowScrolling: 'touch',
         scrollBehavior: 'smooth'
       }}
@@ -37,10 +38,10 @@ export const ScrollableContainer = ({
 
 export const PageWrapper = ({ children, className }: { children: React.ReactNode; className?: string }) => {
   return (
-    <div className={cn("min-h-screen w-full overflow-y-auto animate-fade-in", className)}>
-      <div className="p-4">
+    <div className={cn("page-container animate-fade-in", className)}>
+      <ScrollableContainer>
         {children}
-      </div>
+      </ScrollableContainer>
     </div>
   );
 };

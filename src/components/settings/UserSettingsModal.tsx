@@ -1,11 +1,11 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Settings, MessageSquare, Send, AlertTriangle, HelpCircle, Bug, Lock, Eye, EyeOff } from "lucide-react";
+import { Settings, MessageSquare, Send, AlertTriangle, HelpCircle, Bug } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,114 +32,8 @@ export const UserSettingsModal = ({ trigger }: UserSettingsModalProps) => {
   const [category, setCategory] = useState('general');
   const [priority, setPriority] = useState('normal');
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Password change states
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false
-  });
-  
   const { toast } = useToast();
   const { user } = useAuth();
-
-  const togglePasswordVisibility = (field: keyof typeof showPasswords) => {
-    setShowPasswords(prev => ({
-      ...prev,
-      [field]: !prev[field]
-    }));
-  };
-
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast({
-        title: "Erreur",
-        description: "Les nouveaux mots de passe ne correspondent pas",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      toast({
-        title: "Erreur",
-        description: "Le nouveau mot de passe doit contenir au moins 6 caractères",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (currentPassword === newPassword) {
-      toast({
-        title: "Erreur",
-        description: "Le nouveau mot de passe doit être différent de l'ancien",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsChangingPassword(true);
-
-    try {
-      // Verify current password by attempting to sign in
-      if (!user?.email) {
-        throw new Error('Email utilisateur non trouvé');
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPassword
-      });
-
-      if (signInError) {
-        throw new Error('Mot de passe actuel incorrect');
-      }
-
-      // Update password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      toast({
-        title: "Succès",
-        description: "Votre mot de passe a été modifié avec succès",
-      });
-
-      // Reset form
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-
-    } catch (error: any) {
-      console.error('Erreur lors du changement de mot de passe:', error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue lors du changement de mot de passe",
-        variant: "destructive"
-      });
-    } finally {
-      setIsChangingPassword(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -266,127 +160,6 @@ export const UserSettingsModal = ({ trigger }: UserSettingsModalProps) => {
         </DialogHeader>
         
         <div className="space-y-6">
-          {/* Section changement de mot de passe */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Lock className="w-5 h-5 text-blue-600" />
-                Changer le Mot de Passe
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handlePasswordChange} className="space-y-4">
-                <div>
-                  <Label htmlFor="currentPassword">Mot de passe actuel</Label>
-                  <div className="relative">
-                    <Input
-                      id="currentPassword"
-                      type={showPasswords.current ? "text" : "password"}
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="Votre mot de passe actuel"
-                      disabled={isChangingPassword}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => togglePasswordVisibility('current')}
-                      disabled={isChangingPassword}
-                    >
-                      {showPasswords.current ? (
-                        <EyeOff className="h-4 w-4 text-gray-500" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-gray-500" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="newPassword">Nouveau mot de passe</Label>
-                  <div className="relative">
-                    <Input
-                      id="newPassword"
-                      type={showPasswords.new ? "text" : "password"}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Votre nouveau mot de passe"
-                      disabled={isChangingPassword}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => togglePasswordVisibility('new')}
-                      disabled={isChangingPassword}
-                    >
-                      {showPasswords.new ? (
-                        <EyeOff className="h-4 w-4 text-gray-500" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-gray-500" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="confirmPassword">Confirmer le nouveau mot de passe</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      type={showPasswords.confirm ? "text" : "password"}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Confirmez votre nouveau mot de passe"
-                      disabled={isChangingPassword}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => togglePasswordVisibility('confirm')}
-                      disabled={isChangingPassword}
-                    >
-                      {showPasswords.confirm ? (
-                        <EyeOff className="h-4 w-4 text-gray-500" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-gray-500" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                <Button 
-                  type="submit" 
-                  disabled={isChangingPassword}
-                  className="w-full"
-                >
-                  {isChangingPassword ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Modification en cours...
-                    </>
-                  ) : (
-                    "Changer le mot de passe"
-                  )}
-                </Button>
-              </form>
-
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700">
-                  <strong>Conseils de sécurité :</strong>
-                  <br />• Utilisez au moins 6 caractères
-                  <br />• Mélangez lettres, chiffres et symboles
-                  <br />• Ne partagez jamais votre mot de passe
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Section de signalement rapide */}
           <Card className="bg-gradient-to-r from-orange-50 to-red-50 border-orange-200">
             <CardHeader className="pb-4">

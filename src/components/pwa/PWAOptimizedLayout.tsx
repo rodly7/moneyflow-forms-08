@@ -5,28 +5,50 @@ import { cn } from '@/lib/utils';
 interface PWAOptimizedLayoutProps {
   children: React.ReactNode;
   className?: string;
-  allowScroll?: boolean;
 }
 
-export const PWAOptimizedLayout = ({ 
-  children, 
-  className,
-  allowScroll = true 
-}: PWAOptimizedLayoutProps) => {
+export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutProps) => {
   return (
     <div 
       className={cn(
-        "min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100",
-        "pt-[30px]", // Marge top 30px pour PWA/mobile
-        allowScroll && "overflow-y-auto",
+        "full-screen-container ultra-compact-mode",
+        "h-screen w-screen overflow-hidden",
+        "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100",
         className
       )}
       style={{
-        WebkitOverflowScrolling: 'touch',
-        scrollBehavior: 'smooth'
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: 'calc(var(--vh, 1vh) * 100)',
+        width: '100vw',
+        minHeight: 'calc(var(--vh, 1vh) * 100)',
+        maxHeight: 'calc(var(--vh, 1vh) * 100)',
+        minWidth: '100vw',
+        maxWidth: '100vw',
+        contain: 'layout style paint',
+        zIndex: 0,
+        fontSize: '11px', // Réduit de 15px à 11px (-4px)
+        lineHeight: '1.2', // Réduit de 1.25 à 1.2
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: '0px',
       }}
     >
-      {children}
+      <div 
+        className="h-full w-full overflow-y-auto overflow-x-hidden mobile-scroll ultra-compact-scroll"
+        style={{
+          fontSize: '11px', // Réduit de 15px à 11px (-4px)
+          lineHeight: '1.2', // Réduit de 1.25 à 1.2
+          paddingBottom: '0px',
+          paddingTop: '39px', // Augmenté de 32px à 39px pour plus de marge en haut
+          height: 'calc(100% - env(safe-area-inset-top) - 39px)', // Ajustement de la hauteur
+          marginBottom: '0px'
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 };

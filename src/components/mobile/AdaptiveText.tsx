@@ -15,7 +15,7 @@ interface AdaptiveTextProps {
 export const AdaptiveText = ({
   children,
   variant = 'body',
-  baseSize = 16, // Force 16px comme taille de base par défaut
+  baseSize,
   className,
   truncate = false,
   maxLines,
@@ -25,41 +25,54 @@ export const AdaptiveText = ({
   const getTextClasses = () => {
     const baseClasses = [];
 
-    // Forcer une taille de base de 16px minimum
+    // Si baseSize est fourni, l'utiliser avec getAdaptiveSize
     if (baseSize) {
-      const adaptiveSize = Math.max(16, getAdaptiveSize(baseSize));
+      const adaptiveSize = getAdaptiveSize(baseSize);
       baseClasses.push(`text-[${adaptiveSize}px]`);
     } else {
-      // Tailles mises à jour pour avoir 16px minimum
+      // Tailles considérablement augmentées pour une meilleure visibilité
       if (variant === 'heading') {
         if (isVerySmallMobile) {
-          baseClasses.push('text-2xl font-bold'); // 24px
+          baseClasses.push('text-3xl font-bold'); // Augmenté de text-2xl à text-3xl
         } else if (isSmallMobile) {
-          baseClasses.push('text-3xl font-bold'); // 30px
+          baseClasses.push('text-4xl font-bold'); // Augmenté de text-3xl à text-4xl
         } else if (isMediumMobile) {
-          baseClasses.push('text-4xl font-bold'); // 36px
+          baseClasses.push('text-5xl font-bold'); // Augmenté de text-4xl à text-5xl
         } else {
-          baseClasses.push('text-5xl font-bold'); // 48px
+          baseClasses.push('text-6xl font-bold'); // Augmenté de text-5xl à text-6xl
         }
       } else if (variant === 'subheading') {
         if (isVerySmallMobile) {
-          baseClasses.push('text-xl font-semibold'); // 20px
+          baseClasses.push('text-2xl font-semibold'); // Augmenté de text-xl à text-2xl
         } else if (isSmallMobile) {
-          baseClasses.push('text-2xl font-semibold'); // 24px
+          baseClasses.push('text-3xl font-semibold'); // Augmenté de text-2xl à text-3xl
         } else if (isMediumMobile) {
-          baseClasses.push('text-3xl font-semibold'); // 30px
+          baseClasses.push('text-4xl font-semibold'); // Augmenté de text-3xl à text-4xl
         } else {
-          baseClasses.push('text-4xl font-semibold'); // 36px
+          baseClasses.push('text-5xl font-semibold'); // Augmenté de text-4xl à text-5xl
         }
       } else if (variant === 'body') {
-        // Force 16px pour le corps de texte
-        baseClasses.push('text-base'); // 16px
+        if (isVerySmallMobile) {
+          baseClasses.push('text-xl'); // Augmenté de text-lg à text-xl
+        } else if (isSmallMobile) {
+          baseClasses.push('text-2xl'); // Augmenté de text-xl à text-2xl
+        } else {
+          baseClasses.push('text-3xl'); // Augmenté de text-2xl à text-3xl
+        }
       } else if (variant === 'small') {
-        // Force 16px minimum même pour "small"
-        baseClasses.push('text-base'); // 16px
+        if (isVerySmallMobile) {
+          baseClasses.push('text-lg'); // Augmenté de text-base à text-lg
+        } else if (isSmallMobile) {
+          baseClasses.push('text-xl'); // Augmenté de text-lg à text-xl
+        } else {
+          baseClasses.push('text-2xl'); // Augmenté de text-xl à text-2xl
+        }
       } else if (variant === 'tiny') {
-        // Force 16px minimum même pour "tiny"
-        baseClasses.push('text-base'); // 16px
+        if (isVerySmallMobile) {
+          baseClasses.push('text-lg'); // Augmenté de text-base à text-lg
+        } else {
+          baseClasses.push('text-xl'); // Augmenté de text-lg à text-xl
+        }
       }
     }
 
@@ -85,13 +98,11 @@ export const AdaptiveText = ({
   };
 
   const adaptiveStyle = baseSize ? {
-    fontSize: `${Math.max(16, getAdaptiveSize(baseSize))}px` // Force 16px minimum
-  } : {
-    fontSize: '16px' // Force 16px par défaut
-  };
+    fontSize: `${getAdaptiveSize(baseSize)}px`
+  } : {};
 
   return (
-    <span className={cn(getTextClasses(), 'text-16', className)} style={adaptiveStyle}>
+    <span className={cn(getTextClasses(), className)} style={adaptiveStyle}>
       {children}
     </span>
   );

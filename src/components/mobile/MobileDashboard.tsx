@@ -1,234 +1,202 @@
 
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
-  Send, 
-  ArrowDownLeft, 
-  QrCode, 
-  CreditCard,
-  Eye,
-  EyeOff,
-  Settings,
-  RefreshCw,
-  Plus,
-  ArrowRightLeft,
-  Download,
-  ScanLine,
+  ArrowUpRight, 
+  QrCode,
+  Smartphone,
+  Scan,
   PiggyBank,
   History,
-  Receipt
+  LogOut,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/integrations/supabase/client";
+import EnhancedTransactionsCard from "@/components/dashboard/EnhancedTransactionsCard";
 import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
-import { UserBalanceRechargeButton } from "@/components/user/UserBalanceRechargeButton";
+import { UserSettingsModal } from "@/components/settings/UserSettingsModal";
 import { useAutoBalanceRefresh } from "@/hooks/useAutoBalanceRefresh";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-import LogoutButton from "@/components/auth/LogoutButton";
 
 const MobileDashboard: React.FC = () => {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Auto-refresh balance every 5 seconds
-  useAutoBalanceRefresh({
+  // Configuration du rafraîchissement automatique toutes les 5 secondes
+  const { currentBalance } = useAutoBalanceRefresh({
     intervalMs: 5000,
-    onBalanceChange: useCallback((newBalance: number) => {
-      console.log('💰 Balance updated:', newBalance);
-    }, [])
+    enableRealtime: true
   });
 
-  const handleRefreshProfile = useCallback(async () => {
-    setIsRefreshing(true);
+  const handleLogout = async () => {
     try {
-      await refreshProfile();
-      toast.success('Profil mis à jour');
+      await signOut();
+      navigate('/auth');
+      toast.success('Déconnexion réussie');
     } catch (error) {
-      console.error('Erreur lors du rafraîchissement:', error);
-      toast.error('Erreur lors de la mise à jour');
-    } finally {
-      setIsRefreshing(false);
+      console.error('Erreur lors de la déconnexion:', error);
+      toast.error('Erreur lors de la déconnexion');
     }
-  }, [refreshProfile]);
-
-  const toggleBalanceVisibility = useCallback(() => {
-    setIsBalanceVisible(prev => !prev);
-  }, []);
-
-  const formatBalanceDisplay = useCallback((balance: number) => {
-    if (!isBalanceVisible) {
-      return "🟡 🟡 🟡 🟡 🟡 🟡 🟡 🟡";
-    }
-    return formatCurrency(balance, 'XAF');
-  }, [isBalanceVisible]);
-
-  const userInfo = {
-    name: profile?.full_name || 'Utilisateur',
-    avatar: profile?.avatar_url,
-    initials: profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'B'
   };
 
-  // Actions rapides avec les couleurs exactes du design
+  const toggleBalanceVisibility = () => {
+    setIsBalanceVisible(!isBalanceVisible);
+  };
+
+  // Actions rapides sans "Retirer" et "Recevoir"
   const quickActions = [
     {
       title: "Envoyer",
-      icon: Send,
-      bgColor: "bg-red-500",
-      route: "/transfer"
+      icon: ArrowUpRight,
+      color: "from-red-500 to-pink-500",
+      onClick: () => navigate('/transfer')
     },
     {
-      title: "QR Code", 
+      title: "QR Code",
       icon: QrCode,
-      bgColor: "bg-purple-500",
-      route: "/qr-code"
+      color: "from-purple-500 to-violet-500",
+      onClick: () => navigate('/qr-code')
     },
     {
       title: "Scanner",
-      icon: ScanLine,
-      bgColor: "bg-blue-500", 
-      route: "/qr-payment"
+      icon: Scan,
+      color: "from-indigo-500 to-blue-500",
+      onClick: () => navigate('/qr-payment')
     },
     {
       title: "Épargne",
       icon: PiggyBank,
-      bgColor: "bg-green-500",
-      route: "/savings"
+      color: "from-teal-500 to-green-500",
+      onClick: () => navigate('/savings')
     },
     {
       title: "Historique",
       icon: History,
-      bgColor: "bg-orange-500",
-      route: "/transactions"
+      color: "from-orange-500 to-amber-500",
+      onClick: () => navigate('/transactions')
     },
     {
       title: "Factures",
-      icon: Receipt,
-      bgColor: "bg-purple-600",
-      route: "/bills"
+      icon: Smartphone,
+      color: "from-violet-500 to-purple-500",
+      onClick: () => navigate('/bill-payments')
     }
   ];
 
-  const currentDate = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  const formatBalanceDisplay = (balance: number) => {
+    if (!isBalanceVisible) {
+      return "••••••••";
+    }
+    return formatCurrency(balance, 'XAF');
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-600 to-purple-700 pt-[30px] pb-6 overflow-y-auto">
-      {/* Header avec dégradé */}
-      <div className="px-4 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {/* Header avec notification et déconnexion */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-12 w-12 border-2 border-white/30">
-              <AvatarImage src={userInfo.avatar} />
-              <AvatarFallback className="bg-white/20 text-white text-sm font-bold">
-                {userInfo.initials}
+          <div className="flex items-center space-x-4">
+            <Avatar className="h-14 w-14 border-2 border-white/20">
+              <AvatarImage src={profile?.avatar_url} />
+              <AvatarFallback className="bg-white/10 text-white font-semibold text-lg">
+                {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-lg font-bold text-white mb-1">
-                Bonjour {userInfo.name} 👋
+              <h1 className="text-lg font-semibold leading-tight">
+                Bonjour {profile?.full_name || 'Utilisateur'} 👋
               </h1>
-              <p className="text-white/80 text-xs">
-                {currentDate}
+              <p className="text-blue-100 text-sm mt-2 leading-relaxed">
+                {new Date().toLocaleDateString('fr-FR', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="relative">
-              <UnifiedNotificationBell />
-            </div>
+          <div className="flex items-center space-x-3">
+            <UnifiedNotificationBell />
             <Button
-              onClick={handleRefreshProfile}
-              variant="ghost"
+              onClick={handleLogout}
+              variant="outline"
               size="sm"
-              className="text-white hover:bg-white/20 rounded-full p-2"
-              disabled={isRefreshing}
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white text-sm p-2"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <LogOut className="w-4 h-4" />
             </Button>
-            <LogoutButton />
           </div>
         </div>
 
-        {/* Carte de solde avec dégradé et coins arrondis */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-5 mb-6 border border-white/20">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-white/90 text-sm font-medium">Solde disponible</h2>
+        {/* Solde avec option de masquage */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-blue-100 text-lg font-medium leading-tight">Solde disponible</p>
             <Button
               onClick={toggleBalanceVisibility}
               variant="ghost"
               size="sm"
-              className="text-white hover:bg-white/20 rounded-full p-2"
+              className="text-white hover:bg-white/10 p-2"
             >
-              {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {isBalanceVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </Button>
           </div>
-          
-          <div className="text-2xl font-bold text-white mb-4">
-            {formatBalanceDisplay(profile?.balance || 0)}
-          </div>
-          
-          <div className="flex items-center text-green-400 text-xs mb-2">
-            <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-            Mise à jour toutes les 5 secondes
+          <p className="text-4xl font-bold mb-4 text-yellow-200 leading-none">
+            {formatBalanceDisplay(currentBalance || profile?.balance || 0)}
+          </p>
+          <div className="flex items-center space-x-2 text-sm text-blue-100">
+            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+            <span>Mise à jour toutes les 5 secondes</span>
           </div>
         </div>
       </div>
 
-      {/* Actions Rapides sur fond blanc avec scrolling amélioré */}
-      <div className="bg-white rounded-t-3xl px-4 py-6 flex-grow min-h-[50vh] overflow-y-auto">
-        <h3 className="text-base font-bold text-gray-900 mb-5">Actions rapides</h3>
-        
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          {quickActions.map((action, index) => (
-            <Button
-              key={index}
-              onClick={() => navigate(action.route)}
-              variant="ghost"
-              className="h-auto p-4 flex flex-col items-center gap-2 hover:bg-gray-50 rounded-2xl border border-gray-100"
-            >
-              <div className={`w-12 h-12 rounded-full ${action.bgColor} flex items-center justify-center`}>
-                <action.icon className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-gray-700 font-medium text-xs">
-                {action.title}
-              </span>
-            </Button>
-          ))}
-        </div>
+      {/* Actions rapides */}
+      <div className="px-6 -mt-8 relative z-10">
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
+          <CardContent className="p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-5">Actions rapides</h2>
+            <div className="grid grid-cols-2 gap-5">
+              {quickActions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="relative h-28 flex-col gap-3 bg-white border-0 hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-lg"
+                  onClick={action.onClick}
+                >
+                  <div className={`p-3 bg-gradient-to-r ${action.color} rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center`}>
+                    <action.icon className="w-6 h-6 text-white" />
+                  </div>
+                  <span className="text-base font-medium text-center">{action.title}</span>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Services supplémentaires */}
-        <div className="space-y-3">
-          <Button
-            onClick={() => navigate('/mobile-recharge')}
-            variant="outline"
-            className="w-full h-11 justify-start rounded-2xl border-gray-200"
-          >
-            <Plus className="w-4 h-4 mr-3 text-green-600" />
-            <span className="text-sm font-medium">Recharge Mobile</span>
-          </Button>
-          
-          <Button
-            onClick={() => navigate('/withdraw')}
-            variant="outline"
-            className="w-full h-11 justify-start rounded-2xl border-gray-200"
-          >
-            <ArrowDownLeft className="w-4 h-4 mr-3 text-red-600" />
-            <span className="text-sm font-medium">Retirer de l'argent</span>
-          </Button>
-        </div>
+      {/* Transactions récentes */}
+      <div className="px-6 mt-6">
+        <EnhancedTransactionsCard />
+      </div>
+
+      {/* Section Paramètres - S'étend jusqu'en bas */}
+      <div className="px-6 mt-6 mb-0">
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
+          <CardContent className="p-6 pb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-5">Support & Paramètres</h2>
+            <div className="grid grid-cols-1 gap-5">
+              <UserSettingsModal />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

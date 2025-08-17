@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
+  // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -1037,109 +1037,6 @@ export type Database = {
         }
         Relationships: []
       }
-      payment_callbacks: {
-        Row: {
-          callback_data: Json
-          created_at: string
-          id: string
-          payment_session_id: string
-          processed: boolean | null
-          provider: string
-          signature: string | null
-          verified: boolean | null
-        }
-        Insert: {
-          callback_data: Json
-          created_at?: string
-          id?: string
-          payment_session_id: string
-          processed?: boolean | null
-          provider: string
-          signature?: string | null
-          verified?: boolean | null
-        }
-        Update: {
-          callback_data?: Json
-          created_at?: string
-          id?: string
-          payment_session_id?: string
-          processed?: boolean | null
-          provider?: string
-          signature?: string | null
-          verified?: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_callbacks_payment_session_id_fkey"
-            columns: ["payment_session_id"]
-            isOneToOne: false
-            referencedRelation: "payment_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payment_sessions: {
-        Row: {
-          amount: number
-          callback_data: Json | null
-          checkout_url: string | null
-          created_at: string
-          currency: string
-          expires_at: string
-          id: string
-          payment_method: string
-          provider: string
-          provider_transaction_id: string | null
-          session_id: string
-          status: string
-          updated_at: string
-          user_id: string
-          ussd_code: string | null
-        }
-        Insert: {
-          amount: number
-          callback_data?: Json | null
-          checkout_url?: string | null
-          created_at?: string
-          currency?: string
-          expires_at?: string
-          id?: string
-          payment_method: string
-          provider: string
-          provider_transaction_id?: string | null
-          session_id: string
-          status?: string
-          updated_at?: string
-          user_id: string
-          ussd_code?: string | null
-        }
-        Update: {
-          amount?: number
-          callback_data?: Json | null
-          checkout_url?: string | null
-          created_at?: string
-          currency?: string
-          expires_at?: string
-          id?: string
-          payment_method?: string
-          provider?: string
-          provider_transaction_id?: string | null
-          session_id?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-          ussd_code?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_sessions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "auth_users_agents_view"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       pending_transfers: {
         Row: {
           amount: number
@@ -1764,17 +1661,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      cleanup_expired_payment_sessions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
       create_new_agent: {
         Args: {
+          user_id_param: string
           agent_id_param: string
-          country_param: string
           full_name_param: string
           phone_param: string
-          user_id_param: string
+          country_param: string
         }
         Returns: undefined
       }
@@ -1789,11 +1682,11 @@ export type Database = {
       find_recipient: {
         Args: { search_term: string }
         Returns: {
-          country: string
-          email: string
-          full_name: string
           id: string
+          full_name: string
+          email: string
           phone: string
+          country: string
         }[]
       }
       function_name: {
@@ -1830,11 +1723,11 @@ export type Database = {
       get_agent_quota_status: {
         Args: { p_agent_id: string; p_date?: string }
         Returns: {
-          commission_rate: number
+          total_deposits: number
           quota_achieved: boolean
           quota_reached_at: string
           reached_before_19h: boolean
-          total_deposits: number
+          commission_rate: number
         }[]
       }
       get_user_role: {
@@ -1846,7 +1739,7 @@ export type Database = {
         Returns: number
       }
       increment_balance: {
-        Args: { amount: number; user_id: string }
+        Args: { user_id: string; amount: number }
         Returns: number
       }
       is_admin: {
@@ -1883,22 +1776,22 @@ export type Database = {
       }
       process_international_deposit: {
         Args: {
+          target_user_id: string
           deposit_amount: number
           deposit_currency: string
-          exchange_rate?: number
-          notes?: string
-          reference_number?: string
           target_currency: string
-          target_user_id: string
+          exchange_rate?: number
+          reference_number?: string
+          notes?: string
         }
         Returns: string
       }
       process_money_transfer: {
         Args:
-          | { amount: number; receiver_id: number; sender_id: number }
+          | { sender_id: number; receiver_id: number; amount: number }
           | {
-              recipient_identifier: string
               sender_id: string
+              recipient_identifier: string
               transfer_amount: number
               transfer_fees: number
             }
@@ -1906,42 +1799,42 @@ export type Database = {
       }
       process_password_reset: {
         Args: {
+          phone_param: string
           full_name_param: string
           new_password_param: string
-          phone_param: string
         }
         Returns: Json
       }
       process_withdrawal_transaction: {
         Args: {
+          p_client_id: string
           p_agent_id: string
           p_amount: number
-          p_client_id: string
           p_commission: number
         }
         Returns: Json
       }
       savings_deposit: {
-        Args: { p_account_id: string; p_amount: number; p_user_id: string }
+        Args: { p_user_id: string; p_account_id: string; p_amount: number }
         Returns: Json
       }
       savings_withdrawal: {
         Args:
           | { account_id: number; withdrawal_amount: number }
-          | { p_account_id: string; p_amount: number; p_user_id: string }
+          | { p_user_id: string; p_account_id: string; p_amount: number }
         Returns: boolean
       }
       secure_increment_balance: {
         Args: {
+          target_user_id: string
           amount: number
           operation_type?: string
           performed_by?: string
-          target_user_id: string
         }
         Returns: number
       }
       start_user_session: {
-        Args: { p_ip_address?: unknown; p_user_agent?: string }
+        Args: { p_user_agent?: string; p_ip_address?: unknown }
         Returns: string
       }
       transfer_monthly_commissions_to_balance: {
@@ -1958,10 +1851,10 @@ export type Database = {
       }
       update_agent_location: {
         Args: {
-          p_address: string
           p_agent_id: string
           p_latitude: number
           p_longitude: number
+          p_address: string
           p_zone?: string
         }
         Returns: undefined

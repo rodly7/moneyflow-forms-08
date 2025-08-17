@@ -16,8 +16,8 @@ export interface AuthContextType {
   profile: Profile | null;
   userRole: 'user' | 'agent' | 'admin' | 'sub_admin' | null;
   loading: boolean;
-  signIn: (phone: string, password: string) => Promise<any>;
-  signUp: (phone: string, password: string, metadata: any) => Promise<any>;
+  signIn: (phone: string, password: string) => Promise<void>;
+  signUp: (phone: string, password: string, metadata: any) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: () => boolean;
   isAgent: () => boolean;

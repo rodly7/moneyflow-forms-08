@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { findUserByPhone } from "@/services/withdrawalService";
 import { formatCurrency, supabase } from "@/integrations/supabase/client";
-import { processAgentWithdrawalWithCommission } from "@/services/agentWithdrawalService";
 
 interface ClientData {
   id: string;
@@ -119,7 +118,7 @@ export const useAgentWithdrawalEnhanced = () => {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log("🚀 [DEBUG] Début du retrait automatique");
+    console.log("🚀 [DEBUG] Début de la soumission de demande de retrait");
     console.log("📋 [DEBUG] Données:", {
       amount,
       phoneNumber,
@@ -162,47 +161,79 @@ export const useAgentWithdrawalEnhanced = () => {
 
     try {
       setIsProcessing(true);
-      console.log("💰 [DEBUG] Exécution du retrait automatique avec commission");
+      console.log("📨 [DEBUG] Création d'une demande de retrait avec les données:");
       
-      const result = await processAgentWithdrawalWithCommission(
-        user.id,
-        clientData.id,
-        operationAmount,
-        clientData.phone
-      );
+      // Récupérer les informations de l'agent
+      const agentName = profile.full_name || 'Agent';
+      const agentPhone = profile.phone || phoneNumber;
+      
+      console.log("👤 [DEBUG] Infos agent:", {
+        agentName,
+        agentPhone,
+        userId: user.id,
+        clientId: clientData.id,
+        amount: operationAmount
+      });
 
-      console.log("✅ [DEBUG] Retrait automatique réussi:", result);
+      const insertData = {
+        user_id: clientData.id,
+        agent_id: user.id,
+        agent_name: agentName,
+        agent_phone: agentPhone,
+        withdrawal_phone: clientData.phone,
+        amount: operationAmount,
+        status: 'pending'
+      };
+      
+      console.log("💾 [DEBUG] Données à insérer:", insertData);
+
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .insert(insertData)
+        .select();
+
+      console.log("📤 [DEBUG] Résultat insertion:", { data, error });
+
+      if (error) {
+        console.error("❌ [DEBUG] Erreur lors de la création:", error);
+        console.error("❌ [DEBUG] Détails de l'erreur:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
+
+      console.log("✅ [DEBUG] Demande créée avec succès:", data);
 
       toast({
-        title: "Retrait effectué",
-        description: `Retrait de ${formatCurrency(operationAmount, 'XAF')} effectué avec succès. Commission de ${formatCurrency(result.agentCommission, 'XAF')} ajoutée.`,
+        title: "Demande envoyée",
+        description: `Demande de retrait de ${formatCurrency(operationAmount, 'XAF')} envoyée à ${clientData.full_name}. En attente d'approbation.`,
       });
 
       // Reset form
       setAmount("");
       setPhoneNumber("");
       setClientData(null);
-      
-      // Refresh balances
-      await fetchAgentBalances();
     } catch (error: any) {
-      console.error("❌ [ERROR] Erreur retrait automatique:", error);
+      console.error("❌ [ERROR] Erreur complète demande de retrait:", error);
       console.error("❌ [ERROR] Stack trace:", error?.stack);
       
-      let errorMessage = "Impossible d'effectuer le retrait";
+      let errorMessage = "Impossible d'envoyer la demande de retrait";
       if (error?.message) {
         errorMessage += `: ${error.message}`;
       }
       
       toast({
-        title: "Erreur de retrait",
+        title: "Erreur",
         description: errorMessage,
         variant: "destructive"
       });
     } finally {
       setIsProcessing(false);
     }
-  }, [amount, clientData, phoneNumber, user?.id, profile, toast, fetchAgentBalances]);
+  }, [amount, clientData, phoneNumber, user?.id, profile, toast]);
 
   useEffect(() => {
     fetchAgentBalances();

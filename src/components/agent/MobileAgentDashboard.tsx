@@ -1,15 +1,9 @@
 
-import React, { memo } from "react";
+import React from "react";
 import AgentDashboard from "./AgentDashboard";
 
-const MobileAgentDashboard = memo(() => {
-  return (
-    <div className="agent-mobile-interface">
-      <AgentDashboard />
-    </div>
-  );
-});
-
-MobileAgentDashboard.displayName = 'MobileAgentDashboard';
+const MobileAgentDashboard = () => {
+  return <AgentDashboard />;
+};
 
 export default MobileAgentDashboard;
