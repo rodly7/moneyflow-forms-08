@@ -17,6 +17,7 @@ export const PWAOptimizedLayout = ({
     <div 
       className={cn(
         "min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100",
+        "pt-[30px]", // Marge top 30px pour PWA/mobile
         allowScroll && "overflow-y-auto",
         className
       )}

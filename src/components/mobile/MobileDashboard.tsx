@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,9 +66,9 @@ const MobileDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-y-auto">
+    <div className="min-h-screen bg-gray-50 overflow-y-auto pt-[30px]">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
+      <div className="bg-white shadow-sm border-b sticky top-[30px] z-10">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
