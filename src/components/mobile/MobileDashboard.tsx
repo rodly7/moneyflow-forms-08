@@ -1,287 +1,235 @@
 
-import { memo, Suspense, useMemo, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, QrCode, History, PiggyBank, RefreshCw, LogOut, Bell, Eye, EyeOff, Scan, Zap, CreditCard } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  Send, 
+  ArrowDownLeft, 
+  QrCode, 
+  CreditCard,
+  Eye,
+  EyeOff,
+  Settings,
+  RefreshCw,
+  Plus
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
-import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
+import { formatCurrency } from "@/integrations/supabase/client";
+import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
 import { UserBalanceRechargeButton } from "@/components/user/UserBalanceRechargeButton";
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useAutoBalanceRefresh } from "@/hooks/useAutoBalanceRefresh";
+import { toast } from "sonner";
 
-const MobileLoadingSkeleton = memo(() => (
-  <div className="space-y-3 p-3">
-    {[...Array(3)].map((_, i) => (
-      <Card key={i} className="animate-pulse">
-        <CardContent className="p-3">
-          <div className="h-12 bg-muted rounded"></div>
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-));
-
-const MobileDashboard = memo(() => {
+const MobileDashboard: React.FC = () => {
+  const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { user, profile, signOut, refreshProfile } = useAuth();
-  const [showBalance, setShowBalance] = useState(false);
+  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { 
-    data: userBalance, 
-    isLoading: isBalanceLoading,
-    refetch: refetchBalance 
-  } = useQuery({
-    queryKey: ['user-balance', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return 0;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('balance')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) throw error;
-      return data?.balance || 0;
-    },
-    enabled: !!user?.id,
-    staleTime: 30000,
+  // Auto-refresh balance every 5 seconds
+  useAutoBalanceRefresh({
+    intervalMs: 5000,
+    onBalanceChange: useCallback((newBalance: number) => {
+      console.log('💰 Balance updated:', newBalance);
+    }, [])
   });
 
-  const userCurrency = useMemo(() => 
-    getCurrencyForCountry(profile?.country || "Cameroun"), 
-    [profile?.country]
-  );
-
-  const convertedBalance = useMemo(() => 
-    convertCurrency(userBalance || 0, "XAF", userCurrency), 
-    [userBalance, userCurrency]
-  );
-
-  const handleAction = useCallback((action: string) => {
-    switch (action) {
-      case 'transfer':
-        navigate('/transfer');
-        break;
-      case 'qr-code':
-        navigate('/qr-code');
-        break;
-      case 'qr-payment':
-        navigate('/qr-payment');
-        break;
-      case 'savings':
-        navigate('/savings');
-        break;
-      case 'transactions':
-        navigate('/transactions');
-        break;
-      case 'bill-payments':
-        navigate('/bill-payments');
-        break;
-      case 'prepaid-cards':
-        navigate('/prepaid-cards');
-        break;
-      default:
-        break;
-    }
-  }, [navigate]);
-
-  const handleSignOut = useCallback(async () => {
+  const handleRefreshProfile = useCallback(async () => {
+    setIsRefreshing(true);
     try {
-      await signOut();
-      navigate('/auth', { replace: true });
-      toast({
-        title: "Déconnexion réussie",
-        description: "À bientôt !",
-      });
+      await refreshProfile();
+      toast.success('Profil mis à jour');
     } catch (error) {
-      console.error('Erreur déconnexion:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la déconnexion",
-        variant: "destructive"
-      });
+      console.error('Erreur lors du rafraîchissement:', error);
+      toast.error('Erreur lors de la mise à jour');
+    } finally {
+      setIsRefreshing(false);
     }
-  }, [signOut, navigate, toast]);
+  }, [refreshProfile]);
 
-  const handleRefresh = useCallback(async () => {
-    try {
-      await Promise.all([
-        refetchBalance(),
-        refreshProfile()
-      ]);
-      toast({
-        title: "Données actualisées",
-        description: "Vos informations ont été mises à jour",
-      });
-    } catch (error) {
-      console.error('Erreur refresh:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de l'actualisation",
-        variant: "destructive"
-      });
+  const toggleBalanceVisibility = useCallback(() => {
+    setIsBalanceVisible(prev => !prev);
+  }, []);
+
+  const formatBalanceDisplay = useCallback((balance: number) => {
+    if (!isBalanceVisible) {
+      return "••••••••";
     }
-  }, [refetchBalance, refreshProfile, toast]);
+    return formatCurrency(balance, 'XAF');
+  }, [isBalanceVisible]);
 
-  if (isBalanceLoading && !userBalance) {
-    return <MobileLoadingSkeleton />;
-  }
+  const userInfo = {
+    name: profile?.full_name || 'Utilisateur',
+    avatar: profile?.avatar_url,
+    initials: profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'
+  };
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600">
-      {/* Header Section */}
-      <div className="px-6 py-6 text-white" style={{ paddingTop: '30px' }}>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white text-lg font-bold">
-              {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'B'}
-            </div>
-            <div>
-              <h1 className="text-lg font-medium">Bonjour {profile?.full_name || 'Utilisateur'} 👋</h1>
-              <p className="text-sm text-white/80">samedi 16 août 2025</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Bell className="w-6 h-6 text-white" />
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                <span className="text-xs font-bold text-white">6</span>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={userInfo.avatar} />
+                <AvatarFallback className="bg-blue-100 text-blue-600">
+                  {userInfo.initials}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  Bonjour {userInfo.name}
+                </h1>
+                <p className="text-sm text-gray-500">SendFlow</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10" onClick={handleSignOut}>
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Balance Card */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-6 mx-2">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-white/90">Solde disponible</span>
-            <button 
-              onClick={() => setShowBalance(!showBalance)}
-              className="text-white/80 hover:text-white"
-            >
-              {showBalance ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
-          </div>
-          
-          <div className="text-center mb-4">
-            {showBalance ? (
-              <div className="text-2xl font-bold text-white">
-                {formatCurrency(convertedBalance, userCurrency)}
-              </div>
-            ) : (
-              <div className="flex justify-center gap-1 py-2">
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          <div className="flex items-center justify-center gap-2 text-sm text-green-400">
-            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-            <span>Mise à jour toutes les 5 secondes</span>
+            <div className="flex items-center space-x-2">
+              <UnifiedNotificationBell />
+              <Button
+                onClick={handleRefreshProfile}
+                variant="ghost"
+                size="sm"
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Actions Section */}
-      <div className="bg-white rounded-t-3xl flex-1 px-6 py-6 min-h-[60vh]">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Actions rapides</h2>
-        
-        <div className="grid grid-cols-2 gap-4 pb-8">
-          {/* Envoyer */}
-          <button 
-            onClick={() => handleAction('transfer')}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-3"
-          >
-            <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
-              <ArrowUpRight className="w-6 h-6 text-white" />
+      <div className="px-4 py-6 space-y-6">
+        {/* Balance Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Solde Principal
+            </CardTitle>
+            <Button
+              onClick={toggleBalanceVisibility}
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+            >
+              {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 mb-4">
+              {formatBalanceDisplay(profile?.balance || 0)}
             </div>
-            <span className="font-medium text-gray-800">Envoyer</span>
-          </button>
+            <UserBalanceRechargeButton />
+          </CardContent>
+        </Card>
 
-          {/* Recharger */}
-          <UserBalanceRechargeButton />
+        {/* Actions Rapides */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Actions Rapides</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2 hover:bg-blue-50 border-blue-200"
+                onClick={() => navigate('/transfer')}
+              >
+                <Send className="w-6 h-6 text-blue-600" />
+                <span className="text-sm">Envoyer</span>
+              </Button>
 
-          {/* QR Code */}
-          <button 
-            onClick={() => handleAction('qr-code')}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-3"
-          >
-            <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center">
-              <QrCode className="w-6 h-6 text-white" />
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2 hover:bg-green-50 border-green-200"
+                onClick={() => navigate('/withdraw')}
+              >
+                <ArrowDownLeft className="w-6 h-6 text-green-600" />
+                <span className="text-sm">Retirer</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2 hover:bg-purple-50 border-purple-200"
+                onClick={() => navigate('/qr-code')}
+              >
+                <QrCode className="w-6 h-6 text-purple-600" />
+                <span className="text-sm">QR Code</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2 hover:bg-orange-50 border-orange-200"
+                onClick={() => navigate('/bills')}
+              >
+                <CreditCard className="w-6 h-6 text-orange-600" />
+                <span className="text-sm">Factures</span>
+              </Button>
             </div>
-            <span className="font-medium text-gray-800">QR Code</span>
-          </button>
+          </CardContent>
+        </Card>
 
-          {/* Scanner */}
-          <button 
-            onClick={() => handleAction('qr-payment')}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-3"
-          >
-            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
-              <Scan className="w-6 h-6 text-white" />
+        {/* Services */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Services</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <Button
+                onClick={() => navigate('/transactions')}
+                variant="outline"
+                className="w-full h-12 justify-start"
+              >
+                <ArrowDownLeft className="w-5 h-5 mr-3 text-blue-600" />
+                Historique des Transactions
+              </Button>
+              <Button
+                onClick={() => navigate('/mobile-recharge')}
+                variant="outline"
+                className="w-full h-12 justify-start"
+              >
+                <Plus className="w-5 h-5 mr-3 text-green-600" />
+                Recharge Mobile
+              </Button>
+              <Button
+                onClick={() => navigate('/savings')}
+                variant="outline"
+                className="w-full h-12 justify-start"
+              >
+                <Settings className="w-5 h-5 mr-3 text-purple-600" />
+                Épargne
+              </Button>
             </div>
-            <span className="font-medium text-gray-800">Scanner</span>
-          </button>
+          </CardContent>
+        </Card>
 
-          {/* Épargne */}
-          <button 
-            onClick={() => handleAction('savings')}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-3"
-          >
-            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-              <PiggyBank className="w-6 h-6 text-white" />
+        {/* Statistics */}
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">
+              {Math.floor(Math.random() * 10)}
             </div>
-            <span className="font-medium text-gray-800">Épargne</span>
-          </button>
-
-          {/* Historique */}
-          <button 
-            onClick={() => handleAction('transactions')}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-3"
-          >
-            <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center">
-              <History className="w-6 h-6 text-white" />
+            <div className="text-xs text-gray-500">Aujourd'hui</div>
+          </Card>
+          <Card className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {Math.floor(Math.random() * 50)}
             </div>
-            <span className="font-medium text-gray-800">Historique</span>
-          </button>
-
-          {/* Cartes prépayées */}
-          <button 
-            onClick={() => handleAction('prepaid-cards')}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-3"
-          >
-            <div className="w-12 h-12 bg-indigo-500 rounded-full flex items-center justify-center">
-              <CreditCard className="w-6 h-6 text-white" />
+            <div className="text-xs text-gray-500">Cette semaine</div>
+          </Card>
+          <Card className="p-4 text-center">
+            <div className="text-2xl font-bold text-purple-600">
+              {Math.floor(Math.random() * 200)}
             </div>
-            <span className="font-medium text-gray-800">Cartes</span>
-          </button>
-
-          {/* Factures */}
-          <button 
-            onClick={() => handleAction('bill-payments')}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-3"
-          >
-            <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
-              <CreditCard className="w-6 h-6 text-white" />
-            </div>
-            <span className="font-medium text-gray-800">Factures</span>
-          </button>
+            <div className="text-xs text-gray-500">Ce mois</div>
+          </Card>
         </div>
       </div>
     </div>
   );
-});
-
-MobileDashboard.displayName = 'MobileDashboard';
-MobileLoadingSkeleton.displayName = 'MobileLoadingSkeleton';
+};
 
 export default MobileDashboard;

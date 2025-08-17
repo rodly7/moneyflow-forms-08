@@ -1,34 +1,54 @@
 
-import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
-import { PWAOptimizedLayout } from "@/components/pwa/PWAOptimizedLayout";
-import MobileDashboard from "@/components/mobile/MobileDashboard";
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import MobileDashboard from '@/components/mobile/MobileDashboard';
 
 const Dashboard = () => {
-  const { user, loading } = useAuth();
+  const { profile, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && profile) {
+      // Redirection automatique selon le rôle
+      switch (profile.role) {
+        case 'agent':
+          navigate('/agent-dashboard', { replace: true });
+          break;
+        case 'admin':
+          navigate('/main-admin-dashboard', { replace: true });
+          break;
+        case 'sub_admin':
+          navigate('/sub-admin-dashboard', { replace: true });
+          break;
+        default:
+          // Rester sur le dashboard utilisateur
+          break;
+      }
+    }
+  }, [profile, loading, navigate]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
-        <div className="text-center p-8 animate-fade-in">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
-          <div className="space-y-2">
-            <p className="text-xl font-semibold text-blue-800">SendFlow</p>
-            <p className="text-sm text-blue-600">Chargement...</p>
-          </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
+  // Si c'est un utilisateur normal, afficher le dashboard mobile
+  if (profile?.role === 'user' || !profile?.role) {
+    return <MobileDashboard />;
   }
 
+  // Sinon, afficher un loader pendant la redirection
   return (
-    <PWAOptimizedLayout>
-      <MobileDashboard />
-    </PWAOptimizedLayout>
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p>Redirection en cours...</p>
+      </div>
+    </div>
   );
 };
 

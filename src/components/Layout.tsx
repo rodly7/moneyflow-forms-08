@@ -11,7 +11,7 @@ const Layout = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Configuration basique du viewport
+    // Configuration basique du viewport pour PWA
     const setViewport = () => {
       let viewport = document.querySelector('meta[name=viewport]');
       if (!viewport) {
@@ -26,38 +26,7 @@ const Layout = () => {
       );
     };
 
-    const setFullScreenVars = () => {
-      const innerHeight = window.innerHeight;
-      const innerWidth = window.innerWidth;
-      
-      document.documentElement.style.setProperty('--vh', `${innerHeight * 0.01}px`);
-      document.documentElement.style.setProperty('--vw', `${innerWidth * 0.01}px`);
-      document.documentElement.style.setProperty('--app-height', `${innerHeight}px`);
-      document.documentElement.style.setProperty('--app-width', `${innerWidth}px`);
-    };
-
     setViewport();
-    setFullScreenVars();
-
-    // Styles de base simplifiés
-    document.documentElement.style.height = '100%';
-    document.documentElement.style.width = '100%';
-    document.documentElement.style.margin = '0';
-    document.documentElement.style.padding = '0';
-    
-    document.body.style.height = '100%';
-    document.body.style.width = '100%';
-    document.body.style.margin = '0';
-    document.body.style.padding = '0';
-
-    const root = document.getElementById('root');
-    if (root) {
-      root.style.height = '100vh';
-      root.style.width = '100vw';
-      root.style.margin = '0';
-      root.style.padding = '0';
-      root.style.position = 'relative';
-    }
 
     // Service Worker registration
     if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -70,18 +39,6 @@ const Layout = () => {
         console.error('SW registration failed:', error);
       });
     }
-
-    const handleResize = () => {
-      setFullScreenVars();
-    };
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
-    };
   }, []);
 
   if (loading) {
@@ -100,19 +57,28 @@ const Layout = () => {
 
   // Authentication routing
   if (!user) {
-    if (location.pathname !== '/auth') {
+    if (location.pathname !== '/auth' && location.pathname !== '/agent-auth') {
       return <Navigate to="/auth" state={{ from: location }} replace />;
     }
   } else {
-    if (location.pathname === '/auth') {
-      return <Navigate to="/dashboard" replace />;
+    if (location.pathname === '/auth' || location.pathname === '/agent-auth') {
+      // Rediriger selon le rôle
+      if (user.user_metadata?.role === 'agent') {
+        return <Navigate to="/agent-dashboard" replace />;
+      } else if (user.user_metadata?.role === 'admin') {
+        return <Navigate to="/main-admin-dashboard" replace />;
+      } else if (user.user_metadata?.role === 'sub_admin') {
+        return <Navigate to="/sub-admin-dashboard" replace />;
+      } else {
+        return <Navigate to="/dashboard" replace />;
+      }
     }
   }
 
   return (
-    <div className="min-h-screen w-full">
+    <div className="min-h-screen w-full overflow-x-hidden">
       <OfflineIndicator />
-      <main className="w-full">
+      <main className="w-full h-full">
         <Outlet />
       </main>
       <Toaster />
