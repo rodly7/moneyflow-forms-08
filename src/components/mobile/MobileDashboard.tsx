@@ -1,3 +1,4 @@
+
 import { memo, Suspense, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -131,13 +132,7 @@ const MobileDashboard = memo(() => {
   }
 
   return (
-    <div 
-      className="w-full bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600"
-      style={{ 
-        minHeight: '100vh',
-        overflow: 'visible',
-      }}
-    >
+    <div className="w-full min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600">
       {/* Header Section */}
       <div className="px-6 py-6 text-white" style={{ paddingTop: '30px' }}>
         <div className="flex items-center justify-between mb-6">
@@ -197,7 +192,7 @@ const MobileDashboard = memo(() => {
       </div>
 
       {/* Actions Section */}
-      <div className="bg-white rounded-t-3xl flex-1 px-6 py-6" style={{ minHeight: 'calc(100vh - 200px)' }}>
+      <div className="bg-white rounded-t-3xl flex-1 px-6 py-6 min-h-[60vh]">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Actions rapides</h2>
         
         <div className="grid grid-cols-2 gap-4 pb-8">
@@ -259,7 +254,7 @@ const MobileDashboard = memo(() => {
             <span className="font-medium text-gray-800">Historique</span>
           </button>
 
-          {/* Cartes prépayées - NEW BUTTON */}
+          {/* Cartes prépayées */}
           <button 
             onClick={() => handleAction('prepaid-cards')}
             className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-3"

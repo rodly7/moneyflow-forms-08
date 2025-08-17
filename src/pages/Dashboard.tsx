@@ -1,92 +1,35 @@
 
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useDeviceDetection } from '@/hooks/useDeviceDetection';
-import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
-import { useTransferNotifications } from '@/hooks/useTransferNotifications';
-import { useEffect } from 'react';
-
-// Import direct du composant pour éviter les problèmes d'importation dynamique
-import MobileDashboard from '@/components/mobile/MobileDashboard';
+import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
+import { PWAOptimizedLayout } from "@/components/pwa/PWAOptimizedLayout";
+import MobileDashboard from "@/components/mobile/MobileDashboard";
 
 const Dashboard = () => {
-  const { user, profile, loading } = useAuth();
-  const { isMobile } = useDeviceDetection();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  
-  // Activer les notifications de transfert
-  useTransferNotifications();
+  const { user, loading } = useAuth();
 
-  const { 
-    data: balance, 
-    isLoading: isBalanceLoading,
-    refetch: refetchBalance 
-  } = useQuery({
-    queryKey: ['user-balance', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return 0;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('balance')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching balance:', error);
-        return profile?.balance || 0;
-      }
-      return data?.balance || 0;
-    },
-    enabled: !!user?.id,
-    staleTime: 30000,
-    refetchInterval: 60000,
-  });
-
-  // Gérer les redirections selon le rôle
-  useEffect(() => {
-    if (loading || !profile) return;
-
-    console.log('🔍 Vérification du rôle utilisateur:', profile.role);
-    
-    if (profile.role === 'admin') {
-      console.log('👤 Redirection vers admin dashboard');
-      navigate('/admin-dashboard', { replace: true });
-      return;
-    }
-    
-    if (profile.role === 'sub_admin') {
-      console.log('👤 Redirection vers sub-admin dashboard'); 
-      navigate('/sub-admin-dashboard', { replace: true });
-      return;
-    }
-    
-    if (profile.role === 'agent') {
-      console.log('👤 Redirection vers agent dashboard');
-      navigate('/agent-dashboard', { replace: true });
-      return;
-    }
-
-    console.log('👤 Utilisateur standard, reste sur dashboard');
-  }, [profile?.role, loading, navigate]);
-
-  // Afficher le loading pendant que les données se chargent
-  if (loading || !profile) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="text-center p-8">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg font-semibold text-gray-700">Chargement de votre tableau de bord...</p>
-          <p className="text-sm text-gray-500 mt-2">Veuillez patienter...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className="text-center p-8 animate-fade-in">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
+          <div className="space-y-2">
+            <p className="text-xl font-semibold text-blue-800">SendFlow</p>
+            <p className="text-sm text-blue-600">Chargement...</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Pour les utilisateurs normaux - interface mobile unifiée
-  return <MobileDashboard />;
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return (
+    <PWAOptimizedLayout>
+      <MobileDashboard />
+    </PWAOptimizedLayout>
+  );
 };
 
 export default Dashboard;
