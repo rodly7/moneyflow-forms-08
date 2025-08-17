@@ -26,39 +26,49 @@ import AgentCommissions from "./AgentCommissions";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+interface AgentStatsData {
+  todayTransactions: number;
+  todayVolume: number;
+  todayWithdrawals: number;
+  todayRecharges: number;
+}
+
 const AgentDashboard = memo(() => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Récupérer les stats de l'agent
-  const { data: agentStats } = useQuery({
+  // Fetch agent stats with simplified query structure
+  const { data: agentStats } = useQuery<AgentStatsData | null>({
     queryKey: ['agentStats', user?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<AgentStatsData | null> => {
       if (!user?.id) return null;
 
       try {
-        // Récupérer les transactions de l'agent aujourd'hui
         const today = new Date().toISOString().split('T')[0];
         
-        const { data: withdrawals } = await supabase
-          .from('withdrawals')
-          .select('amount, created_at')
-          .eq('agent_id', user.id)
-          .gte('created_at', `${today}T00:00:00`)
-          .lt('created_at', `${today}T23:59:59`);
+        const [withdrawalsResponse, rechargesResponse] = await Promise.all([
+          supabase
+            .from('withdrawals')
+            .select('amount, created_at')
+            .eq('agent_id', user.id)
+            .gte('created_at', `${today}T00:00:00`)
+            .lt('created_at', `${today}T23:59:59`),
+          supabase
+            .from('recharges')
+            .select('amount, created_at')
+            .eq('user_id', user.id)
+            .gte('created_at', `${today}T00:00:00`)
+            .lt('created_at', `${today}T23:59:59`)
+        ]);
 
-        const { data: recharges } = await supabase
-          .from('recharges')
-          .select('amount, created_at')
-          .eq('user_id', user.id)
-          .gte('created_at', `${today}T00:00:00`)
-          .lt('created_at', `${today}T23:59:59`);
+        const withdrawals = withdrawalsResponse.data || [];
+        const recharges = rechargesResponse.data || [];
 
-        const todayWithdrawals = withdrawals?.length || 0;
-        const todayRecharges = recharges?.length || 0;
-        const todayVolume = (withdrawals?.reduce((sum, w) => sum + (w.amount || 0), 0) || 0) +
-                           (recharges?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0);
+        const todayWithdrawals = withdrawals.length;
+        const todayRecharges = recharges.length;
+        const todayVolume = withdrawals.reduce((sum, w) => sum + (w.amount || 0), 0) +
+                           recharges.reduce((sum, r) => sum + (r.amount || 0), 0);
 
         return {
           todayTransactions: todayWithdrawals + todayRecharges,
@@ -72,12 +82,11 @@ const AgentDashboard = memo(() => {
       }
     },
     enabled: !!user,
-    refetchInterval: 30000 // Refresh toutes les 30 secondes
+    refetchInterval: 30000
   });
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    // Simuler un refresh
     setTimeout(() => {
       setIsRefreshing(false);
     }, 1000);
@@ -144,7 +153,7 @@ const AgentDashboard = memo(() => {
       </div>
 
       {/* Scrollable Content */}
-      <div className="px-4 py-6 space-y-6 pb-20">
+      <div className="px-4 py-6 space-y-6 pb-20 overflow-y-auto">
         {/* Balance Card */}
         <AgentBalanceCard 
           balance={profile?.balance || 0}
