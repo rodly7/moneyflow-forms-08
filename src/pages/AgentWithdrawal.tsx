@@ -2,10 +2,10 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { MobileAgentDepositForm } from "@/components/agent/MobileAgentDepositForm";
+import { MobileAgentWithdrawalForm } from "@/components/agent/MobileAgentWithdrawalForm";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 
-const AgentDeposit = () => {
+const AgentWithdrawal = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const { isMobile } = useDeviceDetection();
@@ -21,7 +21,7 @@ const AgentDeposit = () => {
   }
 
   // Utiliser toujours la version mobile optimisée
-  return <MobileAgentDepositForm />;
+  return <MobileAgentWithdrawalForm />;
 };
 
-export default AgentDeposit;
+export default AgentWithdrawal;

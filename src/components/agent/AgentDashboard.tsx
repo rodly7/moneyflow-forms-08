@@ -7,27 +7,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   ArrowUpRight, 
   ArrowDownLeft,
-  QrCode,
-  Smartphone,
-  Scan,
-  Users,
-  History,
   LogOut,
   Eye,
   EyeOff,
-  Award,
   Settings,
-  FileText,
-  BarChart3,
   RefreshCw,
-  DollarSign,
-  CreditCard,
   Wallet
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/integrations/supabase/client";
 import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
+import { AgentRealTimePerformance } from "@/components/agent/AgentRealTimePerformance";
 import { toast } from "sonner";
 
 const AgentDashboard: React.FC = () => {
@@ -132,34 +123,36 @@ const AgentDashboard: React.FC = () => {
               <div className="text-2xl font-bold text-gray-900 mb-3">
                 {formatBalanceDisplay(agentBalance || 0)}
               </div>
-              {/* Bouton Recharger masqué selon les consignes */}
             </CardContent>
           </Card>
 
-          {/* Commissions */}
+          {/* Commissions - Total (Dépôt 1% + Retrait 0,5%) */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">
-                Mes Commissions
+                Commissions Totales
               </CardTitle>
-              <Award className="w-4 h-4 text-green-600" />
+              <Wallet className="w-4 h-4 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-gray-900 mb-3">
                 {formatBalanceDisplay(agentCommissionBalance || 0)}
+              </div>
+              <div className="text-xs text-gray-500 mb-3">
+                Dépôt: 1% | Retrait: 0,5%
               </div>
               <Button 
                 variant="outline" 
                 className="w-full"
                 onClick={() => navigate('/agent-commission-withdrawal')}
               >
-                Retirer
+                Retirer Commissions
               </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Moved after commissions */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-semibold">Actions Rapides</CardTitle>
@@ -183,11 +176,12 @@ const AgentDashboard: React.FC = () => {
                 <ArrowDownLeft className="w-6 h-6 text-green-600" />
                 <span className="text-sm">Dépôt Client</span>
               </Button>
-
-              {/* Boutons QR Code et Scanner masqués */}
             </div>
           </CardContent>
         </Card>
+
+        {/* Performances Temps Réel */}
+        <AgentRealTimePerformance />
 
         {/* Services */}
         <Card>
@@ -196,28 +190,6 @@ const AgentDashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {/* Boutons Services Client et Recharge Mobile masqués */}
-
-              <Button
-                onClick={() => navigate('/transactions')}
-                variant="outline"
-                className="w-full h-12 justify-start"
-              >
-                <History className="w-5 h-5 mr-3 text-purple-600" />
-                Historique
-              </Button>
-
-              <Button
-                onClick={() => navigate('/agent-performance-dashboard')}
-                variant="outline"
-                className="w-full h-12 justify-start"
-              >
-                <BarChart3 className="w-5 h-5 mr-3 text-orange-600" />
-                Performances
-              </Button>
-
-              {/* Bouton Rapports masqué selon les consignes */}
-
               <Button
                 onClick={() => navigate('/agent-settings')}
                 variant="outline"

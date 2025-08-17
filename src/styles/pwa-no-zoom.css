@@ -1,0 +1,103 @@
+
+/* PWA No-Zoom Optimizations - Critical for preventing zoom on mobile */
+
+/* Force 16px font size on all form elements to prevent iOS zoom */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="time"],
+input[type="week"],
+textarea,
+select {
+  font-size: 16px !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  border-radius: 6px !important;
+}
+
+/* Prevent zoom on focus for all form elements */
+input:focus,
+textarea:focus,
+select:focus {
+  font-size: 16px !important;
+  -webkit-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+  transform: none !important;
+  zoom: 1 !important;
+}
+
+/* Prevent double-tap zoom */
+* {
+  touch-action: manipulation !important;
+}
+
+/* Prevent select zoom on iOS */
+select {
+  background-image: url("data:image/svg+xml;charset=US-ASCII,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'><path fill='%23666' d='M2 0L0 2h4zm0 5L0 3h4z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px;
+  padding-right: 24px;
+}
+
+/* Specific PWA input classes */
+.pwa-input,
+.pwa-textarea,
+.pwa-select {
+  font-size: 16px !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  -webkit-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+}
+
+.pwa-input:focus,
+.pwa-textarea:focus,
+.pwa-select:focus {
+  font-size: 16px !important;
+  outline: none !important;
+  transform: none !important;
+  zoom: 1 !important;
+}
+
+/* Prevent zoom gestures on the entire app */
+.pwa-no-zoom {
+  touch-action: manipulation !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  -khtml-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Allow text selection only in input fields */
+.pwa-no-zoom input,
+.pwa-no-zoom textarea {
+  -webkit-user-select: text !important;
+  -khtml-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Viewport meta fixes for PWA */
+@media screen and (max-width: 768px) {
+  html {
+    -webkit-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
+  }
+  
+  body {
+    -webkit-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
+    overflow-x: hidden !important;
+  }
+}

@@ -23,8 +23,13 @@ export const useSubAdmin = () => {
   };
 
   const canRecharge = () => {
-    // Les sous-admins ne peuvent pas faire de recharge personnelle
-    return false;
+    // Les sous-admins peuvent faire des recharges pour les comptes perdus
+    return isSubAdmin();
+  };
+
+  const canRechargeNational = () => {
+    // Les sous-admins peuvent recharger uniquement les comptes nationaux (même pays)
+    return isSubAdmin();
   };
 
   const canDepositToAgent = () => {
@@ -72,12 +77,33 @@ export const useSubAdmin = () => {
     return isSubAdmin();
   };
 
+  const canManageMessages = () => {
+    // Les sous-admins peuvent gérer les messages de support de leur territoire
+    return isSubAdmin();
+  };
+
+  const canViewReports = () => {
+    // Les sous-admins peuvent voir les rapports de leur territoire
+    return isSubAdmin();
+  };
+
+  const canMonitorTransactions = () => {
+    // Les sous-admins peuvent surveiller les transactions dans leur territoire
+    return isSubAdmin();
+  };
+
+  const canExportReports = () => {
+    // Les sous-admins peuvent exporter des rapports PDF
+    return isSubAdmin();
+  };
+
   return {
     isSubAdmin: isSubAdmin(),
     userCountry: getUserCountry(),
     canManageUsers: canManageUsers(),
     canViewUsers: canViewUsers(),
     canRecharge: canRecharge(),
+    canRechargeNational: canRechargeNational(),
     canDepositToAgent: canDepositToAgent(),
     canViewAllData: canViewAllData(),
     canSendNotifications: canSendNotifications(),
@@ -86,6 +112,10 @@ export const useSubAdmin = () => {
     canViewTerritorialStats: canViewTerritorialStats(),
     canViewCommissionReports: canViewCommissionReports(),
     canReportBugsAndNeeds: canReportBugsAndNeeds(),
-    canTrackTransfersInZone: canTrackTransfersInZone()
+    canTrackTransfersInZone: canTrackTransfersInZone(),
+    canManageMessages: canManageMessages(),
+    canViewReports: canViewReports(),
+    canMonitorTransactions: canMonitorTransactions(),
+    canExportReports: canExportReports()
   };
 };
