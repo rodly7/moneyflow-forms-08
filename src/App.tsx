@@ -2,6 +2,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { Toaster } from '@/components/ui/toaster';
 import Layout from '@/components/Layout';
 import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
@@ -53,8 +54,8 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
+      <Router>
+        <AuthProvider>
           <div className="min-h-screen bg-background">
             <Routes>
               <Route path="/" element={<Layout />}>
@@ -98,8 +99,9 @@ function App() {
               </Route>
             </Routes>
           </div>
-        </Router>
-      </AuthProvider>
+          <Toaster />
+        </AuthProvider>
+      </Router>
     </QueryClientProvider>
   );
 }
