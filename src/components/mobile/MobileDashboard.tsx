@@ -129,17 +129,17 @@ const MobileDashboard: React.FC = () => {
       <div className="px-6 py-6">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Avatar className="h-16 w-16 border-2 border-white/30">
+            <Avatar className="h-14 w-14 border-2 border-white/30">
               <AvatarImage src={userInfo.avatar} />
-              <AvatarFallback className="bg-white/20 text-white text-xl font-bold">
+              <AvatarFallback className="bg-white/20 text-white text-lg font-bold">
                 {userInfo.initials}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl font-bold text-white mb-1">
+              <h1 className="text-xl font-bold text-white mb-1">
                 Bonjour {userInfo.name} 👋
               </h1>
-              <p className="text-white/80 text-sm">
+              <p className="text-white/80 text-xs">
                 {currentDate}
               </p>
             </div>
@@ -153,7 +153,7 @@ const MobileDashboard: React.FC = () => {
               size="sm"
               className="text-white hover:bg-white/20 rounded-full p-2"
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -161,22 +161,22 @@ const MobileDashboard: React.FC = () => {
         {/* Carte de solde avec dégradé et coins arrondis */}
         <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 mb-8 border border-white/20">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white/90 text-lg font-medium">Solde disponible</h2>
+            <h2 className="text-white/90 text-base font-medium">Solde disponible</h2>
             <Button
               onClick={toggleBalanceVisibility}
               variant="ghost"
               size="sm"
               className="text-white hover:bg-white/20 rounded-full p-2"
             >
-              {isBalanceVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </Button>
           </div>
           
-          <div className="text-4xl font-bold text-white mb-6">
+          <div className="text-3xl font-bold text-white mb-6">
             {formatBalanceDisplay(profile?.balance || 0)}
           </div>
           
-          <div className="flex items-center text-green-400 text-sm mb-4">
+          <div className="flex items-center text-green-400 text-xs mb-4">
             <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
             Mise à jour toutes les 5 secondes
           </div>
@@ -185,7 +185,7 @@ const MobileDashboard: React.FC = () => {
 
       {/* Actions Rapides sur fond blanc */}
       <div className="bg-white rounded-t-3xl px-6 py-8 min-h-[60vh]">
-        <h3 className="text-xl font-bold text-gray-900 mb-6">Actions rapides</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-6">Actions rapides</h3>
         
         <div className="grid grid-cols-2 gap-6 mb-8">
           {quickActions.map((action, index) => (
@@ -193,12 +193,12 @@ const MobileDashboard: React.FC = () => {
               key={index}
               onClick={() => navigate(action.route)}
               variant="ghost"
-              className="h-auto p-6 flex flex-col items-center gap-4 hover:bg-gray-50 rounded-2xl border border-gray-100"
+              className="h-auto p-5 flex flex-col items-center gap-3 hover:bg-gray-50 rounded-2xl border border-gray-100"
             >
-              <div className={`w-16 h-16 rounded-full ${action.bgColor} flex items-center justify-center`}>
-                <action.icon className="w-8 h-8 text-white" />
+              <div className={`w-14 h-14 rounded-full ${action.bgColor} flex items-center justify-center`}>
+                <action.icon className="w-7 h-7 text-white" />
               </div>
-              <span className="text-gray-700 font-medium text-base">
+              <span className="text-gray-700 font-medium text-sm">
                 {action.title}
               </span>
             </Button>
@@ -210,19 +210,19 @@ const MobileDashboard: React.FC = () => {
           <Button
             onClick={() => navigate('/mobile-recharge')}
             variant="outline"
-            className="w-full h-14 justify-start rounded-2xl border-gray-200"
+            className="w-full h-12 justify-start rounded-2xl border-gray-200"
           >
-            <Plus className="w-6 h-6 mr-4 text-green-600" />
-            <span className="text-base font-medium">Recharge Mobile</span>
+            <Plus className="w-5 h-5 mr-3 text-green-600" />
+            <span className="text-sm font-medium">Recharge Mobile</span>
           </Button>
           
           <Button
             onClick={() => navigate('/withdraw')}
             variant="outline"
-            className="w-full h-14 justify-start rounded-2xl border-gray-200"
+            className="w-full h-12 justify-start rounded-2xl border-gray-200"
           >
-            <ArrowDownLeft className="w-6 h-6 mr-4 text-red-600" />
-            <span className="text-base font-medium">Retirer de l'argent</span>
+            <ArrowDownLeft className="w-5 h-5 mr-3 text-red-600" />
+            <span className="text-sm font-medium">Retirer de l'argent</span>
           </Button>
         </div>
       </div>
