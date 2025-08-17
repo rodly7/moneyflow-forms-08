@@ -37,45 +37,50 @@ const AgentDashboard = memo(() => {
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch agent stats with explicit typing to avoid type inference issues
-  const { data: agentStats } = useQuery<AgentStatsData | null>({
+  // Create a simplified query function to avoid type inference issues
+  const fetchAgentStats = async () => {
+    if (!user?.id) return null;
+
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Fetch withdrawals
+    const { data: withdrawals } = await supabase
+      .from('withdrawals')
+      .select('amount')
+      .eq('agent_id', user.id)
+      .gte('created_at', `${today}T00:00:00`)
+      .lt('created_at', `${today}T23:59:59`);
+
+    // Fetch recharges
+    const { data: recharges } = await supabase
+      .from('recharges')
+      .select('amount')
+      .eq('user_id', user.id)
+      .gte('created_at', `${today}T00:00:00`)
+      .lt('created_at', `${today}T23:59:59`);
+
+    const withdrawalsList = withdrawals || [];
+    const rechargesList = recharges || [];
+
+    const todayWithdrawals = withdrawalsList.length;
+    const todayRecharges = rechargesList.length;
+    const todayVolume = withdrawalsList.reduce((sum, w) => sum + (w.amount || 0), 0) +
+                       rechargesList.reduce((sum, r) => sum + (r.amount || 0), 0);
+
+    const result: AgentStatsData = {
+      todayTransactions: todayWithdrawals + todayRecharges,
+      todayVolume,
+      todayWithdrawals,
+      todayRecharges
+    };
+
+    return result;
+  };
+
+  // Use the query without explicit generic typing
+  const { data: agentStats } = useQuery({
     queryKey: ['agentStats', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Fetch withdrawals
-      const { data: withdrawals } = await supabase
-        .from('withdrawals')
-        .select('amount')
-        .eq('agent_id', user.id)
-        .gte('created_at', `${today}T00:00:00`)
-        .lt('created_at', `${today}T23:59:59`);
-
-      // Fetch recharges
-      const { data: recharges } = await supabase
-        .from('recharges')
-        .select('amount')
-        .eq('user_id', user.id)
-        .gte('created_at', `${today}T00:00:00`)
-        .lt('created_at', `${today}T23:59:59`);
-
-      const withdrawalsList = withdrawals || [];
-      const rechargesList = recharges || [];
-
-      const todayWithdrawals = withdrawalsList.length;
-      const todayRecharges = rechargesList.length;
-      const todayVolume = withdrawalsList.reduce((sum, w) => sum + (w.amount || 0), 0) +
-                         rechargesList.reduce((sum, r) => sum + (r.amount || 0), 0);
-
-      return {
-        todayTransactions: todayWithdrawals + todayRecharges,
-        todayVolume,
-        todayWithdrawals,
-        todayRecharges
-      };
-    },
+    queryFn: fetchAgentStats,
     enabled: !!user,
     refetchInterval: 30000
   });
