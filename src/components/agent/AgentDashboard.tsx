@@ -23,15 +23,11 @@ import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/integrations/supabase/client";
 import { AgentBalanceCard } from "./AgentBalanceCard";
 import AgentCommissions from "./AgentCommissions";
-import { useAgentStats } from "@/hooks/useAgentStats";
 
 const AgentDashboard = memo(() => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Use the dedicated hook for agent stats
-  const { data: agentStats } = useAgentStats(user?.id);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -118,7 +114,7 @@ const AgentDashboard = memo(() => {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Transactions</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {agentStats?.todayTransactions || 0}
+                    0
                   </p>
                 </div>
                 <Activity className="w-8 h-8 text-blue-500" />
@@ -133,7 +129,7 @@ const AgentDashboard = memo(() => {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Volume</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(agentStats?.todayVolume || 0)}
+                    {formatCurrency(0)}
                   </p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-green-500" />
@@ -148,7 +144,7 @@ const AgentDashboard = memo(() => {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Retraits</p>
                   <p className="text-2xl font-bold text-red-600">
-                    {agentStats?.todayWithdrawals || 0}
+                    0
                   </p>
                 </div>
                 <Download className="w-8 h-8 text-red-500" />
@@ -163,7 +159,7 @@ const AgentDashboard = memo(() => {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Dépôts</p>
                   <p className="text-2xl font-bold text-purple-600">
-                    {agentStats?.todayRecharges || 0}
+                    0
                   </p>
                 </div>
                 <Upload className="w-8 h-8 text-purple-500" />
