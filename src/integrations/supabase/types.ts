@@ -1261,6 +1261,33 @@ export type Database = {
           },
         ]
       }
+      rate_limits: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          operation_type: string
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          operation_type: string
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          operation_type?: string
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       receipts: {
         Row: {
           created_at: string
@@ -1754,6 +1781,15 @@ export type Database = {
         Args: { agent_id_param: string }
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: {
+          p_max_attempts?: number
+          p_operation_type: string
+          p_user_id: string
+          p_window_minutes?: number
+        }
+        Returns: boolean
+      }
       claim_pending_transfer: {
         Args:
           | Record<PropertyKey, never>
@@ -1765,6 +1801,10 @@ export type Database = {
         Returns: undefined
       }
       cleanup_expired_payment_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
