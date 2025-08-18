@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +22,28 @@ export const useUnifiedNotifications = () => {
   const [isConnected, setIsConnected] = useState(false);
   const channelRef = useRef<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Clé pour stocker les notifications lues dans le localStorage
+  const getReadNotificationsKey = () => `readNotifications_${user?.id}`;
+
+  // Récupérer les IDs des notifications lues depuis le localStorage
+  const getReadNotificationIds = (): Set<string> => {
+    try {
+      const stored = localStorage.getItem(getReadNotificationsKey());
+      return new Set(stored ? JSON.parse(stored) : []);
+    } catch {
+      return new Set();
+    }
+  };
+
+  // Sauvegarder les IDs des notifications lues dans le localStorage
+  const saveReadNotificationIds = (readIds: Set<string>) => {
+    try {
+      localStorage.setItem(getReadNotificationsKey(), JSON.stringify([...readIds]));
+    } catch (error) {
+      console.error('Erreur sauvegarde notifications lues:', error);
+    }
+  };
 
   // Fonction pour afficher une notification toast avec vibration
   const showNotificationToast = (notification: UnifiedNotification) => {
@@ -58,9 +81,11 @@ export const useUnifiedNotifications = () => {
   const loadRecentNotifications = async () => {
     if (!user?.id) return;
 
-    console.log('📥 Chargement des notifications récentes pour:', user.id);
+    console.log('📥 Chargement des notifications pour:', user.id);
 
     try {
+      const readIds = getReadNotificationIds();
+
       // Charger les notifications administratives récentes
       const { data: adminNotifications, error: adminError } = await supabase
         .from('notification_recipients')
@@ -77,7 +102,7 @@ export const useUnifiedNotifications = () => {
           )
         `)
         .eq('user_id', user.id)
-        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // 7 jours
         .order('created_at', { ascending: false });
 
       if (adminError) {
@@ -89,7 +114,7 @@ export const useUnifiedNotifications = () => {
         .from('transfers')
         .select('*')
         .or(`recipient_phone.eq.${user.phone},recipient_email.eq.${user.email}`)
-        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false });
 
       if (transferError) {
@@ -101,7 +126,7 @@ export const useUnifiedNotifications = () => {
         .from('withdrawals')
         .select('*')
         .eq('user_id', user.id)
-        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false });
 
       if (withdrawalError) {
@@ -111,55 +136,72 @@ export const useUnifiedNotifications = () => {
       // Combiner toutes les notifications
       const allNotifications: UnifiedNotification[] = [];
 
-      // Ajouter les notifications admin avec vérification de type
+      // Ajouter les notifications admin
       adminNotifications?.forEach(item => {
         if (item.notifications && !Array.isArray(item.notifications)) {
           const notification = item.notifications as any;
+          const notificationId = `admin_${notification.id}`;
+          
+          // Exclure les notifications déjà lues
+          if (!readIds.has(notificationId)) {
+            allNotifications.push({
+              id: notificationId,
+              title: notification.title,
+              message: notification.message,
+              type: 'admin_message',
+              priority: notification.priority as any,
+              created_at: notification.created_at,
+              read: !!item.read_at || readIds.has(notificationId)
+            });
+          }
+        }
+      });
+
+      // Ajouter les notifications de transferts reçus
+      transfers?.forEach(transfer => {
+        const notificationId = `transfer_${transfer.id}`;
+        
+        // Exclure les notifications déjà lues
+        if (!readIds.has(notificationId)) {
           allNotifications.push({
-            id: `admin_${notification.id}`,
-            title: notification.title,
-            message: notification.message,
-            type: 'admin_message',
-            priority: notification.priority as any,
-            created_at: notification.created_at,
-            read: !!item.read_at
+            id: notificationId,
+            title: '💰 Argent reçu',
+            message: `Vous avez reçu ${transfer.amount?.toLocaleString('fr-FR')} FCFA`,
+            type: 'transfer_received',
+            priority: 'high',
+            amount: transfer.amount,
+            created_at: transfer.created_at,
+            read: readIds.has(notificationId)
           });
         }
       });
 
-      // Ajouter les notifications de transferts
-      transfers?.forEach(transfer => {
-        allNotifications.push({
-          id: `transfer_${transfer.id}`,
-          title: '💰 Argent reçu',
-          message: `Vous avez reçu ${transfer.amount?.toLocaleString('fr-FR')} FCFA`,
-          type: 'transfer_received',
-          priority: 'high',
-          amount: transfer.amount,
-          created_at: transfer.created_at,
-          read: false
-        });
-      });
-
       // Ajouter les notifications de retraits
       withdrawals?.forEach(withdrawal => {
-        allNotifications.push({
-          id: `withdrawal_${withdrawal.id}`,
-          title: '💳 Retrait effectué',
-          message: `Retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA ${withdrawal.status === 'completed' ? 'réussi' : 'en cours'}`,
-          type: 'withdrawal_completed',
-          priority: 'normal',
-          amount: withdrawal.amount,
-          created_at: withdrawal.created_at,
-          read: false
-        });
+        const notificationId = `withdrawal_${withdrawal.id}`;
+        
+        // Exclure les notifications déjà lues
+        if (!readIds.has(notificationId)) {
+          allNotifications.push({
+            id: notificationId,
+            title: '💳 Retrait effectué',
+            message: `Retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA ${withdrawal.status === 'completed' ? 'réussi' : 'en cours'}`,
+            type: 'withdrawal_completed',
+            priority: 'normal',
+            amount: withdrawal.amount,
+            created_at: withdrawal.created_at,
+            read: readIds.has(notificationId)
+          });
+        }
       });
 
-      // Trier par date décroissante
-      allNotifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      // Trier par date décroissante et filtrer les lues
+      const unreadNotifications = allNotifications
+        .filter(n => !n.read)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      setNotifications(allNotifications);
-      console.log(`✅ ${allNotifications.length} notifications chargées`);
+      setNotifications(unreadNotifications);
+      console.log(`✅ ${unreadNotifications.length} notifications non lues chargées`);
 
     } catch (error) {
       console.error('❌ Erreur lors du chargement des notifications:', error);
@@ -234,8 +276,8 @@ export const useUnifiedNotifications = () => {
         
         const notification: UnifiedNotification = {
           id: `withdrawal_${withdrawal.id}`,
-          title: '💳 Retrait confirmé',
-          message: `Retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA traité`,
+          title: '💳 Retrait initié',
+          message: `Demande de retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA créée`,
           type: 'withdrawal_completed',
           priority: 'normal',
           amount: withdrawal.amount,
@@ -245,6 +287,38 @@ export const useUnifiedNotifications = () => {
 
         setNotifications(prev => [notification, ...prev.slice(0, 9)]);
         showNotificationToast(notification);
+      }
+    );
+
+    // Écouter les mises à jour des retraits
+    channelRef.current.on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'withdrawals',
+        filter: `user_id=eq.${user.id}`
+      },
+      (payload: any) => {
+        console.log('💸 Retrait mis à jour:', payload.new);
+        
+        const withdrawal = payload.new;
+        
+        if (withdrawal.status === 'completed') {
+          const notification: UnifiedNotification = {
+            id: `withdrawal_update_${withdrawal.id}`,
+            title: '✅ Retrait confirmé',
+            message: `Votre retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA a été traité avec succès`,
+            type: 'withdrawal_completed',
+            priority: 'high',
+            amount: withdrawal.amount,
+            created_at: new Date().toISOString(),
+            read: false
+          };
+
+          setNotifications(prev => [notification, ...prev.slice(0, 9)]);
+          showNotificationToast(notification);
+        }
       }
     );
 
@@ -327,14 +401,20 @@ export const useUnifiedNotifications = () => {
 
   // Marquer une notification comme lue
   const markAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-    );
+    const readIds = getReadNotificationIds();
+    readIds.add(notificationId);
+    saveReadNotificationIds(readIds);
+    
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
   };
 
   // Marquer toutes comme lues
   const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    const readIds = getReadNotificationIds();
+    notifications.forEach(n => readIds.add(n.id));
+    saveReadNotificationIds(readIds);
+    
+    setNotifications([]);
   };
 
   // Forcer le rechargement
@@ -342,14 +422,14 @@ export const useUnifiedNotifications = () => {
     loadRecentNotifications();
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.length;
 
   return {
     notifications: notifications.slice(0, 10), // Limiter à 10 notifications
     unreadCount,
     isConnected,
-    markAsRead: () => {},
-    markAllAsRead: () => {},
-    refresh: () => loadRecentNotifications()
+    markAsRead,
+    markAllAsRead,
+    refresh
   };
 };

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Bell, BellRing } from "lucide-react";
+import { Bell, BellRing, Check, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,246 +12,175 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  notification_type: string;
-  priority: 'low' | 'medium' | 'high';
-  created_at: string;
-  is_read: boolean;
-}
+import { useUnifiedNotifications } from "@/hooks/useUnifiedNotifications";
 
 export const UnifiedNotificationBell = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
+  const { 
+    notifications, 
+    unreadCount, 
+    isConnected, 
+    markAsRead, 
+    markAllAsRead,
+    refresh 
+  } = useUnifiedNotifications();
+  
   const { toast } = useToast();
-
-  // Fetch notifications
-  const fetchNotifications = async () => {
-    if (!user?.id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('notification_recipients')
-        .select(`
-          notification_id,
-          read_at,
-          status,
-          notifications (
-            id,
-            title,
-            message,
-            notification_type,
-            priority,
-            created_at
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false, foreignTable: 'notifications' })
-        .limit(20);
-
-      if (error) throw error;
-
-      const mapped = (data || [])
-        .filter((item: any) => item.notifications && !Array.isArray(item.notifications))
-        .map((item: any) => ({
-          id: item.notifications.id,
-          title: item.notifications.title,
-          message: item.notifications.message,
-          notification_type: item.notifications.notification_type,
-          priority: (item.notifications.priority as any) || 'normal',
-          created_at: item.notifications.created_at,
-          is_read: !!item.read_at || item.status === 'read',
-        }));
-
-      setNotifications(mapped);
-      setUnreadCount(mapped.filter(n => !n.is_read).length);
-    } catch (error) {
-      console.error('Erreur chargement notifications:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Mark notification as read
-  const markAsRead = async (notificationId: string) => {
-    try {
-      const { error } = await supabase
-        .from('notification_recipients')
-        .update({ read_at: new Date().toISOString(), status: 'read' })
-        .eq('notification_id', notificationId)
-        .eq('user_id', user?.id || '');
-
-      if (error) throw error;
-
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Erreur marquage lecture:', error);
-    }
-  };
-
-  // Mark all as read
-  const markAllAsRead = async () => {
-    if (!user?.id) return;
-
-    try {
-      const { error } = await supabase
-        .from('notification_recipients')
-        .update({ read_at: new Date().toISOString(), status: 'read' })
-        .eq('user_id', user.id)
-        .is('read_at', null);
-
-      if (error) throw error;
-
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
-      
-      toast({
-        title: "Notifications marquées comme lues",
-        description: "Toutes vos notifications ont été marquées comme lues"
-      });
-    } catch (error) {
-      console.error('Erreur marquage toutes lues:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-
-    // Set up real-time subscription
-    const subscription = supabase
-      .channel('notification_recipients')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'notification_recipients',
-          filter: `user_id=eq.${user?.id}`
-        }, 
-        () => {
-          fetchNotifications();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [user?.id]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return 'text-red-600';
-      case 'medium': return 'text-orange-600';
+      case 'normal': return 'text-orange-600';
       default: return 'text-blue-600';
     }
   };
 
-  const formatNotificationType = (type: string) => {
-    const typeMap: { [key: string]: string } = {
-      'transfer_received': '💰 Transfert reçu',
-      'transfer_sent': '📤 Transfert envoyé',
-      'bill_payment': '🧾 Paiement facture',
-      'withdrawal_request': '🏧 Demande retrait',
-      'commission_earned': '💎 Commission gagnée',
-      'system': '⚙️ Système',
-      'general': '📢 Général'
-    };
-    return typeMap[type] || '📩 Notification';
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'transfer_received': return '💰';
+      case 'withdrawal_completed': return '💳';
+      case 'admin_message': return '📢';
+      default: return '📩';
+    }
+  };
+
+  const handleMarkAsRead = (notificationId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    markAsRead(notificationId);
+    toast({
+      title: "Notification marquée comme lue",
+      duration: 2000
+    });
+  };
+
+  const handleMarkAllAsRead = () => {
+    markAllAsRead();
+    toast({
+      title: "Toutes les notifications marquées comme lues",
+      duration: 2000
+    });
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative">
-          {unreadCount > 0 ? (
-            <BellRing className="h-4 w-4" />
-          ) : (
-            <Bell className="h-4 w-4" />
-          )}
-          {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-            >
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      
-      <DropdownMenuContent className="w-80" align="end">
-        <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Notifications</span>
-          {unreadCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={markAllAsRead}
-              className="h-auto p-1 text-xs"
-            >
-              Tout marquer lu
-            </Button>
-          )}
-        </DropdownMenuLabel>
-        
-        <DropdownMenuSeparator />
-        
-        {isLoading ? (
-          <div className="p-4 text-center text-sm text-muted-foreground">
-            Chargement...
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="p-4 text-center text-sm text-muted-foreground">
-            Aucune notification
-          </div>
-        ) : (
-          <ScrollArea className="max-h-96">
-            {notifications.map((notification) => (
-              <DropdownMenuItem
-                key={notification.id}
-                className={`p-3 cursor-pointer ${!notification.is_read ? 'bg-muted/50' : ''}`}
-                onClick={() => markAsRead(notification.id)}
+    <div className="relative">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="relative">
+            {unreadCount > 0 ? (
+              <BellRing className="h-4 w-4 text-orange-500" />
+            ) : (
+              <Bell className="h-4 w-4" />
+            )}
+            {unreadCount > 0 && (
+              <Badge 
+                variant="destructive" 
+                className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
               >
-                <div className="flex flex-col w-full">
-                  <div className="flex items-start justify-between mb-1">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {formatNotificationType(notification.notification_type)}
-                    </span>
-                    <span className={`text-xs ${getPriorityColor(notification.priority)}`}>
-                      {formatDistanceToNow(new Date(notification.created_at), { 
-                        addSuffix: true, 
-                        locale: fr 
-                      })}
-                    </span>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Badge>
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        
+        <DropdownMenuContent className="w-80" align="end">
+          <DropdownMenuLabel className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>Notifications</span>
+              {!isConnected && (
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" title="Connexion temps réel déconnectée" />
+              )}
+            </div>
+            {unreadCount > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleMarkAllAsRead}
+                className="h-auto p-1 text-xs hover:bg-gray-100"
+              >
+                <CheckCheck className="w-3 h-3 mr-1" />
+                Tout lire
+              </Button>
+            )}
+          </DropdownMenuLabel>
+          
+          <DropdownMenuSeparator />
+          
+          <ScrollArea className="h-80">
+            {notifications.length === 0 ? (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p>Aucune nouvelle notification</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className="flex items-start gap-3 p-3 hover:bg-gray-50 cursor-pointer relative group"
+                  >
+                    <div className="text-lg flex-shrink-0 mt-0.5">
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className={`font-medium text-sm ${getPriorityColor(notification.priority)}`}>
+                          {notification.title}
+                        </h4>
+                        
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+                          onClick={(e) => handleMarkAsRead(notification.id, e)}
+                          title="Marquer comme lue"
+                        >
+                          <Check className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      
+                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                        {notification.message}
+                      </p>
+                      
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-gray-400">
+                          {formatDistanceToNow(new Date(notification.created_at), { 
+                            addSuffix: true, 
+                            locale: fr 
+                          })}
+                        </p>
+                        
+                        {notification.priority === 'high' && (
+                          <div className="w-2 h-2 bg-red-500 rounded-full" />
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm font-medium mb-1">
-                    {notification.title}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {notification.message}
-                  </div>
-                  {!notification.is_read && (
-                    <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 ml-auto" />
-                  )}
-                </div>
-              </DropdownMenuItem>
-            ))}
+                ))}
+              </div>
+            )}
           </ScrollArea>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          
+          {notifications.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <div className="p-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={refresh}
+                  className="w-full text-xs"
+                >
+                  Actualiser
+                </Button>
+              </div>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 };
