@@ -52,9 +52,22 @@ const Layout = () => {
       }
     };
 
+    // Performance monitoring with proper type checking
+    const monitorPerformance = () => {
+      if ('performance' in window && window.performance.getEntriesByType) {
+        const resources = window.performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+        resources.forEach(entry => {
+          if (entry.transferSize && entry.decodedBodySize) {
+            console.log(`Resource: ${entry.name}, Transfer: ${entry.transferSize}, Decoded: ${entry.decodedBodySize}`);
+          }
+        });
+      }
+    };
+
     // Run cache and SW clearing
     clearAllCaches();
     clearServiceWorkers();
+    monitorPerformance();
 
     // Basic viewport configuration
     const setViewport = () => {
