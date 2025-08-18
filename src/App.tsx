@@ -9,7 +9,7 @@ import { PWAInstallBanner } from "./components/pwa/PWAInstallBanner";
 import { PWAUpdateBanner } from "./components/pwa/PWAUpdateBanner";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 
-// Force ALL imports to be static - NO lazy loading whatsoever
+// Force direct imports - NO lazy loading at all
 import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -45,27 +45,7 @@ import AgentCommissionWithdrawal from "./pages/AgentCommissionWithdrawal";
 import AgentSettingsPage from "./pages/AgentSettings";
 import DepositWithdrawalForm from "./components/deposit-withdrawal/DepositWithdrawalForm";
 
-// Preload all components immediately to prevent any lazy loading
-const preloadComponents = () => {
-  console.log('Preloading all components...');
-  // Force evaluation of all imported components
-  [
-    Layout, Index, Auth, Dashboard, ResponsiveAgentDashboard, MainAdminDashboard,
-    SubAdminDashboard, Transfer, Transactions, UnifiedDepositWithdrawal,
-    AgentPerformanceDashboard, Savings, Receipts, QRCode, QRPayment, AgentAuth,
-    AgentServices, AdminTreasury, AdminUsers, AdminAgentReports, AdminSettings,
-    AdminNotifications, AdminTransactionMonitor, Notifications, ChangePassword,
-    BillPayments, AgentWithdrawalAdvanced, AgentWithdrawalSimple, AgentDeposit,
-    AgentReports, PrepaidCards, AgentCommissionWithdrawal, AgentSettingsPage,
-    DepositWithdrawalForm
-  ].forEach(Component => {
-    if (Component) {
-      console.log('Component loaded:', Component.name || 'Anonymous');
-    }
-  });
-  console.log('All components preloaded successfully');
-};
-
+// Simple loading component
 const SimpleLoader = () => (
   <div className="min-h-screen flex items-center justify-center p-4 bg-background">
     <Card className="w-full max-w-sm">
@@ -79,86 +59,47 @@ const SimpleLoader = () => (
 
 function App() {
   useEffect(() => {
-    console.log('App component mounting with aggressive anti-cache strategy...');
+    console.log('App component mounting...');
     
-    // Preload all components immediately
-    preloadComponents();
-    
-    // Ultra-aggressive cache and service worker cleanup
-    const ultraClearEverything = async () => {
+    // Force complete cache and service worker cleanup
+    const clearEverything = async () => {
       try {
-        console.log('Starting ultra-aggressive cleanup...');
-        
-        // 1. Clear all possible caches
+        // Clear all caches aggressively
         if ('caches' in window) {
           const cacheNames = await caches.keys();
-          console.log('Found caches to clear:', cacheNames);
-          await Promise.all(cacheNames.map(async (cacheName) => {
-            const deleted = await caches.delete(cacheName);
-            console.log(`Cache ${cacheName} deleted:`, deleted);
-          }));
+          console.log('Clearing caches:', cacheNames);
+          await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
         }
 
-        // 2. Unregister ALL service workers
+        // Unregister all service workers
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
-          console.log('Found SW registrations:', registrations.length);
-          await Promise.all(registrations.map(async (registration) => {
-            const unregistered = await registration.unregister();
-            console.log('SW unregistered:', unregistered);
-          }));
+          await Promise.all(registrations.map(registration => registration.unregister()));
+          console.log('All service workers unregistered');
         }
 
-        // 3. Clear all storage
-        if ('localStorage' in window) {
-          localStorage.clear();
-          console.log('localStorage cleared');
-        }
-        
-        if ('sessionStorage' in window) {
-          sessionStorage.clear();
-          console.log('sessionStorage cleared');
+        // Force reload if we're dealing with cached content
+        if (window.performance && window.performance.navigation.type === 1) {
+          console.log('Page was refreshed, clearing everything');
         }
 
-        // 4. Clear IndexedDB if possible
-        if ('indexedDB' in window) {
-          try {
-            const databases = await indexedDB.databases();
-            await Promise.all(databases.map(db => {
-              if (db.name) {
-                indexedDB.deleteDatabase(db.name);
-                console.log('IndexedDB cleared:', db.name);
-              }
-            }));
-          } catch (e) {
-            console.log('IndexedDB clearing skipped:', e.message);
-          }
-        }
-
-        console.log('Ultra-aggressive cleanup completed');
       } catch (error) {
-        console.error('Ultra cleanup failed:', error);
+        console.error('Cache/SW clearing failed:', error);
       }
     };
 
-    ultraClearEverything();
+    clearEverything();
 
-    // Force viewport configuration
-    const setViewport = () => {
-      let viewport = document.querySelector('meta[name=viewport]');
-      if (!viewport) {
-        viewport = document.createElement('meta');
-        viewport.setAttribute('name', 'viewport');
-        document.head.appendChild(viewport);
-      }
+    // Set viewport
+    const viewport = document.querySelector('meta[name=viewport]');
+    if (viewport) {
       viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
-    };
+    }
 
-    setViewport();
-    console.log('App component mounted with all static imports');
+    console.log('App component mounted successfully');
   }, []);
 
-  console.log('App rendering with preloaded components...');
+  console.log('App rendering...');
 
   return (
     <TooltipProvider>

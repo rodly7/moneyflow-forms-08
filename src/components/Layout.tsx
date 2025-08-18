@@ -16,133 +16,111 @@ const Layout = () => {
     console.log('User:', user ? 'authenticated' : 'not authenticated');
     console.log('Loading:', loading);
 
-    // Even more aggressive cache clearing in Layout
-    const superAggressiveCacheClear = async () => {
-      console.log('Layout: Starting super aggressive cache clearing...');
-      
-      try {
-        // Clear all possible caches multiple times
-        if ('caches' in window) {
-          for (let i = 0; i < 3; i++) {
-            const cacheNames = await caches.keys();
-            if (cacheNames.length > 0) {
-              console.log(`Layout: Clearing caches (attempt ${i + 1}):`, cacheNames);
-              await Promise.all(cacheNames.map(async (cacheName) => {
-                const deleted = await caches.delete(cacheName);
-                console.log(`Layout: Cache ${cacheName} deleted:`, deleted);
-              }));
-            }
-          }
-        }
-
-        // Force unregister all service workers multiple times
-        if ('serviceWorker' in navigator) {
-          for (let i = 0; i < 3; i++) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            if (registrations.length > 0) {
-              console.log(`Layout: Unregistering SWs (attempt ${i + 1}):`, registrations.length);
-              await Promise.all(registrations.map(async (registration) => {
-                const unregistered = await registration.unregister();
-                console.log(`Layout: SW unregistered:`, unregistered);
-              }));
-            }
-          }
-        }
-
-        // Force reload if we detect any cached resources
-        const performance = window.performance;
-        if (performance && performance.getEntriesByType) {
-          const resources = performance.getEntriesByType('resource');
-          const cachedResources = resources.filter(resource => 
-            resource.transferSize === 0 && resource.decodedBodySize > 0
-          );
+    // Aggressive cache and service worker cleanup
+    const clearAllCaches = async () => {
+      if ('caches' in window) {
+        try {
+          const cacheNames = await caches.keys();
+          console.log('Layout: Found caches:', cacheNames);
           
-          if (cachedResources.length > 0) {
-            console.log('Layout: Detected cached resources, forcing clean reload');
-            window.location.reload();
-            return;
-          }
+          // Clear all caches
+          await Promise.all(cacheNames.map(async (cacheName) => {
+            await caches.delete(cacheName);
+            console.log('Layout: Cleared cache:', cacheName);
+          }));
+          
+          console.log('Layout: All caches cleared successfully');
+        } catch (error) {
+          console.error('Layout: Cache clearing failed:', error);
         }
-
-        console.log('Layout: Super aggressive cache clearing completed');
-      } catch (error) {
-        console.error('Layout: Super aggressive cache clearing failed:', error);
       }
     };
 
-    superAggressiveCacheClear();
+    // Clear all service worker registrations
+    const clearServiceWorkers = async () => {
+      if ('serviceWorker' in navigator) {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(registration => {
+            console.log('Layout: Unregistering SW:', registration.scope);
+            return registration.unregister();
+          }));
+          console.log('Layout: All service workers unregistered');
+        } catch (error) {
+          console.error('Layout: Service worker clearing failed:', error);
+        }
+      }
+    };
 
-    // Enhanced viewport and styling setup
-    const setupViewportAndStyles = () => {
-      // Force viewport
+    // Run cache and SW clearing
+    clearAllCaches();
+    clearServiceWorkers();
+
+    // Basic viewport configuration
+    const setViewport = () => {
       let viewport = document.querySelector('meta[name=viewport]');
       if (!viewport) {
         viewport = document.createElement('meta');
         viewport.setAttribute('name', 'viewport');
         document.head.appendChild(viewport);
       }
+      
       viewport.setAttribute(
         'content', 
         'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover'
       );
-
-      // Set CSS variables for full screen
-      const setFullScreenVars = () => {
-        const innerHeight = window.innerHeight;
-        const innerWidth = window.innerWidth;
-        
-        document.documentElement.style.setProperty('--vh', `${innerHeight * 0.01}px`);
-        document.documentElement.style.setProperty('--vw', `${innerWidth * 0.01}px`);
-        document.documentElement.style.setProperty('--app-height', `${innerHeight}px`);
-        document.documentElement.style.setProperty('--app-width', `${innerWidth}px`);
-      };
-
-      setFullScreenVars();
-
-      // Force full screen layout
-      const elements = [document.documentElement, document.body];
-      elements.forEach(element => {
-        if (element) {
-          element.style.height = '100%';
-          element.style.width = '100%';
-          element.style.margin = '0';
-          element.style.padding = '0';
-          element.style.overflow = 'hidden';
-        }
-      });
-
-      const root = document.getElementById('root');
-      if (root) {
-        root.style.height = '100vh';
-        root.style.width = '100vw';
-        root.style.margin = '0';
-        root.style.padding = '0';
-        root.style.position = 'relative';
-        root.style.overflow = 'auto';
-      }
-
-      // Resize handlers
-      const handleResize = () => setFullScreenVars();
-      window.addEventListener('resize', handleResize);
-      window.addEventListener('orientationchange', handleResize);
-
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        window.removeEventListener('orientationchange', handleResize);
-      };
     };
 
-    const cleanup = setupViewportAndStyles();
-    
+    const setFullScreenVars = () => {
+      const innerHeight = window.innerHeight;
+      const innerWidth = window.innerWidth;
+      
+      document.documentElement.style.setProperty('--vh', `${innerHeight * 0.01}px`);
+      document.documentElement.style.setProperty('--vw', `${innerWidth * 0.01}px`);
+      document.documentElement.style.setProperty('--app-height', `${innerHeight}px`);
+      document.documentElement.style.setProperty('--app-width', `${innerWidth}px`);
+    };
+
+    setViewport();
+    setFullScreenVars();
+
+    // Basic layout styles
+    document.documentElement.style.height = '100%';
+    document.documentElement.style.width = '100%';
+    document.documentElement.style.margin = '0';
+    document.documentElement.style.padding = '0';
+    document.body.style.height = '100%';
+    document.body.style.width = '100%';
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+
+    const root = document.getElementById('root');
+    if (root) {
+      root.style.height = '100vh';
+      root.style.width = '100vw';
+      root.style.margin = '0';
+      root.style.padding = '0';
+      root.style.position = 'relative';
+    }
+
+    // Resize handler
+    const handleResize = () => {
+      setFullScreenVars();
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
     return () => {
-      if (cleanup) cleanup();
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
     };
   }, [location.pathname]);
 
   console.log('Layout rendering, loading:', loading, 'user:', !!user);
 
   if (loading) {
-    console.log('Layout: Showing enhanced loading screen');
+    console.log('Layout: Showing loading screen');
     return (
       <PWAOptimizedLayout className="full-screen-app">
         <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-50 to-blue-100">
@@ -150,8 +128,7 @@ const Layout = () => {
             <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
             <div className="space-y-2">
               <p className="text-xl font-semibold text-blue-800">SendFlow</p>
-              <p className="text-sm text-blue-600">Chargement sécurisé de votre application...</p>
-              <p className="text-xs text-blue-500">Tous les composants sont préchargés</p>
+              <p className="text-sm text-blue-600">Chargement de votre application...</p>
             </div>
           </div>
         </div>
@@ -172,7 +149,7 @@ const Layout = () => {
     }
   }
 
-  console.log('Layout: Rendering main layout with preloaded components');
+  console.log('Layout: Rendering main layout with Outlet');
 
   return (
     <PWAOptimizedLayout className="full-screen-app">

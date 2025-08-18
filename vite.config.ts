@@ -22,31 +22,11 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        // Force everything into a single chunk to prevent dynamic imports
-        manualChunks: () => 'everything.js',
-        // Ensure no dynamic imports are created
-        inlineDynamicImports: false,
-        format: 'es'
+        // Prevent code splitting for critical components
+        manualChunks: undefined,
       }
     },
-    // Increase chunk size limit significantly
-    chunkSizeWarningLimit: 5000,
-    // Ensure source maps for better debugging
-    sourcemap: true,
-    // Optimize dependencies
-    commonjsOptions: {
-      include: [/node_modules/]
-    }
+    // Increase chunk size limit to prevent splitting
+    chunkSizeWarningLimit: 1000,
   },
-  // Optimize dependencies to prevent dynamic import issues
-  optimizeDeps: {
-    include: [
-      'react',
-      'react-dom',
-      'react-router-dom',
-      '@tanstack/react-query',
-      'lucide-react'
-    ],
-    exclude: []
-  }
 }));
