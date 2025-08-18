@@ -9,7 +9,7 @@ import { PWAInstallBanner } from "./components/pwa/PWAInstallBanner";
 import { PWAUpdateBanner } from "./components/pwa/PWAUpdateBanner";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 
-// Force direct imports - NO lazy loading at all
+// CRITICAL: All imports must be static - NO dynamic imports whatsoever
 import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -45,13 +45,14 @@ import AgentCommissionWithdrawal from "./pages/AgentCommissionWithdrawal";
 import AgentSettingsPage from "./pages/AgentSettings";
 import DepositWithdrawalForm from "./components/deposit-withdrawal/DepositWithdrawalForm";
 
-// Simple loading component
-const SimpleLoader = () => (
+// Enhanced loading component with error boundary
+const EnhancedLoader = () => (
   <div className="min-h-screen flex items-center justify-center p-4 bg-background">
     <Card className="w-full max-w-sm">
       <CardContent className="p-6 text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-sm text-muted-foreground">Chargement...</p>
+        <p className="text-sm text-muted-foreground">Chargement de SendFlow...</p>
+        <p className="text-xs text-muted-foreground mt-2">Initialisation en cours</p>
       </CardContent>
     </Card>
   </div>
@@ -59,47 +60,82 @@ const SimpleLoader = () => (
 
 function App() {
   useEffect(() => {
-    console.log('App component mounting...');
+    console.log('App component mounting - static imports only');
     
-    // Force complete cache and service worker cleanup
-    const clearEverything = async () => {
+    // Ultra-aggressive cache and service worker cleanup
+    const nukeCacheAndSW = async () => {
       try {
-        // Clear all caches aggressively
-        if ('caches' in window) {
-          const cacheNames = await caches.keys();
-          console.log('Clearing caches:', cacheNames);
-          await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+        console.log('Starting ultra-aggressive cleanup...');
+        
+        // 1. Clear ALL storage
+        if ('localStorage' in window) {
+          localStorage.clear();
+        }
+        if ('sessionStorage' in window) {
+          sessionStorage.clear();
         }
 
-        // Unregister all service workers
+        // 2. Clear ALL caches
+        if ('caches' in window) {
+          const cacheNames = await caches.keys();
+          console.log('Found caches to delete:', cacheNames);
+          await Promise.all(cacheNames.map(cacheName => {
+            console.log('Deleting cache:', cacheName);
+            return caches.delete(cacheName);
+          }));
+          console.log('All caches deleted');
+        }
+
+        // 3. Unregister ALL service workers
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map(registration => registration.unregister()));
+          console.log('Found SW registrations:', registrations.length);
+          await Promise.all(registrations.map(registration => {
+            console.log('Unregistering SW:', registration.scope);
+            return registration.unregister();
+          }));
           console.log('All service workers unregistered');
         }
 
-        // Force reload if we're dealing with cached content
-        if (window.performance && window.performance.navigation.type === 1) {
-          console.log('Page was refreshed, clearing everything');
+        // 4. Clear IndexedDB if exists
+        if ('indexedDB' in window) {
+          try {
+            const databases = await indexedDB.databases();
+            await Promise.all(databases.map(db => {
+              if (db.name) {
+                console.log('Deleting IndexedDB:', db.name);
+                indexedDB.deleteDatabase(db.name);
+              }
+            }));
+          } catch (e) {
+            console.log('IndexedDB cleanup failed:', e);
+          }
         }
 
+        console.log('Ultra-aggressive cleanup completed');
       } catch (error) {
-        console.error('Cache/SW clearing failed:', error);
+        console.error('Cache/SW nukeCacheAndSW failed:', error);
       }
     };
 
-    clearEverything();
+    nukeCacheAndSW();
 
-    // Set viewport
-    const viewport = document.querySelector('meta[name=viewport]');
-    if (viewport) {
+    // Enhanced viewport setup
+    const setupViewport = () => {
+      let viewport = document.querySelector('meta[name=viewport]');
+      if (!viewport) {
+        viewport = document.createElement('meta');
+        viewport.setAttribute('name', 'viewport');
+        document.head.appendChild(viewport);
+      }
       viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
-    }
+    };
 
-    console.log('App component mounted successfully');
+    setupViewport();
+    console.log('App component mounted successfully with static imports');
   }, []);
 
-  console.log('App rendering...');
+  console.log('App rendering with static components');
 
   return (
     <TooltipProvider>

@@ -22,11 +22,24 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        // Prevent code splitting for critical components
-        manualChunks: undefined,
-      }
+        // Force everything into a single bundle - no dynamic imports
+        manualChunks: () => 'everything',
+        // Disable dynamic imports completely
+        format: 'es',
+        inlineDynamicImports: true,
+      },
+      // Treat all modules as external dynamic imports should be bundled
+      external: () => false,
     },
-    // Increase chunk size limit to prevent splitting
-    chunkSizeWarningLimit: 1000,
+    // Increase chunk size limit to prevent any splitting
+    chunkSizeWarningLimit: 10000,
+    // Disable code splitting completely
+    target: 'esnext',
+    minify: false, // Disable minification in development to help with debugging
+  },
+  // Ensure no pre-bundling issues
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom'],
+    force: true,
   },
 }));
