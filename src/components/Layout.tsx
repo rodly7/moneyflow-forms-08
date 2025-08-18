@@ -67,15 +67,36 @@ const Layout = () => {
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
 
-    // Service Worker registration
+    // Service Worker registration with error handling
     if ('serviceWorker' in navigator && import.meta.env.PROD) {
       navigator.serviceWorker.register('/sw.js', {
         scope: '/',
         updateViaCache: 'none'
       }).then((registration) => {
         console.log('SW registered:', registration.scope);
+        
+        // Force update on first load if there's a network error
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New content is available, refresh the page
+                window.location.reload();
+              }
+            });
+          }
+        });
       }).catch((error) => {
         console.error('SW registration failed:', error);
+        // Clear any existing service worker on error
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+            registrations.forEach((registration) => {
+              registration.unregister();
+            });
+          });
+        }
       });
     }
 

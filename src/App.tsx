@@ -9,7 +9,7 @@ import { PWAInstallBanner } from "./components/pwa/PWAInstallBanner";
 import { PWAUpdateBanner } from "./components/pwa/PWAUpdateBanner";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 
-// Import Index directly instead of lazy loading since it's the landing page
+// Import Index and Auth directly instead of lazy loading since they are critical pages
 import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -80,7 +80,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Index />} />
-            <Route path="auth" element={<Suspense fallback={<MobileLoader />}><Auth /></Suspense>} />
+            <Route path="auth" element={<Auth />} />
             <Route path="agent-auth" element={<Suspense fallback={<MobileLoader />}><AgentAuth /></Suspense>} />
             <Route path="dashboard" element={<Suspense fallback={<MobileLoader />}><Dashboard /></Suspense>} />
             <Route path="agent-dashboard" element={<Suspense fallback={<MobileLoader />}><ResponsiveAgentDashboard /></Suspense>} />
