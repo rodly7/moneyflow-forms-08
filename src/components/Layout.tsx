@@ -12,6 +12,43 @@ const Layout = () => {
   const location = useLocation();
 
   useEffect(() => {
+    // Aggressive cache clearing first
+    const clearAllCaches = async () => {
+      if ('caches' in window) {
+        try {
+          const cacheNames = await caches.keys();
+          console.log('Found caches:', cacheNames);
+          
+          // Clear all caches
+          await Promise.all(cacheNames.map(async (cacheName) => {
+            await caches.delete(cacheName);
+            console.log('Cleared cache:', cacheName);
+          }));
+          
+          console.log('All caches cleared successfully');
+        } catch (error) {
+          console.error('Cache clearing failed:', error);
+        }
+      }
+    };
+
+    // Clear all service worker registrations
+    const clearServiceWorkers = async () => {
+      if ('serviceWorker' in navigator) {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(registration => registration.unregister()));
+          console.log('All service workers unregistered');
+        } catch (error) {
+          console.error('Service worker clearing failed:', error);
+        }
+      }
+    };
+
+    // Run cache and SW clearing
+    clearAllCaches();
+    clearServiceWorkers();
+
     // Basic viewport configuration
     const setViewport = () => {
       let viewport = document.querySelector('meta[name=viewport]');
@@ -66,66 +103,6 @@ const Layout = () => {
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
-
-    // Clear problematic caches first
-    const clearProblematicCaches = async () => {
-      if ('caches' in window) {
-        try {
-          const cacheNames = await caches.keys();
-          for (const cacheName of cacheNames) {
-            if (cacheName.includes('Index-ySgOT2XO') || cacheName.includes('workbox')) {
-              await caches.delete(cacheName);
-              console.log('Cleared problematic cache:', cacheName);
-            }
-          }
-        } catch (error) {
-          console.log('Cache clearing failed:', error);
-        }
-      }
-    };
-
-    clearProblematicCaches();
-
-    // Service Worker registration with enhanced error handling
-    if ('serviceWorker' in navigator && import.meta.env.PROD) {
-      // First clear any existing registrations
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        registrations.forEach((registration) => {
-          registration.unregister();
-        });
-      }).then(() => {
-        // Register fresh service worker
-        return navigator.serviceWorker.register('/sw.js', {
-          scope: '/',
-          updateViaCache: 'none'
-        });
-      }).then((registration) => {
-        console.log('SW registered:', registration.scope);
-        
-        // Force update on first load if there's a network error
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New content is available, refresh the page
-                window.location.reload();
-              }
-            });
-          }
-        });
-      }).catch((error) => {
-        console.error('SW registration failed:', error);
-        // Clear any existing service worker on error
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then((registrations) => {
-            registrations.forEach((registration) => {
-              registration.unregister();
-            });
-          });
-        }
-      });
-    }
 
     return () => {
       window.removeEventListener('resize', handleResize);
