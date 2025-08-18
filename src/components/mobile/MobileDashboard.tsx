@@ -7,10 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   ArrowUpRight, 
   QrCode,
-  Smartphone,
   Scan,
   PiggyBank,
-  History,
   LogOut,
   Eye,
   EyeOff
@@ -49,7 +47,7 @@ const MobileDashboard: React.FC = () => {
     setIsBalanceVisible(!isBalanceVisible);
   };
 
-  // Actions rapides sans "Retirer" et "Recevoir"
+  // Actions rapides sans "Historique" et "Factures"
   const quickActions = [
     {
       title: "Envoyer",
@@ -74,18 +72,6 @@ const MobileDashboard: React.FC = () => {
       icon: PiggyBank,
       color: "from-teal-500 to-green-500",
       onClick: () => navigate('/savings')
-    },
-    {
-      title: "Historique",
-      icon: History,
-      color: "from-orange-500 to-amber-500",
-      onClick: () => navigate('/transactions')
-    },
-    {
-      title: "Factures",
-      icon: Smartphone,
-      color: "from-violet-500 to-purple-500",
-      onClick: () => navigate('/bill-payments')
     }
   ];
 
