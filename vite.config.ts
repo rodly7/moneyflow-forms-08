@@ -19,4 +19,14 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Prevent code splitting for critical components
+        manualChunks: undefined,
+      }
+    },
+    // Increase chunk size limit to prevent splitting
+    chunkSizeWarningLimit: 1000,
+  },
 }));

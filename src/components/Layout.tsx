@@ -12,22 +12,26 @@ const Layout = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Aggressive cache clearing first
+    console.log('Layout mounting, current path:', location.pathname);
+    console.log('User:', user ? 'authenticated' : 'not authenticated');
+    console.log('Loading:', loading);
+
+    // Aggressive cache and service worker cleanup
     const clearAllCaches = async () => {
       if ('caches' in window) {
         try {
           const cacheNames = await caches.keys();
-          console.log('Found caches:', cacheNames);
+          console.log('Layout: Found caches:', cacheNames);
           
           // Clear all caches
           await Promise.all(cacheNames.map(async (cacheName) => {
             await caches.delete(cacheName);
-            console.log('Cleared cache:', cacheName);
+            console.log('Layout: Cleared cache:', cacheName);
           }));
           
-          console.log('All caches cleared successfully');
+          console.log('Layout: All caches cleared successfully');
         } catch (error) {
-          console.error('Cache clearing failed:', error);
+          console.error('Layout: Cache clearing failed:', error);
         }
       }
     };
@@ -37,10 +41,13 @@ const Layout = () => {
       if ('serviceWorker' in navigator) {
         try {
           const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map(registration => registration.unregister()));
-          console.log('All service workers unregistered');
+          await Promise.all(registrations.map(registration => {
+            console.log('Layout: Unregistering SW:', registration.scope);
+            return registration.unregister();
+          }));
+          console.log('Layout: All service workers unregistered');
         } catch (error) {
-          console.error('Service worker clearing failed:', error);
+          console.error('Layout: Service worker clearing failed:', error);
         }
       }
     };
@@ -108,9 +115,12 @@ const Layout = () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
     };
-  }, []);
+  }, [location.pathname]);
+
+  console.log('Layout rendering, loading:', loading, 'user:', !!user);
 
   if (loading) {
+    console.log('Layout: Showing loading screen');
     return (
       <PWAOptimizedLayout className="full-screen-app">
         <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-50 to-blue-100">
@@ -128,14 +138,18 @@ const Layout = () => {
 
   // Authentication routing
   if (!user) {
+    console.log('Layout: No user, redirecting to auth');
     if (location.pathname !== '/auth') {
       return <Navigate to="/auth" state={{ from: location }} replace />;
     }
   } else {
+    console.log('Layout: User found, checking if on auth page');
     if (location.pathname === '/auth') {
       return <Navigate to="/dashboard" replace />;
     }
   }
+
+  console.log('Layout: Rendering main layout with Outlet');
 
   return (
     <PWAOptimizedLayout className="full-screen-app">

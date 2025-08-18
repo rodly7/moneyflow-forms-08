@@ -9,7 +9,7 @@ import { PWAInstallBanner } from "./components/pwa/PWAInstallBanner";
 import { PWAUpdateBanner } from "./components/pwa/PWAUpdateBanner";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 
-// Import all critical pages directly - no lazy loading
+// Force direct imports - NO lazy loading at all
 import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -59,27 +59,47 @@ const SimpleLoader = () => (
 
 function App() {
   useEffect(() => {
-    // Clear problematic caches aggressively
-    const clearAllCaches = async () => {
-      if ('caches' in window) {
-        try {
+    console.log('App component mounting...');
+    
+    // Force complete cache and service worker cleanup
+    const clearEverything = async () => {
+      try {
+        // Clear all caches aggressively
+        if ('caches' in window) {
           const cacheNames = await caches.keys();
+          console.log('Clearing caches:', cacheNames);
           await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
-          console.log('All caches cleared');
-        } catch (error) {
-          console.log('Cache clearing failed:', error);
         }
+
+        // Unregister all service workers
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(registration => registration.unregister()));
+          console.log('All service workers unregistered');
+        }
+
+        // Force reload if we're dealing with cached content
+        if (window.performance && window.performance.navigation.type === 1) {
+          console.log('Page was refreshed, clearing everything');
+        }
+
+      } catch (error) {
+        console.error('Cache/SW clearing failed:', error);
       }
     };
 
-    clearAllCaches();
+    clearEverything();
 
     // Set viewport
     const viewport = document.querySelector('meta[name=viewport]');
     if (viewport) {
       viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
     }
+
+    console.log('App component mounted successfully');
   }, []);
+
+  console.log('App rendering...');
 
   return (
     <TooltipProvider>
