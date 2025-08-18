@@ -9,7 +9,7 @@ import { PWAInstallBanner } from "./components/pwa/PWAInstallBanner";
 import { PWAUpdateBanner } from "./components/pwa/PWAUpdateBanner";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 
-// Import Index and Auth directly instead of lazy loading since they are critical pages
+// Import critical pages directly to avoid dynamic import errors
 import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -61,11 +61,22 @@ const MobileLoader = () => (
 );
 
 function App() {
-  // Optimize viewport for all devices
+  // Optimize viewport for all devices and clear cache if needed
   useEffect(() => {
     const viewport = document.querySelector('meta[name=viewport]');
     if (viewport) {
       viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+    }
+
+    // Clear any problematic cache entries
+    if ('caches' in window) {
+      caches.keys().then((cacheNames) => {
+        cacheNames.forEach((cacheName) => {
+          if (cacheName.includes('Index-ySgOT2XO')) {
+            caches.delete(cacheName);
+          }
+        });
+      });
     }
   }, []);
 

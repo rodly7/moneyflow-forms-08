@@ -67,11 +67,38 @@ const Layout = () => {
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
 
-    // Service Worker registration with error handling
+    // Clear problematic caches first
+    const clearProblematicCaches = async () => {
+      if ('caches' in window) {
+        try {
+          const cacheNames = await caches.keys();
+          for (const cacheName of cacheNames) {
+            if (cacheName.includes('Index-ySgOT2XO') || cacheName.includes('workbox')) {
+              await caches.delete(cacheName);
+              console.log('Cleared problematic cache:', cacheName);
+            }
+          }
+        } catch (error) {
+          console.log('Cache clearing failed:', error);
+        }
+      }
+    };
+
+    clearProblematicCaches();
+
+    // Service Worker registration with enhanced error handling
     if ('serviceWorker' in navigator && import.meta.env.PROD) {
-      navigator.serviceWorker.register('/sw.js', {
-        scope: '/',
-        updateViaCache: 'none'
+      // First clear any existing registrations
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          registration.unregister();
+        });
+      }).then(() => {
+        // Register fresh service worker
+        return navigator.serviceWorker.register('/sw.js', {
+          scope: '/',
+          updateViaCache: 'none'
+        });
       }).then((registration) => {
         console.log('SW registered:', registration.scope);
         
