@@ -38,11 +38,12 @@ const Transactions = () => {
     if (!user) return;
 
     try {
-      console.log("🔍 Début de récupération des transactions pour l'utilisateur:", user.id);
+      console.log("🔍 Récupération des transactions pour:", user.id);
+      setLoading(true);
 
       const allTransactions: Transaction[] = [];
 
-      // 1. Récupérer TOUS les retraits
+      // 1. Récupérer les retraits
       console.log("📤 Récupération des retraits...");
       const { data: withdrawals, error: withdrawalError } = await supabase
         .from('withdrawals')
@@ -51,29 +52,26 @@ const Transactions = () => {
         .order('created_at', { ascending: false });
 
       if (withdrawalError) {
-        console.error("❌ Erreur lors de la récupération des retraits:", withdrawalError);
-      } else {
-        console.log("✅ Retraits récupérés:", withdrawals?.length || 0);
-        
-        if (withdrawals) {
-          withdrawals.forEach(withdrawal => {
-            allTransactions.push({
-              id: withdrawal.id,
-              type: 'withdrawal',
-              amount: withdrawal.amount,
-              date: new Date(withdrawal.created_at),
-              description: `Retrait vers ${withdrawal.withdrawal_phone || 'N/A'}`,
-              currency: 'XAF',
-              status: withdrawal.status || 'pending',
-              verification_code: withdrawal.verification_code || '',
-              created_at: withdrawal.created_at,
-              withdrawal_phone: withdrawal.withdrawal_phone || '',
-              fees: 0,
-              userType: "user" as const,
-              impact: "debit" as const
-            });
+        console.error("❌ Erreur retraits:", withdrawalError);
+      } else if (withdrawals) {
+        console.log("✅ Retraits trouvés:", withdrawals.length);
+        withdrawals.forEach(withdrawal => {
+          allTransactions.push({
+            id: withdrawal.id,
+            type: 'withdrawal',
+            amount: withdrawal.amount,
+            date: new Date(withdrawal.created_at),
+            description: `Retrait vers ${withdrawal.withdrawal_phone || 'N/A'}`,
+            currency: 'XAF',
+            status: withdrawal.status || 'pending',
+            verification_code: withdrawal.verification_code || '',
+            created_at: withdrawal.created_at,
+            withdrawal_phone: withdrawal.withdrawal_phone || '',
+            fees: 0,
+            userType: "user" as const,
+            impact: "debit" as const
           });
-        }
+        });
       }
 
       // 2. Récupérer les transferts envoyés
@@ -86,26 +84,23 @@ const Transactions = () => {
 
       if (sentError) {
         console.error("❌ Erreur transferts envoyés:", sentError);
-      } else {
-        console.log("✅ Transferts envoyés:", sentTransfers?.length || 0);
-        
-        if (sentTransfers) {
-          sentTransfers.forEach(transfer => {
-            allTransactions.push({
-              id: transfer.id,
-              type: 'transfer_sent',
-              amount: transfer.amount,
-              date: new Date(transfer.created_at),
-              description: `Transfert vers ${transfer.recipient_phone}`,
-              currency: 'XAF',
-              status: transfer.status,
-              created_at: transfer.created_at,
-              userType: "user" as const,
-              impact: "debit" as const,
-              fees: transfer.fees || 0
-            });
+      } else if (sentTransfers) {
+        console.log("✅ Transferts envoyés trouvés:", sentTransfers.length);
+        sentTransfers.forEach(transfer => {
+          allTransactions.push({
+            id: transfer.id,
+            type: 'transfer_sent',
+            amount: transfer.amount,
+            date: new Date(transfer.created_at),
+            description: `Transfert vers ${transfer.recipient_phone}`,
+            currency: 'XAF',
+            status: transfer.status,
+            created_at: transfer.created_at,
+            userType: "user" as const,
+            impact: "debit" as const,
+            fees: transfer.fees || 0
           });
-        }
+        });
       }
 
       // 3. Récupérer les transferts reçus
@@ -113,35 +108,31 @@ const Transactions = () => {
       const { data: receivedTransfers, error: receivedError } = await supabase
         .from('transfers')
         .select('*')
-        .eq('recipient_phone', user.phone)
-        .eq('status', 'completed')
+        .eq('recipient_id', user.id)
         .order('created_at', { ascending: false });
 
       if (receivedError) {
         console.error("❌ Erreur transferts reçus:", receivedError);
-      } else {
-        console.log("✅ Transferts reçus:", receivedTransfers?.length || 0);
-        
-        if (receivedTransfers) {
-          receivedTransfers.forEach(transfer => {
-            allTransactions.push({
-              id: `received_${transfer.id}`,
-              type: 'transfer_received',
-              amount: transfer.amount,
-              date: new Date(transfer.created_at),
-              description: `Transfert reçu de ${transfer.recipient_full_name || 'Expéditeur'}`,
-              currency: 'XAF',
-              status: transfer.status,
-              created_at: transfer.created_at,
-              userType: "user" as const,
-              impact: "credit" as const
-            });
+      } else if (receivedTransfers) {
+        console.log("✅ Transferts reçus trouvés:", receivedTransfers.length);
+        receivedTransfers.forEach(transfer => {
+          allTransactions.push({
+            id: `received_${transfer.id}`,
+            type: 'transfer_received',
+            amount: transfer.amount,
+            date: new Date(transfer.created_at),
+            description: `Transfert reçu de ${transfer.recipient_full_name || 'Expéditeur'}`,
+            currency: 'XAF',
+            status: transfer.status,
+            created_at: transfer.created_at,
+            userType: "user" as const,
+            impact: "credit" as const
           });
-        }
+        });
       }
 
-      // 4. Récupérer les recharges/dépôts
-      console.log("🔋 Récupération des recharges...");
+      // 4. Récupérer les dépôts/recharges
+      console.log("🔋 Récupération des dépôts...");
       const { data: recharges, error: rechargeError } = await supabase
         .from('recharges')
         .select('*')
@@ -149,26 +140,23 @@ const Transactions = () => {
         .order('created_at', { ascending: false });
 
       if (rechargeError) {
-        console.error("❌ Erreur recharges:", rechargeError);
-      } else {
-        console.log("✅ Recharges:", recharges?.length || 0);
-        
-        if (recharges) {
-          recharges.forEach(recharge => {
-            allTransactions.push({
-              id: `recharge_${recharge.id}`,
-              type: 'deposit',
-              amount: recharge.amount,
-              date: new Date(recharge.created_at),
-              description: 'Dépôt de compte',
-              currency: 'XAF',
-              status: recharge.status,
-              created_at: recharge.created_at,
-              userType: "user" as const,
-              impact: "credit" as const
-            });
+        console.error("❌ Erreur dépôts:", rechargeError);
+      } else if (recharges) {
+        console.log("✅ Dépôts trouvés:", recharges.length);
+        recharges.forEach(recharge => {
+          allTransactions.push({
+            id: `deposit_${recharge.id}`,
+            type: 'deposit',
+            amount: recharge.amount,
+            date: new Date(recharge.created_at),
+            description: 'Dépôt de compte',
+            currency: 'XAF',
+            status: recharge.status,
+            created_at: recharge.created_at,
+            userType: "user" as const,
+            impact: "credit" as const
           });
-        }
+        });
       }
 
       // 5. Récupérer les paiements de factures
@@ -181,34 +169,31 @@ const Transactions = () => {
 
       if (billError) {
         console.error("❌ Erreur paiements factures:", billError);
-      } else {
-        console.log("✅ Paiements de factures:", billPayments?.length || 0);
-        
-        if (billPayments) {
-          billPayments.forEach(payment => {
-            allTransactions.push({
-              id: `bill_${payment.id}`,
-              type: 'bill_payment',
-              amount: payment.amount,
-              date: new Date(payment.created_at),
-              description: 'Paiement de facture',
-              currency: 'XAF',
-              status: payment.status,
-              created_at: payment.created_at,
-              userType: "user" as const,
-              impact: "debit" as const
-            });
+      } else if (billPayments) {
+        console.log("✅ Paiements de factures trouvés:", billPayments.length);
+        billPayments.forEach(payment => {
+          allTransactions.push({
+            id: `bill_${payment.id}`,
+            type: 'bill_payment',
+            amount: payment.amount,
+            date: new Date(payment.created_at),
+            description: 'Paiement de facture',
+            currency: 'XAF',
+            status: payment.status,
+            created_at: payment.created_at,
+            userType: "user" as const,
+            impact: "debit" as const
           });
-        }
+        });
       }
 
-      // Trier toutes les transactions par date (plus récente en premier)
+      // Trier par date
       const sortedTransactions = allTransactions.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      console.log("📊 Total transactions récupérées:", sortedTransactions.length);
-      console.log("📋 Détail par type:", {
+      console.log("📊 Total transactions:", sortedTransactions.length);
+      console.log("📋 Détail:", {
         retraits: sortedTransactions.filter(t => t.type === 'withdrawal').length,
         transferts_envoyés: sortedTransactions.filter(t => t.type === 'transfer_sent').length,
         transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
@@ -218,7 +203,7 @@ const Transactions = () => {
 
       setTransactions(sortedTransactions);
     } catch (error) {
-      console.error("❌ Erreur générale lors de la récupération des transactions:", error);
+      console.error("❌ Erreur générale:", error);
     } finally {
       setLoading(false);
     }
@@ -298,7 +283,7 @@ const Transactions = () => {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-green-600">
               <Plus className="w-5 h-5" />
-              Crédits
+              Entrées (Crédits)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -311,7 +296,7 @@ const Transactions = () => {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-red-600">
               <Minus className="w-5 h-5" />
-              Débits
+              Sorties (Débits)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -324,13 +309,13 @@ const Transactions = () => {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="w-5 h-5" />
-              Total
+              Total Transactions
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{transactions.length} transactions</div>
+            <div className="text-2xl font-bold">{transactions.length}</div>
             <p className="text-sm text-muted-foreground">
-              Solde: {(totalCredits - totalDebits).toLocaleString()} XAF
+              Solde net: {(totalCredits - totalDebits).toLocaleString()} XAF
             </p>
           </CardContent>
         </Card>
@@ -339,13 +324,20 @@ const Transactions = () => {
       {/* Liste des transactions */}
       <Card>
         <CardHeader>
-          <CardTitle>Historique des Transactions</CardTitle>
+          <CardTitle>Historique Complet des Transactions</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Toutes vos entrées et sorties d'argent
+          </p>
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              Aucune transaction trouvée.
-            </p>
+            <div className="text-center py-8">
+              <CreditCard className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+              <p className="text-muted-foreground mb-2">Aucune transaction trouvée</p>
+              <p className="text-sm text-muted-foreground">
+                Vos dépôts, retraits, transferts et paiements apparaîtront ici
+              </p>
+            </div>
           ) : (
             <div className="space-y-4">
               {transactions.map((transaction, index) => (
@@ -360,10 +352,12 @@ const Transactions = () => {
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-medium">{transaction.description}</h3>
                           <Badge className={getStatusColor(transaction.status)}>
-                            {transaction.status}
+                            {transaction.status === 'completed' ? 'Complété' : 
+                             transaction.status === 'pending' ? 'En attente' : 
+                             transaction.status}
                           </Badge>
                           <Badge variant={transaction.impact === 'credit' ? 'default' : 'destructive'}>
-                            {transaction.impact === 'credit' ? 'Crédit' : 'Débit'}
+                            {transaction.impact === 'credit' ? 'Entrée' : 'Sortie'}
                           </Badge>
                         </div>
                         
@@ -380,7 +374,7 @@ const Transactions = () => {
                     </div>
                     
                     <div className="text-right">
-                      <div className={`font-semibold ${
+                      <div className={`font-semibold text-lg ${
                         transaction.impact === 'credit' 
                           ? 'text-green-600' 
                           : 'text-red-600'
