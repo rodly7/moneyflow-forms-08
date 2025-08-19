@@ -22,8 +22,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        // Force everything into a single bundle - NO code splitting whatsoever
-        manualChunks: () => 'everything',
+        // Remove manualChunks as it's incompatible with inlineDynamicImports
         inlineDynamicImports: true,
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].js',
