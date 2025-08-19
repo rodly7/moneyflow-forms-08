@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Download, ArrowRightLeft, Copy, Check, Zap, CreditCard } from "lucide-react";
+import { ArrowLeft, Download, ArrowRightLeft, Copy, Check, Zap, CreditCard, Plus, Minus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useState, useEffect } from "react";
@@ -28,6 +28,7 @@ interface Transaction {
   withdrawal_phone?: string;
   fees?: number;
   sender_id?: string;
+  impact: 'debit' | 'credit';
 }
 
 const Transactions = () => {
@@ -49,7 +50,7 @@ const Transactions = () => {
       const allTransactions: Transaction[] = [];
 
       try {
-        // 1. Récupérer les retraits
+        // 1. Récupérer les retraits (DÉBIT du solde)
         const { data: withdrawals, error: withdrawalsError } = await supabase
           .from('withdrawals')
           .select('*')
@@ -64,7 +65,7 @@ const Transactions = () => {
             allTransactions.push({
               id: withdrawal.id,
               type: 'withdrawal',
-              amount: -Math.abs(withdrawal.amount),
+              amount: withdrawal.amount,
               date: parseISO(withdrawal.created_at),
               description: `Retrait vers ${withdrawal.withdrawal_phone || 'Mobile Money'}`,
               currency: 'XAF',
@@ -72,13 +73,14 @@ const Transactions = () => {
               verification_code: withdrawal.verification_code,
               created_at: withdrawal.created_at,
               withdrawal_phone: withdrawal.withdrawal_phone,
-              fees: 0, // Pas de frais pour les retraits
-              userType: isAgent() ? 'agent' : 'user'
+              fees: 0,
+              userType: isAgent() ? 'agent' : 'user',
+              impact: 'debit'
             });
           });
         }
 
-        // 2. Récupérer les transferts envoyés
+        // 2. Récupérer les transferts envoyés (DÉBIT du solde)
         const { data: sentTransfers, error: sentError } = await supabase
           .from('transfers')
           .select('*')
@@ -94,20 +96,21 @@ const Transactions = () => {
             allTransactions.push({
               id: transfer.id,
               type: 'transfer_sent',
-              amount: -Math.abs(transfer.amount),
+              amount: transfer.amount,
               date: parseISO(transfer.created_at),
-              description: `Transfert à ${transfer.recipient_full_name || transfer.recipient_phone}`,
+              description: `Transfert envoyé à ${transfer.recipient_full_name || transfer.recipient_phone}`,
               currency: transfer.currency || 'XAF',
               status: transfer.status,
               recipient_full_name: transfer.recipient_full_name,
               recipient_phone: transfer.recipient_phone,
               fees: transfer.fees || 0,
-              userType: isAgent() ? 'agent' : 'user'
+              userType: isAgent() ? 'agent' : 'user',
+              impact: 'debit'
             });
           });
         }
 
-        // 3. Récupérer les transferts reçus
+        // 3. Récupérer les transferts reçus (CRÉDIT du solde)
         const { data: receivedTransfers, error: receivedError } = await supabase
           .from('transfers')
           .select('*')
@@ -141,18 +144,20 @@ const Transactions = () => {
             allTransactions.push({
               id: transfer.id,
               type: 'transfer_received',
-              amount: Math.abs(transfer.amount),
+              amount: transfer.amount,
               date: parseISO(transfer.created_at),
               description: `Transfert reçu de ${senderName}`,
               currency: transfer.currency || 'XAF',
               status: transfer.status,
-              fees: 0, // Pas de frais pour le destinataire
-              userType: isAgent() ? 'agent' : 'user'
+              fees: 0,
+              userType: isAgent() ? 'agent' : 'user',
+              sender_id: transfer.sender_id,
+              impact: 'credit'
             });
           }
         }
 
-        // 4. Récupérer les recharges/dépôts
+        // 4. Récupérer les recharges/dépôts (CRÉDIT du solde)
         const { data: recharges, error: rechargesError } = await supabase
           .from('recharges')
           .select('*')
@@ -167,18 +172,19 @@ const Transactions = () => {
             allTransactions.push({
               id: recharge.id,
               type: 'recharge',
-              amount: Math.abs(recharge.amount),
+              amount: recharge.amount,
               date: parseISO(recharge.created_at),
               description: `Dépôt via ${recharge.payment_method || 'Mobile Money'}`,
               currency: 'XAF',
               status: recharge.status,
-              fees: 0, // Pas de frais sur les dépôts
-              userType: isAgent() ? 'agent' : 'user'
+              fees: 0,
+              userType: isAgent() ? 'agent' : 'user',
+              impact: 'credit'
             });
           });
         }
 
-        // 5. Récupérer les paiements de factures automatiques
+        // 5. Récupérer les paiements de factures automatiques (DÉBIT du solde)
         const { data: billPayments, error: billError } = await supabase
           .from('automatic_bills')
           .select('*')
@@ -191,19 +197,19 @@ const Transactions = () => {
         } else if (billPayments && billPayments.length > 0) {
           console.log('⚡ Paiements de factures trouvés:', billPayments.length);
           billPayments.forEach(bill => {
-            // Calculer les frais pour les factures (1,5%)
             const billFees = bill.amount * 0.015;
             
             allTransactions.push({
               id: bill.id,
               type: 'bill_payment',
-              amount: -Math.abs(bill.amount),
+              amount: bill.amount,
               date: parseISO(bill.updated_at || bill.created_at),
               description: `Paiement ${bill.bill_name || 'Facture'}`,
               currency: 'XAF',
               status: 'completed',
               fees: billFees,
-              userType: isAgent() ? 'agent' : 'user'
+              userType: isAgent() ? 'agent' : 'user',
+              impact: 'debit'
             });
           });
         }
@@ -271,7 +277,7 @@ const Transactions = () => {
     },
     enabled: !!user,
   });
-  
+
   const [processedWithdrawals, setProcessedWithdrawals] = useState<any[]>([]);
 
   useEffect(() => {
@@ -338,21 +344,43 @@ const Transactions = () => {
     setIsModalOpen(false);
   };
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'withdrawal':
-        return <Download className="h-4 w-4 text-red-500" />;
-      case 'transfer_sent':
-        return <ArrowRightLeft className="h-4 w-4 text-blue-500" />;
-      case 'transfer_received':
-        return <ArrowRightLeft className="h-4 w-4 text-green-500" />;
-      case 'recharge':
-        return <CreditCard className="h-4 w-4 text-green-500" />;
-      case 'bill_payment':
-        return <Zap className="h-4 w-4 text-purple-500" />;
-      default:
-        return null;
+  const getIcon = (type: string, impact: string) => {
+    if (impact === 'debit') {
+      switch (type) {
+        case 'withdrawal':
+          return <Download className="h-4 w-4 text-red-500" />;
+        case 'transfer_sent':
+          return <Minus className="h-4 w-4 text-red-500" />;
+        case 'bill_payment':
+          return <Zap className="h-4 w-4 text-purple-500" />;
+        default:
+          return <Minus className="h-4 w-4 text-red-500" />;
+      }
+    } else {
+      switch (type) {
+        case 'transfer_received':
+          return <Plus className="h-4 w-4 text-green-500" />;
+        case 'recharge':
+          return <CreditCard className="h-4 w-4 text-green-500" />;
+        default:
+          return <Plus className="h-4 w-4 text-green-500" />;
+      }
     }
+  };
+
+  const getAmountDisplay = (transaction: Transaction) => {
+    const sign = transaction.impact === 'credit' ? '+' : '-';
+    const color = transaction.impact === 'credit' ? 'text-green-600' : 'text-red-600';
+    
+    return (
+      <p className={`text-lg font-bold ${color}`}>
+        {sign}{new Intl.NumberFormat('fr-FR', {
+          style: 'currency',
+          currency: transaction.currency || 'XAF',
+          maximumFractionDigits: 0
+        }).format(transaction.amount)}
+      </p>
+    );
   };
 
   const renderTransaction = (transaction: Transaction) => (
@@ -365,15 +393,11 @@ const Transactions = () => {
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="relative">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-              transaction.type === 'withdrawal' 
+              transaction.impact === 'debit'
                 ? 'bg-gradient-to-r from-red-100 to-pink-100' 
-                : transaction.type === 'transfer_received' || transaction.type === 'recharge'
-                ? 'bg-gradient-to-r from-green-100 to-emerald-100'
-                : transaction.type === 'bill_payment'
-                ? 'bg-gradient-to-r from-purple-100 to-violet-100'
-                : 'bg-gradient-to-r from-blue-100 to-purple-100'
+                : 'bg-gradient-to-r from-green-100 to-emerald-100'
             }`}>
-              {getIcon(transaction.type)}
+              {getIcon(transaction.type, transaction.impact)}
             </div>
             <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full ${
               transaction.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
@@ -382,7 +406,16 @@ const Transactions = () => {
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-900 truncate">{transaction.description}</p>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="font-semibold text-gray-900 truncate">{transaction.description}</p>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                transaction.impact === 'credit' 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-red-100 text-red-700'
+              }`}>
+                {transaction.impact === 'credit' ? 'Crédit' : 'Débit'}
+              </span>
+            </div>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <span>{format(transaction.date, 'dd MMM', { locale: fr })}</span>
               <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
@@ -406,15 +439,7 @@ const Transactions = () => {
           </div>
         </div>
         <div className="text-right">
-          <p className={`text-lg font-bold ${
-            transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
-          }`}>
-            {new Intl.NumberFormat('fr-FR', {
-              style: 'currency',
-              currency: transaction.currency || 'XAF',
-              maximumFractionDigits: 0
-            }).format(transaction.amount)}
-          </p>
+          {getAmountDisplay(transaction)}
         </div>
       </div>
       
@@ -492,6 +517,11 @@ const Transactions = () => {
     );
   }
 
+  const creditTransactions = allTransactions?.filter(t => t.impact === 'credit') || [];
+  const debitTransactions = allTransactions?.filter(t => t.impact === 'debit') || [];
+  const totalCredit = creditTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const totalDebit = debitTransactions.reduce((sum, t) => sum + t.amount, 0);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50 p-4">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -530,6 +560,39 @@ const Transactions = () => {
           </div>
         </div>
 
+        {/* Résumé des crédits/débits */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-600 text-sm font-medium">Crédits</p>
+                  <p className="text-xl font-bold text-green-900">
+                    {new Intl.NumberFormat('fr-FR').format(totalCredit)} FCFA
+                  </p>
+                  <p className="text-xs text-green-700">{creditTransactions.length} opérations</p>
+                </div>
+                <Plus className="w-8 h-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-600 text-sm font-medium">Débits</p>
+                  <p className="text-xl font-bold text-red-900">
+                    {new Intl.NumberFormat('fr-FR').format(totalDebit)} FCFA
+                  </p>
+                  <p className="text-xs text-red-700">{debitTransactions.length} opérations</p>
+                </div>
+                <Minus className="w-8 h-8 text-red-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Transactions List */}
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000"></div>
@@ -548,7 +611,7 @@ const Transactions = () => {
                     <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-24 h-24 bg-gradient-to-r from-emerald-300 to-blue-300 rounded-full animate-ping opacity-20"></div>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-700 mb-2">Aucune transaction</h3>
-                  <p className="text-sm text-gray-500">Vos opérations apparaîtront ici avec les frais détaillés</p>
+                  <p className="text-sm text-gray-500">Vos opérations apparaîtront ici avec les détails de crédit/débit</p>
                 </div>
               )}
             </CardContent>
