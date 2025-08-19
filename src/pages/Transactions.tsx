@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,7 +51,7 @@ const Transactions = () => {
       const allTransactions: Transaction[] = [];
 
       try {
-        // 1. Récupérer les retraits (DÉBIT du solde)
+        // 1. Récupérer TOUS les retraits (sans filtrer par statut)
         const { data: withdrawals, error: withdrawalsError } = await supabase
           .from('withdrawals')
           .select('*')
@@ -62,6 +63,28 @@ const Transactions = () => {
         } else if (withdrawals && withdrawals.length > 0) {
           console.log('💳 Retraits trouvés:', withdrawals.length);
           withdrawals.forEach(withdrawal => {
+            // Déterminer le texte de statut en français
+            let statusText = 'En cours';
+            switch (withdrawal.status) {
+              case 'completed':
+                statusText = 'Terminé';
+                break;
+              case 'pending':
+                statusText = 'En attente';
+                break;
+              case 'agent_pending':
+                statusText = 'En attente agent';
+                break;
+              case 'rejected':
+                statusText = 'Refusé';
+                break;
+              case 'failed':
+                statusText = 'Échoué';
+                break;
+              default:
+                statusText = withdrawal.status || 'En cours';
+            }
+
             allTransactions.push({
               id: withdrawal.id,
               type: 'withdrawal',
@@ -78,6 +101,8 @@ const Transactions = () => {
               impact: 'debit'
             });
           });
+        } else {
+          console.log('ℹ️ Aucun retrait trouvé pour cet utilisateur');
         }
 
         // 2. Récupérer les transferts envoyés (DÉBIT du solde)
@@ -218,6 +243,14 @@ const Transactions = () => {
         allTransactions.sort((a, b) => b.date.getTime() - a.date.getTime());
         
         console.log('📊 Total transactions récupérées:', allTransactions.length);
+        console.log('📊 Détail des transactions:', {
+          retraits: allTransactions.filter(t => t.type === 'withdrawal').length,
+          transfertsEnvoyés: allTransactions.filter(t => t.type === 'transfer_sent').length,
+          transfertsReçus: allTransactions.filter(t => t.type === 'transfer_received').length,
+          recharges: allTransactions.filter(t => t.type === 'recharge').length,
+          facturesPayées: allTransactions.filter(t => t.type === 'bill_payment').length
+        });
+        
         return allTransactions;
 
       } catch (error) {
