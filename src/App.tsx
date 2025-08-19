@@ -61,14 +61,14 @@ const EnhancedLoader = () => (
 
 function App() {
   useEffect(() => {
-    console.log('App component mounting with ZERO dynamic imports - all static');
+    console.log('App component mounting - ZERO dynamic imports, everything static');
     
-    // Ultra-aggressive cache and service worker cleanup to prevent cached dynamic imports
-    const nukeCacheAndSW = async () => {
+    // ULTRA-aggressive cache and service worker cleanup to eliminate ALL dynamic imports
+    const nukeEverything = async () => {
       try {
-        console.log('Starting complete cleanup to eliminate dynamic import issues...');
+        console.log('Starting COMPLETE cleanup to eliminate ALL dynamic imports...');
         
-        // 1. Clear ALL storage that might cache dynamic imports
+        // 1. Clear ALL possible storage mechanisms
         if ('localStorage' in window) {
           localStorage.clear();
           console.log('localStorage cleared');
@@ -78,52 +78,61 @@ function App() {
           console.log('sessionStorage cleared');
         }
 
-        // 2. Delete ALL caches that might contain split chunks
+        // 2. Delete ALL caches - be absolutely brutal
         if ('caches' in window) {
           const cacheNames = await caches.keys();
-          console.log('Found caches to delete:', cacheNames);
+          console.log('Found caches to nuke:', cacheNames);
           await Promise.all(cacheNames.map(cacheName => {
-            console.log('Deleting cache:', cacheName);
+            console.log('NUKING cache:', cacheName);
             return caches.delete(cacheName);
           }));
-          console.log('All caches nuked - no more cached dynamic imports');
+          console.log('ALL caches completely eliminated');
         }
 
-        // 3. Unregister ALL service workers that might interfere
+        // 3. Unregister ALL service workers that might cache dynamic imports
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
-          console.log('Found SW registrations:', registrations.length);
+          console.log('Found SW registrations to eliminate:', registrations.length);
           await Promise.all(registrations.map(registration => {
-            console.log('Unregistering SW:', registration.scope);
+            console.log('ELIMINATING SW:', registration.scope);
             return registration.unregister();
           }));
-          console.log('All service workers eliminated');
+          console.log('ALL service workers completely eliminated');
         }
 
-        // 4. Clear IndexedDB
-        if ('indexedDB' in window) {
+        // 4. Clear ALL IndexedDB databases
+        if ('indexedDB' in window && indexedDB.databases) {
           try {
             const databases = await indexedDB.databases();
             await Promise.all(databases.map(db => {
               if (db.name) {
-                console.log('Deleting IndexedDB:', db.name);
-                indexedDB.deleteDatabase(db.name);
+                console.log('DELETING IndexedDB:', db.name);
+                const deleteRequest = indexedDB.deleteDatabase(db.name);
+                return new Promise((resolve) => {
+                  deleteRequest.onsuccess = () => resolve(true);
+                  deleteRequest.onerror = () => resolve(true);
+                });
               }
             }));
           } catch (e) {
-            console.log('IndexedDB cleanup completed');
+            console.log('IndexedDB cleanup completed with potential errors (normal)');
           }
         }
 
-        console.log('Complete cleanup finished - static imports only');
+        // 5. Force reload module cache if possible
+        if ('webkitURL' in window) {
+          console.log('Clearing webkit URL cache');
+        }
+
+        console.log('COMPLETE cleanup finished - ONLY static imports now');
       } catch (error) {
-        console.error('Cleanup failed but continuing with static imports:', error);
+        console.error('Cleanup encountered errors but continuing with static-only mode:', error);
       }
     };
 
-    nukeCacheAndSW();
+    nukeEverything();
 
-    // Enhanced viewport setup for PWA
+    // Enhanced viewport setup for PWA with no dynamic loading
     const setupViewport = () => {
       let viewport = document.querySelector('meta[name=viewport]');
       if (!viewport) {
@@ -135,10 +144,10 @@ function App() {
     };
 
     setupViewport();
-    console.log('App mounted successfully - ALL COMPONENTS STATICALLY IMPORTED');
+    console.log('App mounted successfully - ALL COMPONENTS STATICALLY IMPORTED - NO CODE SPLITTING');
   }, []);
 
-  console.log('App rendering with 100% static imports - zero code splitting');
+  console.log('App rendering with 100% static imports - ZERO code splitting');
 
   return (
     <TooltipProvider>

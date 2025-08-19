@@ -22,25 +22,30 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        // Remove manualChunks as it's incompatible with inlineDynamicImports
+        // CRITICAL: Force everything into a single bundle - absolutely NO code splitting
         inlineDynamicImports: true,
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
+        // Use simple naming to prevent any chunk creation
+        entryFileNames: 'index.js',
+        chunkFileNames: 'chunk.js',
         assetFileNames: 'assets/[name].[ext]'
       },
       // Prevent any external dependencies from being treated as dynamic
       external: [],
+      // Force tree-shaking to be disabled to prevent splitting
+      treeshake: false,
     },
-    // Disable CSS code splitting completely
+    // CRITICAL: Disable ALL code splitting mechanisms
     cssCodeSplit: false,
-    // Increase chunk size warning limit
-    chunkSizeWarningLimit: 5000,
-    // Target modern browsers to avoid compatibility issues
+    // Set a very high chunk size limit to prevent splitting
+    chunkSizeWarningLimit: 50000,
+    // Target modern browsers but avoid splitting
     target: 'esnext',
     // Disable minification in development to help with debugging
     minify: mode === 'production' ? 'esbuild' : false,
+    // Force sourcemap generation for debugging
+    sourcemap: mode === 'development',
   },
-  // Force all dependencies to be bundled
+  // Force all dependencies to be bundled - NO externals
   optimizeDeps: {
     include: [
       'react',
@@ -50,9 +55,18 @@ export default defineConfig(({ mode }) => ({
       'lucide-react'
     ],
     force: true,
+    // Prevent any dynamic imports during optimization
+    esbuildOptions: {
+      splitting: false,
+    },
   },
-  // Prevent any dynamic imports
+  // Prevent any dynamic imports at build time
   define: {
     __DYNAMIC_IMPORTS_DISABLED__: true,
+  },
+  // Ensure no worker or web worker splitting
+  worker: {
+    format: 'iife',
+    plugins: [],
   },
 }));
