@@ -1,117 +1,149 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { SecurityService } from "./securityService";
-import { enhancedDebitUserBalance, enhancedCreditUserBalance } from "./enhancedBalanceService";
+import { supabase } from '@/integrations/supabase/client';
+import { SecurityService } from './securityService';
+import { balanceService } from './balanceService';
 
-export const secureProcessTransfer = async (
-  senderId: string,
-  recipientId: string,
-  amount: number,
-  senderCountry: string,
-  recipientCountry: string
-): Promise<{
-  success: boolean;
-  newSenderBalance: number;
-  newRecipientBalance: number;
-  transactionId: string;
-}> => {
-  // Enhanced security validations
-  const validation = SecurityService.validateFinancialInput(amount, 'transfer');
-  if (!validation.isValid) {
-    throw new Error(validation.error);
-  }
+export interface SecureTransferRequest {
+  recipientPhone: string;
+  amount: number;
+  senderCountry: string;
+  recipientCountry: string;
+}
 
-  // Rate limiting for transfers
-  const isWithinLimit = await SecurityService.checkRateLimit(
-    'user_transfer',
-    5, // Max 5 transfers per hour
-    60
-  );
+export interface TransferValidationResult {
+  isValid: boolean;
+  errors: string[];
+  securityFlags: string[];
+}
 
-  if (!isWithinLimit) {
-    throw new Error("Limite de transferts atteinte. Réessayez dans une heure.");
-  }
+class SecureTransferService {
+  private securityService = new SecurityService();
 
-  // Log transfer attempt
-  await SecurityService.logSecurityEvent('transfer_attempt', {
-    sender_id: senderId,
-    recipient_id: recipientId,
-    amount,
-    sender_country: senderCountry,
-    recipient_country: recipientCountry
-  });
+  async validateTransferRequest(
+    userId: string,
+    request: SecureTransferRequest
+  ): Promise<TransferValidationResult> {
+    const errors: string[] = [];
+    const securityFlags: string[] = [];
 
-  try {
-    // Start transaction
-    const transactionId = crypto.randomUUID();
-
-    // Create transfer record first
-    const { data: transfer, error: transferError } = await supabase
-      .from('transfers')
-      .insert({
-        id: transactionId,
-        sender_id: senderId,
-        recipient_id: recipientId,
-        amount: amount,
-        sender_country: senderCountry,
-        recipient_country: recipientCountry,
-        status: 'pending'
-      })
-      .select()
-      .single();
-
-    if (transferError) {
-      throw new Error("Erreur lors de la création du transfert");
+    // Basic validation
+    if (!request.recipientPhone || request.recipientPhone.length < 8) {
+      errors.push('Numéro de téléphone du destinataire invalide');
     }
 
-    // Debit sender
-    const newSenderBalance = await enhancedDebitUserBalance(
-      senderId,
-      amount,
-      'transfer_debit'
-    );
-
-    // Credit recipient
-    const newRecipientBalance = await enhancedCreditUserBalance(
-      recipientId,
-      amount,
-      'transfer_credit'
-    );
-
-    // Update transfer status to completed
-    const { error: updateError } = await supabase
-      .from('transfers')
-      .update({ status: 'completed' })
-      .eq('id', transactionId);
-
-    if (updateError) {
-      throw new Error("Erreur lors de la finalisation du transfert");
+    if (!request.amount || request.amount <= 0) {
+      errors.push('Montant invalide');
     }
 
-    // Log successful transfer
-    await SecurityService.logSecurityEvent('transfer_success', {
-      transaction_id: transactionId,
-      sender_new_balance: newSenderBalance,
-      recipient_new_balance: newRecipientBalance,
-      amount
-    });
+    if (request.amount > 1000000) {
+      errors.push('Montant trop élevé');
+      securityFlags.push('LARGE_AMOUNT');
+    }
+
+    // Security validations
+    const securityCheck = await this.securityService.validateUserOperation(
+      userId,
+      'transfer',
+      { amount: request.amount, recipient: request.recipientPhone }
+    );
+
+    if (!securityCheck.isValid) {
+      errors.push(...securityCheck.errors);
+      securityFlags.push(...securityCheck.flags);
+    }
 
     return {
-      success: true,
-      newSenderBalance,
-      newRecipientBalance,
-      transactionId
+      isValid: errors.length === 0,
+      errors,
+      securityFlags
     };
-
-  } catch (error) {
-    // Log failed transfer
-    await SecurityService.logSecurityEvent('transfer_failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      sender_id: senderId,
-      recipient_id: recipientId,
-      amount
-    }, 'high');
-
-    throw error;
   }
-};
+
+  async executeSecureTransfer(
+    userId: string,
+    request: SecureTransferRequest,
+    recipientId?: string
+  ) {
+    // Validate request first
+    const validation = await this.validateTransferRequest(userId, request);
+    if (!validation.isValid) {
+      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+    }
+
+    // Check balance
+    const hasBalance = await balanceService.checkSufficientBalance(userId, request.amount);
+    if (!hasBalance) {
+      throw new Error('Solde insuffisant');
+    }
+
+    // Calculate fees (simplified - should use actual fee service)
+    const fees = request.amount * 0.01; // 1% fee
+
+    try {
+      // Create transfer record with only valid database fields
+      const { data: transfer, error: transferError } = await supabase
+        .from('transfers')
+        .insert({
+          sender_id: userId,
+          recipient_phone: request.recipientPhone,
+          recipient_country: request.recipientCountry,
+          amount: request.amount,
+          fees: fees,
+          currency: 'XAF',
+          status: 'pending',
+          ...(recipientId && { recipient_id: recipientId })
+        })
+        .select()
+        .single();
+
+      if (transferError) {
+        throw new Error(`Erreur lors de la création du transfert: ${transferError.message}`);
+      }
+
+      // Deduct balance using secure balance service
+      await balanceService.updateBalance(userId, -request.amount, 'transfer_debit');
+
+      // Log security event
+      await this.securityService.logSecurityEvent(
+        userId,
+        'transfer_executed',
+        {
+          transferId: transfer.id,
+          amount: request.amount,
+          recipient: request.recipientPhone
+        }
+      );
+
+      return transfer;
+    } catch (error) {
+      // Log failed transfer attempt
+      await this.securityService.logSecurityEvent(
+        userId,
+        'transfer_failed',
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          amount: request.amount,
+          recipient: request.recipientPhone
+        }
+      );
+      throw error;
+    }
+  }
+
+  async getTransferHistory(userId: string, limit = 50) {
+    const { data, error } = await supabase
+      .from('transfers')
+      .select('*')
+      .eq('sender_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw new Error(`Erreur lors de la récupération de l'historique: ${error.message}`);
+    }
+
+    return data;
+  }
+}
+
+export const secureTransferService = new SecureTransferService();

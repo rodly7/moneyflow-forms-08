@@ -163,7 +163,9 @@ function App() {
           <Route path="transfer" element={<Transfer />} />
           <Route path="transactions" element={<Transactions />} />
           <Route path="deposit" element={<UnifiedDepositWithdrawal />} />
+          <Route path="unified-deposit-withdrawal" element={<UnifiedDepositWithdrawal />} />
           <Route path="deposit-withdrawal" element={<DepositWithdrawalForm />} />
+          <Route path="withdraw" element={<UnifiedDepositWithdrawal />} />
           <Route path="agent-services" element={<AgentServices />} />
           
           {/* Agent routes */}

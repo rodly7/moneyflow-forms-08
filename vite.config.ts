@@ -22,19 +22,32 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        // Disable dynamic imports completely
+        // Force single bundle - no code splitting at all
+        manualChunks: undefined,
         inlineDynamicImports: true,
       },
     },
-    // Increase chunk size limit to prevent any splitting
-    chunkSizeWarningLimit: 10000,
-    // Disable code splitting completely
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 2000,
+    // Target modern browsers to avoid compatibility issues
     target: 'esnext',
-    minify: false, // Disable minification in development to help with debugging
+    // Disable minification to help with debugging in development
+    minify: mode === 'production' ? 'esbuild' : false,
   },
-  // Ensure no pre-bundling issues
+  // Ensure consistent dependency handling
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
+    include: [
+      'react', 
+      'react-dom', 
+      'react-router-dom',
+      '@supabase/supabase-js',
+      '@tanstack/react-query'
+    ],
     force: true,
+  },
+  // Prevent any dynamic imports from being created
+  define: {
+    // This helps prevent dynamic import issues
+    __DYNAMIC_IMPORTS_DISABLED__: true,
   },
 }));
