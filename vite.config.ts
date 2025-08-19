@@ -2,14 +2,18 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import { resolve } from 'path';
+import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
   },
-  plugins: [react()],
+  plugins: [
+    react(),
+    mode === 'development' && componentTagger(),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
@@ -35,7 +39,7 @@ export default defineConfig({
     // Target modern browsers to avoid compatibility issues
     target: 'esnext',
     // Disable minification in development to help with debugging
-    minify: false,
+    minify: mode === 'production' ? 'esbuild' : false,
   },
   // Force all dependencies to be bundled
   optimizeDeps: {
@@ -52,4 +56,4 @@ export default defineConfig({
   define: {
     __DYNAMIC_IMPORTS_DISABLED__: true,
   },
-});
+}));
