@@ -48,17 +48,9 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
   },
   define: {
     global: 'globalThis',
-    // Disable dynamic imports at build time
-    '__vitePreload': '() => Promise.resolve()',
-    '__vite__mapDeps': '() => []',
-    '__vite__dynamic_import__': '() => Promise.reject(new Error("Dynamic imports disabled"))',
   },
   worker: {
     format: 'iife' as const,
     plugins: () => [],
   },
-  // Experimental: Force single chunk
-  experimental: {
-    renderBuiltUrl: () => './index.js'
-  }
 }));
