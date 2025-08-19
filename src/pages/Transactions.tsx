@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,58 +50,77 @@ const Transactions = () => {
       const allTransactions: Transaction[] = [];
 
       try {
-        // 1. Récupérer TOUS les retraits (sans filtrer par statut)
+        // 1. Récupérer TOUS les retraits (SANS AUCUN FILTRE)
+        console.log('🔍 Recherche des retraits pour user_id:', user.id);
         const { data: withdrawals, error: withdrawalsError } = await supabase
           .from('withdrawals')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
+        console.log('📝 Requête retraits - Error:', withdrawalsError);
+        console.log('📝 Requête retraits - Data:', withdrawals);
+
         if (withdrawalsError) {
           console.error('❌ Erreur retraits:', withdrawalsError);
-        } else if (withdrawals && withdrawals.length > 0) {
-          console.log('💳 Retraits trouvés:', withdrawals.length);
-          withdrawals.forEach(withdrawal => {
-            // Déterminer le texte de statut en français
-            let statusText = 'En cours';
-            switch (withdrawal.status) {
-              case 'completed':
-                statusText = 'Terminé';
-                break;
-              case 'pending':
-                statusText = 'En attente';
-                break;
-              case 'agent_pending':
-                statusText = 'En attente agent';
-                break;
-              case 'rejected':
-                statusText = 'Refusé';
-                break;
-              case 'failed':
-                statusText = 'Échoué';
-                break;
-              default:
-                statusText = withdrawal.status || 'En cours';
-            }
-
-            allTransactions.push({
-              id: withdrawal.id,
-              type: 'withdrawal',
-              amount: withdrawal.amount,
-              date: parseISO(withdrawal.created_at),
-              description: `Retrait vers ${withdrawal.withdrawal_phone || 'Mobile Money'}`,
-              currency: 'XAF',
-              status: withdrawal.status,
-              verification_code: withdrawal.verification_code,
-              created_at: withdrawal.created_at,
-              withdrawal_phone: withdrawal.withdrawal_phone,
-              fees: 0,
-              userType: isAgent() ? 'agent' : 'user',
-              impact: 'debit'
-            });
-          });
         } else {
-          console.log('ℹ️ Aucun retrait trouvé pour cet utilisateur');
+          console.log('💳 Nombre de retraits trouvés:', withdrawals?.length || 0);
+          
+          if (withdrawals && withdrawals.length > 0) {
+            console.log('💳 Détail des retraits trouvés:', withdrawals);
+            withdrawals.forEach((withdrawal, index) => {
+              console.log(`💳 Retrait ${index + 1}:`, {
+                id: withdrawal.id,
+                amount: withdrawal.amount,
+                status: withdrawal.status,
+                created_at: withdrawal.created_at,
+                user_id: withdrawal.user_id
+              });
+
+              // Déterminer le texte de statut en français
+              let statusText = 'En cours';
+              switch (withdrawal.status) {
+                case 'completed':
+                  statusText = 'Terminé';
+                  break;
+                case 'pending':
+                  statusText = 'En attente';
+                  break;
+                case 'agent_pending':
+                  statusText = 'En attente agent';
+                  break;
+                case 'rejected':
+                  statusText = 'Refusé';
+                  break;
+                case 'failed':
+                  statusText = 'Échoué';
+                  break;
+                default:
+                  statusText = withdrawal.status || 'En cours';
+              }
+
+              const transactionItem = {
+                id: withdrawal.id,
+                type: 'withdrawal',
+                amount: withdrawal.amount,
+                date: parseISO(withdrawal.created_at),
+                description: `Retrait vers ${withdrawal.withdrawal_phone || 'Mobile Money'}`,
+                currency: 'XAF',
+                status: withdrawal.status,
+                verification_code: withdrawal.verification_code,
+                created_at: withdrawal.created_at,
+                withdrawal_phone: withdrawal.withdrawal_phone,
+                fees: 0,
+                userType: isAgent() ? 'agent' : 'user',
+                impact: 'debit' as const
+              };
+
+              console.log(`💳 Transaction créée pour retrait ${index + 1}:`, transactionItem);
+              allTransactions.push(transactionItem);
+            });
+          } else {
+            console.log('ℹ️ Aucun retrait trouvé pour cet utilisateur');
+          }
         }
 
         // 2. Récupérer les transferts envoyés (DÉBIT du solde)
@@ -250,6 +268,8 @@ const Transactions = () => {
           recharges: allTransactions.filter(t => t.type === 'recharge').length,
           facturesPayées: allTransactions.filter(t => t.type === 'bill_payment').length
         });
+
+        console.log('📊 Liste finale des transactions:', allTransactions);
         
         return allTransactions;
 
