@@ -66,7 +66,7 @@ export default defineConfig(({ mode }) => ({
   },
   // Ensure no worker or web worker splitting
   worker: {
-    format: 'iife',
-    plugins: [],
+    format: 'iife' as const,
+    plugins: () => [],
   },
 }));
