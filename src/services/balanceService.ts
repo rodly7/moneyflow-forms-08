@@ -59,7 +59,7 @@ export const processTransferWithFees = async (
       throw new Error(validation.error);
     }
 
-    // Use secure transfer service
+    // Use secure transfer service - import the function directly
     const { secureProcessTransfer } = await import('./secureTransferService');
     const { success } = await secureProcessTransfer(
       senderId,
