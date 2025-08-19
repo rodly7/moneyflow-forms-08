@@ -19,32 +19,25 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
   build: {
     rollupOptions: {
       output: {
-        // FORCE everything into a single file - NO exceptions
         inlineDynamicImports: true,
-        manualChunks: undefined, // Disable manual chunking completely
+        manualChunks: undefined,
         entryFileNames: 'index.js',
         chunkFileNames: 'index.js', 
         assetFileNames: 'assets/[name][extname]',
       },
       external: [],
       treeshake: false,
-      // Prevent any form of code splitting
       preserveEntrySignatures: false,
     },
     minify: false,
     target: 'esnext',
-    chunkSizeWarningLimit: 50000, // Increase limit significantly
+    chunkSizeWarningLimit: 50000,
     sourcemap: false,
-    // Disable CSS code splitting completely
     cssCodeSplit: false,
   },
   optimizeDeps: {
     include: ['react', 'react-dom', '@tanstack/react-query'],
     force: true,
-    esbuildOptions: {
-      // Prevent any splitting during optimization
-      splitting: false,
-    },
   },
   define: {
     global: 'globalThis',
@@ -52,9 +45,5 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
   worker: {
     format: 'iife' as const,
     plugins: () => [],
-  },
-  // Force single entry point
-  esbuild: {
-    splitting: false,
   },
 }));
