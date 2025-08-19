@@ -1,218 +1,33 @@
 
-import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowDownLeft, ArrowUpRight, CreditCard, Receipt, Minus, Plus } from "lucide-react";
-
-interface Transaction {
-  id: string;
-  type: string;
-  amount: number;
-  date: Date;
-  description: string;
-  currency: string;
-  status: string;
-  verification_code?: string;
-  created_at: string;
-  withdrawal_phone?: string;
-  fees?: number;
-  userType: "agent" | "user";
-  impact: "credit" | "debit";
-}
+import { ArrowDownLeft, ArrowUpRight, CreditCard, Receipt, Minus, Plus, Download, ArrowRightLeft } from "lucide-react";
+import { useAllTransactions } from "@/hooks/useAllTransactions";
+import { useState } from "react";
+import TransactionDetailModal from "@/components/transactions/TransactionDetailModal";
 
 const Transactions = () => {
   const { user } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { transactions, loading } = useAllTransactions(user?.id);
+  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchTransactions();
-    }
-  }, [user]);
-
-  const fetchTransactions = async () => {
-    if (!user) return;
-
-    try {
-      console.log("🔍 Récupération des transactions pour:", user.id);
-      setLoading(true);
-
-      const allTransactions: Transaction[] = [];
-
-      // 1. Récupérer les retraits
-      console.log("📤 Récupération des retraits...");
-      const { data: withdrawals, error: withdrawalError } = await supabase
-        .from('withdrawals')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (withdrawalError) {
-        console.error("❌ Erreur retraits:", withdrawalError);
-      } else if (withdrawals) {
-        console.log("✅ Retraits trouvés:", withdrawals.length);
-        withdrawals.forEach(withdrawal => {
-          allTransactions.push({
-            id: withdrawal.id,
-            type: 'withdrawal',
-            amount: withdrawal.amount,
-            date: new Date(withdrawal.created_at),
-            description: `Retrait vers ${withdrawal.withdrawal_phone || 'N/A'}`,
-            currency: 'XAF',
-            status: withdrawal.status || 'pending',
-            verification_code: withdrawal.verification_code || '',
-            created_at: withdrawal.created_at,
-            withdrawal_phone: withdrawal.withdrawal_phone || '',
-            fees: 0,
-            userType: "user" as const,
-            impact: "debit" as const
-          });
-        });
-      }
-
-      // 2. Récupérer les transferts envoyés
-      console.log("📤 Récupération des transferts envoyés...");
-      const { data: sentTransfers, error: sentError } = await supabase
-        .from('transfers')
-        .select('*')
-        .eq('sender_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (sentError) {
-        console.error("❌ Erreur transferts envoyés:", sentError);
-      } else if (sentTransfers) {
-        console.log("✅ Transferts envoyés trouvés:", sentTransfers.length);
-        sentTransfers.forEach(transfer => {
-          allTransactions.push({
-            id: transfer.id,
-            type: 'transfer_sent',
-            amount: transfer.amount,
-            date: new Date(transfer.created_at),
-            description: `Transfert vers ${transfer.recipient_phone}`,
-            currency: 'XAF',
-            status: transfer.status,
-            created_at: transfer.created_at,
-            userType: "user" as const,
-            impact: "debit" as const,
-            fees: transfer.fees || 0
-          });
-        });
-      }
-
-      // 3. Récupérer les transferts reçus
-      console.log("📥 Récupération des transferts reçus...");
-      const { data: receivedTransfers, error: receivedError } = await supabase
-        .from('transfers')
-        .select('*')
-        .eq('recipient_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (receivedError) {
-        console.error("❌ Erreur transferts reçus:", receivedError);
-      } else if (receivedTransfers) {
-        console.log("✅ Transferts reçus trouvés:", receivedTransfers.length);
-        receivedTransfers.forEach(transfer => {
-          allTransactions.push({
-            id: `received_${transfer.id}`,
-            type: 'transfer_received',
-            amount: transfer.amount,
-            date: new Date(transfer.created_at),
-            description: `Transfert reçu de ${transfer.recipient_full_name || 'Expéditeur'}`,
-            currency: 'XAF',
-            status: transfer.status,
-            created_at: transfer.created_at,
-            userType: "user" as const,
-            impact: "credit" as const
-          });
-        });
-      }
-
-      // 4. Récupérer les dépôts/recharges
-      console.log("🔋 Récupération des dépôts...");
-      const { data: recharges, error: rechargeError } = await supabase
-        .from('recharges')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (rechargeError) {
-        console.error("❌ Erreur dépôts:", rechargeError);
-      } else if (recharges) {
-        console.log("✅ Dépôts trouvés:", recharges.length);
-        recharges.forEach(recharge => {
-          allTransactions.push({
-            id: `deposit_${recharge.id}`,
-            type: 'deposit',
-            amount: recharge.amount,
-            date: new Date(recharge.created_at),
-            description: 'Dépôt de compte',
-            currency: 'XAF',
-            status: recharge.status,
-            created_at: recharge.created_at,
-            userType: "user" as const,
-            impact: "credit" as const
-          });
-        });
-      }
-
-      // 5. Récupérer les paiements de factures
-      console.log("🧾 Récupération des paiements de factures...");
-      const { data: billPayments, error: billError } = await supabase
-        .from('bill_payment_history')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (billError) {
-        console.error("❌ Erreur paiements factures:", billError);
-      } else if (billPayments) {
-        console.log("✅ Paiements de factures trouvés:", billPayments.length);
-        billPayments.forEach(payment => {
-          allTransactions.push({
-            id: `bill_${payment.id}`,
-            type: 'bill_payment',
-            amount: payment.amount,
-            date: new Date(payment.created_at),
-            description: 'Paiement de facture',
-            currency: 'XAF',
-            status: payment.status,
-            created_at: payment.created_at,
-            userType: "user" as const,
-            impact: "debit" as const
-          });
-        });
-      }
-
-      // Trier par date
-      const sortedTransactions = allTransactions.sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-
-      console.log("📊 Total transactions:", sortedTransactions.length);
-      console.log("📋 Détail:", {
-        retraits: sortedTransactions.filter(t => t.type === 'withdrawal').length,
-        transferts_envoyés: sortedTransactions.filter(t => t.type === 'transfer_sent').length,
-        transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
-        dépôts: sortedTransactions.filter(t => t.type === 'deposit').length,
-        paiements_factures: sortedTransactions.filter(t => t.type === 'bill_payment').length
-      });
-
-      setTransactions(sortedTransactions);
-    } catch (error) {
-      console.error("❌ Erreur générale:", error);
-    } finally {
-      setLoading(false);
-    }
+  const openTransactionDetail = (transaction: any) => {
+    setSelectedTransaction(transaction);
+    setIsModalOpen(true);
   };
 
-  const getTransactionIcon = (type: string) => {
+  const closeTransactionDetail = () => {
+    setSelectedTransaction(null);
+    setIsModalOpen(false);
+  };
+
+  const getTransactionIcon = (type: string, impact: string) => {
     switch (type) {
       case 'withdrawal':
-        return <ArrowUpRight className="w-5 h-5 text-red-600" />;
+        return <Download className="w-5 h-5 text-red-600" />;
       case 'transfer_sent':
         return <ArrowUpRight className="w-5 h-5 text-orange-600" />;
       case 'transfer_received':
@@ -326,7 +141,7 @@ const Transactions = () => {
         <CardHeader>
           <CardTitle>Historique Complet des Transactions</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Toutes vos entrées et sorties d'argent
+            Toutes vos opérations financières : dépôts, retraits, transferts et paiements
           </p>
         </CardHeader>
         <CardContent>
@@ -342,10 +157,13 @@ const Transactions = () => {
             <div className="space-y-4">
               {transactions.map((transaction, index) => (
                 <div key={transaction.id}>
-                  <div className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors">
+                  <div 
+                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => openTransactionDetail(transaction)}
+                  >
                     <div className="flex items-center gap-4">
                       <div className="p-2 rounded-full bg-muted">
-                        {getTransactionIcon(transaction.type)}
+                        {getTransactionIcon(transaction.type, transaction.impact)}
                       </div>
                       
                       <div className="flex-1">
@@ -398,6 +216,13 @@ const Transactions = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal des détails */}
+      <TransactionDetailModal 
+        transaction={selectedTransaction}
+        isVisible={isModalOpen}
+        onClose={closeTransactionDetail}
+      />
     </div>
   );
 };
