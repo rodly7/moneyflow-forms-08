@@ -23,8 +23,9 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
   build: {
     rollupOptions: {
       output: {
-        inlineDynamicImports: true,
-        manualChunks: undefined,
+        // Force everything into a single bundle - NO code splitting
+        manualChunks: () => 'everything',
+        inlineDynamicImports: false, // Changed to false since we're using manualChunks
         entryFileNames: 'index.js',
         chunkFileNames: 'index.js', 
         assetFileNames: 'assets/[name][extname]',
@@ -38,6 +39,8 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
     chunkSizeWarningLimit: 50000,
     sourcemap: false,
     cssCodeSplit: false,
+    // Force single file output
+    assetsInlineLimit: 0,
   },
   optimizeDeps: {
     include: ['react', 'react-dom', '@tanstack/react-query'],
@@ -45,9 +48,17 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
   },
   define: {
     global: 'globalThis',
+    // Disable dynamic imports at build time
+    '__vitePreload': '() => Promise.resolve()',
+    '__vite__mapDeps': '() => []',
+    '__vite__dynamic_import__': '() => Promise.reject(new Error("Dynamic imports disabled"))',
   },
   worker: {
     format: 'iife' as const,
     plugins: () => [],
   },
+  // Experimental: Force single chunk
+  experimental: {
+    renderBuiltUrl: () => './index.js'
+  }
 }));
