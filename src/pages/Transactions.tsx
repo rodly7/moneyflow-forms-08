@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowDownLeft, ArrowUpRight, CreditCard, Smartphone, Receipt, Minus, Plus } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CreditCard, Receipt, Minus, Plus } from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -41,7 +42,7 @@ const Transactions = () => {
 
       const allTransactions: Transaction[] = [];
 
-      // 1. Récupérer TOUS les retraits (sans filtre de statut)
+      // 1. Récupérer TOUS les retraits
       console.log("📤 Récupération des retraits...");
       const { data: withdrawals, error: withdrawalError } = await supabase
         .from('withdrawals')
@@ -67,8 +68,8 @@ const Transactions = () => {
               verification_code: withdrawal.verification_code || '',
               created_at: withdrawal.created_at,
               withdrawal_phone: withdrawal.withdrawal_phone || '',
-              fees: withdrawal.fees || 0,
-              userType: "user" as const, // Correction ici
+              fees: 0, // Withdrawals don't have fees in the schema
+              userType: "user" as const,
               impact: "debit" as const
             });
           });
@@ -99,8 +100,9 @@ const Transactions = () => {
               currency: 'XAF',
               status: transfer.status,
               created_at: transfer.created_at,
-              userType: "user" as const, // Correction ici
-              impact: "debit" as const
+              userType: "user" as const,
+              impact: "debit" as const,
+              fees: transfer.fees || 0
             });
           });
         }
@@ -127,11 +129,11 @@ const Transactions = () => {
               type: 'transfer_received',
               amount: transfer.amount,
               date: new Date(transfer.created_at),
-              description: `Transfert reçu de ${transfer.sender_phone}`,
+              description: `Transfert reçu de ${transfer.recipient_full_name || 'Expéditeur'}`,
               currency: 'XAF',
               status: transfer.status,
               created_at: transfer.created_at,
-              userType: "user" as const, // Correction ici
+              userType: "user" as const,
               impact: "credit" as const
             });
           });
@@ -141,10 +143,9 @@ const Transactions = () => {
       // 4. Récupérer les recharges
       console.log("🔋 Récupération des recharges...");
       const { data: recharges, error: rechargeError } = await supabase
-        .from('balance_updates')
+        .from('recharges')
         .select('*')
         .eq('user_id', user.id)
-        .eq('type', 'recharge')
         .order('created_at', { ascending: false });
 
       if (rechargeError) {
@@ -161,41 +162,10 @@ const Transactions = () => {
               date: new Date(recharge.created_at),
               description: 'Recharge de compte',
               currency: 'XAF',
-              status: 'completed',
+              status: recharge.status,
               created_at: recharge.created_at,
-              userType: "user" as const, // Correction ici
+              userType: "user" as const,
               impact: "credit" as const
-            });
-          });
-        }
-      }
-
-      // 5. Récupérer les paiements de factures
-      console.log("🧾 Récupération des paiements de factures...");
-      const { data: billPayments, error: billError } = await supabase
-        .from('bill_payments')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (billError) {
-        console.error("❌ Erreur paiements factures:", billError);
-      } else {
-        console.log("✅ Paiements de factures:", billPayments?.length || 0);
-        
-        if (billPayments) {
-          billPayments.forEach(payment => {
-            allTransactions.push({
-              id: `bill_${payment.id}`,
-              type: 'bill_payment',
-              amount: payment.amount,
-              date: new Date(payment.created_at),
-              description: `Facture ${payment.biller_name || 'N/A'}`,
-              currency: 'XAF',
-              status: payment.status,
-              created_at: payment.created_at,
-              userType: "user" as const, // Correction ici
-              impact: "debit" as const
             });
           });
         }
@@ -211,8 +181,7 @@ const Transactions = () => {
         retraits: sortedTransactions.filter(t => t.type === 'withdrawal').length,
         transferts_envoyés: sortedTransactions.filter(t => t.type === 'transfer_sent').length,
         transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
-        recharges: sortedTransactions.filter(t => t.type === 'recharge').length,
-        factures: sortedTransactions.filter(t => t.type === 'bill_payment').length
+        recharges: sortedTransactions.filter(t => t.type === 'recharge').length
       });
 
       setTransactions(sortedTransactions);
