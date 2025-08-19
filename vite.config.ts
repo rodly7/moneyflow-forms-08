@@ -22,17 +22,25 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        // Force single bundle - no code splitting at all
-        manualChunks: undefined,
+        // Completely disable code splitting
+        manualChunks: () => 'everything.js',
         inlineDynamicImports: true,
+        // Ensure no dynamic imports are created
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name].[ext]'
       },
+      // Prevent any external dependencies from being treated as external
+      external: []
     },
     // Increase chunk size warning limit
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 5000,
     // Target modern browsers to avoid compatibility issues
     target: 'esnext',
     // Disable minification to help with debugging in development
     minify: mode === 'production' ? 'esbuild' : false,
+    // Force single file output
+    cssCodeSplit: false,
   },
   // Ensure consistent dependency handling
   optimizeDeps: {
@@ -50,4 +58,9 @@ export default defineConfig(({ mode }) => ({
     // This helps prevent dynamic import issues
     __DYNAMIC_IMPORTS_DISABLED__: true,
   },
+  // Ensure no worker or web worker imports
+  worker: {
+    format: 'es',
+    plugins: []
+  }
 }));

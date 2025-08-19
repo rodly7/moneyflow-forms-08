@@ -135,7 +135,7 @@ function App() {
     console.log('App component mounted successfully with static imports');
   }, []);
 
-  console.log('App rendering with static components');
+  console.log('App rendering with static components - no dynamic imports allowed');
 
   return (
     <TooltipProvider>
