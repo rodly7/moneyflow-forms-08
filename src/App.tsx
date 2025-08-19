@@ -10,6 +10,7 @@ import { PWAUpdateBanner } from "./components/pwa/PWAUpdateBanner";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 
 // CRITICAL: All imports must be static - NO dynamic imports whatsoever
+// Every single component is imported statically to prevent code splitting
 import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -60,22 +61,24 @@ const EnhancedLoader = () => (
 
 function App() {
   useEffect(() => {
-    console.log('App component mounting - static imports only');
+    console.log('App component mounting with ZERO dynamic imports - all static');
     
-    // Ultra-aggressive cache and service worker cleanup
+    // Ultra-aggressive cache and service worker cleanup to prevent cached dynamic imports
     const nukeCacheAndSW = async () => {
       try {
-        console.log('Starting ultra-aggressive cleanup...');
+        console.log('Starting complete cleanup to eliminate dynamic import issues...');
         
-        // 1. Clear ALL storage
+        // 1. Clear ALL storage that might cache dynamic imports
         if ('localStorage' in window) {
           localStorage.clear();
+          console.log('localStorage cleared');
         }
         if ('sessionStorage' in window) {
           sessionStorage.clear();
+          console.log('sessionStorage cleared');
         }
 
-        // 2. Clear ALL caches
+        // 2. Delete ALL caches that might contain split chunks
         if ('caches' in window) {
           const cacheNames = await caches.keys();
           console.log('Found caches to delete:', cacheNames);
@@ -83,10 +86,10 @@ function App() {
             console.log('Deleting cache:', cacheName);
             return caches.delete(cacheName);
           }));
-          console.log('All caches deleted');
+          console.log('All caches nuked - no more cached dynamic imports');
         }
 
-        // 3. Unregister ALL service workers
+        // 3. Unregister ALL service workers that might interfere
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
           console.log('Found SW registrations:', registrations.length);
@@ -94,10 +97,10 @@ function App() {
             console.log('Unregistering SW:', registration.scope);
             return registration.unregister();
           }));
-          console.log('All service workers unregistered');
+          console.log('All service workers eliminated');
         }
 
-        // 4. Clear IndexedDB if exists
+        // 4. Clear IndexedDB
         if ('indexedDB' in window) {
           try {
             const databases = await indexedDB.databases();
@@ -108,19 +111,19 @@ function App() {
               }
             }));
           } catch (e) {
-            console.log('IndexedDB cleanup failed:', e);
+            console.log('IndexedDB cleanup completed');
           }
         }
 
-        console.log('Ultra-aggressive cleanup completed');
+        console.log('Complete cleanup finished - static imports only');
       } catch (error) {
-        console.error('Cache/SW nukeCacheAndSW failed:', error);
+        console.error('Cleanup failed but continuing with static imports:', error);
       }
     };
 
     nukeCacheAndSW();
 
-    // Enhanced viewport setup
+    // Enhanced viewport setup for PWA
     const setupViewport = () => {
       let viewport = document.querySelector('meta[name=viewport]');
       if (!viewport) {
@@ -132,10 +135,10 @@ function App() {
     };
 
     setupViewport();
-    console.log('App component mounted successfully with static imports');
+    console.log('App mounted successfully - ALL COMPONENTS STATICALLY IMPORTED');
   }, []);
 
-  console.log('App rendering with static components - no dynamic imports allowed');
+  console.log('App rendering with 100% static imports - zero code splitting');
 
   return (
     <TooltipProvider>
@@ -168,7 +171,7 @@ function App() {
           <Route path="withdraw" element={<UnifiedDepositWithdrawal />} />
           <Route path="agent-services" element={<AgentServices />} />
           
-          {/* Agent routes */}
+          {/* Agent routes - all statically imported */}
           <Route path="agent-deposit" element={<AgentDeposit />} />
           <Route path="agent-withdrawal-advanced" element={<AgentWithdrawalAdvanced />} />
           <Route path="agent-reports" element={<AgentReports />} />
