@@ -63,12 +63,27 @@ function App() {
   useEffect(() => {
     console.log('App component mounting - ZERO dynamic imports, everything static');
     
-    // ULTRA-aggressive cache and service worker cleanup to eliminate ALL dynamic imports
-    const nukeEverything = async () => {
+    // NUCLEAR option: Completely disable any form of dynamic loading
+    const nukeDynamicImports = async () => {
       try {
-        console.log('Starting COMPLETE cleanup to eliminate ALL dynamic imports...');
+        console.log('NUCLEAR: Disabling ALL dynamic loading mechanisms...');
         
-        // 1. Clear ALL possible storage mechanisms
+        // Override the dynamic import function globally
+        if (typeof window !== 'undefined') {
+          // Disable dynamic imports at the global level
+          (window as any).__vitePreload = () => Promise.resolve();
+          (window as any).__vite__mapDeps = () => [];
+          (window as any).__vite__dynamic_import__ = () => Promise.reject(new Error('Dynamic imports disabled'));
+          
+          // Clear any existing module cache
+          if ((window as any).__vite__injectQuery) {
+            delete (window as any).__vite__injectQuery;
+          }
+          
+          console.log('NUCLEAR: All dynamic loading mechanisms disabled');
+        }
+        
+        // ULTRA-aggressive cache and service worker cleanup
         if ('localStorage' in window) {
           localStorage.clear();
           console.log('localStorage cleared');
@@ -78,7 +93,7 @@ function App() {
           console.log('sessionStorage cleared');
         }
 
-        // 2. Delete ALL caches - be absolutely brutal
+        // Delete ALL caches
         if ('caches' in window) {
           const cacheNames = await caches.keys();
           console.log('Found caches to nuke:', cacheNames);
@@ -89,7 +104,7 @@ function App() {
           console.log('ALL caches completely eliminated');
         }
 
-        // 3. Unregister ALL service workers that might cache dynamic imports
+        // Unregister ALL service workers
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
           console.log('Found SW registrations to eliminate:', registrations.length);
@@ -100,37 +115,13 @@ function App() {
           console.log('ALL service workers completely eliminated');
         }
 
-        // 4. Clear ALL IndexedDB databases
-        if ('indexedDB' in window && indexedDB.databases) {
-          try {
-            const databases = await indexedDB.databases();
-            await Promise.all(databases.map(db => {
-              if (db.name) {
-                console.log('DELETING IndexedDB:', db.name);
-                const deleteRequest = indexedDB.deleteDatabase(db.name);
-                return new Promise((resolve) => {
-                  deleteRequest.onsuccess = () => resolve(true);
-                  deleteRequest.onerror = () => resolve(true);
-                });
-              }
-            }));
-          } catch (e) {
-            console.log('IndexedDB cleanup completed with potential errors (normal)');
-          }
-        }
-
-        // 5. Force reload module cache if possible
-        if ('webkitURL' in window) {
-          console.log('Clearing webkit URL cache');
-        }
-
-        console.log('COMPLETE cleanup finished - ONLY static imports now');
+        console.log('NUCLEAR cleanup completed - ONLY static imports allowed');
       } catch (error) {
-        console.error('Cleanup encountered errors but continuing with static-only mode:', error);
+        console.error('Nuclear cleanup encountered errors but continuing:', error);
       }
     };
 
-    nukeEverything();
+    nukeDynamicImports();
 
     // Enhanced viewport setup for PWA with no dynamic loading
     const setupViewport = () => {
@@ -144,10 +135,10 @@ function App() {
     };
 
     setupViewport();
-    console.log('App mounted successfully - ALL COMPONENTS STATICALLY IMPORTED - NO CODE SPLITTING');
+    console.log('App mounted successfully - ALL COMPONENTS STATICALLY IMPORTED - ZERO CODE SPLITTING');
   }, []);
 
-  console.log('App rendering with 100% static imports - ZERO code splitting');
+  console.log('App rendering with 100% static imports - NUCLEAR ANTI-SPLITTING MODE');
 
   return (
     <TooltipProvider>
