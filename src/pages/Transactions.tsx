@@ -1,15 +1,10 @@
-import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Download, ArrowRightLeft, Copy, Check, Zap, CreditCard, Plus, Minus } from "lucide-react";
-import { format, parseISO } from "date-fns";
-import { fr } from "date-fns/locale";
 import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import SimpleTransactionDetail from "@/components/transactions/SimpleTransactionDetail";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ArrowDownLeft, ArrowUpRight, CreditCard, Smartphone, Receipt, Minus, Plus } from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -20,664 +15,394 @@ interface Transaction {
   currency: string;
   status: string;
   verification_code?: string;
-  created_at?: string;
-  showCode?: boolean;
-  userType?: 'agent' | 'user';
-  recipient_full_name?: string;
-  recipient_phone?: string;
+  created_at: string;
   withdrawal_phone?: string;
   fees?: number;
-  sender_id?: string;
-  impact: 'debit' | 'credit';
+  userType: "agent" | "user";
+  impact: "credit" | "debit";
 }
 
 const Transactions = () => {
-  const navigate = useNavigate();
-  const { user, isAgent } = useAuth();
-  const { toast } = useToast();
-  const [copiedCodes, setCopiedCodes] = useState<{[key: string]: boolean}>({});
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { user } = useAuth();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Récupérer toutes les transactions de l'utilisateur
-  const { data: allTransactions, isLoading } = useQuery({
-    queryKey: ['userTransactions', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
+  useEffect(() => {
+    if (user) {
+      fetchTransactions();
+    }
+  }, [user]);
 
-      console.log('🔄 Récupération de toutes les transactions pour:', user.id);
+  const fetchTransactions = async () => {
+    if (!user) return;
+
+    try {
+      console.log("🔍 Début de récupération des transactions pour l'utilisateur:", user.id);
 
       const allTransactions: Transaction[] = [];
 
-      try {
-        // 1. Récupérer TOUS les retraits (SANS AUCUN FILTRE)
-        console.log('🔍 Recherche des retraits pour user_id:', user.id);
-        const { data: withdrawals, error: withdrawalsError } = await supabase
-          .from('withdrawals')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+      // 1. Récupérer TOUS les retraits (sans filtre de statut)
+      console.log("📤 Récupération des retraits...");
+      const { data: withdrawals, error: withdrawalError } = await supabase
+        .from('withdrawals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-        console.log('📝 Requête retraits - Error:', withdrawalsError);
-        console.log('📝 Requête retraits - Data:', withdrawals);
-
-        if (withdrawalsError) {
-          console.error('❌ Erreur retraits:', withdrawalsError);
-        } else {
-          console.log('💳 Nombre de retraits trouvés:', withdrawals?.length || 0);
-          
-          if (withdrawals && withdrawals.length > 0) {
-            console.log('💳 Détail des retraits trouvés:', withdrawals);
-            withdrawals.forEach((withdrawal, index) => {
-              console.log(`💳 Retrait ${index + 1}:`, {
-                id: withdrawal.id,
-                amount: withdrawal.amount,
-                status: withdrawal.status,
-                created_at: withdrawal.created_at,
-                user_id: withdrawal.user_id
-              });
-
-              // Déterminer le texte de statut en français
-              let statusText = 'En cours';
-              switch (withdrawal.status) {
-                case 'completed':
-                  statusText = 'Terminé';
-                  break;
-                case 'pending':
-                  statusText = 'En attente';
-                  break;
-                case 'agent_pending':
-                  statusText = 'En attente agent';
-                  break;
-                case 'rejected':
-                  statusText = 'Refusé';
-                  break;
-                case 'failed':
-                  statusText = 'Échoué';
-                  break;
-                default:
-                  statusText = withdrawal.status || 'En cours';
-              }
-
-              const transactionItem = {
-                id: withdrawal.id,
-                type: 'withdrawal',
-                amount: withdrawal.amount,
-                date: parseISO(withdrawal.created_at),
-                description: `Retrait vers ${withdrawal.withdrawal_phone || 'Mobile Money'}`,
-                currency: 'XAF',
-                status: withdrawal.status,
-                verification_code: withdrawal.verification_code,
-                created_at: withdrawal.created_at,
-                withdrawal_phone: withdrawal.withdrawal_phone,
-                fees: 0,
-                userType: isAgent() ? 'agent' : 'user',
-                impact: 'debit' as const
-              };
-
-              console.log(`💳 Transaction créée pour retrait ${index + 1}:`, transactionItem);
-              allTransactions.push(transactionItem);
+      if (withdrawalError) {
+        console.error("❌ Erreur lors de la récupération des retraits:", withdrawalError);
+      } else {
+        console.log("✅ Retraits récupérés:", withdrawals?.length || 0, withdrawals);
+        
+        if (withdrawals) {
+          withdrawals.forEach(withdrawal => {
+            allTransactions.push({
+              id: withdrawal.id,
+              type: 'withdrawal',
+              amount: withdrawal.amount,
+              date: new Date(withdrawal.created_at),
+              description: `Retrait vers ${withdrawal.withdrawal_phone || 'N/A'}`,
+              currency: 'XAF',
+              status: withdrawal.status || 'pending',
+              verification_code: withdrawal.verification_code || '',
+              created_at: withdrawal.created_at,
+              withdrawal_phone: withdrawal.withdrawal_phone || '',
+              fees: withdrawal.fees || 0,
+              userType: "user" as const, // Correction ici
+              impact: "debit" as const
             });
-          } else {
-            console.log('ℹ️ Aucun retrait trouvé pour cet utilisateur');
-          }
+          });
         }
+      }
 
-        // 2. Récupérer les transferts envoyés (DÉBIT du solde)
-        const { data: sentTransfers, error: sentError } = await supabase
-          .from('transfers')
-          .select('*')
-          .eq('sender_id', user.id)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false });
+      // 2. Récupérer les transferts envoyés
+      console.log("📤 Récupération des transferts envoyés...");
+      const { data: sentTransfers, error: sentError } = await supabase
+        .from('transfers')
+        .select('*')
+        .eq('sender_id', user.id)
+        .order('created_at', { ascending: false });
 
-        if (sentError) {
-          console.error('❌ Erreur transferts envoyés:', sentError);
-        } else if (sentTransfers && sentTransfers.length > 0) {
-          console.log('📤 Transferts envoyés trouvés:', sentTransfers.length);
+      if (sentError) {
+        console.error("❌ Erreur transferts envoyés:", sentError);
+      } else {
+        console.log("✅ Transferts envoyés:", sentTransfers?.length || 0);
+        
+        if (sentTransfers) {
           sentTransfers.forEach(transfer => {
             allTransactions.push({
               id: transfer.id,
               type: 'transfer_sent',
               amount: transfer.amount,
-              date: parseISO(transfer.created_at),
-              description: `Transfert envoyé à ${transfer.recipient_full_name || transfer.recipient_phone}`,
-              currency: transfer.currency || 'XAF',
+              date: new Date(transfer.created_at),
+              description: `Transfert vers ${transfer.recipient_phone}`,
+              currency: 'XAF',
               status: transfer.status,
-              recipient_full_name: transfer.recipient_full_name,
-              recipient_phone: transfer.recipient_phone,
-              fees: transfer.fees || 0,
-              userType: isAgent() ? 'agent' : 'user',
-              impact: 'debit'
+              created_at: transfer.created_at,
+              userType: "user" as const, // Correction ici
+              impact: "debit" as const
             });
           });
         }
+      }
 
-        // 3. Récupérer les transferts reçus (CRÉDIT du solde)
-        const { data: receivedTransfers, error: receivedError } = await supabase
-          .from('transfers')
-          .select('*')
-          .eq('recipient_id', user.id)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false });
+      // 3. Récupérer les transferts reçus
+      console.log("📥 Récupération des transferts reçus...");
+      const { data: receivedTransfers, error: receivedError } = await supabase
+        .from('transfers')
+        .select('*')
+        .eq('recipient_phone', user.phone)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false });
 
-        if (receivedError) {
-          console.error('❌ Erreur transferts reçus:', receivedError);
-        } else if (receivedTransfers && receivedTransfers.length > 0) {
-          console.log('📥 Transferts reçus trouvés:', receivedTransfers.length);
-          
-          for (const transfer of receivedTransfers) {
-            let senderName = 'Expéditeur inconnu';
-            
-            // Récupérer le nom de l'expéditeur
-            try {
-              const { data: senderProfile } = await supabase
-                .from('profiles')
-                .select('full_name, phone')
-                .eq('id', transfer.sender_id)
-                .single();
-              
-              if (senderProfile) {
-                senderName = senderProfile.full_name || senderProfile.phone || 'Expéditeur inconnu';
-              }
-            } catch (error) {
-              console.error('❌ Erreur récupération expéditeur:', error);
-            }
-            
+      if (receivedError) {
+        console.error("❌ Erreur transferts reçus:", receivedError);
+      } else {
+        console.log("✅ Transferts reçus:", receivedTransfers?.length || 0);
+        
+        if (receivedTransfers) {
+          receivedTransfers.forEach(transfer => {
             allTransactions.push({
-              id: transfer.id,
+              id: `received_${transfer.id}`,
               type: 'transfer_received',
               amount: transfer.amount,
-              date: parseISO(transfer.created_at),
-              description: `Transfert reçu de ${senderName}`,
-              currency: transfer.currency || 'XAF',
+              date: new Date(transfer.created_at),
+              description: `Transfert reçu de ${transfer.sender_phone}`,
+              currency: 'XAF',
               status: transfer.status,
-              fees: 0,
-              userType: isAgent() ? 'agent' : 'user',
-              sender_id: transfer.sender_id,
-              impact: 'credit'
+              created_at: transfer.created_at,
+              userType: "user" as const, // Correction ici
+              impact: "credit" as const
             });
-          }
+          });
         }
+      }
 
-        // 4. Récupérer les recharges/dépôts (CRÉDIT du solde)
-        const { data: recharges, error: rechargesError } = await supabase
-          .from('recharges')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+      // 4. Récupérer les recharges
+      console.log("🔋 Récupération des recharges...");
+      const { data: recharges, error: rechargeError } = await supabase
+        .from('balance_updates')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('type', 'recharge')
+        .order('created_at', { ascending: false });
 
-        if (rechargesError) {
-          console.error('❌ Erreur recharges:', rechargesError);
-        } else if (recharges && recharges.length > 0) {
-          console.log('💰 Recharges trouvées:', recharges.length);
+      if (rechargeError) {
+        console.error("❌ Erreur recharges:", rechargeError);
+      } else {
+        console.log("✅ Recharges:", recharges?.length || 0);
+        
+        if (recharges) {
           recharges.forEach(recharge => {
             allTransactions.push({
-              id: recharge.id,
+              id: `recharge_${recharge.id}`,
               type: 'recharge',
               amount: recharge.amount,
-              date: parseISO(recharge.created_at),
-              description: `Dépôt via ${recharge.payment_method || 'Mobile Money'}`,
-              currency: 'XAF',
-              status: recharge.status,
-              fees: 0,
-              userType: isAgent() ? 'agent' : 'user',
-              impact: 'credit'
-            });
-          });
-        }
-
-        // 5. Récupérer les paiements de factures automatiques (DÉBIT du solde)
-        const { data: billPayments, error: billError } = await supabase
-          .from('automatic_bills')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'paid')
-          .order('updated_at', { ascending: false });
-
-        if (billError) {
-          console.error('❌ Erreur paiements factures:', billError);
-        } else if (billPayments && billPayments.length > 0) {
-          console.log('⚡ Paiements de factures trouvés:', billPayments.length);
-          billPayments.forEach(bill => {
-            const billFees = bill.amount * 0.015;
-            
-            allTransactions.push({
-              id: bill.id,
-              type: 'bill_payment',
-              amount: bill.amount,
-              date: parseISO(bill.updated_at || bill.created_at),
-              description: `Paiement ${bill.bill_name || 'Facture'}`,
+              date: new Date(recharge.created_at),
+              description: 'Recharge de compte',
               currency: 'XAF',
               status: 'completed',
-              fees: billFees,
-              userType: isAgent() ? 'agent' : 'user',
-              impact: 'debit'
+              created_at: recharge.created_at,
+              userType: "user" as const, // Correction ici
+              impact: "credit" as const
             });
           });
         }
-
-        // Trier toutes les transactions par date décroissante
-        allTransactions.sort((a, b) => b.date.getTime() - a.date.getTime());
-        
-        console.log('📊 Total transactions récupérées:', allTransactions.length);
-        console.log('📊 Détail des transactions:', {
-          retraits: allTransactions.filter(t => t.type === 'withdrawal').length,
-          transfertsEnvoyés: allTransactions.filter(t => t.type === 'transfer_sent').length,
-          transfertsReçus: allTransactions.filter(t => t.type === 'transfer_received').length,
-          recharges: allTransactions.filter(t => t.type === 'recharge').length,
-          facturesPayées: allTransactions.filter(t => t.type === 'bill_payment').length
-        });
-
-        console.log('📊 Liste finale des transactions:', allTransactions);
-        
-        return allTransactions;
-
-      } catch (error) {
-        console.error('❌ Erreur générale lors de la récupération des transactions:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les transactions",
-          variant: "destructive"
-        });
-        return [];
       }
-    },
-    enabled: !!user,
-  });
 
-  const { data: withdrawals } = useQuery({
-    queryKey: ['withdrawals'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('withdrawals')
+      // 5. Récupérer les paiements de factures
+      console.log("🧾 Récupération des paiements de factures...");
+      const { data: billPayments, error: billError } = await supabase
+        .from('bill_payments')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const { data: sentTransfers } = useQuery({
-    queryKey: ['sentTransfers'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transfers')
-        .select('*')
-        .eq('sender_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const { data: receivedTransfers } = useQuery({
-    queryKey: ['receivedTransfers'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transfers')
-        .select('*')
-        .eq('recipient_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const [processedWithdrawals, setProcessedWithdrawals] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (withdrawals) {
-      // Process withdrawals to determine which codes should be visible based on creation time
-      const processed = withdrawals.map(withdrawal => {
-        const createdAt = new Date(withdrawal.created_at);
-        const now = new Date();
-        const timeDiffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
-        const showCode = timeDiffMinutes <= 5 && withdrawal.verification_code && withdrawal.status === 'pending';
+      if (billError) {
+        console.error("❌ Erreur paiements factures:", billError);
+      } else {
+        console.log("✅ Paiements de factures:", billPayments?.length || 0);
         
-        return {
-          ...withdrawal,
-          showCode,
-          userType: isAgent() ? 'agent' : 'user'
-        };
-      });
-      
-      setProcessedWithdrawals(processed);
-    }
-    
-    // Set up a timer to update the visibility every minute
-    const timer = setInterval(() => {
-      setProcessedWithdrawals(current => 
-        current.map(withdrawal => {
-          const createdAt = new Date(withdrawal.created_at);
-          const now = new Date();
-          const timeDiffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
-          const showCode = timeDiffMinutes <= 5 && withdrawal.verification_code && withdrawal.status === 'pending';
-          
-          return {
-            ...withdrawal,
-            showCode
-          };
-        })
+        if (billPayments) {
+          billPayments.forEach(payment => {
+            allTransactions.push({
+              id: `bill_${payment.id}`,
+              type: 'bill_payment',
+              amount: payment.amount,
+              date: new Date(payment.created_at),
+              description: `Facture ${payment.biller_name || 'N/A'}`,
+              currency: 'XAF',
+              status: payment.status,
+              created_at: payment.created_at,
+              userType: "user" as const, // Correction ici
+              impact: "debit" as const
+            });
+          });
+        }
+      }
+
+      // Trier toutes les transactions par date (plus récente en premier)
+      const sortedTransactions = allTransactions.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
-    }, 60000); // Check every minute
-    
-    return () => clearInterval(timer);
-  }, [withdrawals, isAgent]);
 
-  const copyToClipboard = (code: string, id: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCodes({...copiedCodes, [id]: true});
-    
-    toast({
-      title: "Code copié",
-      description: "Le code de vérification a été copié dans le presse-papiers"
-    });
-    
-    // Reset copy indicator after 2 seconds
-    setTimeout(() => {
-      setCopiedCodes(current => ({...current, [id]: false}));
-    }, 2000);
-  };
+      console.log("📊 Total transactions récupérées:", sortedTransactions.length);
+      console.log("📋 Détail par type:", {
+        retraits: sortedTransactions.filter(t => t.type === 'withdrawal').length,
+        transferts_envoyés: sortedTransactions.filter(t => t.type === 'transfer_sent').length,
+        transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
+        recharges: sortedTransactions.filter(t => t.type === 'recharge').length,
+        factures: sortedTransactions.filter(t => t.type === 'bill_payment').length
+      });
 
-  const openTransactionDetail = (transaction: Transaction) => {
-    setSelectedTransaction(transaction);
-    setIsModalOpen(true);
-  };
-
-  const closeTransactionDetail = () => {
-    setSelectedTransaction(null);
-    setIsModalOpen(false);
-  };
-
-  const getIcon = (type: string, impact: string) => {
-    if (impact === 'debit') {
-      switch (type) {
-        case 'withdrawal':
-          return <Download className="h-4 w-4 text-red-500" />;
-        case 'transfer_sent':
-          return <Minus className="h-4 w-4 text-red-500" />;
-        case 'bill_payment':
-          return <Zap className="h-4 w-4 text-purple-500" />;
-        default:
-          return <Minus className="h-4 w-4 text-red-500" />;
-      }
-    } else {
-      switch (type) {
-        case 'transfer_received':
-          return <Plus className="h-4 w-4 text-green-500" />;
-        case 'recharge':
-          return <CreditCard className="h-4 w-4 text-green-500" />;
-        default:
-          return <Plus className="h-4 w-4 text-green-500" />;
-      }
+      setTransactions(sortedTransactions);
+    } catch (error) {
+      console.error("❌ Erreur générale lors de la récupération des transactions:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getAmountDisplay = (transaction: Transaction) => {
-    const sign = transaction.impact === 'credit' ? '+' : '-';
-    const color = transaction.impact === 'credit' ? 'text-green-600' : 'text-red-600';
-    
-    return (
-      <p className={`text-lg font-bold ${color}`}>
-        {sign}{new Intl.NumberFormat('fr-FR', {
-          style: 'currency',
-          currency: transaction.currency || 'XAF',
-          maximumFractionDigits: 0
-        }).format(transaction.amount)}
-      </p>
-    );
+  const getTransactionIcon = (type: string) => {
+    switch (type) {
+      case 'withdrawal':
+        return <ArrowUpRight className="w-5 h-5 text-red-600" />;
+      case 'transfer_sent':
+        return <ArrowUpRight className="w-5 h-5 text-orange-600" />;
+      case 'transfer_received':
+        return <ArrowDownLeft className="w-5 h-5 text-green-600" />;
+      case 'recharge':
+        return <Plus className="w-5 h-5 text-blue-600" />;
+      case 'bill_payment':
+        return <Receipt className="w-5 h-5 text-purple-600" />;
+      default:
+        return <CreditCard className="w-5 h-5 text-gray-600" />;
+    }
   };
 
-  const renderTransaction = (transaction: Transaction) => (
-    <div 
-      key={transaction.id} 
-      className="p-5 hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-300 cursor-pointer"
-      onClick={() => openTransactionDetail(transaction)}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          <div className="relative">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-              transaction.impact === 'debit'
-                ? 'bg-gradient-to-r from-red-100 to-pink-100' 
-                : 'bg-gradient-to-r from-green-100 to-emerald-100'
-            }`}>
-              {getIcon(transaction.type, transaction.impact)}
-            </div>
-            <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full ${
-              transaction.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
-            } flex items-center justify-center`}>
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <p className="font-semibold text-gray-900 truncate">{transaction.description}</p>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                transaction.impact === 'credit' 
-                  ? 'bg-green-100 text-green-700' 
-                  : 'bg-red-100 text-red-700'
-              }`}>
-                {transaction.impact === 'credit' ? 'Crédit' : 'Débit'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <span>{format(transaction.date, 'dd MMM', { locale: fr })}</span>
-              <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                transaction.status === 'completed' ? 'bg-green-100 text-green-700' : 
-                transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 
-                'bg-gray-100 text-gray-600'
-              }`}>
-                {transaction.status === 'completed' ? 'Terminé' : 
-                 transaction.status === 'pending' ? 'En cours' : transaction.status}
-              </span>
-              {transaction.fees && transaction.fees > 0 && (
-                <>
-                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                  <span className="text-xs text-red-600">
-                    Frais: {transaction.fees.toLocaleString()} FCFA
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="text-right">
-          {getAmountDisplay(transaction)}
-        </div>
-      </div>
-      
-      {transaction.showCode && transaction.verification_code && (
-        <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="p-1 bg-blue-500 rounded-full">
-                  <div className="w-2 h-2 bg-white rounded-full"></div>
-                </div>
-                <p className="text-xs font-semibold text-blue-700">Code de vérification:</p>
-              </div>
-              <p className="font-mono font-bold text-lg text-blue-900 tracking-wider">
-                {transaction.verification_code}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => copyToClipboard(transaction.verification_code!, transaction.id)}
-              className="ml-3 hover:scale-110 transition-transform"
-            >
-              {copiedCodes[transaction.id] ? (
-                <Check className="h-4 w-4 text-green-500" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
-  if (!user) {
-    return null;
-  }
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('fr-FR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
 
-  if (isLoading) {
+  // Calculer les totaux
+  const creditTransactions = transactions.filter(t => t.impact === 'credit');
+  const debitTransactions = transactions.filter(t => t.impact === 'debit');
+  
+  const totalCredits = creditTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const totalDebits = debitTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50 p-4">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 p-1 rounded-2xl shadow-xl">
-            <div className="bg-white rounded-2xl p-4">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
-                <div className="flex-1">
-                  <div className="h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded animate-pulse w-2/3"></div>
-                </div>
-              </div>
+      <div className="container mx-auto p-4 space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Chargement des transactions...</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="animate-pulse space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-16 bg-gray-200 rounded"></div>
+              ))}
             </div>
-          </div>
-          <Card>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="flex items-center gap-4 p-4 rounded-lg border">
-                      <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
-                      <div className="flex-1">
-                        <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                      </div>
-                      <div className="h-6 w-20 bg-gray-200 rounded"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
-
-  const creditTransactions = allTransactions?.filter(t => t.impact === 'credit') || [];
-  const debitTransactions = allTransactions?.filter(t => t.impact === 'debit') || [];
-  const totalCredit = creditTransactions.reduce((sum, t) => sum + t.amount, 0);
-  const totalDebit = debitTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50 p-4">
-      <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 p-1 rounded-2xl shadow-xl">
-          <div className="bg-white rounded-2xl p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => navigate('/')} 
-                  className="h-10 w-10 p-0 hover:scale-110 transition-transform"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full">
-                    <ArrowRightLeft className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
-                      Historique complet
-                    </h1>
-                    <p className="text-sm text-muted-foreground">Toutes vos transactions</p>
-                  </div>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
-                  {allTransactions?.length || 0}
-                </p>
-                <p className="text-xs text-muted-foreground">opérations</p>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="container mx-auto p-4 space-y-6">
+      {/* Résumé financier */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-green-600">
+              <Plus className="w-5 h-5" />
+              Crédits
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{totalCredits.toLocaleString()} XAF</div>
+            <p className="text-sm text-muted-foreground">{creditTransactions.length} opérations</p>
+          </CardContent>
+        </Card>
 
-        {/* Résumé des crédits/débits */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-600 text-sm font-medium">Crédits</p>
-                  <p className="text-xl font-bold text-green-900">
-                    {new Intl.NumberFormat('fr-FR').format(totalCredit)} FCFA
-                  </p>
-                  <p className="text-xs text-green-700">{creditTransactions.length} opérations</p>
-                </div>
-                <Plus className="w-8 h-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-red-600">
+              <Minus className="w-5 h-5" />
+              Débits
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{totalDebits.toLocaleString()} XAF</div>
+            <p className="text-sm text-muted-foreground">{debitTransactions.length} opérations</p>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-red-600 text-sm font-medium">Débits</p>
-                  <p className="text-xl font-bold text-red-900">
-                    {new Intl.NumberFormat('fr-FR').format(totalDebit)} FCFA
-                  </p>
-                  <p className="text-xs text-red-700">{debitTransactions.length} opérations</p>
-                </div>
-                <Minus className="w-8 h-8 text-red-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Transactions List */}
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000"></div>
-          <Card className="relative bg-white border-0 shadow-2xl">
-            <CardContent className="p-0">
-              {allTransactions && allTransactions.length > 0 ? (
-                <div className="divide-y divide-gray-100">
-                  {allTransactions.map(renderTransaction)}
-                </div>
-              ) : (
-                <div className="text-center py-16">
-                  <div className="relative">
-                    <div className="p-6 bg-gradient-to-r from-emerald-100 to-blue-100 rounded-full w-24 h-24 mx-auto mb-4">
-                      <ArrowRightLeft className="w-12 h-12 text-emerald-600 mx-auto" />
-                    </div>
-                    <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-24 h-24 bg-gradient-to-r from-emerald-300 to-blue-300 rounded-full animate-ping opacity-20"></div>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Aucune transaction</h3>
-                  <p className="text-sm text-gray-500">Vos opérations apparaîtront ici avec les détails de crédit/débit</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Transaction Detail Modal */}
-        <SimpleTransactionDetail 
-          transaction={selectedTransaction}
-          isVisible={isModalOpen}
-          onClose={closeTransactionDetail}
-        />
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              Total
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{transactions.length} transactions</div>
+            <p className="text-sm text-muted-foreground">
+              Solde: {(totalCredits - totalDebits).toLocaleString()} XAF
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Liste des transactions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Historique des Transactions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {transactions.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              Aucune transaction trouvée.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {transactions.map((transaction, index) => (
+                <div key={transaction.id}>
+                  <div className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 rounded-full bg-muted">
+                        {getTransactionIcon(transaction.type)}
+                      </div>
+                      
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium">{transaction.description}</h3>
+                          <Badge className={getStatusColor(transaction.status)}>
+                            {transaction.status}
+                          </Badge>
+                          <Badge variant={transaction.impact === 'credit' ? 'default' : 'destructive'}>
+                            {transaction.impact === 'credit' ? 'Crédit' : 'Débit'}
+                          </Badge>
+                        </div>
+                        
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate(transaction.date)}
+                        </p>
+                        
+                        {transaction.verification_code && (
+                          <p className="text-xs text-muted-foreground">
+                            Code: {transaction.verification_code}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <div className={`font-semibold ${
+                        transaction.impact === 'credit' 
+                          ? 'text-green-600' 
+                          : 'text-red-600'
+                      }`}>
+                        {transaction.impact === 'credit' ? '+' : '-'}
+                        {transaction.amount.toLocaleString()} {transaction.currency}
+                      </div>
+                      
+                      {transaction.fees && transaction.fees > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          Frais: {transaction.fees.toLocaleString()} XAF
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {index < transactions.length - 1 && <Separator />}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
