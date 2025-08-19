@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -80,6 +81,35 @@ export const useRealtimeTransactions = (userId?: string) => {
         .order('created_at', { ascending: false })
         .limit(10);
 
+      // Récupérer les dépôts/recharges récents
+      const { data: depositsData } = await supabase
+        .from('recharges')
+        .select(`
+          id, 
+          amount, 
+          created_at, 
+          status,
+          user_id,
+          payment_phone
+        `)
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      // Récupérer les paiements de factures récents
+      const { data: billPaymentsData } = await supabase
+        .from('bill_payment_history')
+        .select(`
+          id, 
+          amount, 
+          created_at, 
+          status,
+          user_id
+        `)
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
       // Transformer les transferts envoyés
       const transformedSentTransfers: Transaction[] = (sentTransfersData || []).map(transfer => ({
         id: transfer.id,
@@ -92,10 +122,9 @@ export const useRealtimeTransactions = (userId?: string) => {
         userType: (transfer.profiles as any)?.role === 'agent' ? 'agent' : 'user'
       }));
 
-      // Transformer les transferts reçus - récupérer le nom de l'expéditeur
+      // Transformer les transferts reçus
       const transformedReceivedTransfers: Transaction[] = await Promise.all(
         (receivedTransfersData || []).map(async (transfer) => {
-          // Récupérer le nom de l'expéditeur
           const { data: senderProfile } = await supabase
             .from('profiles')
             .select('full_name')
@@ -115,6 +144,30 @@ export const useRealtimeTransactions = (userId?: string) => {
         })
       );
 
+      // Transformer les dépôts
+      const transformedDeposits: Transaction[] = (depositsData || []).map(deposit => ({
+        id: `deposit_${deposit.id}`,
+        type: 'deposit',
+        amount: deposit.amount,
+        date: new Date(deposit.created_at),
+        description: 'Dépôt de compte',
+        currency: 'XAF',
+        status: deposit.status,
+        userType: 'user' as const
+      }));
+
+      // Transformer les paiements de factures
+      const transformedBillPayments: Transaction[] = (billPaymentsData || []).map(payment => ({
+        id: `bill_${payment.id}`,
+        type: 'bill_payment',
+        amount: -payment.amount,
+        date: new Date(payment.created_at),
+        description: 'Paiement de facture',
+        currency: 'XAF',
+        status: payment.status,
+        userType: 'user' as const
+      }));
+
       // Transformer les retraits
       const transformedWithdrawals: Withdrawal[] = (withdrawalsData || []).map(withdrawal => ({
         id: withdrawal.id,
@@ -126,7 +179,12 @@ export const useRealtimeTransactions = (userId?: string) => {
         userType: (withdrawal.profiles as any)?.role === 'agent' ? 'agent' : 'user'
       }));
 
-      setTransactions([...transformedSentTransfers, ...transformedReceivedTransfers]);
+      setTransactions([
+        ...transformedSentTransfers, 
+        ...transformedReceivedTransfers,
+        ...transformedDeposits,
+        ...transformedBillPayments
+      ]);
       setWithdrawals(transformedWithdrawals);
     } catch (error) {
       console.error('Erreur lors du chargement des transactions:', error);
@@ -176,9 +234,47 @@ export const useRealtimeTransactions = (userId?: string) => {
       )
       .subscribe();
 
+    // Écouter les changements en temps réel pour les recharges
+    const rechargesChannel = supabase
+      .channel('realtime-recharges')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'recharges'
+        },
+        () => {
+          if (userId) {
+            fetchTransactions(userId);
+          }
+        }
+      )
+      .subscribe();
+
+    // Écouter les changements en temps réel pour les paiements de factures
+    const billPaymentsChannel = supabase
+      .channel('realtime-bill-payments')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bill_payment_history'
+        },
+        () => {
+          if (userId) {
+            fetchTransactions(userId);
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(transfersChannel);
       supabase.removeChannel(withdrawalsChannel);
+      supabase.removeChannel(rechargesChannel);
+      supabase.removeChannel(billPaymentsChannel);
     };
   }, [userId]);
 
@@ -189,6 +285,10 @@ export const useRealtimeTransactions = (userId?: string) => {
           .from('withdrawals')
           .update({ is_deleted: true })
           .eq('id', id);
+      } else if (type.includes('bill_')) {
+        // Les paiements de factures ne peuvent pas être supprimés
+        console.log('Les paiements de factures ne peuvent pas être supprimés');
+        return;
       } else {
         await supabase
           .from('transfers')

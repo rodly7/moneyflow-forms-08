@@ -53,7 +53,7 @@ const Transactions = () => {
       if (withdrawalError) {
         console.error("❌ Erreur lors de la récupération des retraits:", withdrawalError);
       } else {
-        console.log("✅ Retraits récupérés:", withdrawals?.length || 0, withdrawals);
+        console.log("✅ Retraits récupérés:", withdrawals?.length || 0);
         
         if (withdrawals) {
           withdrawals.forEach(withdrawal => {
@@ -68,7 +68,7 @@ const Transactions = () => {
               verification_code: withdrawal.verification_code || '',
               created_at: withdrawal.created_at,
               withdrawal_phone: withdrawal.withdrawal_phone || '',
-              fees: 0, // Withdrawals don't have fees in the schema
+              fees: 0,
               userType: "user" as const,
               impact: "debit" as const
             });
@@ -140,7 +140,7 @@ const Transactions = () => {
         }
       }
 
-      // 4. Récupérer les recharges
+      // 4. Récupérer les recharges/dépôts
       console.log("🔋 Récupération des recharges...");
       const { data: recharges, error: rechargeError } = await supabase
         .from('recharges')
@@ -157,15 +157,46 @@ const Transactions = () => {
           recharges.forEach(recharge => {
             allTransactions.push({
               id: `recharge_${recharge.id}`,
-              type: 'recharge',
+              type: 'deposit',
               amount: recharge.amount,
               date: new Date(recharge.created_at),
-              description: 'Recharge de compte',
+              description: 'Dépôt de compte',
               currency: 'XAF',
               status: recharge.status,
               created_at: recharge.created_at,
               userType: "user" as const,
               impact: "credit" as const
+            });
+          });
+        }
+      }
+
+      // 5. Récupérer les paiements de factures
+      console.log("🧾 Récupération des paiements de factures...");
+      const { data: billPayments, error: billError } = await supabase
+        .from('bill_payment_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (billError) {
+        console.error("❌ Erreur paiements factures:", billError);
+      } else {
+        console.log("✅ Paiements de factures:", billPayments?.length || 0);
+        
+        if (billPayments) {
+          billPayments.forEach(payment => {
+            allTransactions.push({
+              id: `bill_${payment.id}`,
+              type: 'bill_payment',
+              amount: payment.amount,
+              date: new Date(payment.created_at),
+              description: 'Paiement de facture',
+              currency: 'XAF',
+              status: payment.status,
+              created_at: payment.created_at,
+              userType: "user" as const,
+              impact: "debit" as const
             });
           });
         }
@@ -181,7 +212,8 @@ const Transactions = () => {
         retraits: sortedTransactions.filter(t => t.type === 'withdrawal').length,
         transferts_envoyés: sortedTransactions.filter(t => t.type === 'transfer_sent').length,
         transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
-        recharges: sortedTransactions.filter(t => t.type === 'recharge').length
+        dépôts: sortedTransactions.filter(t => t.type === 'deposit').length,
+        paiements_factures: sortedTransactions.filter(t => t.type === 'bill_payment').length
       });
 
       setTransactions(sortedTransactions);
@@ -200,7 +232,7 @@ const Transactions = () => {
         return <ArrowUpRight className="w-5 h-5 text-orange-600" />;
       case 'transfer_received':
         return <ArrowDownLeft className="w-5 h-5 text-green-600" />;
-      case 'recharge':
+      case 'deposit':
         return <Plus className="w-5 h-5 text-blue-600" />;
       case 'bill_payment':
         return <Receipt className="w-5 h-5 text-purple-600" />;
