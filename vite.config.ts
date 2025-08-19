@@ -31,7 +31,7 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
       },
       external: [],
       treeshake: false,
-      preserveEntrySignatures: "strict",
+      preserveEntrySignatures: "strict" as const,
     },
     minify: false,
     target: 'esnext',
