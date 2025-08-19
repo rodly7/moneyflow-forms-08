@@ -112,8 +112,12 @@ export const useUnifiedNotifications = () => {
       // Charger les transferts reçus récents
       const { data: transfers, error: transferError } = await supabase
         .from('transfers')
-        .select('*')
+        .select(`
+          *,
+          profiles:sender_id (full_name, phone)
+        `)
         .or(`recipient_phone.eq.${user.phone},recipient_email.eq.${user.email}`)
+        .eq('status', 'completed')
         .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false });
 
@@ -126,6 +130,7 @@ export const useUnifiedNotifications = () => {
         .from('withdrawals')
         .select('*')
         .eq('user_id', user.id)
+        .in('status', ['completed', 'pending'])
         .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false });
 
@@ -142,7 +147,6 @@ export const useUnifiedNotifications = () => {
           const notification = item.notifications as any;
           const notificationId = `admin_${notification.id}`;
           
-          // Exclure les notifications déjà lues
           if (!readIds.has(notificationId)) {
             allNotifications.push({
               id: notificationId,
@@ -161,12 +165,14 @@ export const useUnifiedNotifications = () => {
       transfers?.forEach(transfer => {
         const notificationId = `transfer_${transfer.id}`;
         
-        // Exclure les notifications déjà lues
         if (!readIds.has(notificationId)) {
+          const senderInfo = transfer.profiles as any;
+          const senderName = senderInfo?.full_name || 'Expéditeur inconnu';
+          
           allNotifications.push({
             id: notificationId,
             title: '💰 Argent reçu',
-            message: `Vous avez reçu ${transfer.amount?.toLocaleString('fr-FR')} FCFA`,
+            message: `Vous avez reçu ${transfer.amount?.toLocaleString('fr-FR')} FCFA de ${senderName}`,
             type: 'transfer_received',
             priority: 'high',
             amount: transfer.amount,
@@ -180,14 +186,16 @@ export const useUnifiedNotifications = () => {
       withdrawals?.forEach(withdrawal => {
         const notificationId = `withdrawal_${withdrawal.id}`;
         
-        // Exclure les notifications déjà lues
         if (!readIds.has(notificationId)) {
+          const statusText = withdrawal.status === 'completed' ? 'effectué avec succès' : 'en cours de traitement';
+          const icon = withdrawal.status === 'completed' ? '✅' : '⏳';
+          
           allNotifications.push({
             id: notificationId,
-            title: '💳 Retrait effectué',
-            message: `Retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA ${withdrawal.status === 'completed' ? 'réussi' : 'en cours'}`,
+            title: `${icon} Retrait ${withdrawal.status === 'completed' ? 'confirmé' : 'initié'}`,
+            message: `Retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA ${statusText}`,
             type: 'withdrawal_completed',
-            priority: 'normal',
+            priority: withdrawal.status === 'completed' ? 'high' : 'normal',
             amount: withdrawal.amount,
             created_at: withdrawal.created_at,
             read: readIds.has(notificationId)
@@ -276,7 +284,7 @@ export const useUnifiedNotifications = () => {
         
         const notification: UnifiedNotification = {
           id: `withdrawal_${withdrawal.id}`,
-          title: '💳 Retrait initié',
+          title: '⏳ Retrait initié',
           message: `Demande de retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA créée`,
           type: 'withdrawal_completed',
           priority: 'normal',
@@ -306,7 +314,7 @@ export const useUnifiedNotifications = () => {
         
         if (withdrawal.status === 'completed') {
           const notification: UnifiedNotification = {
-            id: `withdrawal_update_${withdrawal.id}`,
+            id: `withdrawal_update_${withdrawal.id}_${Date.now()}`,
             title: '✅ Retrait confirmé',
             message: `Votre retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA a été traité avec succès`,
             type: 'withdrawal_completed',
