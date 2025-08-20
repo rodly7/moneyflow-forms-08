@@ -90,6 +90,8 @@ const QRPayment = () => {
     setIsProcessingPayment(true);
 
     try {
+      console.log('🔄 Début du paiement QR...');
+      
       // Vérifier que le destinataire existe
       const { data: recipientProfile, error: recipientError } = await supabase
         .from('profiles')
@@ -98,35 +100,50 @@ const QRPayment = () => {
         .single();
 
       if (recipientError || !recipientProfile) {
+        console.error('❌ Destinataire non trouvé:', recipientError);
         throw new Error("Destinataire non trouvé");
       }
 
+      console.log('✅ Destinataire vérifié:', recipientProfile);
+
       // Débiter l'expéditeur
-      const { error: debitError } = await supabase.rpc('increment_balance', {
-        user_id: user.id,
-        amount: -totalWithFees
-      });
+      console.log('💰 Débit expéditeur:', totalWithFees);
+      const { data: debitResult, error: debitError } = await supabase
+        .rpc('increment_balance', {
+          user_id: user.id,
+          amount: -totalWithFees
+        });
 
       if (debitError) {
-        throw new Error("Erreur lors du débit de votre compte");
+        console.error('❌ Erreur débit:', debitError);
+        throw new Error(`Erreur lors du débit: ${debitError.message}`);
       }
 
+      console.log('✅ Débit effectué:', debitResult);
+
       // Créditer le destinataire
-      const { error: creditError } = await supabase.rpc('increment_balance', {
-        user_id: scannedUser.userId,
-        amount: transferAmount
-      });
+      console.log('💰 Crédit destinataire:', transferAmount);
+      const { data: creditResult, error: creditError } = await supabase
+        .rpc('increment_balance', {
+          user_id: scannedUser.userId,
+          amount: transferAmount
+        });
 
       if (creditError) {
+        console.error('❌ Erreur crédit:', creditError);
         // Rollback - recréditer l'expéditeur
+        console.log('🔄 Rollback du débit...');
         await supabase.rpc('increment_balance', {
           user_id: user.id,
           amount: totalWithFees
         });
-        throw new Error("Erreur lors du crédit du destinataire");
+        throw new Error(`Erreur lors du crédit: ${creditError.message}`);
       }
 
+      console.log('✅ Crédit effectué:', creditResult);
+
       // Enregistrer la transaction
+      console.log('📝 Enregistrement de la transaction...');
       const { error: transferError } = await supabase
         .from('transfers')
         .insert({
@@ -142,8 +159,10 @@ const QRPayment = () => {
         });
 
       if (transferError) {
-        console.error('Erreur enregistrement transfert:', transferError);
+        console.error('⚠️ Erreur enregistrement transfert:', transferError);
         // La transaction a déjà eu lieu, on continue
+      } else {
+        console.log('✅ Transaction enregistrée');
       }
 
       toast({
@@ -161,7 +180,7 @@ const QRPayment = () => {
       }, 2000);
 
     } catch (error) {
-      console.error('Erreur paiement QR:', error);
+      console.error('❌ Erreur paiement QR:', error);
       toast({
         title: "Erreur de paiement",
         description: error instanceof Error ? error.message : "Une erreur inattendue est survenue",
@@ -304,7 +323,7 @@ const QRPayment = () => {
             {scannedUser && amount && (
               <Button
                 onClick={handlePayment}
-                disabled={isProcesssingPayment}
+                disabled={isProcessingPayment}
                 className={`w-full ${isMobile ? 'h-10 text-sm' : 'h-12'} bg-green-600 hover:bg-green-700 text-white`}
               >
                 {isProcessingPayment ? (
