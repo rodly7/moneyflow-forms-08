@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,7 +57,7 @@ const QRPayment = () => {
   const handlePayment = async () => {
     if (!scannedUser || !amount || !user) {
       toast({
-        title: "Erreur",
+        title: "Données manquantes",
         description: "Veuillez scanner un QR code et saisir un montant",
         variant: "destructive"
       });
@@ -64,30 +65,40 @@ const QRPayment = () => {
     }
 
     const transferAmount = parseFloat(amount);
-    if (transferAmount <= 0) {
+    if (isNaN(transferAmount) || transferAmount <= 0) {
       toast({
-        title: "Erreur",
-        description: "Le montant doit être supérieur à 0",
+        title: "Montant invalide",
+        description: "Veuillez saisir un montant valide supérieur à 0",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Montant minimum
+    if (transferAmount < 100) {
+      toast({
+        title: "Montant trop faible",
+        description: "Le montant minimum est de 100 FCFA",
         variant: "destructive"
       });
       return;
     }
 
     // Vérifier que c'est un transfert national (pays identique)
-    const senderCountry = profile?.country || 'Unknown';
+    const senderCountry = profile?.country || 'Cameroun';
     
     // Pour les paiements QR, forcer le destinataire au même pays (national uniquement)
     const recipientCountry = senderCountry;
     
     // Calculer les frais (1% pour transferts nationaux)
-    const fees = transferAmount * 0.01;
+    const fees = Math.ceil(transferAmount * 0.01);
     const totalWithFees = transferAmount + fees;
     
     // Vérifier le solde
-    if (profile?.balance && profile.balance < totalWithFees) {
+    if (!profile?.balance || profile.balance < totalWithFees) {
       toast({
         title: "Solde insuffisant",
-        description: `Votre solde est insuffisant pour effectuer ce paiement (montant + frais: ${totalWithFees.toLocaleString()} FCFA)`,
+        description: `Votre solde (${profile?.balance?.toLocaleString() || 0} FCFA) est insuffisant pour ce paiement (${totalWithFees.toLocaleString()} FCFA)`,
         variant: "destructive"
       });
       return;
@@ -96,6 +107,15 @@ const QRPayment = () => {
     setIsProcessingPayment(true);
 
     try {
+      console.log('🔄 Début du paiement QR:', {
+        destinataire: scannedUser.fullName,
+        phone: scannedUser.phone,
+        montant: transferAmount,
+        frais: fees,
+        total: totalWithFees,
+        soldeActuel: profile.balance
+      });
+
       const result = await processTransfer({
         amount: transferAmount,
         recipient: {
@@ -108,7 +128,7 @@ const QRPayment = () => {
 
       if (result.success) {
         toast({
-          title: "Paiement effectué",
+          title: "✅ Paiement réussi",
           description: `${transferAmount.toLocaleString()} FCFA envoyé à ${scannedUser.fullName}`,
         });
         
@@ -121,17 +141,36 @@ const QRPayment = () => {
           navigate('/dashboard');
         }, 2000);
       } else {
+        console.error('❌ Échec du transfert via processTransfer');
         toast({
           title: "Erreur de paiement",
-          description: "Une erreur est survenue lors du paiement",
+          description: "Le paiement n'a pas pu être traité. Veuillez réessayer.",
           variant: "destructive"
         });
       }
-    } catch (error) {
-      console.error('Erreur paiement QR:', error);
+    } catch (error: any) {
+      console.error('❌ Erreur critique lors du paiement QR:', error);
+      
+      // Messages d'erreur plus spécifiques
+      let errorMessage = "Une erreur inattendue est survenue";
+      
+      if (error?.message) {
+        if (error.message.includes('Insufficient funds') || error.message.includes('Solde insuffisant')) {
+          errorMessage = "Solde insuffisant pour effectuer ce paiement";
+        } else if (error.message.includes('User not found') || error.message.includes('Destinataire introuvable')) {
+          errorMessage = "Le destinataire n'a pas pu être trouvé";
+        } else if (error.message.includes('Network') || error.message.includes('network')) {
+          errorMessage = "Problème de connexion réseau. Vérifiez votre connexion.";
+        } else if (error.message.includes('Database') || error.message.includes('database')) {
+          errorMessage = "Erreur de base de données. Veuillez réessayer.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
-        title: "Erreur",
-        description: "Une erreur inattendue est survenue",
+        title: "Erreur de paiement",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -234,9 +273,10 @@ const QRPayment = () => {
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0"
+                  placeholder="100"
                   className={`${isMobile ? 'text-base' : 'text-lg'} text-center font-semibold`}
-                  min="1"
+                  min="100"
+                  step="100"
                 />
                 
                 {/* Affichage des frais */}
@@ -249,11 +289,11 @@ const QRPayment = () => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Frais (1%):</span>
-                        <span className="font-medium">{(parseFloat(amount) * 0.01).toLocaleString()} FCFA</span>
+                        <span className="font-medium">{Math.ceil(parseFloat(amount) * 0.01).toLocaleString()} FCFA</span>
                       </div>
                       <div className={`flex justify-between border-t pt-1 ${isMobile ? 'text-sm' : ''}`}>
                         <span className="font-semibold text-gray-800">Total:</span>
-                        <span className="font-bold text-blue-600">{(parseFloat(amount) * 1.01).toLocaleString()} FCFA</span>
+                        <span className="font-bold text-blue-600">{(parseFloat(amount) + Math.ceil(parseFloat(amount) * 0.01)).toLocaleString()} FCFA</span>
                       </div>
                     </div>
                   </div>
@@ -261,14 +301,14 @@ const QRPayment = () => {
                 
                 {profile?.balance && (
                   <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600 text-center`}>
-                    Solde: {profile.balance.toLocaleString()} FCFA
+                    Solde disponible: {profile.balance.toLocaleString()} FCFA
                   </p>
                 )}
               </div>
             )}
 
             {/* Bouton de paiement */}
-            {scannedUser && amount && (
+            {scannedUser && amount && parseFloat(amount) >= 100 && (
               <Button
                 onClick={handlePayment}
                 disabled={isProcessingPayment || isLoading}
@@ -295,6 +335,7 @@ const QRPayment = () => {
                 <div className={`${isMobile ? 'text-xs' : 'text-xs'} text-blue-600`}>
                   <p className="font-medium mb-1">🔒 Paiement sécurisé</p>
                   <p>Vérifiez l'identité du destinataire avant de confirmer.</p>
+                  <p className="mt-1">Montant minimum: 100 FCFA</p>
                 </div>
               </div>
             </div>
