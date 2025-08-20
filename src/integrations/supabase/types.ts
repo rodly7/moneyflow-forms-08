@@ -1149,7 +1149,7 @@ export type Database = {
           expires_at: string
           fees: number
           id: string
-          recipient_email: string
+          recipient_email: string | null
           recipient_phone: string | null
           sender_id: string
           status: string
@@ -1162,7 +1162,7 @@ export type Database = {
           expires_at?: string
           fees: number
           id?: string
-          recipient_email: string
+          recipient_email?: string | null
           recipient_phone?: string | null
           sender_id: string
           status?: string
@@ -1175,7 +1175,7 @@ export type Database = {
           expires_at?: string
           fees?: number
           id?: string
-          recipient_email?: string
+          recipient_email?: string | null
           recipient_phone?: string | null
           sender_id?: string
           status?: string
