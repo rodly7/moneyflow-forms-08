@@ -16,59 +16,6 @@ const Layout = () => {
     console.log('User:', user ? 'authenticated' : 'not authenticated');
     console.log('Loading:', loading);
 
-    // Aggressive cache and service worker cleanup
-    const clearAllCaches = async () => {
-      if ('caches' in window) {
-        try {
-          const cacheNames = await caches.keys();
-          console.log('Layout: Found caches:', cacheNames);
-          
-          // Clear all caches
-          await Promise.all(cacheNames.map(async (cacheName) => {
-            await caches.delete(cacheName);
-            console.log('Layout: Cleared cache:', cacheName);
-          }));
-          
-          console.log('Layout: All caches cleared successfully');
-        } catch (error) {
-          console.error('Layout: Cache clearing failed:', error);
-        }
-      }
-    };
-
-    // Clear all service worker registrations
-    const clearServiceWorkers = async () => {
-      if ('serviceWorker' in navigator) {
-        try {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map(registration => {
-            console.log('Layout: Unregistering SW:', registration.scope);
-            return registration.unregister();
-          }));
-          console.log('Layout: All service workers unregistered');
-        } catch (error) {
-          console.error('Layout: Service worker clearing failed:', error);
-        }
-      }
-    };
-
-    // Performance monitoring with proper type checking
-    const monitorPerformance = () => {
-      if ('performance' in window && window.performance.getEntriesByType) {
-        const resources = window.performance.getEntriesByType('resource') as PerformanceResourceTiming[];
-        resources.forEach(entry => {
-          if (entry.transferSize && entry.decodedBodySize) {
-            console.log(`Resource: ${entry.name}, Transfer: ${entry.transferSize}, Decoded: ${entry.decodedBodySize}`);
-          }
-        });
-      }
-    };
-
-    // Run cache and SW clearing
-    clearAllCaches();
-    clearServiceWorkers();
-    monitorPerformance();
-
     // Basic viewport configuration
     const setViewport = () => {
       let viewport = document.querySelector('meta[name=viewport]');

@@ -23,23 +23,22 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
   build: {
     rollupOptions: {
       output: {
-        // Force everything into a single bundle - NO code splitting
-        manualChunks: () => 'everything',
-        inlineDynamicImports: false, // Changed to false since we're using manualChunks
+        // CRITICAL: Force everything into a single file - NO splitting at all
+        inlineDynamicImports: true,
+        manualChunks: undefined,
         entryFileNames: 'index.js',
         chunkFileNames: 'index.js', 
         assetFileNames: 'assets/[name][extname]',
       },
       external: [],
       treeshake: false,
-      preserveEntrySignatures: "strict" as const,
+      preserveEntrySignatures: false,
     },
     minify: false,
     target: 'esnext',
     chunkSizeWarningLimit: 50000,
     sourcemap: false,
     cssCodeSplit: false,
-    // Force single file output
     assetsInlineLimit: 0,
   },
   optimizeDeps: {
