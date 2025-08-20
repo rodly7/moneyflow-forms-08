@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -12,9 +13,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { LogoutButton } from '@/components/auth/LogoutButton';
+import LogoutButton from '@/components/auth/LogoutButton';
 import { ReliableNotificationBell } from '@/components/notifications/ReliableNotificationBell';
-import { SessionManager } from '@/components/SessionManager';
+import SessionManager from '@/components/SessionManager';
 import { useState } from 'react';
 
 interface LayoutProps {
