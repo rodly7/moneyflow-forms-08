@@ -1,3 +1,5 @@
+
+
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationService } from "./notificationService";
 
@@ -30,7 +32,7 @@ export class EnhancedNotificationService extends NotificationService {
   ) {
     console.log(`💰 Création notification réception argent: ${amount} ${currency} pour ${recipientUserId}`);
     
-    const title = `💰 Argent reçu`;
+    const title = `💰 Argent reçu: ${amount.toLocaleString()} ${currency}`;
     const message = senderName 
       ? `Vous avez reçu ${amount.toLocaleString()} ${currency} de ${senderName}${senderPhone ? ` (${senderPhone})` : ''}`
       : `Vous avez reçu ${amount.toLocaleString()} ${currency}`;
@@ -43,7 +45,7 @@ export class EnhancedNotificationService extends NotificationService {
           title,
           message,
           priority: 'high',
-          notification_type: 'transfer_received',
+          notification_type: 'money_received',
           target_users: [recipientUserId],
           sent_by: 'system',
           total_recipients: 1,
@@ -81,6 +83,23 @@ export class EnhancedNotificationService extends NotificationService {
         throw new Error(`Erreur destinataire: ${recipientError.message}`);
       }
 
+      // Tenter d'envoyer une notification push si le service est disponible
+      await this.sendPushNotification(recipientUserId, {
+        title: title,
+        body: message,
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-72x72.png',
+        tag: `money_received_${transactionId || Date.now()}`,
+        requireInteraction: true,
+        data: {
+          type: 'money_received',
+          amount,
+          currency,
+          transaction_id: transactionId,
+          url: '/transactions'
+        }
+      });
+
       console.log(`✅ Notification argent reçu créée: ${notification.id}`);
       
       return {
@@ -101,84 +120,6 @@ export class EnhancedNotificationService extends NotificationService {
         'system',
         true
       );
-    }
-  }
-
-  // Créer une notification de retrait
-  static async createWithdrawalNotification(
-    userId: string,
-    amount: number,
-    currency: string = 'XAF',
-    status: 'created' | 'completed' | 'failed' = 'created',
-    transactionId?: string
-  ) {
-    console.log(`💸 Création notification retrait: ${amount} ${currency} pour ${userId}, statut: ${status}`);
-    
-    const isCompleted = status === 'completed';
-    const title = isCompleted ? '✅ Retrait confirmé' : '⏳ Retrait initié';
-    const message = isCompleted 
-      ? `Votre retrait de ${amount.toLocaleString()} ${currency} a été traité avec succès`
-      : `Votre demande de retrait de ${amount.toLocaleString()} ${currency} a été créée`;
-
-    try {
-      // Créer la notification
-      const { data: notification, error: notificationError } = await supabase
-        .from('notifications')
-        .insert({
-          title,
-          message,
-          priority: isCompleted ? 'high' : 'normal',
-          notification_type: isCompleted ? 'withdrawal_completed' : 'withdrawal_created',
-          target_users: [userId],
-          sent_by: 'system',
-          total_recipients: 1,
-          metadata: {
-            amount,
-            currency,
-            transaction_id: transactionId,
-            notification_category: 'financial',
-            status,
-            requires_action: false,
-            auto_dismiss: false
-          }
-        })
-        .select()
-        .single();
-
-      if (notificationError) {
-        throw new Error(`Erreur notification: ${notificationError.message}`);
-      }
-
-      // Créer l'entrée destinataire
-      const { error: recipientError } = await supabase
-        .from('notification_recipients')
-        .insert({
-          notification_id: notification.id,
-          user_id: userId,
-          status: 'sent'
-        });
-
-      if (recipientError) {
-        // Nettoyer si échec
-        await supabase.from('notifications').delete().eq('id', notification.id);
-        throw new Error(`Erreur destinataire: ${recipientError.message}`);
-      }
-
-      console.log(`✅ Notification retrait créée: ${notification.id}`);
-      
-      return {
-        success: true,
-        message: "Notification de retrait envoyée",
-        data: notification
-      };
-
-    } catch (error: any) {
-      console.error('❌ Erreur notification retrait:', error);
-      
-      return {
-        success: false,
-        message: error.message || "Erreur lors de la création de la notification de retrait"
-      };
     }
   }
 
