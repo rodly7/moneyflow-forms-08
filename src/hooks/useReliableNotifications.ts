@@ -67,7 +67,7 @@ export const useReliableNotifications = () => {
   };
 
   // Afficher une notification avec tous les effets
-  const showNotificationToast = useCallback((notification: ReliableNotification) => {
+  const showNotificationToast = (notification: ReliableNotification) => {
     console.log('🔔 Affichage notification fiable:', notification.title);
     
     // Vibration
@@ -95,7 +95,7 @@ export const useReliableNotifications = () => {
       duration: notification.priority === 'high' ? 12000 : 6000,
       className: bgColor
     });
-  }, [toast]);
+  };
 
   // Charger les notifications avec retry automatique
   const loadNotifications = useCallback(async (retryCount = 0): Promise<void> => {
@@ -189,7 +189,7 @@ export const useReliableNotifications = () => {
         setTimeout(() => loadNotifications(retryCount + 1), delay);
       }
     }
-  }, [user?.id, showNotificationToast]);
+  }, [user?.id]);
 
   // Configuration temps réel avec reconnexion automatique
   const setupRealtimeConnection = useCallback(() => {
@@ -243,7 +243,7 @@ export const useReliableNotifications = () => {
         }, 3000);
       }
     });
-  }, [user?.id, loadNotifications]);
+  }, [user?.id]);
 
   // Polling de sauvegarde toutes les 30 secondes
   const startPolling = useCallback(() => {
@@ -255,7 +255,7 @@ export const useReliableNotifications = () => {
       console.log('🔄 Vérification polling des notifications');
       loadNotifications();
     }, 30000);
-  }, [loadNotifications]);
+  }, []);
 
   // Vérification de connexion toutes les 5 secondes
   const startConnectionCheck = useCallback(() => {
@@ -269,7 +269,7 @@ export const useReliableNotifications = () => {
         setupRealtimeConnection();
       }
     }, 5000);
-  }, [isConnected, user?.id, setupRealtimeConnection]);
+  }, [isConnected, user?.id]);
 
   // Initialisation
   useEffect(() => {
@@ -295,9 +295,9 @@ export const useReliableNotifications = () => {
         clearInterval(connectionCheckRef.current);
       }
     };
-  }, [user?.id, loadNotifications, setupRealtimeConnection, startPolling, startConnectionCheck]);
+  }, [user?.id]);
 
-  // Marquer comme lue
+  // Autres méthodes simplifiées
   const markAsRead = useCallback((notificationId: string) => {
     const readIds = getReadNotificationIds();
     readIds.add(notificationId);
@@ -306,7 +306,6 @@ export const useReliableNotifications = () => {
     setNotifications(prev => prev.filter(n => n.id !== notificationId));
   }, []);
 
-  // Marquer toutes comme lues
   const markAllAsRead = useCallback(() => {
     const readIds = getReadNotificationIds();
     notifications.forEach(n => readIds.add(n.id));
@@ -315,11 +314,10 @@ export const useReliableNotifications = () => {
     setNotifications([]);
   }, [notifications]);
 
-  // Forcer le rechargement
   const refresh = useCallback(() => {
     console.log('🔄 Rechargement forcé des notifications');
     loadNotifications();
-  }, [loadNotifications]);
+  }, []);
 
   return {
     notifications: notifications.slice(0, 10),
