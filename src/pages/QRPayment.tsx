@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,14 +9,14 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, QrCode, Send, User, Phone, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import PaymentQRScanner from "@/components/payment/PaymentQRScanner";
-import { useTransferOperations } from "@/hooks/useTransferOperations";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { supabase } from "@/integrations/supabase/client";
+import { calculateFee } from "@/lib/utils/currency";
 
 const QRPayment = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { processTransfer, isLoading } = useTransferOperations();
   const isMobile = useIsMobile();
   
   const [isScanning, setIsScanning] = useState(false);
@@ -54,7 +55,7 @@ const QRPayment = () => {
   };
 
   const handlePayment = async () => {
-    if (!scannedUser || !amount || !user) {
+    if (!scannedUser || !amount || !user || !profile) {
       toast({
         title: "Erreur",
         description: "Veuillez scanner un QR code et saisir un montant",
@@ -73,65 +74,98 @@ const QRPayment = () => {
       return;
     }
 
-    // Vérifier que c'est un transfert national (pays identique)
-    const senderCountry = profile?.country || 'Unknown';
-    
-    // Pour les paiements QR, forcer le destinataire au même pays (national uniquement)
-    const recipientCountry = senderCountry;
-    
-    // Calculer les frais (1% pour transferts nationaux)
-    const fees = transferAmount * 0.01;
-    const totalWithFees = transferAmount + fees;
-    
-    // Vérifier le solde
-    if (profile?.balance && profile.balance < totalWithFees) {
-      toast({
-        title: "Solde insuffisant",
-        description: `Votre solde est insuffisant pour effectuer ce paiement (montant + frais: ${totalWithFees.toLocaleString()} FCFA)`,
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsProcessingPayment(true);
 
     try {
-      const result = await processTransfer({
-        amount: transferAmount,
-        recipient: {
-          email: scannedUser.phone, // Utilise le téléphone comme identifiant
-          fullName: scannedUser.fullName,
-          country: recipientCountry, // Force le même pays pour les paiements QR
-          phone: scannedUser.phone
-        }
-      });
+      // Vérifier le destinataire
+      const { data: recipient, error: recipientError } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, country')
+        .eq('id', scannedUser.userId)
+        .single();
 
-      if (result.success) {
+      if (recipientError || !recipient) {
+        throw new Error('Destinataire introuvable');
+      }
+
+      // Calculer les frais
+      const { fee } = calculateFee(transferAmount, profile.country, recipient.country);
+      const totalWithFees = transferAmount + fee;
+      
+      // Vérifier le solde
+      if (profile.balance < totalWithFees) {
         toast({
-          title: "Paiement effectué",
-          description: `${transferAmount.toLocaleString()} FCFA envoyé à ${scannedUser.fullName}`,
-        });
-        
-        // Réinitialiser le formulaire
-        setScannedUser(null);
-        setAmount('');
-        
-        // Rediriger vers le tableau de bord après un délai
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 2000);
-      } else {
-        toast({
-          title: "Erreur de paiement",
-          description: "Une erreur est survenue lors du paiement",
+          title: "Solde insuffisant",
+          description: `Votre solde est insuffisant. Montant requis: ${totalWithFees.toLocaleString()} FCFA`,
           variant: "destructive"
         });
+        return;
       }
+
+      // Débiter l'expéditeur
+      const { error: debitError } = await supabase.rpc('increment_balance', {
+        user_id: user.id,
+        amount: -totalWithFees
+      });
+
+      if (debitError) {
+        throw new Error('Erreur lors du débit de votre compte');
+      }
+
+      // Créditer le destinataire
+      const { error: creditError } = await supabase.rpc('increment_balance', {
+        user_id: recipient.id,
+        amount: transferAmount
+      });
+
+      if (creditError) {
+        // Rollback en cas d'erreur
+        await supabase.rpc('increment_balance', {
+          user_id: user.id,
+          amount: totalWithFees
+        });
+        throw new Error('Erreur lors du crédit du destinataire');
+      }
+
+      // Créer l'enregistrement du transfert
+      const { error: transferError } = await supabase
+        .from('transfers')
+        .insert({
+          sender_id: user.id,
+          recipient_id: recipient.id,
+          recipient_full_name: recipient.full_name,
+          recipient_phone: recipient.phone,
+          recipient_country: recipient.country,
+          amount: transferAmount,
+          fees: fee,
+          currency: 'XAF',
+          status: 'completed'
+        });
+
+      if (transferError) {
+        console.error('Erreur transfert:', transferError);
+        // Le transfert monétaire a réussi même si l'enregistrement échoue
+      }
+
+      toast({
+        title: "Paiement effectué",
+        description: `${transferAmount.toLocaleString()} FCFA envoyé à ${recipient.full_name}`,
+      });
+      
+      // Réinitialiser le formulaire
+      setScannedUser(null);
+      setAmount('');
+      
+      // Rediriger vers le tableau de bord après un délai
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+
     } catch (error) {
       console.error('Erreur paiement QR:', error);
       toast({
-        title: "Erreur",
-        description: "Une erreur inattendue est survenue",
+        title: "Erreur de paiement",
+        description: error instanceof Error ? error.message : "Une erreur est survenue lors du paiement",
         variant: "destructive"
       });
     } finally {
@@ -240,7 +274,7 @@ const QRPayment = () => {
                 />
                 
                 {/* Affichage des frais */}
-                {amount && parseFloat(amount) > 0 && (
+                {amount && parseFloat(amount) > 0 && profile && (
                   <div className={`bg-yellow-50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg border border-yellow-200`}>
                     <div className={`${isMobile ? 'text-xs' : 'text-sm'} space-y-1`}>
                       <div className="flex justify-between">
@@ -271,10 +305,10 @@ const QRPayment = () => {
             {scannedUser && amount && (
               <Button
                 onClick={handlePayment}
-                disabled={isProcessingPayment || isLoading}
+                disabled={isProcessingPayment}
                 className={`w-full ${isMobile ? 'h-10 text-sm' : 'h-12'} bg-green-600 hover:bg-green-700 text-white`}
               >
-                {isProcessingPayment || isLoading ? (
+                {isProcessingPayment ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     Traitement...
