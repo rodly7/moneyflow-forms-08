@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Link, Outlet } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { 
   Home, 
   Send, 
@@ -13,12 +12,16 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import LogoutButton from '@/components/auth/LogoutButton';
+import { LogoutButton } from '@/components/auth/LogoutButton';
 import { ReliableNotificationBell } from '@/components/notifications/ReliableNotificationBell';
-import SessionManager from '@/components/SessionManager';
+import { SessionManager } from '@/components/SessionManager';
 import { useState } from 'react';
 
-const Layout = () => {
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+export const Layout = ({ children }: LayoutProps) => {
   const { profile } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -147,11 +150,9 @@ const Layout = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          <Outlet />
+          {children}
         </div>
       </main>
     </div>
   );
 };
-
-export default Layout;
