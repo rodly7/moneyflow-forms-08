@@ -11,7 +11,7 @@ import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 
 // CRITICAL: All imports must be static - NO dynamic imports whatsoever
 // Every single component is imported statically to prevent code splitting
-import Layout from "./components/Layout";
+import { Layout } from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";

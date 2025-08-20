@@ -113,7 +113,6 @@ export const useReliableNotifications = () => {
         .select(`
           notification_id,
           read_at,
-          created_at,
           notifications (
             id,
             title,
@@ -124,8 +123,8 @@ export const useReliableNotifications = () => {
           )
         `)
         .eq('user_id', user.id)
-        .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()) // 48h au lieu de 7 jours pour plus de rapidité
-        .order('created_at', { ascending: false })
+        .gte('notifications.created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()) // 48h au lieu de 7 jours pour plus de rapidité
+        .order('notifications.created_at', { ascending: false })
         .limit(20);
 
       if (error) {
