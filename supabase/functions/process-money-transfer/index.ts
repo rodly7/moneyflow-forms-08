@@ -136,7 +136,6 @@ Deno.serve(async (req) => {
         .insert({
           sender_id: sender_id,
           recipient_phone: recipient_identifier,
-          recipient_email: '', // Champ requis mais vide pour les transferts par téléphone
           amount: transfer_amount,
           fees: transfer_fees,
           currency: 'XAF',
