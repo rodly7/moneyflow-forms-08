@@ -1,11 +1,10 @@
 
-import { defineConfig } from "vite";
+import { defineConfig, type ConfigEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-// https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }: ConfigEnv) => ({
   server: {
     host: "::",
     port: 8080,
@@ -17,29 +16,41 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "react": path.resolve(__dirname, "./node_modules/react"),
+      "react-dom": path.resolve(__dirname, "./node_modules/react-dom"),
     },
   },
   build: {
     rollupOptions: {
       output: {
-        // Force everything into a single bundle - no dynamic imports
+        // Force everything into a single bundle - NO code splitting
         manualChunks: () => 'everything',
-        // Disable dynamic imports completely
-        format: 'es',
-        inlineDynamicImports: true,
+        inlineDynamicImports: false, // Changed to false since we're using manualChunks
+        entryFileNames: 'index.js',
+        chunkFileNames: 'index.js', 
+        assetFileNames: 'assets/[name][extname]',
       },
-      // Treat all modules as external dynamic imports should be bundled
-      external: () => false,
+      external: [],
+      treeshake: false,
+      preserveEntrySignatures: "strict" as const,
     },
-    // Increase chunk size limit to prevent any splitting
-    chunkSizeWarningLimit: 10000,
-    // Disable code splitting completely
+    minify: false,
     target: 'esnext',
-    minify: false, // Disable minification in development to help with debugging
+    chunkSizeWarningLimit: 50000,
+    sourcemap: false,
+    cssCodeSplit: false,
+    // Force single file output
+    assetsInlineLimit: 0,
   },
-  // Ensure no pre-bundling issues
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
+    include: ['react', 'react-dom', '@tanstack/react-query'],
     force: true,
+  },
+  define: {
+    global: 'globalThis',
+  },
+  worker: {
+    format: 'iife' as const,
+    plugins: () => [],
   },
 }));

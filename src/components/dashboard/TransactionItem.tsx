@@ -2,7 +2,7 @@
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { Trash2, Download, ArrowRightLeft, Wallet } from "lucide-react";
+import { Trash2, Download, ArrowRightLeft, Wallet, Receipt, Plus } from "lucide-react";
 import { useState } from "react";
 import SimpleTransactionDetail from "@/components/transactions/SimpleTransactionDetail";
 
@@ -34,11 +34,33 @@ const TransactionItem = ({ transaction, onDelete }: TransactionItemProps) => {
     if (type === 'withdrawal') return <Download className="w-4 h-4 text-red-500" />;
     if (type === 'transfer_sent' || type === 'transfer') return <ArrowRightLeft className="w-4 h-4 text-blue-500" />;
     if (type === 'transfer_received') return <ArrowRightLeft className="w-4 h-4 text-green-500" />;
+    if (type === 'deposit') return <Plus className="w-4 h-4 text-blue-500" />;
+    if (type === 'bill_payment') return <Receipt className="w-4 h-4 text-purple-500" />;
     return <Wallet className="w-4 h-4 text-blue-500" />;
+  };
+
+  const getTransactionTypeLabel = (type: string) => {
+    switch (type) {
+      case 'withdrawal':
+        return 'Retrait';
+      case 'transfer_sent':
+      case 'transfer':
+        return 'Transfert envoyé';
+      case 'transfer_received':
+        return 'Transfert reçu';
+      case 'deposit':
+        return 'Dépôt';
+      case 'bill_payment':
+        return 'Paiement facture';
+      default:
+        return type;
+    }
   };
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
+
+  const canDelete = !transaction.type.includes('bill_payment');
 
   return (
     <>
@@ -72,12 +94,8 @@ const TransactionItem = ({ transaction, onDelete }: TransactionItemProps) => {
             </p>
             <div className="flex items-center gap-2 mt-2">
               <span className="text-xs text-gray-500">Type:</span>
-              <span className="text-xs font-medium text-gray-700 capitalize">
-                {transaction.type === 'withdrawal' ? 'Retrait' : 
-                 transaction.type === 'transfer_sent' || transaction.type === 'transfer' ? 'Transfert envoyé' :
-                 transaction.type === 'transfer_received' ? 'Transfert reçu' : 
-                 transaction.type === 'deposit' ? 'Dépôt' : 
-                 transaction.type}
+              <span className="text-xs font-medium text-gray-700">
+                {getTransactionTypeLabel(transaction.type)}
               </span>
               <span className="text-xs text-gray-500">•</span>
               <span className="text-xs text-gray-500">Devise:</span>
@@ -107,17 +125,19 @@ const TransactionItem = ({ transaction, onDelete }: TransactionItemProps) => {
             transaction.status === 'pending' ? 'En attente' : transaction.status}
           </span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-gray-400 hover:text-red-500 h-8 w-8 shrink-0"
-          onClick={(e) => {
-            e.stopPropagation(); // Empêche l'ouverture du modal
-            onDelete(transaction.id, transaction.type);
-          }}
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
+        {canDelete && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-gray-400 hover:text-red-500 h-8 w-8 shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(transaction.id, transaction.type);
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
       </div>
     </div>
 

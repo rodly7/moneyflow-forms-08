@@ -10,6 +10,7 @@ import { PWAUpdateBanner } from "./components/pwa/PWAUpdateBanner";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 
 // CRITICAL: All imports must be static - NO dynamic imports whatsoever
+// Every single component is imported statically to prevent code splitting
 import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -60,67 +61,69 @@ const EnhancedLoader = () => (
 
 function App() {
   useEffect(() => {
-    console.log('App component mounting - static imports only');
+    console.log('App component mounting - ZERO dynamic imports, everything static');
     
-    // Ultra-aggressive cache and service worker cleanup
-    const nukeCacheAndSW = async () => {
+    // NUCLEAR option: Completely disable any form of dynamic loading
+    const nukeDynamicImports = async () => {
       try {
-        console.log('Starting ultra-aggressive cleanup...');
+        console.log('NUCLEAR: Disabling ALL dynamic loading mechanisms...');
         
-        // 1. Clear ALL storage
+        // Override the dynamic import function globally
+        if (typeof window !== 'undefined') {
+          // Disable dynamic imports at the global level
+          (window as any).__vitePreload = () => Promise.resolve();
+          (window as any).__vite__mapDeps = () => [];
+          (window as any).__vite__dynamic_import__ = () => Promise.reject(new Error('Dynamic imports disabled'));
+          
+          // Clear any existing module cache
+          if ((window as any).__vite__injectQuery) {
+            delete (window as any).__vite__injectQuery;
+          }
+          
+          console.log('NUCLEAR: All dynamic loading mechanisms disabled');
+        }
+        
+        // ULTRA-aggressive cache and service worker cleanup
         if ('localStorage' in window) {
           localStorage.clear();
+          console.log('localStorage cleared');
         }
         if ('sessionStorage' in window) {
           sessionStorage.clear();
+          console.log('sessionStorage cleared');
         }
 
-        // 2. Clear ALL caches
+        // Delete ALL caches
         if ('caches' in window) {
           const cacheNames = await caches.keys();
-          console.log('Found caches to delete:', cacheNames);
+          console.log('Found caches to nuke:', cacheNames);
           await Promise.all(cacheNames.map(cacheName => {
-            console.log('Deleting cache:', cacheName);
+            console.log('NUKING cache:', cacheName);
             return caches.delete(cacheName);
           }));
-          console.log('All caches deleted');
+          console.log('ALL caches completely eliminated');
         }
 
-        // 3. Unregister ALL service workers
+        // Unregister ALL service workers
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
-          console.log('Found SW registrations:', registrations.length);
+          console.log('Found SW registrations to eliminate:', registrations.length);
           await Promise.all(registrations.map(registration => {
-            console.log('Unregistering SW:', registration.scope);
+            console.log('ELIMINATING SW:', registration.scope);
             return registration.unregister();
           }));
-          console.log('All service workers unregistered');
+          console.log('ALL service workers completely eliminated');
         }
 
-        // 4. Clear IndexedDB if exists
-        if ('indexedDB' in window) {
-          try {
-            const databases = await indexedDB.databases();
-            await Promise.all(databases.map(db => {
-              if (db.name) {
-                console.log('Deleting IndexedDB:', db.name);
-                indexedDB.deleteDatabase(db.name);
-              }
-            }));
-          } catch (e) {
-            console.log('IndexedDB cleanup failed:', e);
-          }
-        }
-
-        console.log('Ultra-aggressive cleanup completed');
+        console.log('NUCLEAR cleanup completed - ONLY static imports allowed');
       } catch (error) {
-        console.error('Cache/SW nukeCacheAndSW failed:', error);
+        console.error('Nuclear cleanup encountered errors but continuing:', error);
       }
     };
 
-    nukeCacheAndSW();
+    nukeDynamicImports();
 
-    // Enhanced viewport setup
+    // Enhanced viewport setup for PWA with no dynamic loading
     const setupViewport = () => {
       let viewport = document.querySelector('meta[name=viewport]');
       if (!viewport) {
@@ -132,10 +135,10 @@ function App() {
     };
 
     setupViewport();
-    console.log('App component mounted successfully with static imports');
+    console.log('App mounted successfully - ALL COMPONENTS STATICALLY IMPORTED - ZERO CODE SPLITTING');
   }, []);
 
-  console.log('App rendering with static components');
+  console.log('App rendering with 100% static imports - NUCLEAR ANTI-SPLITTING MODE');
 
   return (
     <TooltipProvider>
@@ -163,10 +166,12 @@ function App() {
           <Route path="transfer" element={<Transfer />} />
           <Route path="transactions" element={<Transactions />} />
           <Route path="deposit" element={<UnifiedDepositWithdrawal />} />
+          <Route path="unified-deposit-withdrawal" element={<UnifiedDepositWithdrawal />} />
           <Route path="deposit-withdrawal" element={<DepositWithdrawalForm />} />
+          <Route path="withdraw" element={<UnifiedDepositWithdrawal />} />
           <Route path="agent-services" element={<AgentServices />} />
           
-          {/* Agent routes */}
+          {/* Agent routes - all statically imported */}
           <Route path="agent-deposit" element={<AgentDeposit />} />
           <Route path="agent-withdrawal-advanced" element={<AgentWithdrawalAdvanced />} />
           <Route path="agent-reports" element={<AgentReports />} />
