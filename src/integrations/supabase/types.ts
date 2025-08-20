@@ -1037,109 +1037,6 @@ export type Database = {
         }
         Relationships: []
       }
-      payment_callbacks: {
-        Row: {
-          callback_data: Json
-          created_at: string
-          id: string
-          payment_session_id: string
-          processed: boolean | null
-          provider: string
-          signature: string | null
-          verified: boolean | null
-        }
-        Insert: {
-          callback_data: Json
-          created_at?: string
-          id?: string
-          payment_session_id: string
-          processed?: boolean | null
-          provider: string
-          signature?: string | null
-          verified?: boolean | null
-        }
-        Update: {
-          callback_data?: Json
-          created_at?: string
-          id?: string
-          payment_session_id?: string
-          processed?: boolean | null
-          provider?: string
-          signature?: string | null
-          verified?: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_callbacks_payment_session_id_fkey"
-            columns: ["payment_session_id"]
-            isOneToOne: false
-            referencedRelation: "payment_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payment_sessions: {
-        Row: {
-          amount: number
-          callback_data: Json | null
-          checkout_url: string | null
-          created_at: string
-          currency: string
-          expires_at: string
-          id: string
-          payment_method: string
-          provider: string
-          provider_transaction_id: string | null
-          session_id: string
-          status: string
-          updated_at: string
-          user_id: string
-          ussd_code: string | null
-        }
-        Insert: {
-          amount: number
-          callback_data?: Json | null
-          checkout_url?: string | null
-          created_at?: string
-          currency?: string
-          expires_at?: string
-          id?: string
-          payment_method: string
-          provider: string
-          provider_transaction_id?: string | null
-          session_id: string
-          status?: string
-          updated_at?: string
-          user_id: string
-          ussd_code?: string | null
-        }
-        Update: {
-          amount?: number
-          callback_data?: Json | null
-          checkout_url?: string | null
-          created_at?: string
-          currency?: string
-          expires_at?: string
-          id?: string
-          payment_method?: string
-          provider?: string
-          provider_transaction_id?: string | null
-          session_id?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-          ussd_code?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_sessions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "auth_users_agents_view"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       pending_transfers: {
         Row: {
           amount: number
@@ -1149,7 +1046,7 @@ export type Database = {
           expires_at: string
           fees: number
           id: string
-          recipient_email: string | null
+          recipient_email: string
           recipient_phone: string | null
           sender_id: string
           status: string
@@ -1162,7 +1059,7 @@ export type Database = {
           expires_at?: string
           fees: number
           id?: string
-          recipient_email?: string | null
+          recipient_email: string
           recipient_phone?: string | null
           sender_id: string
           status?: string
@@ -1175,7 +1072,7 @@ export type Database = {
           expires_at?: string
           fees?: number
           id?: string
-          recipient_email?: string | null
+          recipient_email?: string
           recipient_phone?: string | null
           sender_id?: string
           status?: string
@@ -1260,33 +1157,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      rate_limits: {
-        Row: {
-          attempts: number
-          created_at: string
-          id: string
-          operation_type: string
-          user_id: string
-          window_start: string
-        }
-        Insert: {
-          attempts?: number
-          created_at?: string
-          id?: string
-          operation_type: string
-          user_id: string
-          window_start?: string
-        }
-        Update: {
-          attempts?: number
-          created_at?: string
-          id?: string
-          operation_type?: string
-          user_id?: string
-          window_start?: string
-        }
-        Relationships: []
       }
       receipts: {
         Row: {
@@ -1781,15 +1651,6 @@ export type Database = {
         Args: { agent_id_param: string }
         Returns: boolean
       }
-      check_rate_limit: {
-        Args: {
-          p_max_attempts?: number
-          p_operation_type: string
-          p_user_id: string
-          p_window_minutes?: number
-        }
-        Returns: boolean
-      }
       claim_pending_transfer: {
         Args:
           | Record<PropertyKey, never>
@@ -1797,14 +1658,6 @@ export type Database = {
         Returns: undefined
       }
       cleanup_expired_password_resets: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_payment_sessions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
