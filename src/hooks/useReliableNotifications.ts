@@ -107,24 +107,19 @@ export const useReliableNotifications = () => {
       const readIds = getReadNotificationIds();
       const lastCheckTime = getLastCheckTime();
 
-      // Charger depuis la base de données avec un délai plus large
-      const { data: notificationRecipients, error } = await supabase
-        .from('notification_recipients')
+      // Charger depuis la base de données avec une requête simplifiée
+      const { data: notificationsData, error } = await supabase
+        .from('notifications')
         .select(`
-          notification_id,
-          read_at,
+          id,
+          title,
+          message,
+          priority,
           created_at,
-          notifications (
-            id,
-            title,
-            message,
-            priority,
-            created_at,
-            notification_type
-          )
+          notification_type
         `)
         .eq('user_id', user.id)
-        .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()) // 48h au lieu de 7 jours pour plus de rapidité
+        .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -136,36 +131,33 @@ export const useReliableNotifications = () => {
       const unifiedNotifications: ReliableNotification[] = [];
       const newNotifications: ReliableNotification[] = [];
 
-      notificationRecipients?.forEach(recipient => {
-        if (recipient.notifications && !Array.isArray(recipient.notifications)) {
-          const notification = recipient.notifications as any;
-          const notificationId = `db_${notification.id}`;
-          const notificationDate = new Date(notification.created_at);
-          
-          // Extraire le montant
-          let amount: number | undefined;
-          const amountMatch = notification.message.match(/(\d+(?:\.\d+)?)\s*(?:XAF|FCFA)/i);
-          if (amountMatch) {
-            amount = parseFloat(amountMatch[1].replace(/\s/g, ''));
-          }
+      notificationsData?.forEach(notification => {
+        const notificationId = `db_${notification.id}`;
+        const notificationDate = new Date(notification.created_at);
+        
+        // Extraire le montant
+        let amount: number | undefined;
+        const amountMatch = notification.message.match(/(\d+(?:\.\d+)?)\s*(?:XAF|FCFA)/i);
+        if (amountMatch) {
+          amount = parseFloat(amountMatch[1].replace(/\s/g, ''));
+        }
 
-          const unifiedNotification: ReliableNotification = {
-            id: notificationId,
-            title: notification.title,
-            message: notification.message,
-            type: notification.notification_type as any || 'system',
-            priority: notification.priority as any,
-            amount,
-            created_at: notification.created_at,
-            read: !!recipient.read_at || readIds.has(notificationId)
-          };
+        const unifiedNotification: ReliableNotification = {
+          id: notificationId,
+          title: notification.title,
+          message: notification.message,
+          type: notification.notification_type as any || 'system',
+          priority: notification.priority as any,
+          amount,
+          created_at: notification.created_at,
+          read: readIds.has(notificationId)
+        };
 
-          unifiedNotifications.push(unifiedNotification);
+        unifiedNotifications.push(unifiedNotification);
 
-          // Détecter les nouvelles notifications depuis la dernière vérification
-          if (notificationDate > lastCheckTime && !unifiedNotification.read) {
-            newNotifications.push(unifiedNotification);
-          }
+        // Détecter les nouvelles notifications depuis la dernière vérification
+        if (notificationDate > lastCheckTime && !unifiedNotification.read) {
+          newNotifications.push(unifiedNotification);
         }
       });
 
@@ -193,7 +185,7 @@ export const useReliableNotifications = () => {
       
       // Retry automatique avec backoff exponentiel
       if (retryCount < 3) {
-        const delay = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
+        const delay = Math.pow(2, retryCount) * 2000;
         setTimeout(() => loadNotifications(retryCount + 1), delay);
       }
     }
@@ -225,7 +217,7 @@ export const useReliableNotifications = () => {
       {
         event: 'INSERT',
         schema: 'public',
-        table: 'notification_recipients',
+        table: 'notifications',
         filter: `user_id=eq.${user.id}`
       },
       async (payload: any) => {
@@ -262,7 +254,7 @@ export const useReliableNotifications = () => {
     pollingIntervalRef.current = setInterval(() => {
       console.log('🔄 Vérification polling des notifications');
       loadNotifications();
-    }, 30000); // 30 secondes
+    }, 30000);
   }, [loadNotifications]);
 
   // Vérification de connexion toutes les 5 secondes

@@ -128,9 +128,13 @@ export const ReliableNotificationBell = () => {
             <div className="flex items-center gap-2">
               <span>Notifications fiables</span>
               {isConnected ? (
-                <Wifi className="w-3 h-3 text-green-500" title="Connexion temps réel active" />
+                <div title="Connexion temps réel active">
+                  <Wifi className="w-3 h-3 text-green-500" />
+                </div>
               ) : (
-                <WifiOff className="w-3 h-3 text-red-500 animate-pulse" title="Connexion temps réel déconnectée" />
+                <div title="Connexion temps réel déconnectée">
+                  <WifiOff className="w-3 h-3 text-red-500 animate-pulse" />
+                </div>
               )}
             </div>
             <div className="flex items-center gap-1">
