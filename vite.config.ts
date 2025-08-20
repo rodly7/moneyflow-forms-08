@@ -23,27 +23,31 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
   build: {
     rollupOptions: {
       output: {
-        // Force everything into a single bundle - NO code splitting
-        manualChunks: () => 'everything',
-        inlineDynamicImports: false, // Changed to false since we're using manualChunks
-        entryFileNames: 'index.js',
-        chunkFileNames: 'index.js', 
-        assetFileNames: 'assets/[name][extname]',
+        // NUCLEAR: Force everything into one single file
+        manualChunks: undefined,
+        inlineDynamicImports: true,
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name].[ext]'
       },
       external: [],
       treeshake: false,
-      preserveEntrySignatures: "strict" as const,
     },
     minify: false,
     target: 'esnext',
-    chunkSizeWarningLimit: 50000,
+    chunkSizeWarningLimit: 100000,
     sourcemap: false,
     cssCodeSplit: false,
-    // Force single file output
-    assetsInlineLimit: 0,
+    assetsInlineLimit: 4096,
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', '@tanstack/react-query'],
+    include: [
+      'react', 
+      'react-dom', 
+      '@tanstack/react-query',
+      'react-router-dom',
+      'lucide-react'
+    ],
     force: true,
   },
   define: {
