@@ -77,7 +77,7 @@ export const useReliableNotifications = () => {
 
     // Son
     try {
-      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEcCjWH0fPTgjEGJXfK7+OUQw==');
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJXfH8N2QQAoUXrTp66hVFApGn+DyvmEcCjWH0fPTgjEGJXfK7+OUQw==');
       audio.volume = 0.4;
       audio.play().catch(() => {});
     } catch {}
@@ -97,76 +97,75 @@ export const useReliableNotifications = () => {
     });
   };
 
+  // Charger les notifications depuis la base de données
+  const fetchNotifications = async (): Promise<ReliableNotification[]> => {
+    if (!user?.id) return [];
+
+    const { data: notificationsData, error } = await supabase
+      .from('notifications')
+      .select(`
+        id,
+        title,
+        message,
+        priority,
+        created_at,
+        notification_type
+      `)
+      .eq('user_id', user.id)
+      .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      throw error;
+    }
+
+    const readIds = getReadNotificationIds();
+    const unifiedNotifications: ReliableNotification[] = [];
+
+    notificationsData?.forEach(notification => {
+      const notificationId = `db_${notification.id}`;
+      
+      // Extraire le montant
+      let amount: number | undefined;
+      const amountMatch = notification.message.match(/(\d+(?:\.\d+)?)\s*(?:XAF|FCFA)/i);
+      if (amountMatch) {
+        amount = parseFloat(amountMatch[1].replace(/\s/g, ''));
+      }
+
+      const unifiedNotification: ReliableNotification = {
+        id: notificationId,
+        title: notification.title,
+        message: notification.message,
+        type: notification.notification_type as any || 'system',
+        priority: notification.priority as any,
+        amount,
+        created_at: notification.created_at,
+        read: readIds.has(notificationId)
+      };
+
+      if (!unifiedNotification.read) {
+        unifiedNotifications.push(unifiedNotification);
+      }
+    });
+
+    return unifiedNotifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  };
+
   // Charger les notifications avec retry automatique
-  const loadNotifications = useCallback(async (retryCount = 0): Promise<void> => {
+  const loadNotifications = async (retryCount = 0) => {
     if (!user?.id) return;
 
     console.log(`📥 Chargement notifications (tentative ${retryCount + 1})`);
 
     try {
-      const readIds = getReadNotificationIds();
       const lastCheckTime = getLastCheckTime();
+      const allNotifications = await fetchNotifications();
+      const newNotifications = allNotifications.filter(n => 
+        new Date(n.created_at) > lastCheckTime && !n.read
+      );
 
-      // Charger depuis la base de données avec une requête simplifiée
-      const { data: notificationsData, error } = await supabase
-        .from('notifications')
-        .select(`
-          id,
-          title,
-          message,
-          priority,
-          created_at,
-          notification_type
-        `)
-        .eq('user_id', user.id)
-        .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (error) {
-        throw error;
-      }
-
-      // Transformer en notifications
-      const unifiedNotifications: ReliableNotification[] = [];
-      const newNotifications: ReliableNotification[] = [];
-
-      notificationsData?.forEach(notification => {
-        const notificationId = `db_${notification.id}`;
-        const notificationDate = new Date(notification.created_at);
-        
-        // Extraire le montant
-        let amount: number | undefined;
-        const amountMatch = notification.message.match(/(\d+(?:\.\d+)?)\s*(?:XAF|FCFA)/i);
-        if (amountMatch) {
-          amount = parseFloat(amountMatch[1].replace(/\s/g, ''));
-        }
-
-        const unifiedNotification: ReliableNotification = {
-          id: notificationId,
-          title: notification.title,
-          message: notification.message,
-          type: notification.notification_type as any || 'system',
-          priority: notification.priority as any,
-          amount,
-          created_at: notification.created_at,
-          read: readIds.has(notificationId)
-        };
-
-        unifiedNotifications.push(unifiedNotification);
-
-        // Détecter les nouvelles notifications depuis la dernière vérification
-        if (notificationDate > lastCheckTime && !unifiedNotification.read) {
-          newNotifications.push(unifiedNotification);
-        }
-      });
-
-      // Trier par date décroissante
-      const sortedNotifications = unifiedNotifications
-        .filter(n => !n.read)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      setNotifications(sortedNotifications);
+      setNotifications(allNotifications);
 
       // Afficher les nouvelles notifications
       newNotifications.forEach(notification => {
@@ -178,7 +177,7 @@ export const useReliableNotifications = () => {
       setLastCheck(now);
       saveLastCheckTime(now);
 
-      console.log(`✅ ${sortedNotifications.length} notifications chargées, ${newNotifications.length} nouvelles`);
+      console.log(`✅ ${allNotifications.length} notifications chargées, ${newNotifications.length} nouvelles`);
 
     } catch (error: any) {
       console.error(`❌ Erreur chargement notifications (tentative ${retryCount + 1}):`, error);
@@ -189,10 +188,10 @@ export const useReliableNotifications = () => {
         setTimeout(() => loadNotifications(retryCount + 1), delay);
       }
     }
-  }, [user?.id]);
+  };
 
   // Configuration temps réel avec reconnexion automatique
-  const setupRealtimeConnection = useCallback(() => {
+  const setupRealtimeConnection = () => {
     if (!user?.id) return;
 
     console.log('🔗 Configuration connexion temps réel robuste');
@@ -243,10 +242,10 @@ export const useReliableNotifications = () => {
         }, 3000);
       }
     });
-  }, [user?.id]);
+  };
 
   // Polling de sauvegarde toutes les 30 secondes
-  const startPolling = useCallback(() => {
+  const startPolling = () => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
     }
@@ -255,10 +254,10 @@ export const useReliableNotifications = () => {
       console.log('🔄 Vérification polling des notifications');
       loadNotifications();
     }, 30000);
-  }, []);
+  };
 
   // Vérification de connexion toutes les 5 secondes
-  const startConnectionCheck = useCallback(() => {
+  const startConnectionCheck = () => {
     if (connectionCheckRef.current) {
       clearInterval(connectionCheckRef.current);
     }
@@ -269,7 +268,7 @@ export const useReliableNotifications = () => {
         setupRealtimeConnection();
       }
     }, 5000);
-  }, [isConnected, user?.id]);
+  };
 
   // Initialisation
   useEffect(() => {
