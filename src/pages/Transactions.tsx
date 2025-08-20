@@ -3,10 +3,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowDownLeft, ArrowUpRight, CreditCard, Receipt, Minus, Plus, Download, ArrowRightLeft } from "lucide-react";
+import { CreditCard, Minus, Plus } from "lucide-react";
 import { useAllTransactions } from "@/hooks/useAllTransactions";
 import { useState } from "react";
 import TransactionDetailModal from "@/components/transactions/TransactionDetailModal";
+import { 
+  getTransactionIcon, 
+  getTransactionTypeLabel, 
+  getStatusColor, 
+  getStatusLabel 
+} from "@/components/transactions/TransactionTypeUtils";
 
 const Transactions = () => {
   const { user } = useAuth();
@@ -22,36 +28,6 @@ const Transactions = () => {
   const closeTransactionDetail = () => {
     setSelectedTransaction(null);
     setIsModalOpen(false);
-  };
-
-  const getTransactionIcon = (type: string, impact: string) => {
-    switch (type) {
-      case 'withdrawal':
-        return <Download className="w-5 h-5 text-red-600" />;
-      case 'transfer_sent':
-        return <ArrowUpRight className="w-5 h-5 text-orange-600" />;
-      case 'transfer_received':
-        return <ArrowDownLeft className="w-5 h-5 text-green-600" />;
-      case 'deposit':
-        return <Plus className="w-5 h-5 text-blue-600" />;
-      case 'bill_payment':
-        return <Receipt className="w-5 h-5 text-purple-600" />;
-      default:
-        return <CreditCard className="w-5 h-5 text-gray-600" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
   };
 
   const formatDate = (date: Date) => {
@@ -141,7 +117,7 @@ const Transactions = () => {
         <CardHeader>
           <CardTitle>Historique Complet des Transactions</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Toutes vos opérations financières : dépôts, retraits, transferts et paiements
+            Toutes vos opérations financières : dépôts, retraits, transferts, paiements et ajustements
           </p>
         </CardHeader>
         <CardContent>
@@ -150,7 +126,7 @@ const Transactions = () => {
               <CreditCard className="w-16 h-16 mx-auto text-gray-400 mb-4" />
               <p className="text-muted-foreground mb-2">Aucune transaction trouvée</p>
               <p className="text-sm text-muted-foreground">
-                Vos dépôts, retraits, transferts et paiements apparaîtront ici
+                Vos transactions apparaîtront ici une fois que vous effectuerez des opérations
               </p>
             </div>
           ) : (
@@ -167,25 +143,43 @@ const Transactions = () => {
                       </div>
                       
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-medium">{transaction.description}</h3>
                           <Badge className={getStatusColor(transaction.status)}>
-                            {transaction.status === 'completed' ? 'Complété' : 
-                             transaction.status === 'pending' ? 'En attente' : 
-                             transaction.status}
+                            {getStatusLabel(transaction.status)}
                           </Badge>
                           <Badge variant={transaction.impact === 'credit' ? 'default' : 'destructive'}>
                             {transaction.impact === 'credit' ? 'Entrée' : 'Sortie'}
                           </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {getTransactionTypeLabel(transaction.type)}
+                          </Badge>
                         </div>
                         
-                        <p className="text-sm text-muted-foreground">
-                          {formatDate(transaction.date)}
-                        </p>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>{formatDate(transaction.date)}</span>
+                          {transaction.reference_id && (
+                            <span className="text-xs font-mono">
+                              Réf: {transaction.reference_id.substring(0, 8)}
+                            </span>
+                          )}
+                        </div>
                         
                         {transaction.verification_code && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground mt-1">
                             Code: {transaction.verification_code}
+                          </p>
+                        )}
+
+                        {transaction.sender_name && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            De: {transaction.sender_name}
+                          </p>
+                        )}
+
+                        {transaction.recipient_full_name && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Vers: {transaction.recipient_full_name}
                           </p>
                         )}
                       </div>

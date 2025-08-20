@@ -19,6 +19,7 @@ interface UnifiedTransaction {
   userType: "agent" | "user";
   impact: "credit" | "debit";
   sender_name?: string;
+  reference_id?: string;
 }
 
 export const useAllTransactions = (userId?: string) => {
@@ -60,7 +61,8 @@ export const useAllTransactions = (userId?: string) => {
             withdrawal_phone: withdrawal.withdrawal_phone || '',
             fees: 0,
             userType: "user" as const,
-            impact: "debit" as const
+            impact: "debit" as const,
+            reference_id: withdrawal.id
           });
         });
       }
@@ -91,12 +93,13 @@ export const useAllTransactions = (userId?: string) => {
             recipient_phone: transfer.recipient_phone,
             userType: "user" as const,
             impact: "debit" as const,
-            fees: transfer.fees || 0
+            fees: transfer.fees || 0,
+            reference_id: transfer.id
           });
         });
       }
 
-      // 3. Récupérer les transferts reçus
+      // 3. Récupérer les transferts reçus (avec expéditeur)
       console.log("📥 Récupération des transferts reçus...");
       const { data: receivedTransfers, error: receivedError } = await supabase
         .from('transfers')
@@ -107,7 +110,8 @@ export const useAllTransactions = (userId?: string) => {
           recipient_full_name, 
           status,
           sender_id,
-          profiles!transfers_sender_id_fkey(full_name)
+          fees,
+          profiles!transfers_sender_id_fkey(full_name, phone)
         `)
         .eq('recipient_id', userId)
         .order('created_at', { ascending: false });
@@ -129,7 +133,9 @@ export const useAllTransactions = (userId?: string) => {
             created_at: transfer.created_at,
             sender_name: senderName,
             userType: "user" as const,
-            impact: "credit" as const
+            impact: "credit" as const,
+            fees: 0,
+            reference_id: transfer.id
           });
         });
       }
@@ -152,12 +158,13 @@ export const useAllTransactions = (userId?: string) => {
             type: 'deposit',
             amount: recharge.amount,
             date: new Date(recharge.created_at),
-            description: `Dépôt par ${recharge.payment_method}`,
+            description: `Dépôt par ${recharge.payment_method || 'Agent'}`,
             currency: 'XAF',
             status: recharge.status,
             created_at: recharge.created_at,
             userType: "user" as const,
-            impact: "credit" as const
+            impact: "credit" as const,
+            reference_id: recharge.id
           });
         });
       }
@@ -180,12 +187,80 @@ export const useAllTransactions = (userId?: string) => {
             type: 'bill_payment',
             amount: payment.amount,
             date: new Date(payment.created_at),
-            description: 'Paiement de facture',
+            description: `Paiement facture ${payment.bill_type || ''}`,
             currency: 'XAF',
             status: payment.status,
             created_at: payment.created_at,
             userType: "user" as const,
-            impact: "debit" as const
+            impact: "debit" as const,
+            reference_id: payment.id
+          });
+        });
+      }
+
+      // 6. Récupérer les transferts en attente (pending_transfers)
+      console.log("⏳ Récupération des transferts en attente...");
+      const { data: pendingTransfers, error: pendingError } = await supabase
+        .from('pending_transfers')
+        .select('*')
+        .eq('sender_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (pendingError) {
+        console.error("❌ Erreur transferts en attente:", pendingError);
+      } else if (pendingTransfers) {
+        console.log("✅ Transferts en attente trouvés:", pendingTransfers.length);
+        pendingTransfers.forEach(pending => {
+          allTransactions.push({
+            id: `pending_${pending.id}`,
+            type: 'transfer_pending',
+            amount: pending.amount,
+            date: new Date(pending.created_at),
+            description: `Transfert en attente vers ${pending.recipient_email}`,
+            currency: 'XAF',
+            status: 'pending',
+            created_at: pending.created_at,
+            verification_code: pending.claim_code,
+            userType: "user" as const,
+            impact: "debit" as const,
+            fees: pending.fees || 0,
+            reference_id: pending.id
+          });
+        });
+      }
+
+      // 7. Récupérer les opérations de solde (balance_operations) pour les ajustements
+      console.log("⚖️ Récupération des ajustements de solde...");
+      const { data: balanceOps, error: balanceError } = await supabase
+        .from('balance_operations')
+        .select('*')
+        .eq('target_user_id', userId)
+        .neq('operation_type', 'transfer_debit') // Éviter les doublons avec les transferts
+        .neq('operation_type', 'transfer_credit')
+        .order('created_at', { ascending: false });
+
+      if (balanceError) {
+        console.error("❌ Erreur opérations solde:", balanceError);
+      } else if (balanceOps) {
+        console.log("✅ Opérations de solde trouvées:", balanceOps.length);
+        balanceOps.forEach(op => {
+          // Ne pas afficher les opérations système internes
+          if (op.operation_type.includes('system') || op.operation_type.includes('internal')) {
+            return;
+          }
+
+          allTransactions.push({
+            id: `balance_${op.id}`,
+            type: op.operation_type,
+            amount: Math.abs(op.amount),
+            date: new Date(op.created_at),
+            description: `Ajustement: ${op.operation_type}`,
+            currency: 'XAF',
+            status: 'completed',
+            created_at: op.created_at,
+            userType: "user" as const,
+            impact: op.amount > 0 ? "credit" as const : "debit" as const,
+            reference_id: op.id
           });
         });
       }
@@ -195,18 +270,20 @@ export const useAllTransactions = (userId?: string) => {
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      console.log("📊 Total transactions:", sortedTransactions.length);
-      console.log("📋 Détail:", {
+      console.log("📊 Total transactions récupérées:", sortedTransactions.length);
+      console.log("📋 Détail par type:", {
         retraits: sortedTransactions.filter(t => t.type === 'withdrawal').length,
         transferts_envoyés: sortedTransactions.filter(t => t.type === 'transfer_sent').length,
         transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
+        transferts_en_attente: sortedTransactions.filter(t => t.type === 'transfer_pending').length,
         dépôts: sortedTransactions.filter(t => t.type === 'deposit').length,
-        paiements_factures: sortedTransactions.filter(t => t.type === 'bill_payment').length
+        paiements_factures: sortedTransactions.filter(t => t.type === 'bill_payment').length,
+        ajustements: sortedTransactions.filter(t => t.type.includes('balance')).length
       });
 
       setTransactions(sortedTransactions);
     } catch (error) {
-      console.error("❌ Erreur générale:", error);
+      console.error("❌ Erreur générale lors de la récupération des transactions:", error);
     } finally {
       setLoading(false);
     }
