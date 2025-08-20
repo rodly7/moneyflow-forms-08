@@ -36,6 +36,4 @@ const LogoutButton = () => {
   );
 };
 
-// Export both as named and default
-export { LogoutButton };
 export default LogoutButton;

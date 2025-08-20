@@ -8,7 +8,7 @@ interface UnifiedNotification {
   id: string;
   title: string;
   message: string;
-  type: 'transfer_received' | 'withdrawal_completed' | 'admin_message' | 'system';
+  type: 'transfer_received' | 'withdrawal_completed' | 'withdrawal_created' | 'admin_message' | 'system';
   priority: 'low' | 'normal' | 'high';
   amount?: number;
   created_at: string;
@@ -65,7 +65,7 @@ export const useUnifiedNotifications = () => {
 
     const bgColor = notification.type === 'transfer_received' 
       ? 'bg-green-50 border-green-200 text-green-800'
-      : notification.type === 'withdrawal_completed'
+      : notification.type.includes('withdrawal')
       ? 'bg-blue-50 border-blue-200 text-blue-800'
       : 'bg-purple-50 border-purple-200 text-purple-800';
 
@@ -77,8 +77,8 @@ export const useUnifiedNotifications = () => {
     });
   };
 
-  // Charger les notifications récentes depuis la base de données
-  const loadRecentNotifications = async () => {
+  // Charger les notifications depuis la base de données
+  const loadNotifications = async () => {
     if (!user?.id) return;
 
     console.log('📥 Chargement des notifications pour:', user.id);
@@ -86,8 +86,8 @@ export const useUnifiedNotifications = () => {
     try {
       const readIds = getReadNotificationIds();
 
-      // Charger les notifications administratives récentes
-      const { data: adminNotifications, error: adminError } = await supabase
+      // Charger les notifications récentes depuis la base de données
+      const { data: notificationRecipients, error } = await supabase
         .from('notification_recipients')
         .select(`
           notification_id,
@@ -105,106 +105,43 @@ export const useUnifiedNotifications = () => {
         .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // 7 jours
         .order('created_at', { ascending: false });
 
-      if (adminError) {
-        console.error('Erreur chargement notifications admin:', adminError);
+      if (error) {
+        console.error('Erreur chargement notifications:', error);
+        return;
       }
 
-      // Charger les transferts reçus récents
-      const { data: transfers, error: transferError } = await supabase
-        .from('transfers')
-        .select(`
-          *,
-          profiles:sender_id (full_name, phone)
-        `)
-        .or(`recipient_phone.eq.${user.phone},recipient_email.eq.${user.email}`)
-        .eq('status', 'completed')
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-        .order('created_at', { ascending: false });
+      // Transformer en notifications unifiées
+      const unifiedNotifications: UnifiedNotification[] = [];
 
-      if (transferError) {
-        console.error('Erreur chargement transferts:', transferError);
-      }
-
-      // Charger les retraits récents
-      const { data: withdrawals, error: withdrawalError } = await supabase
-        .from('withdrawals')
-        .select('*')
-        .eq('user_id', user.id)
-        .in('status', ['completed', 'pending'])
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-        .order('created_at', { ascending: false });
-
-      if (withdrawalError) {
-        console.error('Erreur chargement retraits:', withdrawalError);
-      }
-
-      // Combiner toutes les notifications
-      const allNotifications: UnifiedNotification[] = [];
-
-      // Ajouter les notifications admin
-      adminNotifications?.forEach(item => {
-        if (item.notifications && !Array.isArray(item.notifications)) {
-          const notification = item.notifications as any;
-          const notificationId = `admin_${notification.id}`;
+      notificationRecipients?.forEach(recipient => {
+        if (recipient.notifications && !Array.isArray(recipient.notifications)) {
+          const notification = recipient.notifications as any;
+          const notificationId = `db_${notification.id}`;
           
           if (!readIds.has(notificationId)) {
-            allNotifications.push({
+            // Extraire le montant du message si possible
+            let amount: number | undefined;
+            const amountMatch = notification.message.match(/(\d+(?:\.\d+)?)\s*(?:XAF|FCFA)/i);
+            if (amountMatch) {
+              amount = parseFloat(amountMatch[1].replace(/\s/g, ''));
+            }
+
+            unifiedNotifications.push({
               id: notificationId,
               title: notification.title,
               message: notification.message,
-              type: 'admin_message',
+              type: notification.notification_type as any || 'system',
               priority: notification.priority as any,
+              amount,
               created_at: notification.created_at,
-              read: !!item.read_at || readIds.has(notificationId)
+              read: !!recipient.read_at || readIds.has(notificationId)
             });
           }
         }
       });
 
-      // Ajouter les notifications de transferts reçus
-      transfers?.forEach(transfer => {
-        const notificationId = `transfer_${transfer.id}`;
-        
-        if (!readIds.has(notificationId)) {
-          const senderInfo = transfer.profiles as any;
-          const senderName = senderInfo?.full_name || 'Expéditeur inconnu';
-          
-          allNotifications.push({
-            id: notificationId,
-            title: '💰 Argent reçu',
-            message: `Vous avez reçu ${transfer.amount?.toLocaleString('fr-FR')} FCFA de ${senderName}`,
-            type: 'transfer_received',
-            priority: 'high',
-            amount: transfer.amount,
-            created_at: transfer.created_at,
-            read: readIds.has(notificationId)
-          });
-        }
-      });
-
-      // Ajouter les notifications de retraits
-      withdrawals?.forEach(withdrawal => {
-        const notificationId = `withdrawal_${withdrawal.id}`;
-        
-        if (!readIds.has(notificationId)) {
-          const statusText = withdrawal.status === 'completed' ? 'effectué avec succès' : 'en cours de traitement';
-          const icon = withdrawal.status === 'completed' ? '✅' : '⏳';
-          
-          allNotifications.push({
-            id: notificationId,
-            title: `${icon} Retrait ${withdrawal.status === 'completed' ? 'confirmé' : 'initié'}`,
-            message: `Retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA ${statusText}`,
-            type: 'withdrawal_completed',
-            priority: withdrawal.status === 'completed' ? 'high' : 'normal',
-            amount: withdrawal.amount,
-            created_at: withdrawal.created_at,
-            read: readIds.has(notificationId)
-          });
-        }
-      });
-
       // Trier par date décroissante et filtrer les lues
-      const unreadNotifications = allNotifications
+      const unreadNotifications = unifiedNotifications
         .filter(n => !n.read)
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -216,7 +153,7 @@ export const useUnifiedNotifications = () => {
     }
   };
 
-  // Configuration de l'écoute temps réel avec reconnexion automatique
+  // Configuration de l'écoute temps réel
   const setupRealtimeConnection = () => {
     if (!user?.id) return;
 
@@ -231,106 +168,7 @@ export const useUnifiedNotifications = () => {
     const channelName = `notifications_${user.id}_${Date.now()}`;
     channelRef.current = supabase.channel(channelName);
 
-    // Écouter les nouveaux transferts reçus
-    channelRef.current.on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'transfers'
-      },
-      async (payload: any) => {
-        console.log('🎯 Nouveau transfert détecté:', payload.new);
-        
-        const transfer = payload.new;
-        
-        // Vérifier si c'est pour l'utilisateur actuel
-        if (transfer.recipient_phone === user.phone || transfer.recipient_email === user.email) {
-          console.log('✅ Transfert confirmé pour utilisateur actuel');
-          
-          const notification: UnifiedNotification = {
-            id: `transfer_${transfer.id}`,
-            title: '💰 Argent reçu !',
-            message: `Vous avez reçu ${transfer.amount?.toLocaleString('fr-FR')} FCFA`,
-            type: 'transfer_received',
-            priority: 'high',
-            amount: transfer.amount,
-            created_at: transfer.created_at,
-            read: false
-          };
-
-          // Ajouter à la liste
-          setNotifications(prev => [notification, ...prev.slice(0, 9)]);
-          
-          // Afficher le toast
-          showNotificationToast(notification);
-        }
-      }
-    );
-
-    // Écouter les nouveaux retraits
-    channelRef.current.on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'withdrawals',
-        filter: `user_id=eq.${user.id}`
-      },
-      (payload: any) => {
-        console.log('💸 Nouveau retrait détecté:', payload.new);
-        
-        const withdrawal = payload.new;
-        
-        const notification: UnifiedNotification = {
-          id: `withdrawal_${withdrawal.id}`,
-          title: '⏳ Retrait initié',
-          message: `Demande de retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA créée`,
-          type: 'withdrawal_completed',
-          priority: 'normal',
-          amount: withdrawal.amount,
-          created_at: withdrawal.created_at,
-          read: false
-        };
-
-        setNotifications(prev => [notification, ...prev.slice(0, 9)]);
-        showNotificationToast(notification);
-      }
-    );
-
-    // Écouter les mises à jour des retraits
-    channelRef.current.on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'withdrawals',
-        filter: `user_id=eq.${user.id}`
-      },
-      (payload: any) => {
-        console.log('💸 Retrait mis à jour:', payload.new);
-        
-        const withdrawal = payload.new;
-        
-        if (withdrawal.status === 'completed') {
-          const notification: UnifiedNotification = {
-            id: `withdrawal_update_${withdrawal.id}_${Date.now()}`,
-            title: '✅ Retrait confirmé',
-            message: `Votre retrait de ${withdrawal.amount?.toLocaleString('fr-FR')} FCFA a été traité avec succès`,
-            type: 'withdrawal_completed',
-            priority: 'high',
-            amount: withdrawal.amount,
-            created_at: new Date().toISOString(),
-            read: false
-          };
-
-          setNotifications(prev => [notification, ...prev.slice(0, 9)]);
-          showNotificationToast(notification);
-        }
-      }
-    );
-
-    // Écouter les nouvelles notifications admin
+    // Écouter les nouvelles entrées dans notification_recipients pour cet utilisateur
     channelRef.current.on(
       'postgres_changes',
       {
@@ -340,9 +178,10 @@ export const useUnifiedNotifications = () => {
         filter: `user_id=eq.${user.id}`
       },
       async (payload: any) => {
-        console.log('📢 Nouvelle notification admin détectée:', payload.new);
+        console.log('🔔 Nouvelle notification reçue:', payload.new);
         
         try {
+          // Récupérer les détails de la notification
           const { data: notification, error } = await supabase
             .from('notifications')
             .select('*')
@@ -354,20 +193,34 @@ export const useUnifiedNotifications = () => {
             return;
           }
 
+          console.log('📢 Détails notification:', notification);
+
+          // Extraire le montant du message si possible
+          let amount: number | undefined;
+          const amountMatch = notification.message.match(/(\d+(?:\.\d+)?)\s*(?:XAF|FCFA)/i);
+          if (amountMatch) {
+            amount = parseFloat(amountMatch[1].replace(/\s/g, ''));
+          }
+
           const unifiedNotification: UnifiedNotification = {
-            id: `admin_${notification.id}`,
+            id: `db_${notification.id}`,
             title: notification.title,
             message: notification.message,
-            type: 'admin_message',
+            type: notification.notification_type as any || 'system',
             priority: notification.priority as any,
+            amount,
             created_at: notification.created_at,
             read: false
           };
 
+          // Ajouter à la liste des notifications
           setNotifications(prev => [unifiedNotification, ...prev.slice(0, 9)]);
+          
+          // Afficher le toast
           showNotificationToast(unifiedNotification);
+          
         } catch (error) {
-          console.error('Erreur traitement notification admin:', error);
+          console.error('Erreur traitement nouvelle notification:', error);
         }
       }
     );
@@ -393,7 +246,7 @@ export const useUnifiedNotifications = () => {
   useEffect(() => {
     if (user?.id) {
       console.log('🚀 Initialisation système notifications unifié');
-      loadRecentNotifications();
+      loadNotifications();
       setupRealtimeConnection();
     }
 
@@ -405,7 +258,7 @@ export const useUnifiedNotifications = () => {
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [user?.id, user?.phone, user?.email]);
+  }, [user?.id]);
 
   // Marquer une notification comme lue
   const markAsRead = (notificationId: string) => {
@@ -427,7 +280,7 @@ export const useUnifiedNotifications = () => {
 
   // Forcer le rechargement
   const refresh = () => {
-    loadRecentNotifications();
+    loadNotifications();
   };
 
   const unreadCount = notifications.length;
