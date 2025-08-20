@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import { 
   Home, 
   Send, 
@@ -18,11 +18,7 @@ import { ReliableNotificationBell } from '@/components/notifications/ReliableNot
 import SessionManager from '@/components/SessionManager';
 import { useState } from 'react';
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
-export const Layout = ({ children }: LayoutProps) => {
+export const Layout = () => {
   const { profile } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -151,7 +147,7 @@ export const Layout = ({ children }: LayoutProps) => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          {children}
+          <Outlet />
         </div>
       </main>
     </div>
