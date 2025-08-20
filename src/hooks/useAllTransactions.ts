@@ -187,7 +187,7 @@ export const useAllTransactions = (userId?: string) => {
             type: 'bill_payment',
             amount: payment.amount,
             date: new Date(payment.created_at),
-            description: `Paiement facture ${payment.bill_type || ''}`,
+            description: `Paiement facture`,
             currency: 'XAF',
             status: payment.status,
             created_at: payment.created_at,
@@ -229,42 +229,6 @@ export const useAllTransactions = (userId?: string) => {
         });
       }
 
-      // 7. Récupérer les opérations de solde (balance_operations) pour les ajustements
-      console.log("⚖️ Récupération des ajustements de solde...");
-      const { data: balanceOps, error: balanceError } = await supabase
-        .from('balance_operations')
-        .select('*')
-        .eq('target_user_id', userId)
-        .neq('operation_type', 'transfer_debit') // Éviter les doublons avec les transferts
-        .neq('operation_type', 'transfer_credit')
-        .order('created_at', { ascending: false });
-
-      if (balanceError) {
-        console.error("❌ Erreur opérations solde:", balanceError);
-      } else if (balanceOps) {
-        console.log("✅ Opérations de solde trouvées:", balanceOps.length);
-        balanceOps.forEach(op => {
-          // Ne pas afficher les opérations système internes
-          if (op.operation_type.includes('system') || op.operation_type.includes('internal')) {
-            return;
-          }
-
-          allTransactions.push({
-            id: `balance_${op.id}`,
-            type: op.operation_type,
-            amount: Math.abs(op.amount),
-            date: new Date(op.created_at),
-            description: `Ajustement: ${op.operation_type}`,
-            currency: 'XAF',
-            status: 'completed',
-            created_at: op.created_at,
-            userType: "user" as const,
-            impact: op.amount > 0 ? "credit" as const : "debit" as const,
-            reference_id: op.id
-          });
-        });
-      }
-
       // Trier par date décroissante
       const sortedTransactions = allTransactions.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -277,8 +241,7 @@ export const useAllTransactions = (userId?: string) => {
         transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
         transferts_en_attente: sortedTransactions.filter(t => t.type === 'transfer_pending').length,
         dépôts: sortedTransactions.filter(t => t.type === 'deposit').length,
-        paiements_factures: sortedTransactions.filter(t => t.type === 'bill_payment').length,
-        ajustements: sortedTransactions.filter(t => t.type.includes('balance')).length
+        paiements_factures: sortedTransactions.filter(t => t.type === 'bill_payment').length
       });
 
       setTransactions(sortedTransactions);
