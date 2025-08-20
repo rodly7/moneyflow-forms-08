@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowDownLeft, ArrowUpRight, CreditCard, Receipt, Minus, Plus, Download } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CreditCard, Receipt, Minus, Plus, Download, ArrowRightLeft } from "lucide-react";
 import { useAllTransactions } from "@/hooks/useAllTransactions";
 import { useState } from "react";
 import TransactionDetailModal from "@/components/transactions/TransactionDetailModal";
@@ -13,10 +13,6 @@ const Transactions = () => {
   const { transactions, loading } = useAllTransactions(user?.id);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  console.log("🔍 Page Transactions - User ID:", user?.id);
-  console.log("🔍 Page Transactions - Nombre de transactions:", transactions.length);
-  console.log("🔍 Page Transactions - Transactions:", transactions);
 
   const openTransactionDetail = (transaction: any) => {
     setSelectedTransaction(transaction);

@@ -46,15 +46,6 @@ export const UnifiedNotificationBell = () => {
     }
   };
 
-  const getNotificationBgColor = (type: string) => {
-    switch (type) {
-      case 'transfer_received': return 'bg-green-50 border-green-100';
-      case 'withdrawal_completed': return 'bg-blue-50 border-blue-100';
-      case 'admin_message': return 'bg-purple-50 border-purple-100';
-      default: return 'bg-gray-50 border-gray-100';
-    }
-  };
-
   const handleMarkAsRead = (notificationId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     markAsRead(notificationId);
@@ -72,22 +63,11 @@ export const UnifiedNotificationBell = () => {
     });
   };
 
-  // Animation pour le badge
-  const [badgeAnimate, setBadgeAnimate] = useState(false);
-
-  useEffect(() => {
-    if (unreadCount > 0) {
-      setBadgeAnimate(true);
-      const timer = setTimeout(() => setBadgeAnimate(false), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [unreadCount]);
-
   return (
     <div className="relative">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="relative hover:bg-accent transition-colors">
+          <Button variant="ghost" size="sm" className="relative">
             {unreadCount > 0 ? (
               <BellRing className="h-4 w-4 text-orange-500" />
             ) : (
@@ -96,9 +76,7 @@ export const UnifiedNotificationBell = () => {
             {unreadCount > 0 && (
               <Badge 
                 variant="destructive" 
-                className={`absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs ${
-                  badgeAnimate ? 'animate-pulse' : ''
-                }`}
+                className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
               >
                 {unreadCount > 99 ? '99+' : unreadCount}
               </Badge>
@@ -112,9 +90,6 @@ export const UnifiedNotificationBell = () => {
               <span>Notifications</span>
               {!isConnected && (
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" title="Connexion temps réel déconnectée" />
-              )}
-              {isConnected && (
-                <div className="w-2 h-2 bg-green-500 rounded-full" title="Connexion temps réel active" />
               )}
             </div>
             {unreadCount > 0 && (
@@ -137,16 +112,13 @@ export const UnifiedNotificationBell = () => {
               <div className="p-4 text-center text-gray-500 text-sm">
                 <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                 <p>Aucune nouvelle notification</p>
-                <p className="text-xs mt-1 text-gray-400">
-                  Les transferts reçus et retraits apparaîtront ici
-                </p>
               </div>
             ) : (
               <div className="space-y-1">
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`flex items-start gap-3 p-3 hover:bg-gray-50 cursor-pointer relative group transition-colors border-l-2 ${getNotificationBgColor(notification.type)}`}
+                    className="flex items-start gap-3 p-3 hover:bg-gray-50 cursor-pointer relative group"
                   >
                     <div className="text-lg flex-shrink-0 mt-0.5">
                       {getNotificationIcon(notification.type)}
@@ -181,16 +153,9 @@ export const UnifiedNotificationBell = () => {
                           })}
                         </p>
                         
-                        <div className="flex items-center gap-1">
-                          {notification.amount && (
-                            <span className="text-xs font-semibold text-gray-600">
-                              {notification.amount.toLocaleString('fr-FR')} FCFA
-                            </span>
-                          )}
-                          {notification.priority === 'high' && (
-                            <div className="w-2 h-2 bg-red-500 rounded-full" />
-                          )}
-                        </div>
+                        {notification.priority === 'high' && (
+                          <div className="w-2 h-2 bg-red-500 rounded-full" />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -209,7 +174,7 @@ export const UnifiedNotificationBell = () => {
                   onClick={refresh}
                   className="w-full text-xs"
                 >
-                  Actualiser les notifications
+                  Actualiser
                 </Button>
               </div>
             </>

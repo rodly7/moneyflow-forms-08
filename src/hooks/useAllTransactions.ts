@@ -26,10 +26,7 @@ export const useAllTransactions = (userId?: string) => {
   const [loading, setLoading] = useState(true);
 
   const fetchAllTransactions = async () => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
+    if (!userId) return;
 
     try {
       console.log("🔍 Récupération complète des transactions pour:", userId);
@@ -47,7 +44,7 @@ export const useAllTransactions = (userId?: string) => {
 
       if (withdrawalError) {
         console.error("❌ Erreur retraits:", withdrawalError);
-      } else if (withdrawals && withdrawals.length > 0) {
+      } else if (withdrawals) {
         console.log("✅ Retraits trouvés:", withdrawals.length);
         withdrawals.forEach(withdrawal => {
           allTransactions.push({
@@ -78,7 +75,7 @@ export const useAllTransactions = (userId?: string) => {
 
       if (sentError) {
         console.error("❌ Erreur transferts envoyés:", sentError);
-      } else if (sentTransfers && sentTransfers.length > 0) {
+      } else if (sentTransfers) {
         console.log("✅ Transferts envoyés trouvés:", sentTransfers.length);
         sentTransfers.forEach(transfer => {
           allTransactions.push({
@@ -117,7 +114,7 @@ export const useAllTransactions = (userId?: string) => {
 
       if (receivedError) {
         console.error("❌ Erreur transferts reçus:", receivedError);
-      } else if (receivedTransfers && receivedTransfers.length > 0) {
+      } else if (receivedTransfers) {
         console.log("✅ Transferts reçus trouvés:", receivedTransfers.length);
         receivedTransfers.forEach(transfer => {
           const senderName = (transfer.profiles as any)?.full_name || 'Expéditeur inconnu';
@@ -147,7 +144,7 @@ export const useAllTransactions = (userId?: string) => {
 
       if (rechargeError) {
         console.error("❌ Erreur dépôts:", rechargeError);
-      } else if (recharges && recharges.length > 0) {
+      } else if (recharges) {
         console.log("✅ Dépôts trouvés:", recharges.length);
         recharges.forEach(recharge => {
           allTransactions.push({
@@ -175,7 +172,7 @@ export const useAllTransactions = (userId?: string) => {
 
       if (billError) {
         console.error("❌ Erreur paiements factures:", billError);
-      } else if (billPayments && billPayments.length > 0) {
+      } else if (billPayments) {
         console.log("✅ Paiements de factures trouvés:", billPayments.length);
         billPayments.forEach(payment => {
           allTransactions.push({
@@ -199,7 +196,7 @@ export const useAllTransactions = (userId?: string) => {
       );
 
       console.log("📊 Total transactions:", sortedTransactions.length);
-      console.log("📋 Détail par type:", {
+      console.log("📋 Détail:", {
         retraits: sortedTransactions.filter(t => t.type === 'withdrawal').length,
         transferts_envoyés: sortedTransactions.filter(t => t.type === 'transfer_sent').length,
         transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
@@ -210,7 +207,6 @@ export const useAllTransactions = (userId?: string) => {
       setTransactions(sortedTransactions);
     } catch (error) {
       console.error("❌ Erreur générale:", error);
-      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -219,8 +215,6 @@ export const useAllTransactions = (userId?: string) => {
   useEffect(() => {
     if (userId) {
       fetchAllTransactions();
-    } else {
-      setLoading(false);
     }
   }, [userId]);
 
