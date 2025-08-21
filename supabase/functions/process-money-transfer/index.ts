@@ -131,13 +131,13 @@ Deno.serve(async (req) => {
       // Générer un code de réclamation
       const claim_code = Math.random().toString(36).substring(2, 8).toUpperCase()
 
-      // Créer le transfert en attente avec tous les champs nécessaires
+      // Créer le transfert en attente - maintenant avec recipient_email
       const { data: pendingTransfer, error: pendingError } = await supabase
         .from('pending_transfers')
         .insert({
           sender_id: sender_id,
           recipient_phone: recipient_identifier,
-          recipient_email: '', // Champ vide mais présent
+          recipient_email: '', // Maintenant la colonne existe
           amount: transfer_amount,
           fees: transfer_fees,
           currency: 'XAF',
