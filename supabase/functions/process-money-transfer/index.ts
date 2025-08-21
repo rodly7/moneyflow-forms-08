@@ -1,5 +1,4 @@
 
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 
 const corsHeaders = {
@@ -137,7 +136,7 @@ Deno.serve(async (req) => {
         .insert({
           sender_id: sender_id,
           recipient_phone: recipient_identifier,
-          recipient_email: '', // Champ maintenant disponible
+          recipient_email: '',
           amount: transfer_amount,
           fees: transfer_fees,
           currency: 'XAF',
@@ -183,4 +182,3 @@ Deno.serve(async (req) => {
     )
   }
 })
-
