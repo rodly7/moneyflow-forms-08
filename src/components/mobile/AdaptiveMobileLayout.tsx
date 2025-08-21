@@ -13,7 +13,7 @@ interface AdaptiveMobileLayoutProps {
 export const AdaptiveMobileLayout = ({
   children,
   className,
-  enableSafeArea = true,
+  enableSafeArea = false, // Désactivé par défaut
   autoScrollPadding = true,
 }: AdaptiveMobileLayoutProps) => {
   const {
@@ -75,10 +75,9 @@ export const AdaptiveMobileLayout = ({
     maxWidth: '100vw',
     maxHeight: isPortrait ? `${dynamicViewportHeight}px` : '100vh',
     contain: 'layout style paint',
-    ...(enableSafeArea && {
-      paddingTop: `${safeAreaTop}px`,
-      paddingBottom: `${safeAreaBottom}px`,
-    }),
+    // Suppression du padding top/bottom même si enableSafeArea est true
+    paddingTop: '0px',
+    paddingBottom: '0px',
   };
 
   return (
@@ -89,9 +88,7 @@ export const AdaptiveMobileLayout = ({
       <div
         className={getContentClasses()}
         style={{
-          height: enableSafeArea 
-            ? `calc(100% - ${safeAreaTop + safeAreaBottom}px)`
-            : '100%',
+          height: '100%', // Toujours 100% au lieu de calc avec safe areas
         }}
       >
         {children}
