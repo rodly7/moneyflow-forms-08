@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { countries } from "@/data/countries";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Zap, Shield, User, Phone, MapPin, Lock, ArrowLeft, Sparkles, Crown, Eye, EyeOff, CheckCircle2, Mail, Calendar } from "lucide-react";
 import { PasswordChangeAppointmentForm } from "@/components/auth/PasswordChangeAppointmentForm";
+import { PWAInstallMessage } from "@/components/pwa/PWAInstallMessage";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -18,6 +18,7 @@ const Auth = () => {
   
   const [isSignUp, setIsSignUp] = useState(isAgentMode);
   const [loading, setLoading] = useState(false);
+  const [showPWAInstall, setShowPWAInstall] = useState(true);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   
@@ -125,6 +126,10 @@ const Auth = () => {
       setLoading(false);
     }
   };
+
+  if (showPWAInstall) {
+    return <PWAInstallMessage onContinue={() => setShowPWAInstall(false)} />;
+  }
 
   if (showAppointmentForm) {
     return (
