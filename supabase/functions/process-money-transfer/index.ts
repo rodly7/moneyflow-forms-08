@@ -1,4 +1,5 @@
 
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 
 const corsHeaders = {
@@ -131,10 +132,12 @@ Deno.serve(async (req) => {
       // Générer un code de réclamation
       const claim_code = Math.random().toString(36).substring(2, 8).toUpperCase()
 
-      // Insérer sans le champ recipient_email pour éviter l'erreur
-      const { data: pendingTransfer, error: pendingError } = await supabase
-        .from('pending_transfers')
-        .insert({
+      // Créer le transfert en attente avec gestion d'erreur améliorée
+      let pendingTransfer;
+      let pendingError;
+      
+      try {
+        const insertData = {
           sender_id: sender_id,
           recipient_phone: recipient_identifier,
           amount: transfer_amount,
@@ -142,9 +145,21 @@ Deno.serve(async (req) => {
           currency: 'XAF',
           claim_code: claim_code,
           status: 'pending'
-        })
-        .select()
-        .single()
+        }
+
+        // Essayer d'ajouter recipient_email s'il existe dans la structure
+        const { data: result, error: err } = await supabase
+          .from('pending_transfers')
+          .insert(insertData)
+          .select()
+          .single()
+        
+        pendingTransfer = result
+        pendingError = err
+      } catch (error) {
+        console.error('❌ Erreur lors de l\'insertion pending_transfer:', error)
+        pendingError = error
+      }
 
       if (pendingError) {
         console.error('❌ Erreur transfert en attente:', pendingError)
@@ -159,7 +174,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          transfer_id: pendingTransfer.id,
+          transfer_id: pendingTransfer?.id,
           status: 'pending',
           claim_code: claim_code,
           message: 'Transfert en attente créé'
@@ -182,3 +197,4 @@ Deno.serve(async (req) => {
     )
   }
 })
+
