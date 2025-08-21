@@ -131,12 +131,12 @@ Deno.serve(async (req) => {
       // Générer un code de réclamation
       const claim_code = Math.random().toString(36).substring(2, 8).toUpperCase()
 
+      // Insérer sans le champ recipient_email pour éviter l'erreur
       const { data: pendingTransfer, error: pendingError } = await supabase
         .from('pending_transfers')
         .insert({
           sender_id: sender_id,
           recipient_phone: recipient_identifier,
-          recipient_email: '',
           amount: transfer_amount,
           fees: transfer_fees,
           currency: 'XAF',
