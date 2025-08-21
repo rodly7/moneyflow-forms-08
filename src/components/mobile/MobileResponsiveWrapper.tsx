@@ -12,7 +12,7 @@ interface MobileResponsiveWrapperProps {
 export const MobileResponsiveWrapper = ({ 
   children, 
   className, 
-  enableSafeArea = false // Désactivé par défaut
+  enableSafeArea = true 
 }: MobileResponsiveWrapperProps) => {
   const { isMobile, isSmallMobile } = useDeviceDetection();
 
@@ -29,11 +29,13 @@ export const MobileResponsiveWrapper = ({
         // Use CSS custom properties for dynamic viewport units
         minHeight: isMobile ? 'calc(var(--vh, 1vh) * 100)' : '100vh',
         maxHeight: isMobile ? 'calc(var(--vh, 1vh) * 100)' : 'none',
-        // Suppression du safe area support
-        paddingTop: '0px',
-        paddingBottom: '0px',
-        paddingLeft: '0px',
-        paddingRight: '0px',
+        // Safe area support for modern mobile devices
+        ...(enableSafeArea && {
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          paddingLeft: 'env(safe-area-inset-left)',
+          paddingRight: 'env(safe-area-inset-right)',
+        })
       }}
     >
       <div className={cn(

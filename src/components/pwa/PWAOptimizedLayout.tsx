@@ -32,7 +32,7 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
         zIndex: 0,
         fontSize: '11px',
         lineHeight: '1.2',
-        paddingTop: '0px', // Suppression du env(safe-area-inset-top)
+        paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: '0px',
       }}
     >
@@ -42,8 +42,8 @@ export const PWAOptimizedLayout = ({ children, className }: PWAOptimizedLayoutPr
           fontSize: '11px',
           lineHeight: '1.2',
           paddingBottom: '0px',
-          paddingTop: '0px', // Suppression de la marge top de 39px
-          height: '100%', // Utilisation de 100% au lieu de calc avec safe-area
+          paddingTop: '39px',
+          height: 'calc(100% - env(safe-area-inset-top) - 39px)',
           marginBottom: '0px'
         }}
       >
