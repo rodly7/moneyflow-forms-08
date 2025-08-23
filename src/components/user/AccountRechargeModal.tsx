@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -122,6 +123,16 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const handleOperationSelect = (operation: OperationType) => {
+    setSelectedOperation(operation);
+    // For withdrawals, skip payment method selection and go directly to agent selection
+    if (operation === 'retrait') {
+      setCurrentStep('agent_selection');
+    } else {
+      setCurrentStep('payment_method');
+    }
+  };
+
   const renderOperationSelection = () => (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-center">
@@ -130,10 +141,7 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
       <div className="grid grid-cols-1 gap-4">
         <Card 
           className={`cursor-pointer transition-colors hover:bg-accent ${selectedOperation === 'recharge' ? 'ring-2 ring-primary' : ''}`}
-          onClick={() => {
-            setSelectedOperation('recharge');
-            setCurrentStep('payment_method');
-          }}
+          onClick={() => handleOperationSelect('recharge')}
         >
           <CardContent className="p-6 text-center">
             <Wallet className="w-8 h-8 mx-auto mb-2 text-green-600" />
@@ -144,10 +152,7 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
         
         <Card 
           className={`cursor-pointer transition-colors hover:bg-accent ${selectedOperation === 'retrait' ? 'ring-2 ring-primary' : ''}`}
-          onClick={() => {
-            setSelectedOperation('retrait');
-            setCurrentStep('agent_selection');
-          }}
+          onClick={() => handleOperationSelect('retrait')}
         >
           <CardContent className="p-6 text-center">
             <CreditCard className="w-8 h-8 mx-auto mb-2 text-blue-600" />
@@ -218,13 +223,21 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
     );
   };
 
+  const getBackStep = () => {
+    if (selectedOperation === 'retrait') {
+      return 'operation';
+    } else {
+      return 'payment_method';
+    }
+  };
+
   const renderAgentSelection = () => (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Button 
           variant="ghost" 
           size="sm" 
-          onClick={() => setCurrentStep(selectedOperation === 'recharge' ? 'payment_method' : 'operation')}
+          onClick={() => setCurrentStep(getBackStep())}
         >
           <ArrowLeft className="w-4 h-4" />
         </Button>
@@ -242,7 +255,7 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
           {agents.map((agent) => (
             <Card 
               key={agent.id} 
-              className={`cursor-pointer transition-colors hover:bg-accent border-l-4 border-l-blue-500 ${selectedAgent?.id === agent.id ? 'ring-2 ring-primary' : ''}`}
+              className={`cursor-pointer transition-colors hover:bg-accent border-l-4 ${selectedOperation === 'recharge' ? 'border-l-green-500' : 'border-l-blue-500'} ${selectedAgent?.id === agent.id ? 'ring-2 ring-primary' : ''}`}
               onClick={() => {
                 setSelectedAgent(agent);
                 setCurrentStep('request_details');
@@ -339,7 +352,7 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
               <span>Opération:</span>
               <span className="font-medium">{selectedOperation === 'recharge' ? 'Recharge' : 'Retrait'}</span>
             </div>
-            {selectedPaymentMethod && (
+            {selectedPaymentMethod && selectedOperation === 'recharge' && (
               <div className="flex justify-between">
                 <span>Mode de paiement:</span>
                 <span className="font-medium">{selectedPaymentMethod}</span>
@@ -433,6 +446,12 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
                 <li>• Vérifiez toujours l'identité de l'agent avant toute transaction</li>
                 <li>• Gardez vos reçus de transaction comme preuve</li>
                 <li>• Les agents affichés ont du cash disponible</li>
+                {selectedOperation === 'retrait' && (
+                  <li>• Pour un retrait, l'agent vous donnera l'argent en échange de votre solde numérique</li>
+                )}
+                {selectedOperation === 'recharge' && (
+                  <li>• Pour une recharge, envoyez l'argent via {selectedPaymentMethod} à l'agent</li>
+                )}
               </ul>
             </CardContent>
           </Card>
