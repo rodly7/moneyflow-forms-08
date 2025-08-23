@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,10 +46,13 @@ const AgentTransactionHistory = () => {
       const allTransactions: AgentTransaction[] = [];
 
       // 1. Récupérer les retraits clients (où l'agent est dans agent_id)
-      const { data: clientWithdrawals } = await supabase
+      const { data: clientWithdrawals, error: withdrawalsError } = await supabase
         .from('withdrawals')
         .select(`
-          *,
+          id,
+          amount,
+          status,
+          created_at,
           profiles!withdrawals_user_id_fkey(full_name, phone)
         `)
         .eq('agent_id', user.id)
@@ -56,11 +60,18 @@ const AgentTransactionHistory = () => {
         .lt('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
 
+      if (withdrawalsError) {
+        console.error('Error fetching withdrawals:', withdrawalsError);
+      }
+
       // 2. Récupérer les dépôts clients (où provider_transaction_id = agent id)
-      const { data: clientDeposits } = await supabase
+      const { data: clientDeposits, error: depositsError } = await supabase
         .from('recharges')
         .select(`
-          *,
+          id,
+          amount,
+          status,
+          created_at,
           profiles!recharges_user_id_fkey(full_name, phone)
         `)
         .eq('provider_transaction_id', user.id)
@@ -68,35 +79,47 @@ const AgentTransactionHistory = () => {
         .lt('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
 
+      if (depositsError) {
+        console.error('Error fetching deposits:', depositsError);
+      }
+
       // 3. Récupérer les transferts de l'agent (comme transferts de commissions)
-      const { data: agentTransfers } = await supabase
+      const { data: agentTransfers, error: transfersError } = await supabase
         .from('transfers')
-        .select('*')
+        .select('id, amount, status, created_at')
         .eq('sender_id', user.id)
         .gte('created_at', startDate.toISOString())
         .lt('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
 
+      if (transfersError) {
+        console.error('Error fetching transfers:', transfersError);
+      }
+
       // 4. Récupérer les recharges de solde de l'agent (admin deposits)
-      const { data: balanceRecharges } = await supabase
+      const { data: balanceRecharges, error: rechargesError } = await supabase
         .from('admin_deposits')
-        .select('*')
+        .select('id, converted_amount, status, created_at')
         .eq('target_user_id', user.id)
         .gte('created_at', startDate.toISOString())
         .lt('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
 
+      if (rechargesError) {
+        console.error('Error fetching balance recharges:', rechargesError);
+      }
+
       // Transformer les retraits clients
       if (clientWithdrawals) {
-        clientWithdrawals.forEach(withdrawal => {
-          const client = withdrawal.profiles as any;
+        clientWithdrawals.forEach((withdrawal: any) => {
+          const profile = withdrawal.profiles;
           allTransactions.push({
             id: withdrawal.id,
             type: 'client_withdrawal',
             amount: Number(withdrawal.amount),
             time: new Date(withdrawal.created_at).toLocaleTimeString('fr-FR'),
-            client_phone: client?.phone,
-            client_name: client?.full_name,
+            client_phone: profile?.phone || '',
+            client_name: profile?.full_name || '',
             status: withdrawal.status,
             commission: Number(withdrawal.amount) * 0.005, // 0.5% commission
             created_at: withdrawal.created_at
@@ -106,15 +129,15 @@ const AgentTransactionHistory = () => {
 
       // Transformer les dépôts clients
       if (clientDeposits) {
-        clientDeposits.forEach(deposit => {
-          const client = deposit.profiles as any;
+        clientDeposits.forEach((deposit: any) => {
+          const profile = deposit.profiles;
           allTransactions.push({
             id: deposit.id,
             type: 'client_deposit',
             amount: Number(deposit.amount),
             time: new Date(deposit.created_at).toLocaleTimeString('fr-FR'),
-            client_phone: client?.phone,
-            client_name: client?.full_name,
+            client_phone: profile?.phone || '',
+            client_name: profile?.full_name || '',
             status: deposit.status,
             commission: Number(deposit.amount) * 0.01, // 1% commission
             created_at: deposit.created_at
@@ -124,7 +147,7 @@ const AgentTransactionHistory = () => {
 
       // Transformer les transferts de l'agent (commissions vers solde principal)
       if (agentTransfers) {
-        agentTransfers.forEach(transfer => {
+        agentTransfers.forEach((transfer: any) => {
           allTransactions.push({
             id: transfer.id,
             type: 'commission_transfer',
@@ -138,7 +161,7 @@ const AgentTransactionHistory = () => {
 
       // Transformer les recharges de solde
       if (balanceRecharges) {
-        balanceRecharges.forEach(recharge => {
+        balanceRecharges.forEach((recharge: any) => {
           allTransactions.push({
             id: recharge.id,
             type: 'balance_recharge',
