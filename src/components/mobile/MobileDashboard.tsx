@@ -93,7 +93,7 @@ const MobileDashboard: React.FC = () => {
   return (
     <div className="fixed inset-0 w-full h-full bg-gradient-to-br from-blue-50 via-white to-purple-50 overflow-y-auto">
       {/* Header avec notification et déconnexion */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 pt-12 rounded-b-3xl shadow-lg">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 pt-5 rounded-b-3xl shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-14 w-14 border-2 border-white/20">
