@@ -29,113 +29,123 @@ export const useAgentTransactions = (userId: string | undefined, selectedDate: s
 
       const allTransactions: AgentTransaction[] = [];
 
-      // Fetch withdrawals
-      const { data: withdrawals } = await supabase
-        .from('withdrawals')
-        .select('*')
-        .eq('agent_id', userId)
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
+      // Fetch withdrawals where the agent processed them (using user_id as agent reference)
+      try {
+        const { data: withdrawals, error: withdrawalsError } = await supabase
+          .from('withdrawals')
+          .select('*')
+          .eq('user_id', userId) // This should be the correct column
+          .gte('created_at', startDate.toISOString())
+          .lt('created_at', endDate.toISOString())
+          .order('created_at', { ascending: false });
 
-      // Fetch deposits
-      const { data: deposits } = await supabase
-        .from('recharges')
-        .select('*')
-        .eq('provider_transaction_id', userId)
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
-
-      // Fetch transfers
-      const { data: transfers } = await supabase
-        .from('transfers')
-        .select('*')
-        .eq('sender_id', userId)
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
-
-      // Fetch balance recharges
-      const { data: recharges } = await supabase
-        .from('admin_deposits')
-        .select('*')
-        .eq('target_user_id', userId)
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
-
-      // Get all user IDs for profile lookup
-      const userIds = new Set<string>();
-      withdrawals?.forEach(w => w.user_id && userIds.add(w.user_id));
-      deposits?.forEach(d => d.user_id && userIds.add(d.user_id));
-
-      // Fetch profiles separately
-      let profilesMap = new Map();
-      if (userIds.size > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', Array.from(userIds));
-        
-        profiles?.forEach(p => profilesMap.set(p.id, p));
+        if (withdrawalsError) {
+          console.error('Withdrawals query error:', withdrawalsError);
+        } else if (withdrawals) {
+          withdrawals.forEach((withdrawal: any) => {
+            allTransactions.push({
+              id: withdrawal.id,
+              type: 'client_withdrawal',
+              amount: withdrawal.amount,
+              time: new Date(withdrawal.created_at).toLocaleTimeString('fr-FR'),
+              client_phone: withdrawal.withdrawal_phone || '',
+              client_name: '',
+              status: withdrawal.status,
+              commission: withdrawal.amount * 0.005,
+              created_at: withdrawal.created_at
+            });
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching withdrawals:', error);
       }
 
-      // Process withdrawals
-      withdrawals?.forEach(withdrawal => {
-        const profile = profilesMap.get(withdrawal.user_id);
-        allTransactions.push({
-          id: withdrawal.id,
-          type: 'client_withdrawal',
-          amount: withdrawal.amount,
-          time: new Date(withdrawal.created_at).toLocaleTimeString('fr-FR'),
-          client_phone: profile?.phone || '',
-          client_name: profile?.full_name || '',
-          status: withdrawal.status,
-          commission: withdrawal.amount * 0.005,
-          created_at: withdrawal.created_at
-        });
-      });
+      // Fetch deposits where agent processed them (using provider_transaction_id)
+      try {
+        const { data: deposits, error: depositsError } = await supabase
+          .from('recharges')
+          .select('*')
+          .eq('provider_transaction_id', userId)
+          .gte('created_at', startDate.toISOString())
+          .lt('created_at', endDate.toISOString())
+          .order('created_at', { ascending: false });
 
-      // Process deposits
-      deposits?.forEach(deposit => {
-        const profile = profilesMap.get(deposit.user_id);
-        allTransactions.push({
-          id: deposit.id,
-          type: 'client_deposit',
-          amount: deposit.amount,
-          time: new Date(deposit.created_at).toLocaleTimeString('fr-FR'),
-          client_phone: profile?.phone || '',
-          client_name: profile?.full_name || '',
-          status: deposit.status,
-          commission: deposit.amount * 0.01,
-          created_at: deposit.created_at
-        });
-      });
+        if (depositsError) {
+          console.error('Deposits query error:', depositsError);
+        } else if (deposits) {
+          deposits.forEach((deposit: any) => {
+            allTransactions.push({
+              id: deposit.id,
+              type: 'client_deposit',
+              amount: deposit.amount,
+              time: new Date(deposit.created_at).toLocaleTimeString('fr-FR'),
+              client_phone: deposit.payment_phone || '',
+              client_name: '',
+              status: deposit.status,
+              commission: deposit.amount * 0.01,
+              created_at: deposit.created_at
+            });
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching deposits:', error);
+      }
 
-      // Process transfers
-      transfers?.forEach(transfer => {
-        allTransactions.push({
-          id: transfer.id,
-          type: 'commission_transfer',
-          amount: transfer.amount,
-          time: new Date(transfer.created_at).toLocaleTimeString('fr-FR'),
-          status: transfer.status,
-          created_at: transfer.created_at
-        });
-      });
+      // Fetch transfers sent by the agent
+      try {
+        const { data: transfers, error: transfersError } = await supabase
+          .from('transfers')
+          .select('*')
+          .eq('sender_id', userId)
+          .gte('created_at', startDate.toISOString())
+          .lt('created_at', endDate.toISOString())
+          .order('created_at', { ascending: false });
 
-      // Process balance recharges
-      recharges?.forEach(recharge => {
-        allTransactions.push({
-          id: recharge.id,
-          type: 'balance_recharge',
-          amount: recharge.converted_amount,
-          time: new Date(recharge.created_at).toLocaleTimeString('fr-FR'),
-          status: recharge.status,
-          created_at: recharge.created_at
-        });
-      });
+        if (transfersError) {
+          console.error('Transfers query error:', transfersError);
+        } else if (transfers) {
+          transfers.forEach((transfer: any) => {
+            allTransactions.push({
+              id: transfer.id,
+              type: 'commission_transfer',
+              amount: transfer.amount,
+              time: new Date(transfer.created_at).toLocaleTimeString('fr-FR'),
+              status: transfer.status,
+              created_at: transfer.created_at
+            });
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching transfers:', error);
+      }
+
+      // Fetch balance recharges for the agent
+      try {
+        const { data: recharges, error: rechargesError } = await supabase
+          .from('admin_deposits')
+          .select('*')
+          .eq('target_user_id', userId)
+          .gte('created_at', startDate.toISOString())
+          .lt('created_at', endDate.toISOString())
+          .order('created_at', { ascending: false });
+
+        if (rechargesError) {
+          console.error('Recharges query error:', rechargesError);
+        } else if (recharges) {
+          recharges.forEach((recharge: any) => {
+            allTransactions.push({
+              id: recharge.id,
+              type: 'balance_recharge',
+              amount: recharge.converted_amount,
+              time: new Date(recharge.created_at).toLocaleTimeString('fr-FR'),
+              status: recharge.status,
+              created_at: recharge.created_at
+            });
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching recharges:', error);
+      }
 
       // Sort by date descending
       allTransactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
