@@ -45,74 +45,24 @@ const AgentTransactionHistory = () => {
 
       const allTransactions: AgentTransaction[] = [];
 
-      // 1. Récupérer les retraits clients (où l'agent est dans agent_id)
-      const { data: clientWithdrawals, error: withdrawalsError } = await supabase
+      // 1. Fetch client withdrawals
+      const { data: withdrawals } = await supabase
         .from('withdrawals')
-        .select(`
-          id,
-          amount,
-          status,
-          created_at,
-          profiles!withdrawals_user_id_fkey(full_name, phone)
-        `)
+        .select('id, amount, status, created_at, user_id')
         .eq('agent_id', user.id)
         .gte('created_at', startDate.toISOString())
         .lt('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
 
-      if (withdrawalsError) {
-        console.error('Error fetching withdrawals:', withdrawalsError);
-      }
+      if (withdrawals) {
+        for (const withdrawal of withdrawals) {
+          // Fetch user profile separately
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, phone')
+            .eq('id', withdrawal.user_id)
+            .single();
 
-      // 2. Récupérer les dépôts clients (où provider_transaction_id = agent id)
-      const { data: clientDeposits, error: depositsError } = await supabase
-        .from('recharges')
-        .select(`
-          id,
-          amount,
-          status,
-          created_at,
-          profiles!recharges_user_id_fkey(full_name, phone)
-        `)
-        .eq('provider_transaction_id', user.id)
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
-
-      if (depositsError) {
-        console.error('Error fetching deposits:', depositsError);
-      }
-
-      // 3. Récupérer les transferts de l'agent (comme transferts de commissions)
-      const { data: agentTransfers, error: transfersError } = await supabase
-        .from('transfers')
-        .select('id, amount, status, created_at')
-        .eq('sender_id', user.id)
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
-
-      if (transfersError) {
-        console.error('Error fetching transfers:', transfersError);
-      }
-
-      // 4. Récupérer les recharges de solde de l'agent (admin deposits)
-      const { data: balanceRecharges, error: rechargesError } = await supabase
-        .from('admin_deposits')
-        .select('id, converted_amount, status, created_at')
-        .eq('target_user_id', user.id)
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
-
-      if (rechargesError) {
-        console.error('Error fetching balance recharges:', rechargesError);
-      }
-
-      // Transformer les retraits clients
-      if (clientWithdrawals) {
-        clientWithdrawals.forEach((withdrawal: any) => {
-          const profile = withdrawal.profiles;
           allTransactions.push({
             id: withdrawal.id,
             type: 'client_withdrawal',
@@ -121,16 +71,30 @@ const AgentTransactionHistory = () => {
             client_phone: profile?.phone || '',
             client_name: profile?.full_name || '',
             status: withdrawal.status,
-            commission: Number(withdrawal.amount) * 0.005, // 0.5% commission
+            commission: Number(withdrawal.amount) * 0.005,
             created_at: withdrawal.created_at
           });
-        });
+        }
       }
 
-      // Transformer les dépôts clients
-      if (clientDeposits) {
-        clientDeposits.forEach((deposit: any) => {
-          const profile = deposit.profiles;
+      // 2. Fetch client deposits
+      const { data: deposits } = await supabase
+        .from('recharges')
+        .select('id, amount, status, created_at, user_id')
+        .eq('provider_transaction_id', user.id)
+        .gte('created_at', startDate.toISOString())
+        .lt('created_at', endDate.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (deposits) {
+        for (const deposit of deposits) {
+          // Fetch user profile separately
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, phone')
+            .eq('id', deposit.user_id)
+            .single();
+
           allTransactions.push({
             id: deposit.id,
             type: 'client_deposit',
@@ -139,15 +103,23 @@ const AgentTransactionHistory = () => {
             client_phone: profile?.phone || '',
             client_name: profile?.full_name || '',
             status: deposit.status,
-            commission: Number(deposit.amount) * 0.01, // 1% commission
+            commission: Number(deposit.amount) * 0.01,
             created_at: deposit.created_at
           });
-        });
+        }
       }
 
-      // Transformer les transferts de l'agent (commissions vers solde principal)
-      if (agentTransfers) {
-        agentTransfers.forEach((transfer: any) => {
+      // 3. Fetch agent transfers
+      const { data: transfers } = await supabase
+        .from('transfers')
+        .select('id, amount, status, created_at')
+        .eq('sender_id', user.id)
+        .gte('created_at', startDate.toISOString())
+        .lt('created_at', endDate.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (transfers) {
+        transfers.forEach((transfer) => {
           allTransactions.push({
             id: transfer.id,
             type: 'commission_transfer',
@@ -159,9 +131,17 @@ const AgentTransactionHistory = () => {
         });
       }
 
-      // Transformer les recharges de solde
-      if (balanceRecharges) {
-        balanceRecharges.forEach((recharge: any) => {
+      // 4. Fetch balance recharges
+      const { data: recharges } = await supabase
+        .from('admin_deposits')
+        .select('id, converted_amount, status, created_at')
+        .eq('target_user_id', user.id)
+        .gte('created_at', startDate.toISOString())
+        .lt('created_at', endDate.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (recharges) {
+        recharges.forEach((recharge) => {
           allTransactions.push({
             id: recharge.id,
             type: 'balance_recharge',
@@ -173,7 +153,7 @@ const AgentTransactionHistory = () => {
         });
       }
 
-      // Trier par date décroissante
+      // Sort by date descending
       allTransactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setTransactions(allTransactions);
 
