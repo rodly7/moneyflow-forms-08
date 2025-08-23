@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -12,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Phone, MapPin, Copy, CreditCard, Wallet, ArrowLeft, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import { countries } from '@/data/countries';
 
 interface Agent {
   id: string;
@@ -28,14 +28,6 @@ interface Agent {
   } | null;
 }
 
-interface PaymentMethod {
-  id: string;
-  payment_number: string;
-  provider_name: string;
-  bill_type: string;
-  description: string;
-}
-
 type OperationType = 'recharge' | 'retrait';
 type StepType = 'operation' | 'payment_method' | 'agent_selection' | 'request_details';
 
@@ -44,7 +36,7 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<StepType>('operation');
   const [selectedOperation, setSelectedOperation] = useState<OperationType | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -60,6 +52,12 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
       setAmount('');
       setDescription('');
     }
+  };
+
+  // Get payment methods for user's country
+  const getPaymentMethods = () => {
+    const userCountry = countries.find(country => country.name === profile?.country);
+    return userCountry?.paymentMethods || [];
   };
 
   // Fetch agents with available cash
@@ -98,24 +96,6 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
       return agentsWithLocations;
     },
     enabled: !!profile?.country && isOpen && currentStep === 'agent_selection',
-  });
-
-  // Fetch payment methods
-  const { data: paymentMethods, isLoading: paymentLoading } = useQuery({
-    queryKey: ['payment-methods', profile?.country],
-    queryFn: async () => {
-      if (!profile?.country) return [];
-      
-      const { data, error } = await supabase
-        .from('bill_payment_numbers')
-        .select('*')
-        .eq('country', profile.country)
-        .eq('is_active', true);
-
-      if (error) throw error;
-      return data as PaymentMethod[];
-    },
-    enabled: !!profile?.country && isOpen && currentStep === 'payment_method',
   });
 
   const copyToClipboard = (text: string, type: string) => {
@@ -179,79 +159,64 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
     </div>
   );
 
-  const renderPaymentMethodSelection = () => (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => setCurrentStep('operation')}>
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <h3 className="text-lg font-semibold">
-          Choisissez un mode de paiement
-        </h3>
-      </div>
-      
-      {paymentLoading ? (
-        <div className="flex justify-center py-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  const renderPaymentMethodSelection = () => {
+    const paymentMethods = getPaymentMethods();
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setCurrentStep('operation')}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <h3 className="text-lg font-semibold">
+            Choisissez un mode de paiement
+          </h3>
         </div>
-      ) : paymentMethods && paymentMethods.length > 0 ? (
-        <div className="grid grid-cols-1 gap-3">
-          {paymentMethods.map((method) => (
-            <Card 
-              key={method.id} 
-              className={`cursor-pointer transition-colors hover:bg-accent border-l-4 border-l-green-500 ${selectedPaymentMethod?.id === method.id ? 'ring-2 ring-primary' : ''}`}
-              onClick={() => {
-                setSelectedPaymentMethod(method);
-                setCurrentStep('agent_selection');
-              }}
-            >
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h4 className="font-semibold">{method.provider_name}</h4>
-                    <p className="text-sm text-muted-foreground">{method.bill_type}</p>
+        
+        {paymentMethods.length > 0 ? (
+          <div className="grid grid-cols-1 gap-3">
+            {paymentMethods.map((method, index) => (
+              <Card 
+                key={index} 
+                className={`cursor-pointer transition-colors hover:bg-accent border-l-4 border-l-green-500 ${selectedPaymentMethod === method ? 'ring-2 ring-primary' : ''}`}
+                onClick={() => {
+                  setSelectedPaymentMethod(method);
+                  setCurrentStep('agent_selection');
+                }}
+              >
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <Wallet className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">{method}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Paiement mobile disponible au {profile?.country}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-green-600">
+                      Mobile Money
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="text-green-600">
-                    {method.bill_type}
-                  </Badge>
-                </div>
-                
-                <div className="flex items-center gap-2 mt-3">
-                  <code className="bg-muted px-2 py-1 rounded text-sm font-mono">
-                    {method.payment_number}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      copyToClipboard(method.payment_number, 'Numéro de paiement');
-                    }}
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                {method.description && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {method.description}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-muted-foreground">
-              Aucun moyen de paiement disponible pour {profile?.country}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-muted-foreground">
+                Aucun moyen de paiement mobile disponible pour {profile?.country}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  };
 
   const renderAgentSelection = () => (
     <div className="space-y-4">
@@ -377,7 +342,7 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
             {selectedPaymentMethod && (
               <div className="flex justify-between">
                 <span>Mode de paiement:</span>
-                <span className="font-medium">{selectedPaymentMethod.provider_name}</span>
+                <span className="font-medium">{selectedPaymentMethod}</span>
               </div>
             )}
             {selectedAgent && (
