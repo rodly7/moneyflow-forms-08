@@ -12,19 +12,22 @@ import {
   EyeOff,
   Settings,
   RefreshCw,
-  Wallet
+  Wallet,
+  History
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/integrations/supabase/client";
 import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
 import { AgentRealTimePerformance } from "@/components/agent/AgentRealTimePerformance";
+import AgentTransactionHistory from "@/components/agent/AgentTransactionHistory";
 import { toast } from "sonner";
 
 const AgentDashboard: React.FC = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
+  const [showTransactionHistory, setShowTransactionHistory] = useState(false);
 
   const {
     agentBalance,
@@ -54,6 +57,42 @@ const AgentDashboard: React.FC = () => {
     }
     return formatCurrency(balance, 'XAF');
   };
+
+  if (showTransactionHistory) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between">
+              <Button
+                onClick={() => setShowTransactionHistory(false)}
+                variant="ghost"
+                size="sm"
+              >
+                ← Retour au tableau de bord
+              </Button>
+              <div className="flex items-center space-x-2">
+                <UnifiedNotificationBell />
+                <Button
+                  onClick={handleLogout}
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 py-6">
+          <AgentTransactionHistory />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -190,6 +229,15 @@ const AgentDashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
+              <Button
+                onClick={() => setShowTransactionHistory(true)}
+                variant="outline"
+                className="w-full h-12 justify-start"
+              >
+                <History className="w-5 h-5 mr-3 text-gray-600" />
+                Historique des Transactions
+              </Button>
+              
               <Button
                 onClick={() => navigate('/agent-settings')}
                 variant="outline"
