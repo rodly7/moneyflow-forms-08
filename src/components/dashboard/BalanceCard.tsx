@@ -1,4 +1,3 @@
-
 import { useState, memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
@@ -161,6 +160,7 @@ const BalanceCard = ({
                   {userProfile?.address && (
                     <div className="mt-0.5">📍 {userProfile.address}</div>
                   )}
+                  <div className="mt-0.5">🌍 {userCountry}</div>
                 </div>
               </div>
             </div>
@@ -203,15 +203,14 @@ const BalanceCard = ({
             </p>
           )}
           
-          {userCurrency !== "XAF" && (
+          {userCurrency !== "XAF" && showBalance && (
             <p className="text-xs text-white/60 mt-1">
-              Converti de {formatCurrency(displayBalanceValue, "XAF")}
+              Équivalent : {formatCurrency(displayBalanceValue, "XAF")}
             </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Composant de confirmation de retrait */}
       <SimpleHtmlWithdrawalConfirmation
         isOpen={showVerificationDialog && !commissionDetails}
         onClose={() => setShowVerificationDialog(false)}
@@ -219,12 +218,11 @@ const BalanceCard = ({
           setVerificationCode(code);
           await handleVerifyWithdrawal();
         }}
-        amount={0} // Le montant sera géré par le hook
-        phone="" // Le téléphone sera géré par le hook
+        amount={0}
+        phone=""
         isProcessing={isProcessing}
       />
 
-      {/* Dialog pour afficher les résultats de commission */}
       {commissionDetails && (
         <div style={{
           position: 'fixed',

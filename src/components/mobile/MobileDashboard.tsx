@@ -14,7 +14,7 @@ import {
   EyeOff
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
 import EnhancedTransactionsCard from "@/components/dashboard/EnhancedTransactionsCard";
 import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
 import { UserSettingsModal } from "@/components/settings/UserSettingsModal";
@@ -31,6 +31,14 @@ const MobileDashboard: React.FC = () => {
     intervalMs: 5000,
     enableRealtime: true
   });
+
+  // Déterminer la devise basée sur le pays de l'utilisateur
+  const userCountry = profile?.country || 'Congo Brazzaville';
+  const userCurrency = getCurrencyForCountry(userCountry);
+  
+  // Convertir le solde de XAF vers la devise de l'utilisateur
+  const balanceInXAF = currentBalance || profile?.balance || 0;
+  const convertedBalance = convertCurrency(balanceInXAF, "XAF", userCurrency);
 
   const handleLogout = async () => {
     try {
@@ -79,7 +87,7 @@ const MobileDashboard: React.FC = () => {
     if (!isBalanceVisible) {
       return "••••••••";
     }
-    return formatCurrency(balance, 'XAF');
+    return formatCurrency(balance, userCurrency);
   };
 
   return (
@@ -98,7 +106,10 @@ const MobileDashboard: React.FC = () => {
               <h1 className="text-lg font-semibold leading-tight">
                 Bonjour {profile?.full_name || 'Utilisateur'} 👋
               </h1>
-              <p className="text-blue-100 text-sm mt-2 leading-relaxed">
+              <p className="text-blue-100 text-sm mt-1 leading-relaxed">
+                📍 {userCountry}
+              </p>
+              <p className="text-blue-100 text-sm mt-1 leading-relaxed">
                 {new Date().toLocaleDateString('fr-FR', { 
                   weekday: 'long', 
                   year: 'numeric', 
@@ -124,7 +135,12 @@ const MobileDashboard: React.FC = () => {
         {/* Solde avec option de masquage */}
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-blue-100 text-lg font-medium leading-tight">Solde disponible</p>
+            <div>
+              <p className="text-blue-100 text-lg font-medium leading-tight">Solde disponible</p>
+              <p className="text-blue-200 text-xs mt-1">
+                💱 Devise: {userCurrency}
+              </p>
+            </div>
             <Button
               onClick={toggleBalanceVisibility}
               variant="ghost"
@@ -134,10 +150,15 @@ const MobileDashboard: React.FC = () => {
               {isBalanceVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </Button>
           </div>
-          <p className="text-4xl font-bold mb-4 text-yellow-200 leading-none">
-            {formatBalanceDisplay(currentBalance || profile?.balance || 0)}
+          <p className="text-4xl font-bold mb-2 text-yellow-200 leading-none">
+            {formatBalanceDisplay(convertedBalance)}
           </p>
-          <div className="flex items-center space-x-2 text-sm text-blue-100">
+          {userCurrency !== "XAF" && isBalanceVisible && (
+            <p className="text-blue-200 text-sm">
+              Équivalent : {formatCurrency(balanceInXAF, "XAF")}
+            </p>
+          )}
+          <div className="flex items-center space-x-2 text-sm text-blue-100 mt-2">
             <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
             <span>Mise à jour toutes les 5 secondes</span>
           </div>
