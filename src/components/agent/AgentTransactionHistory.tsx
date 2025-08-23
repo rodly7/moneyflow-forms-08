@@ -1,180 +1,18 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Calendar, 
-  Activity, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  Plus, 
-  Wallet,
-  RefreshCw 
-} from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency } from "@/lib/utils/currency";
+import { Activity, RefreshCw } from "lucide-react";
 import { AgentTransactionItem } from "./AgentTransactionItem";
-
-interface AgentTransaction {
-  id: string;
-  type: 'client_deposit' | 'client_withdrawal' | 'commission_transfer' | 'balance_recharge';
-  amount: number;
-  time: string;
-  client_phone?: string;
-  client_name?: string;
-  status: string;
-  commission?: number;
-  created_at: string;
-}
+import { useAgentTransactions } from "@/hooks/useAgentTransactions";
 
 const AgentTransactionHistory = () => {
   const { user } = useAuth();
-  const [transactions, setTransactions] = useState<AgentTransaction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-
-  const fetchAgentTransactions = async (date?: string) => {
-    if (!user?.id) return;
-
-    setIsLoading(true);
-    try {
-      const startDate = date ? new Date(date) : new Date();
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 1);
-
-      const allTransactions: AgentTransaction[] = [];
-
-      // 1. Fetch client withdrawals - simplified approach
-      const { data: withdrawalsRaw } = await supabase
-        .from('withdrawals')
-        .select('*')
-        .eq('agent_id', user.id)
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
-
-      if (withdrawalsRaw) {
-        // Get user profiles separately
-        const userIds = withdrawalsRaw.map(w => w.user_id).filter(Boolean);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', userIds);
-
-        const profilesMap = new Map();
-        profiles?.forEach(p => profilesMap.set(p.id, p));
-
-        withdrawalsRaw.forEach(withdrawal => {
-          const profile = profilesMap.get(withdrawal.user_id);
-          allTransactions.push({
-            id: withdrawal.id,
-            type: 'client_withdrawal',
-            amount: withdrawal.amount,
-            time: new Date(withdrawal.created_at).toLocaleTimeString('fr-FR'),
-            client_phone: profile?.phone || '',
-            client_name: profile?.full_name || '',
-            status: withdrawal.status,
-            commission: withdrawal.amount * 0.005,
-            created_at: withdrawal.created_at
-          });
-        });
-      }
-
-      // 2. Fetch client deposits - simplified approach
-      const { data: depositsRaw } = await supabase
-        .from('recharges')
-        .select('*')
-        .eq('provider_transaction_id', user.id)
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
-
-      if (depositsRaw) {
-        // Get user profiles separately
-        const userIds = depositsRaw.map(d => d.user_id).filter(Boolean);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', userIds);
-
-        const profilesMap = new Map();
-        profiles?.forEach(p => profilesMap.set(p.id, p));
-
-        depositsRaw.forEach(deposit => {
-          const profile = profilesMap.get(deposit.user_id);
-          allTransactions.push({
-            id: deposit.id,
-            type: 'client_deposit',
-            amount: deposit.amount,
-            time: new Date(deposit.created_at).toLocaleTimeString('fr-FR'),
-            client_phone: profile?.phone || '',
-            client_name: profile?.full_name || '',
-            status: deposit.status,
-            commission: deposit.amount * 0.01,
-            created_at: deposit.created_at
-          });
-        });
-      }
-
-      // 3. Fetch agent transfers - simplified approach
-      const { data: transfersRaw } = await supabase
-        .from('transfers')
-        .select('*')
-        .eq('sender_id', user.id)
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
-
-      if (transfersRaw) {
-        transfersRaw.forEach(transfer => {
-          allTransactions.push({
-            id: transfer.id,
-            type: 'commission_transfer',
-            amount: transfer.amount,
-            time: new Date(transfer.created_at).toLocaleTimeString('fr-FR'),
-            status: transfer.status,
-            created_at: transfer.created_at
-          });
-        });
-      }
-
-      // 4. Fetch balance recharges - simplified approach
-      const { data: rechargesRaw } = await supabase
-        .from('admin_deposits')
-        .select('*')
-        .eq('target_user_id', user.id)
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString())
-        .order('created_at', { ascending: false });
-
-      if (rechargesRaw) {
-        rechargesRaw.forEach(recharge => {
-          allTransactions.push({
-            id: recharge.id,
-            type: 'balance_recharge',
-            amount: recharge.converted_amount,
-            time: new Date(recharge.created_at).toLocaleTimeString('fr-FR'),
-            status: recharge.status,
-            created_at: recharge.created_at
-          });
-        });
-      }
-
-      // Sort by date descending
-      allTransactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      setTransactions(allTransactions);
-
-    } catch (error) {
-      console.error('Erreur lors du chargement de l\'historique agent:', error);
-    }
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    fetchAgentTransactions(selectedDate);
-  }, [user?.id, selectedDate]);
+  
+  const { transactions, isLoading, refetch } = useAgentTransactions(user?.id, selectedDate);
 
   return (
     <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl w-full">
@@ -196,7 +34,7 @@ const AgentTransactionHistory = () => {
             </Badge>
           </div>
           <Button
-            onClick={() => fetchAgentTransactions(selectedDate)}
+            onClick={() => refetch()}
             variant="outline"
             size="sm"
             disabled={isLoading}
