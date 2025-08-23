@@ -1,11 +1,11 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Wallet, QrCode, RefreshCw } from "lucide-react";
+import { Wallet, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
-import SimpleQRScanner from "@/components/shared/SimpleQRScanner";
 
 interface AgentCommissionWithdrawalProps {
   commissionBalance: number;
@@ -20,15 +20,12 @@ export const AgentCommissionWithdrawal = ({
 }: AgentCommissionWithdrawalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isScanning, setIsScanning] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
   const agentCurrency = getCurrencyForCountry(userCountry);
   const convertedCommissionBalance = convertCurrency(commissionBalance, "XAF", agentCurrency);
 
-  const handleQRScanSuccess = async (userData: { userId: string; fullName: string; phone: string }) => {
-    setIsScanning(false);
-    
+  const handleWithdrawCommissions = async () => {
     if (commissionBalance <= 0) {
       toast({
         title: "Erreur",
@@ -106,24 +103,18 @@ export const AgentCommissionWithdrawal = ({
       </div>
 
       <Button
-        onClick={() => setIsScanning(true)}
+        onClick={handleWithdrawCommissions}
         disabled={commissionBalance <= 0 || isProcessing}
         className="w-full"
         variant="default"
       >
-        <QrCode className="w-4 h-4 mr-2" />
-        {isProcessing ? "Traitement..." : "Scanner pour retirer"}
+        <Wallet className="w-4 h-4 mr-2" />
+        {isProcessing ? "Traitement..." : "Retirer les commissions"}
       </Button>
 
       <p className="text-xs text-muted-foreground mt-2 text-center">
-        Scannez votre QR code pour retirer vos commissions
+        Vos commissions seront automatiquement transférées vers votre solde principal
       </p>
-
-      <SimpleQRScanner
-        isOpen={isScanning}
-        onClose={() => setIsScanning(false)}
-        onScanSuccess={handleQRScanSuccess}
-      />
     </div>
   );
 };
