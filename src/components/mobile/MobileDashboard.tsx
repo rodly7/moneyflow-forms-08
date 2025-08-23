@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -93,7 +92,7 @@ const MobileDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600">
       {/* Header avec notification et déconnexion */}
-      <div className="text-white p-6 pt-12">
+      <div className="text-white p-6 pt-16">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-14 w-14 border-2 border-white/20">
