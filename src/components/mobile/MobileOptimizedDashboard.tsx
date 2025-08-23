@@ -1,3 +1,4 @@
+
 import { memo, Suspense, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -249,7 +250,7 @@ const MobileOptimizedDashboard = memo(({
       </div>
     </div>
   );
-};
+});
 
 MobileOptimizedDashboard.displayName = 'MobileOptimizedDashboard';
 MobileLoadingSkeleton.displayName = 'MobileLoadingSkeleton';
