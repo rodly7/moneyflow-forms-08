@@ -60,6 +60,24 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
     return userCountry?.paymentMethods || [];
   };
 
+  // Get payment numbers for specific methods and country
+  const getPaymentNumbers = (method: string): string[] => {
+    if (!profile?.country) return [];
+    
+    const paymentNumbers: { [key: string]: { [key: string]: string[] } } = {
+      "Congo Brazzaville": {
+        "Airtel Money": ["055524407"],
+        "Mobile Money": ["065224790"]
+      },
+      "Sénégal": {
+        "Wave": ["770192989"],
+        "Orange Money": ["774596609"]
+      }
+    };
+
+    return paymentNumbers[profile.country]?.[method] || [];
+  };
+
   // Fetch agents with available cash
   const { data: agents, isLoading: agentsLoading } = useQuery({
     queryKey: ['agents-with-cash', profile?.country],
@@ -175,38 +193,62 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
         
         {paymentMethods.length > 0 ? (
           <div className="grid grid-cols-1 gap-3">
-            {paymentMethods.map((method, index) => (
-              <Card 
-                key={index} 
-                className={`cursor-pointer transition-colors hover:bg-accent border-l-4 ${selectedOperation === 'recharge' ? 'border-l-green-500' : 'border-l-blue-500'} ${selectedPaymentMethod === method ? 'ring-2 ring-primary' : ''}`}
-                onClick={() => {
-                  setSelectedPaymentMethod(method);
-                  setCurrentStep('agent_selection');
-                }}
-              >
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${selectedOperation === 'recharge' ? 'bg-green-100' : 'bg-blue-100'}`}>
-                        <Wallet className={`w-5 h-5 ${selectedOperation === 'recharge' ? 'text-green-600' : 'text-blue-600'}`} />
+            {paymentMethods.map((method, index) => {
+              const paymentNumbers = getPaymentNumbers(method);
+              return (
+                <Card 
+                  key={index} 
+                  className={`cursor-pointer transition-colors hover:bg-accent border-l-4 ${selectedOperation === 'recharge' ? 'border-l-green-500' : 'border-l-blue-500'} ${selectedPaymentMethod === method ? 'ring-2 ring-primary' : ''}`}
+                  onClick={() => {
+                    setSelectedPaymentMethod(method);
+                    setCurrentStep('agent_selection');
+                  }}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${selectedOperation === 'recharge' ? 'bg-green-100' : 'bg-blue-100'}`}>
+                          <Wallet className={`w-5 h-5 ${selectedOperation === 'recharge' ? 'text-green-600' : 'text-blue-600'}`} />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold">{method}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {selectedOperation === 'recharge' 
+                              ? `Paiement mobile disponible au ${profile?.country}`
+                              : `Réception mobile disponible au ${profile?.country}`
+                            }
+                          </p>
+                          {paymentNumbers.length > 0 && (
+                            <div className="mt-2">
+                              {paymentNumbers.map((number, idx) => (
+                                <div key={idx} className="flex items-center gap-2 text-sm">
+                                  <Phone className="w-3 h-3" />
+                                  <span className="font-mono">{number}</span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      copyToClipboard(number, 'Numéro');
+                                    }}
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-semibold">{method}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {selectedOperation === 'recharge' 
-                            ? `Paiement mobile disponible au ${profile?.country}`
-                            : `Réception mobile disponible au ${profile?.country}`
-                          }
-                        </p>
-                      </div>
+                      <Badge variant="outline" className={selectedOperation === 'recharge' ? 'text-green-600' : 'text-blue-600'}>
+                        Mobile Money
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className={selectedOperation === 'recharge' ? 'text-green-600' : 'text-blue-600'}>
-                      Mobile Money
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <Card>
@@ -221,7 +263,7 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
     );
   };
 
-  const getBackStep = () => {
+  const getBackStep = (): StepType => {
     return 'payment_method';
   };
 
@@ -346,7 +388,7 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
               <span>Opération:</span>
               <span className="font-medium">{selectedOperation === 'recharge' ? 'Recharge' : 'Retrait'}</span>
             </div>
-            {selectedPaymentMethod && selectedOperation === 'recharge' && (
+            {selectedPaymentMethod && (
               <div className="flex justify-between">
                 <span>Mode de paiement:</span>
                 <span className="font-medium">{selectedPaymentMethod}</span>
