@@ -17,11 +17,12 @@ interface Agent {
   phone: string;
   country: string;
   status: string;
-  agent_locations?: {
+  user_id: string;
+  agent_location?: {
     address: string;
     zone: string;
     is_active: boolean;
-  };
+  } | null;
 }
 
 interface PaymentMethod {
@@ -42,26 +43,36 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
     queryFn: async () => {
       if (!profile?.country) return [];
       
-      const { data, error } = await supabase
+      // First get agents
+      const { data: agentsData, error: agentsError } = await supabase
         .from('agents')
-        .select(`
-          id,
-          full_name,
-          phone,
-          country,
-          status,
-          agent_locations (
-            address,
-            zone,
-            is_active
-          )
-        `)
+        .select('id, full_name, phone, country, status, user_id')
         .eq('country', profile.country)
         .eq('status', 'active')
         .limit(10);
 
-      if (error) throw error;
-      return data as Agent[];
+      if (agentsError) throw agentsError;
+      if (!agentsData) return [];
+
+      // Then get locations for these agents
+      const agentUserIds = agentsData.map(agent => agent.user_id);
+      const { data: locationsData, error: locationsError } = await supabase
+        .from('agent_locations')
+        .select('agent_id, address, zone, is_active')
+        .in('agent_id', agentUserIds)
+        .eq('is_active', true);
+
+      if (locationsError) {
+        console.warn('Could not fetch agent locations:', locationsError);
+      }
+
+      // Combine agents with their locations
+      const agentsWithLocations: Agent[] = agentsData.map(agent => ({
+        ...agent,
+        agent_location: locationsData?.find(loc => loc.agent_id === agent.user_id) || null
+      }));
+
+      return agentsWithLocations;
     },
     enabled: !!profile?.country && isOpen,
   });
@@ -220,13 +231,13 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
                         </div>
 
                         {/* Location */}
-                        {agent.agent_locations && (
+                        {agent.agent_location && (
                           <div className="flex items-start gap-2">
                             <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
                             <div className="text-sm">
-                              <p>{agent.agent_locations.address}</p>
-                              {agent.agent_locations.zone && (
-                                <p className="text-muted-foreground">Zone: {agent.agent_locations.zone}</p>
+                              <p>{agent.agent_location.address}</p>
+                              {agent.agent_location.zone && (
+                                <p className="text-muted-foreground">Zone: {agent.agent_location.zone}</p>
                               )}
                             </div>
                           </div>
