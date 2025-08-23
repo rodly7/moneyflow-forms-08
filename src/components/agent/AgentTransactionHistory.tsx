@@ -46,144 +46,120 @@ const AgentTransactionHistory = () => {
 
       const allTransactions: AgentTransaction[] = [];
 
-      // 1. Fetch client withdrawals with explicit typing
-      try {
-        const { data: withdrawalsData } = await supabase
-          .from('withdrawals')
-          .select('id, amount, status, created_at, user_id')
-          .eq('agent_id', user.id)
-          .gte('created_at', startDate.toISOString())
-          .lt('created_at', endDate.toISOString())
-          .order('created_at', { ascending: false });
+      // 1. Fetch client withdrawals - simplified approach
+      const { data: withdrawalsRaw } = await supabase
+        .from('withdrawals')
+        .select('*')
+        .eq('agent_id', user.id)
+        .gte('created_at', startDate.toISOString())
+        .lt('created_at', endDate.toISOString())
+        .order('created_at', { ascending: false });
 
-        if (withdrawalsData && withdrawalsData.length > 0) {
-          // Get user profiles for withdrawals
-          const userIds = withdrawalsData.map((w: any) => w.user_id);
-          const { data: withdrawalProfiles } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone')
-            .in('id', userIds);
+      if (withdrawalsRaw) {
+        // Get user profiles separately
+        const userIds = withdrawalsRaw.map(w => w.user_id).filter(Boolean);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .in('id', userIds);
 
-          const profileMap = new Map();
-          if (withdrawalProfiles) {
-            withdrawalProfiles.forEach((p: any) => {
-              profileMap.set(p.id, p);
-            });
-          }
+        const profilesMap = new Map();
+        profiles?.forEach(p => profilesMap.set(p.id, p));
 
-          withdrawalsData.forEach((withdrawal: any) => {
-            const profile = profileMap.get(withdrawal.user_id);
-            allTransactions.push({
-              id: withdrawal.id,
-              type: 'client_withdrawal',
-              amount: Number(withdrawal.amount),
-              time: new Date(withdrawal.created_at).toLocaleTimeString('fr-FR'),
-              client_phone: profile?.phone || '',
-              client_name: profile?.full_name || '',
-              status: withdrawal.status,
-              commission: Number(withdrawal.amount) * 0.005,
-              created_at: withdrawal.created_at
-            });
+        withdrawalsRaw.forEach(withdrawal => {
+          const profile = profilesMap.get(withdrawal.user_id);
+          allTransactions.push({
+            id: withdrawal.id,
+            type: 'client_withdrawal',
+            amount: withdrawal.amount,
+            time: new Date(withdrawal.created_at).toLocaleTimeString('fr-FR'),
+            client_phone: profile?.phone || '',
+            client_name: profile?.full_name || '',
+            status: withdrawal.status,
+            commission: withdrawal.amount * 0.005,
+            created_at: withdrawal.created_at
           });
-        }
-      } catch (error) {
-        console.error('Error fetching withdrawals:', error);
+        });
       }
 
-      // 2. Fetch client deposits with explicit typing
-      try {
-        const { data: depositsData } = await supabase
-          .from('recharges')
-          .select('id, amount, status, created_at, user_id')
-          .eq('provider_transaction_id', user.id)
-          .gte('created_at', startDate.toISOString())
-          .lt('created_at', endDate.toISOString())
-          .order('created_at', { ascending: false });
+      // 2. Fetch client deposits - simplified approach
+      const { data: depositsRaw } = await supabase
+        .from('recharges')
+        .select('*')
+        .eq('provider_transaction_id', user.id)
+        .gte('created_at', startDate.toISOString())
+        .lt('created_at', endDate.toISOString())
+        .order('created_at', { ascending: false });
 
-        if (depositsData && depositsData.length > 0) {
-          // Get user profiles for deposits
-          const userIds = depositsData.map((d: any) => d.user_id);
-          const { data: depositProfiles } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone')
-            .in('id', userIds);
+      if (depositsRaw) {
+        // Get user profiles separately
+        const userIds = depositsRaw.map(d => d.user_id).filter(Boolean);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .in('id', userIds);
 
-          const profileMap = new Map();
-          if (depositProfiles) {
-            depositProfiles.forEach((p: any) => {
-              profileMap.set(p.id, p);
-            });
-          }
+        const profilesMap = new Map();
+        profiles?.forEach(p => profilesMap.set(p.id, p));
 
-          depositsData.forEach((deposit: any) => {
-            const profile = profileMap.get(deposit.user_id);
-            allTransactions.push({
-              id: deposit.id,
-              type: 'client_deposit',
-              amount: Number(deposit.amount),
-              time: new Date(deposit.created_at).toLocaleTimeString('fr-FR'),
-              client_phone: profile?.phone || '',
-              client_name: profile?.full_name || '',
-              status: deposit.status,
-              commission: Number(deposit.amount) * 0.01,
-              created_at: deposit.created_at
-            });
+        depositsRaw.forEach(deposit => {
+          const profile = profilesMap.get(deposit.user_id);
+          allTransactions.push({
+            id: deposit.id,
+            type: 'client_deposit',
+            amount: deposit.amount,
+            time: new Date(deposit.created_at).toLocaleTimeString('fr-FR'),
+            client_phone: profile?.phone || '',
+            client_name: profile?.full_name || '',
+            status: deposit.status,
+            commission: deposit.amount * 0.01,
+            created_at: deposit.created_at
           });
-        }
-      } catch (error) {
-        console.error('Error fetching deposits:', error);
+        });
       }
 
-      // 3. Fetch agent transfers with explicit typing
-      try {
-        const { data: transfersData } = await supabase
-          .from('transfers')
-          .select('id, amount, status, created_at')
-          .eq('sender_id', user.id)
-          .gte('created_at', startDate.toISOString())
-          .lt('created_at', endDate.toISOString())
-          .order('created_at', { ascending: false });
+      // 3. Fetch agent transfers - simplified approach
+      const { data: transfersRaw } = await supabase
+        .from('transfers')
+        .select('*')
+        .eq('sender_id', user.id)
+        .gte('created_at', startDate.toISOString())
+        .lt('created_at', endDate.toISOString())
+        .order('created_at', { ascending: false });
 
-        if (transfersData) {
-          transfersData.forEach((transfer: any) => {
-            allTransactions.push({
-              id: transfer.id,
-              type: 'commission_transfer',
-              amount: Number(transfer.amount),
-              time: new Date(transfer.created_at).toLocaleTimeString('fr-FR'),
-              status: transfer.status,
-              created_at: transfer.created_at
-            });
+      if (transfersRaw) {
+        transfersRaw.forEach(transfer => {
+          allTransactions.push({
+            id: transfer.id,
+            type: 'commission_transfer',
+            amount: transfer.amount,
+            time: new Date(transfer.created_at).toLocaleTimeString('fr-FR'),
+            status: transfer.status,
+            created_at: transfer.created_at
           });
-        }
-      } catch (error) {
-        console.error('Error fetching transfers:', error);
+        });
       }
 
-      // 4. Fetch balance recharges with explicit typing
-      try {
-        const { data: rechargesData } = await supabase
-          .from('admin_deposits')
-          .select('id, converted_amount, status, created_at')
-          .eq('target_user_id', user.id)
-          .gte('created_at', startDate.toISOString())
-          .lt('created_at', endDate.toISOString())
-          .order('created_at', { ascending: false });
+      // 4. Fetch balance recharges - simplified approach
+      const { data: rechargesRaw } = await supabase
+        .from('admin_deposits')
+        .select('*')
+        .eq('target_user_id', user.id)
+        .gte('created_at', startDate.toISOString())
+        .lt('created_at', endDate.toISOString())
+        .order('created_at', { ascending: false });
 
-        if (rechargesData) {
-          rechargesData.forEach((recharge: any) => {
-            allTransactions.push({
-              id: recharge.id,
-              type: 'balance_recharge',
-              amount: Number(recharge.converted_amount),
-              time: new Date(recharge.created_at).toLocaleTimeString('fr-FR'),
-              status: recharge.status,
-              created_at: recharge.created_at
-            });
+      if (rechargesRaw) {
+        rechargesRaw.forEach(recharge => {
+          allTransactions.push({
+            id: recharge.id,
+            type: 'balance_recharge',
+            amount: recharge.converted_amount,
+            time: new Date(recharge.created_at).toLocaleTimeString('fr-FR'),
+            status: recharge.status,
+            created_at: recharge.created_at
           });
-        }
-      } catch (error) {
-        console.error('Error fetching recharges:', error);
+        });
       }
 
       // Sort by date descending
