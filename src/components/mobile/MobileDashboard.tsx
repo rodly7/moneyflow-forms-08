@@ -166,7 +166,7 @@ const MobileDashboard: React.FC = () => {
       </div>
 
       {/* Actions rapides */}
-      <div className="px-6 -mt-8 relative z-10">
+      <div className="px-6 -mt-0 relative z-10">
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
           <CardContent className="p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-5">Actions rapides</h2>
