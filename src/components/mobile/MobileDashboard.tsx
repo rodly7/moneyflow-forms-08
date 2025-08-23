@@ -2,15 +2,68 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/integrations/supabase/client";
-import { CompactActionGrid } from "./CompactActionGrid";
 import { RechargeAccountButton } from "@/components/dashboard/RechargeAccountButton";
-import { Eye, EyeOff, User, DollarSign } from "lucide-react";
+import { Eye, EyeOff, User, DollarSign, Send, Download, QrCode, History, CreditCard, PiggyBank } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { CompactActionGrid } from "./CompactActionGrid";
 
-export const MobileDashboard = () => {
+const MobileDashboard = () => {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [showBalance, setShowBalance] = useState(false);
   const balance = profile?.balance || 0;
+
+  const actions = [
+    {
+      key: 'transfer',
+      icon: Send,
+      label: 'Transférer',
+      description: 'Envoyer de l\'argent',
+      colors: 'from-blue-500 to-blue-600',
+      onClick: () => navigate('/transfer')
+    },
+    {
+      key: 'deposit',
+      icon: Download,
+      label: 'Dépôt',
+      description: 'Déposer de l\'argent',
+      colors: 'from-green-500 to-green-600',
+      onClick: () => navigate('/unified-deposit-withdrawal')
+    },
+    {
+      key: 'withdraw',
+      icon: CreditCard,
+      label: 'Retrait',
+      description: 'Retirer de l\'argent',
+      colors: 'from-orange-500 to-orange-600',
+      onClick: () => navigate('/withdraw')
+    },
+    {
+      key: 'qr-code',
+      icon: QrCode,
+      label: 'QR Code',
+      description: 'Scanner QR Code',
+      colors: 'from-purple-500 to-purple-600',
+      onClick: () => navigate('/qr-code')
+    },
+    {
+      key: 'transactions',
+      icon: History,
+      label: 'Historique',
+      description: 'Voir transactions',
+      colors: 'from-gray-500 to-gray-600',
+      onClick: () => navigate('/transactions')
+    },
+    {
+      key: 'savings',
+      icon: PiggyBank,
+      label: 'Épargne',
+      description: 'Comptes épargne',
+      colors: 'from-emerald-500 to-emerald-600',
+      onClick: () => navigate('/savings')
+    }
+  ];
 
   if (!user || !profile) {
     return (
@@ -67,8 +120,10 @@ export const MobileDashboard = () => {
         <RechargeAccountButton />
 
         {/* Actions rapides */}
-        <CompactActionGrid />
+        <CompactActionGrid actions={actions} />
       </div>
     </div>
   );
 };
+
+export default MobileDashboard;
