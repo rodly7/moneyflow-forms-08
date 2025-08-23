@@ -56,6 +56,7 @@ const BalanceCard = ({
   
   // Déterminer la devise basée sur le pays de l'utilisateur
   const userCurrency = currency || getCurrencyForCountry(userCountry);
+  console.log("🌍 Pays utilisateur:", userCountry, "Devise:", userCurrency);
 
   // Query optimisée pour récupérer le solde en temps réel (3 secondes)
   const { data: realTimeBalance, isLoading: isLoadingBalance, refetch: refetchBalance } = useRealTimeQuery({
@@ -90,6 +91,7 @@ const BalanceCard = ({
   
   // Convertir le solde de XAF (devise de base) vers la devise de l'utilisateur
   const convertedBalance = convertCurrency(displayBalanceValue, "XAF", userCurrency);
+  console.log("💰 Solde original (XAF):", displayBalanceValue, "Solde converti:", convertedBalance, userCurrency);
 
   // Format the balance or display asterisks if hidden
   const displayBalance = showBalance 
@@ -161,6 +163,7 @@ const BalanceCard = ({
                   {userProfile?.address && (
                     <div className="mt-0.5">📍 {userProfile.address}</div>
                   )}
+                  <div className="mt-0.5">🌍 {userCountry}</div>
                 </div>
               </div>
             </div>
@@ -203,7 +206,7 @@ const BalanceCard = ({
             </p>
           )}
           
-          {userCurrency !== "XAF" && (
+          {userCurrency !== "XAF" && showBalance && (
             <p className="text-xs text-white/60 mt-1">
               Converti de {formatCurrency(displayBalanceValue, "XAF")}
             </p>

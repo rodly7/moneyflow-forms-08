@@ -1,188 +1,209 @@
 
-import React, { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  ArrowUpRight, 
-  QrCode,
-  Scan,
-  PiggyBank,
-  LogOut,
-  Eye,
-  EyeOff
-} from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { formatCurrency } from "@/integrations/supabase/client";
-import EnhancedTransactionsCard from "@/components/dashboard/EnhancedTransactionsCard";
-import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
-import { UserSettingsModal } from "@/components/settings/UserSettingsModal";
-import { useAutoBalanceRefresh } from "@/hooks/useAutoBalanceRefresh";
-import { toast } from "sonner";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import { formatCurrency, getCurrencyForCountry, convertCurrency } from '@/integrations/supabase/client';
+import { useState, useCallback, useMemo } from 'react';
+import { User, Wallet, Plus, Minus, QrCode, History, CreditCard, PiggyBank } from 'lucide-react';
+import BalanceCard from '@/components/dashboard/BalanceCard';
+import { useBalanceCheck } from '@/hooks/useBalanceCheck';
+import { useTransferNotifications } from '@/hooks/useTransferNotifications';
 
-const MobileDashboard: React.FC = () => {
-  const { user, profile, signOut } = useAuth();
+const MobileDashboard = () => {
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
+  const { toast } = useToast();
+  
+  // Activer les notifications de transfert
+  useTransferNotifications();
 
-  // Configuration du rafraîchissement automatique toutes les 5 secondes
-  const { currentBalance } = useAutoBalanceRefresh({
-    intervalMs: 5000,
-    enableRealtime: true
+  const { 
+    data: profile, 
+    isLoading: isProfileLoading,
+    refetch: refetchProfile 
+  } = useQuery({
+    queryKey: ['user-profile', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
+      
+      if (error) {
+        console.error('Erreur lors du chargement du profil:', error);
+        throw error;
+      }
+      
+      return data;
+    },
+    enabled: !!user?.id,
   });
 
-  const handleLogout = async () => {
+  const { 
+    data: balance, 
+    isLoading: isBalanceLoading,
+    refetch: refetchBalance 
+  } = useQuery({
+    queryKey: ['user-balance', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('balance')
+        .eq('id', user?.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.balance || 0;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Utiliser le hook de vérification du solde faible
+  useBalanceCheck(balance || 0);
+
+  // Déterminer le pays et la devise de l'utilisateur
+  const userCountry = profile?.country || "Congo Brazzaville";
+  const userCurrency = getCurrencyForCountry(userCountry);
+  const convertedBalance = useMemo(() => 
+    convertCurrency(balance || 0, "XAF", userCurrency), 
+    [balance, userCurrency]
+  );
+
+  console.log("🌍 Dashboard - Pays:", userCountry, "Devise:", userCurrency, "Solde converti:", convertedBalance);
+
+  const handleAction = useCallback((action: string) => {
+    switch (action) {
+      case 'transfer':
+        navigate('/transfer');
+        break;
+      case 'deposit':
+        navigate('/unified-deposit-withdrawal');
+        break;
+      case 'withdraw':
+        navigate('/withdraw');
+        break;
+      case 'qr-code':
+        navigate('/qr-code');
+        break;
+      case 'transactions':
+        navigate('/transactions');
+        break;
+      case 'bill-payments':
+        navigate('/bill-payments');
+        break;
+      case 'savings':
+        navigate('/savings');
+        break;
+      default:
+        break;
+    }
+  }, [navigate]);
+
+  const handleSignOut = useCallback(async () => {
     try {
       await signOut();
       navigate('/auth');
-      toast.success('Déconnexion réussie');
+      toast({
+        title: "Déconnexion réussie",
+        description: "À bientôt !",
+      });
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-      toast.error('Erreur lors de la déconnexion');
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la déconnexion",
+        variant: "destructive"
+      });
     }
-  };
+  }, [signOut, navigate, toast]);
 
-  const toggleBalanceVisibility = () => {
-    setIsBalanceVisible(!isBalanceVisible);
-  };
-
-  // Actions rapides sans "Historique" et "Factures"
-  const quickActions = [
-    {
-      title: "Envoyer",
-      icon: ArrowUpRight,
-      color: "from-red-500 to-pink-500",
-      onClick: () => navigate('/transfer')
-    },
-    {
-      title: "QR Code",
-      icon: QrCode,
-      color: "from-purple-500 to-violet-500",
-      onClick: () => navigate('/qr-code')
-    },
-    {
-      title: "Scanner",
-      icon: Scan,
-      color: "from-indigo-500 to-blue-500",
-      onClick: () => navigate('/qr-payment')
-    },
-    {
-      title: "Épargne",
-      icon: PiggyBank,
-      color: "from-teal-500 to-green-500",
-      onClick: () => navigate('/savings')
-    }
+  const actionButtons = [
+    { id: 'transfer', label: 'Transférer', icon: Plus, color: 'bg-blue-500' },
+    { id: 'deposit', label: 'Déposer', icon: Wallet, color: 'bg-green-500' },
+    { id: 'withdraw', label: 'Retirer', icon: Minus, color: 'bg-red-500' },
+    { id: 'qr-code', label: 'QR Code', icon: QrCode, color: 'bg-purple-500' },
+    { id: 'transactions', label: 'Historique', icon: History, color: 'bg-orange-500' },
+    { id: 'bill-payments', label: 'Factures', icon: CreditCard, color: 'bg-indigo-500' },
+    { id: 'savings', label: 'Épargne', icon: PiggyBank, color: 'bg-pink-500' },
   ];
 
-  const formatBalanceDisplay = (balance: number) => {
-    if (!isBalanceVisible) {
-      return "••••••••";
-    }
-    return formatCurrency(balance, 'XAF');
-  };
+  const isLoading = isProfileLoading || isBalanceLoading;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header avec notification et déconnexion */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-14 w-14 border-2 border-white/20">
-              <AvatarImage src={profile?.avatar_url} />
-              <AvatarFallback className="bg-white/10 text-white font-semibold text-lg">
-                {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="text-lg font-semibold leading-tight">
-                Bonjour {profile?.full_name || 'Utilisateur'} 👋
-              </h1>
-              <p className="text-blue-100 text-sm mt-2 leading-relaxed">
-                {new Date().toLocaleDateString('fr-FR', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </p>
-            </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* En-tête avec profil utilisateur */}
+      <div className="bg-white shadow-sm p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+            <User className="w-6 h-6 text-white" />
           </div>
-          <div className="flex items-center space-x-3">
-            <UnifiedNotificationBell />
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              size="sm"
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white text-sm p-2"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
+          <div>
+            <h1 className="font-semibold text-gray-900">
+              {profile?.full_name || 'Utilisateur'}
+            </h1>
+            <p className="text-sm text-gray-500">
+              {profile?.phone} • {userCountry}
+            </p>
           </div>
         </div>
+        <button
+          onClick={handleSignOut}
+          className="text-sm text-red-600 font-medium"
+        >
+          Déconnexion
+        </button>
+      </div>
 
-        {/* Solde avec option de masquage */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-blue-100 text-lg font-medium leading-tight">Solde disponible</p>
-            <Button
-              onClick={toggleBalanceVisibility}
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/10 p-2"
+      {/* Carte de solde */}
+      <div className="p-4">
+        <BalanceCard
+          balance={balance || 0}
+          userCountry={userCountry}
+          currency={userCurrency}
+          userProfile={profile}
+        />
+      </div>
+
+      {/* Grille d'actions */}
+      <div className="p-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h2>
+        <div className="grid grid-cols-2 gap-4">
+          {actionButtons.map((button) => (
+            <button
+              key={button.id}
+              onClick={() => handleAction(button.id)}
+              className={`${button.color} text-white p-4 rounded-lg flex flex-col items-center gap-2 shadow-md active:scale-95 transition-transform`}
             >
-              {isBalanceVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </Button>
-          </div>
-          <p className="text-4xl font-bold mb-4 text-yellow-200 leading-none">
-            {formatBalanceDisplay(currentBalance || profile?.balance || 0)}
+              <button.icon className="w-6 h-6" />
+              <span className="text-sm font-medium">{button.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Section informative */}
+      <div className="p-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-medium text-blue-900 mb-2">💡 Information</h3>
+          <p className="text-sm text-blue-700">
+            Votre solde est affiché en <strong>{userCurrency}</strong> selon votre localisation ({userCountry}).
           </p>
-          <div className="flex items-center space-x-2 text-sm text-blue-100">
-            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-            <span>Mise à jour toutes les 5 secondes</span>
-          </div>
+          {userCurrency !== "XAF" && (
+            <p className="text-xs text-blue-600 mt-1">
+              Solde original: {formatCurrency(balance || 0, "XAF")}
+            </p>
+          )}
         </div>
-      </div>
-
-      {/* Actions rapides */}
-      <div className="px-6 -mt-8 relative z-10">
-        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-5">Actions rapides</h2>
-            <div className="grid grid-cols-2 gap-5">
-              {quickActions.map((action, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  className="relative h-28 flex-col gap-3 bg-white border-0 hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-lg"
-                  onClick={action.onClick}
-                >
-                  <div className={`p-3 bg-gradient-to-r ${action.color} rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center`}>
-                    <action.icon className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="text-base font-medium text-center">{action.title}</span>
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Transactions récentes */}
-      <div className="px-6 mt-6">
-        <EnhancedTransactionsCard />
-      </div>
-
-      {/* Section Paramètres - S'étend jusqu'en bas */}
-      <div className="px-6 mt-6 mb-0">
-        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
-          <CardContent className="p-6 pb-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-5">Support & Paramètres</h2>
-            <div className="grid grid-cols-1 gap-5">
-              <UserSettingsModal />
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
