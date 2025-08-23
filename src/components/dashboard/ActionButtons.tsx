@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Send, Scan, QrCode, CreditCard, Receipt, Bell, User, Settings } from "lucide-react";
+import RechargeAccountButton from "@/components/dashboard/RechargeAccountButton";
 
 const ActionButtons = () => {
   const navigate = useNavigate();
@@ -74,6 +75,15 @@ const ActionButtons = () => {
 
   return (
     <div className="space-y-6">
+      {/* Bouton Recharger mon compte - en évidence */}
+      <div className="mb-6">
+        <RechargeAccountButton 
+          fullWidth 
+          size="lg" 
+          className="h-20 text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-xl rounded-2xl"
+        />
+      </div>
+
       {/* Actions principales - encore plus grandes */}
       <div className="grid grid-cols-2 gap-4">
         {primaryActions.map((action, index) => {

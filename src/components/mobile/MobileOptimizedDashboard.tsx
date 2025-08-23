@@ -1,4 +1,3 @@
-
 import { memo, Suspense, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
 import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
+import RechargeAccountButton from "@/components/dashboard/RechargeAccountButton";
 
 interface MobileOptimizedDashboardProps {
   userBalance: number;
@@ -224,6 +224,15 @@ const MobileOptimizedDashboard = memo(({
           ))}
         </div>
 
+        {/* Recharge Account Button */}
+        <div className="mt-4">
+          <RechargeAccountButton 
+            fullWidth 
+            size="lg" 
+            className="h-14 text-base font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg rounded-xl"
+          />
+        </div>
+
         {/* Tips Section - Compact for mobile */}
         <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-3 rounded-lg border-l-4 border-l-indigo-500">
           <div className="text-xs">
@@ -240,7 +249,7 @@ const MobileOptimizedDashboard = memo(({
       </div>
     </div>
   );
-});
+};
 
 MobileOptimizedDashboard.displayName = 'MobileOptimizedDashboard';
 MobileLoadingSkeleton.displayName = 'MobileLoadingSkeleton';

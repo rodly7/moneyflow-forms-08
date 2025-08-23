@@ -19,6 +19,7 @@ import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotif
 import { UserSettingsModal } from "@/components/settings/UserSettingsModal";
 import { useAutoBalanceRefresh } from "@/hooks/useAutoBalanceRefresh";
 import { toast } from "sonner";
+import RechargeAccountButton from "@/components/dashboard/RechargeAccountButton";
 
 const MobileDashboard: React.FC = () => {
   const { user, profile, signOut } = useAuth();
@@ -54,7 +55,7 @@ const MobileDashboard: React.FC = () => {
     setIsBalanceVisible(!isBalanceVisible);
   };
 
-  // Actions rapides sans "Historique" et "Factures"
+  // Actions rapides avec le nouveau bouton de rechargement
   const quickActions = [
     {
       title: "Envoyer",
@@ -184,6 +185,20 @@ const MobileDashboard: React.FC = () => {
                 </Button>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Nouveau bouton Recharger mon compte */}
+      <div className="px-6 mt-6">
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
+          <CardContent className="p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-5">Gestion du compte</h2>
+            <RechargeAccountButton 
+              fullWidth 
+              size="lg" 
+              className="h-16 text-lg font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg"
+            />
           </CardContent>
         </Card>
       </div>
