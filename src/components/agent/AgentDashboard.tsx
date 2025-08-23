@@ -1,211 +1,222 @@
-import { useState, useEffect } from "react";
+
+import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MoreVertical, Edit, Plus, Activity, ArrowUpRight } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { 
+  ArrowUpRight, 
+  ArrowDownLeft,
+  LogOut,
+  Eye,
+  EyeOff,
+  Settings,
+  RefreshCw,
+  Wallet
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/integrations/supabase/client";
-import { supabase } from "@/integrations/supabase/client";
-import AgentDailyHistory from "./AgentDailyHistory";
-import AgentTransactionHistory from './AgentTransactionHistory';
+import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
+import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
+import { AgentRealTimePerformance } from "@/components/agent/AgentRealTimePerformance";
+import { toast } from "sonner";
 
-const AgentDashboard = () => {
-  const { user, signOut } = useAuth();
+const AgentDashboard: React.FC = () => {
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [balance, setBalance] = useState<number>(0);
-  const [commissionBalance, setCommissionBalance] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCommissionLoading, setIsCommissionLoading] = useState(true);
+  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
 
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (user?.id) {
-        setIsLoading(true);
-        try {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('balance')
-            .eq('id', user.id)
-            .single();
+  const {
+    agentBalance,
+    agentCommissionBalance,
+    isLoadingBalance,
+    fetchAgentBalances
+  } = useAgentWithdrawalEnhanced();
 
-          if (error) {
-            console.error("Erreur lors de la récupération du solde:", error);
-            toast({
-              title: "Erreur",
-              description: "Impossible de récupérer le solde actuel.",
-              variant: "destructive",
-            });
-          } else {
-            setBalance(profile?.balance || 0);
-          }
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/auth');
+      toast.success('Déconnexion réussie');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      toast.error('Erreur lors de la déconnexion');
+    }
+  };
 
-    fetchBalance();
-  }, [user?.id, toast]);
+  const toggleBalanceVisibility = () => {
+    setIsBalanceVisible(!isBalanceVisible);
+  };
 
-  useEffect(() => {
-    const fetchCommissionBalance = async () => {
-      if (user?.id) {
-        setIsCommissionLoading(true);
-        try {
-          const { data: agent, error } = await supabase
-            .from('agents')
-            .select('commission_balance')
-            .eq('user_id', user.id)
-            .single();
-
-          if (error) {
-            console.error("Erreur lors de la récupération du solde de commission:", error);
-            toast({
-              title: "Erreur",
-              description: "Impossible de récupérer le solde de commission.",
-              variant: "destructive",
-            });
-          } else {
-            setCommissionBalance(agent?.commission_balance || 0);
-          }
-        } finally {
-          setIsCommissionLoading(false);
-        }
-      }
-    };
-
-    fetchCommissionBalance();
-  }, [user?.id, toast]);
-
-  const handleWithdrawCommission = () => {
-    navigate('/agent/withdraw-commission');
+  const formatBalanceDisplay = (balance: number) => {
+    if (!isBalanceVisible) {
+      return "••••••••";
+    }
+    return formatCurrency(balance, 'XAF');
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">
-              Bonjour, {user?.user_metadata?.full_name || "Agent"} !
-            </h1>
-            <p className="text-gray-500">Bienvenue sur votre tableau de bord.</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={profile?.avatar_url} />
+                <AvatarFallback className="bg-blue-100 text-blue-600">
+                  {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'A'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  {profile?.full_name || 'Agent'}
+                </h1>
+                <p className="text-sm text-gray-500">Agent SendFlow</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <UnifiedNotificationBell />
+              <Button
+                onClick={fetchAgentBalances}
+                variant="ghost"
+                size="sm"
+                disabled={isLoadingBalance}
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="ghost"
+                size="sm"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Ouvrir le menu</span>
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => navigate('/profile')}>
-                <Edit className="mr-2 h-4 w-4" />
-                <span>Modifier le profil</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => signOut()}>
-                Déconnexion
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
+      </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Solde Principal</CardTitle>
+      <div className="px-4 py-6 space-y-6">
+        {/* Balance Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Solde Principal */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Solde Principal
+              </CardTitle>
+              <div className="flex items-center space-x-2">
+                <Button
+                  onClick={toggleBalanceVisibility}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+                <Wallet className="w-4 h-4 text-blue-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <div className="animate-pulse h-8 bg-gray-200 rounded-md w-3/4"></div>
-              ) : (
-                <div className="text-2xl font-bold text-blue-600">{formatCurrency(balance, 'XAF')}</div>
-              )}
-              <p className="text-sm text-gray-500">Solde disponible pour les transactions.</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Solde de Commission</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isCommissionLoading ? (
-                <div className="animate-pulse h-8 bg-gray-200 rounded-md w-3/4"></div>
-              ) : (
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(commissionBalance, 'XAF')}</div>
-              )}
-              <p className="text-sm text-gray-500">Commissions accumulées.</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Clients Enregistrés</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">245</div>
-              <p className="text-sm text-gray-500">Nombre total de clients enregistrés.</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Quick Actions */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Actions Rapides</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <Button className="w-full" onClick={() => navigate('/transfer')}>
-                <ArrowUpRight className="mr-2 h-4 w-4" />
-                Effectuer un Transfert
-              </Button>
-              <Button className="w-full" onClick={() => navigate('/deposit')}>
-                <Plus className="mr-2 h-4 w-4" />
-                Effectuer un Dépôt
-              </Button>
+              <div className="text-2xl font-bold text-gray-900 mb-3">
+                {formatBalanceDisplay(agentBalance || 0)}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Commission Withdrawal */}
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Retrait de Commission</CardTitle>
+          {/* Commissions - Total (Dépôt 1% + Retrait 0,5%) */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Commissions Totales
+              </CardTitle>
+              <Wallet className="w-4 h-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-500 mb-4">
-                Retirez vos commissions vers votre solde principal.
-              </p>
-              <Button className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600" onClick={handleWithdrawCommission}>
-                <ArrowUpRight className="mr-2 h-4 w-4" />
-                Retirer la Commission
+              <div className="text-2xl font-bold text-gray-900 mb-3">
+                {formatBalanceDisplay(agentCommissionBalance || 0)}
+              </div>
+              <div className="text-xs text-gray-500 mb-3">
+                Dépôt: 1% | Retrait: 0,5%
+              </div>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate('/agent-commission-withdrawal')}
+              >
+                Retirer Commissions
               </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* Transaction History - Full Width */}
-        <div className="w-full">
-          <AgentTransactionHistory />
-        </div>
+        {/* Quick Actions - Moved after commissions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Actions Rapides</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2 hover:bg-blue-50 border-blue-200"
+                onClick={() => navigate('/agent-withdrawal-advanced')}
+              >
+                <ArrowUpRight className="w-6 h-6 text-blue-600" />
+                <span className="text-sm">Retrait Client</span>
+              </Button>
 
-        {/* Recent Activity */}
-        <AgentDailyHistory />
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2 hover:bg-green-50 border-green-200"
+                onClick={() => navigate('/agent-deposit')}
+              >
+                <ArrowDownLeft className="w-6 h-6 text-green-600" />
+                <span className="text-sm">Dépôt Client</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Performances Temps Réel */}
+        <AgentRealTimePerformance />
+
+        {/* Services */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Services Agent</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <Button
+                onClick={() => navigate('/agent-settings')}
+                variant="outline"
+                className="w-full h-12 justify-start"
+              >
+                <Settings className="w-5 h-5 mr-3 text-gray-600" />
+                Paramètres
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Statistics */}
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">0</div>
+            <div className="text-xs text-gray-500">Aujourd'hui</div>
+          </Card>
+          <Card className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">0</div>
+            <div className="text-xs text-gray-500">Cette semaine</div>
+          </Card>
+          <Card className="p-4 text-center">
+            <div className="text-2xl font-bold text-purple-600">0</div>
+            <div className="text-xs text-gray-500">Ce mois</div>
+          </Card>
+        </div>
       </div>
     </div>
   );
