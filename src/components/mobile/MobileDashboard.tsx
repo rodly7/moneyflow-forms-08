@@ -91,9 +91,9 @@ const MobileDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600">
       {/* Header avec notification et déconnexion */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
+      <div className="text-white p-6 pt-12">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-14 w-14 border-2 border-white/20">
@@ -133,7 +133,7 @@ const MobileDashboard: React.FC = () => {
         </div>
 
         {/* Solde avec option de masquage */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-blue-100 text-lg font-medium leading-tight">Solde disponible</p>
@@ -195,7 +195,7 @@ const MobileDashboard: React.FC = () => {
       </div>
 
       {/* Section Paramètres - S'étend jusqu'en bas */}
-      <div className="px-6 mt-6 mb-0">
+      <div className="px-6 mt-6 mb-0 pb-8">
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
           <CardContent className="p-6 pb-8">
             <h2 className="text-xl font-semibold text-gray-800 mb-5">Support & Paramètres</h2>
