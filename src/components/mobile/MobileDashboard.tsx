@@ -91,9 +91,9 @@ const MobileDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600">
       {/* Header avec notification et déconnexion */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
+      <div className="text-white p-6 rounded-b-3xl">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <Avatar className="h-14 w-14 border-2 border-white/20">
@@ -210,3 +210,4 @@ const MobileDashboard: React.FC = () => {
 };
 
 export default MobileDashboard;
+
