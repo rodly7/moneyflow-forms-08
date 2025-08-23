@@ -1,4 +1,3 @@
-
 // Helper functions for currency formatting and calculations
 
 // Calculate transfer fees with current business rules
@@ -67,7 +66,9 @@ export const getCurrencyForCountry = (country: string): string => {
     'Guinée Équatoriale': 'XAF',
     'République Centrafricaine': 'XAF',
     'Tchad': 'XAF',
+    'Sénégal': 'XAF',
     'France': 'EUR',
+    'Italie': 'EUR',
     'Canada': 'CAD',
     'États-Unis': 'USD',
     'Royaume-Uni': 'GBP',

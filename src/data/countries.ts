@@ -46,5 +46,47 @@ export const countries: Country[] = [
       { name: "Kaolack" }
     ],
     paymentMethods: ["Orange Money", "Wave", "Free Money"]
+  },
+  {
+    name: "France",
+    code: "+33",
+    cities: [
+      { name: "Paris" },
+      { name: "Marseille" },
+      { name: "Lyon" },
+      { name: "Toulouse" },
+      { name: "Nice" },
+      { name: "Nantes" },
+      { name: "Strasbourg" }
+    ],
+    paymentMethods: ["Carte Bancaire", "PayPal", "Virement Bancaire"]
+  },
+  {
+    name: "Italie",
+    code: "+39",
+    cities: [
+      { name: "Rome" },
+      { name: "Milan" },
+      { name: "Naples" },
+      { name: "Turin" },
+      { name: "Florence" },
+      { name: "Venise" },
+      { name: "Bologne" }
+    ],
+    paymentMethods: ["Carta di Credito", "PayPal", "Bonifico Bancario"]
+  },
+  {
+    name: "Canada",
+    code: "+1",
+    cities: [
+      { name: "Toronto" },
+      { name: "Montréal" },
+      { name: "Vancouver" },
+      { name: "Calgary" },
+      { name: "Ottawa" },
+      { name: "Edmonton" },
+      { name: "Winnipeg" }
+    ],
+    paymentMethods: ["Credit Card", "Interac", "PayPal"]
   }
 ];
