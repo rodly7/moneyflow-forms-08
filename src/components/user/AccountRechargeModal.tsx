@@ -66,12 +66,12 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
     
     const paymentNumbers: { [key: string]: { [key: string]: string[] } } = {
       "Congo Brazzaville": {
-        "Airtel Money": ["055524407"],
-        "Mobile Money": ["065224790"]
+        "Airtel Money": ["+242055524407"],
+        "Mobile Money": ["+242065224790"]
       },
       "Sénégal": {
-        "Wave": ["770192989"],
-        "Orange Money": ["774596609"]
+        "Wave": ["+221770192989"],
+        "Orange Money": ["+221774596609"]
       }
     };
 
@@ -126,14 +126,14 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
   };
 
   const handleSubmitRequest = async () => {
-    if (!selectedAgent || !amount || !selectedOperation) {
+    if (!amount || !selectedOperation) {
       toast.error('Veuillez remplir tous les champs requis');
       return;
     }
 
     try {
       // Here you would create the request in the database
-      toast.success(`Demande de ${selectedOperation} envoyée à l'agent ${selectedAgent.full_name}`);
+      toast.success(`Demande de ${selectedOperation} envoyée`);
       setIsOpen(false);
     } catch (error) {
       toast.error('Erreur lors de l\'envoi de la demande');
@@ -142,8 +142,17 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
 
   const handleOperationSelect = (operation: OperationType) => {
     setSelectedOperation(operation);
-    // Both operations now go to payment method selection
     setCurrentStep('payment_method');
+  };
+
+  const handlePaymentMethodSelect = (method: string) => {
+    setSelectedPaymentMethod(method);
+    if (selectedOperation === 'recharge') {
+      setCurrentStep('agent_selection');
+    } else {
+      // Pour retrait, aller directement aux détails
+      setCurrentStep('request_details');
+    }
   };
 
   const renderOperationSelection = () => (
@@ -199,10 +208,7 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
                 <Card 
                   key={index} 
                   className={`cursor-pointer transition-colors hover:bg-accent border-l-4 ${selectedOperation === 'recharge' ? 'border-l-green-500' : 'border-l-blue-500'} ${selectedPaymentMethod === method ? 'ring-2 ring-primary' : ''}`}
-                  onClick={() => {
-                    setSelectedPaymentMethod(method);
-                    setCurrentStep('agent_selection');
-                  }}
+                  onClick={() => handlePaymentMethodSelect(method)}
                 >
                   <CardContent className="p-4">
                     <div className="flex justify-between items-center">
@@ -266,6 +272,81 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
   const getBackStep = (): StepType => {
     return 'payment_method';
   };
+
+  const renderRequestDetails = () => (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => setCurrentStep(selectedOperation === 'recharge' ? 'agent_selection' : 'payment_method')}
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <h3 className="text-lg font-semibold">
+          Détails de la demande
+        </h3>
+      </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="font-semibold mb-2">Récapitulatif</h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span>Opération:</span>
+              <span className="font-medium">{selectedOperation === 'recharge' ? 'Recharge' : 'Retrait'}</span>
+            </div>
+            {selectedPaymentMethod && (
+              <div className="flex justify-between">
+                <span>Mode de paiement:</span>
+                <span className="font-medium">{selectedPaymentMethod}</span>
+              </div>
+            )}
+            {selectedAgent && (
+              <div className="flex justify-between">
+                <span>Agent:</span>
+                <span className="font-medium">{selectedAgent.full_name}</span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="amount">Montant (FCFA) *</Label>
+          <Input
+            id="amount"
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Entrez le montant"
+            min="1000"
+            step="1000"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="description">Description (optionnel)</Label>
+          <Input
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Ajoutez une description"
+          />
+        </div>
+
+        <Button 
+          onClick={handleSubmitRequest}
+          className="w-full"
+          disabled={!amount}
+        >
+          <Send className="w-4 h-4 mr-2" />
+          Envoyer la demande
+        </Button>
+      </div>
+    </div>
+  );
 
   const renderAgentSelection = () => (
     <div className="space-y-4">
@@ -369,77 +450,6 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
     </div>
   );
 
-  const renderRequestDetails = () => (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => setCurrentStep('agent_selection')}>
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <h3 className="text-lg font-semibold">
-          Détails de la demande
-        </h3>
-      </div>
-
-      <Card>
-        <CardContent className="p-4">
-          <h4 className="font-semibold mb-2">Récapitulatif</h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Opération:</span>
-              <span className="font-medium">{selectedOperation === 'recharge' ? 'Recharge' : 'Retrait'}</span>
-            </div>
-            {selectedPaymentMethod && (
-              <div className="flex justify-between">
-                <span>Mode de paiement:</span>
-                <span className="font-medium">{selectedPaymentMethod}</span>
-              </div>
-            )}
-            {selectedAgent && (
-              <div className="flex justify-between">
-                <span>Agent:</span>
-                <span className="font-medium">{selectedAgent.full_name}</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="amount">Montant (FCFA) *</Label>
-          <Input
-            id="amount"
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Entrez le montant"
-            min="1000"
-            step="1000"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="description">Description (optionnel)</Label>
-          <Input
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Ajoutez une description"
-          />
-        </div>
-
-        <Button 
-          onClick={handleSubmitRequest}
-          className="w-full"
-          disabled={!amount || !selectedAgent}
-        >
-          <Send className="w-4 h-4 mr-2" />
-          Envoyer la demande
-        </Button>
-      </div>
-    </div>
-  );
-
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 'operation':
@@ -478,15 +488,25 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
             <CardContent className="p-4">
               <h4 className="font-semibold text-blue-900 mb-2">💡 Instructions</h4>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Contactez l'agent choisi pour finaliser votre opération</li>
-                <li>• Vérifiez toujours l'identité de l'agent avant toute transaction</li>
-                <li>• Gardez vos reçus de transaction comme preuve</li>
-                <li>• Les agents affichés ont du cash disponible</li>
-                {selectedOperation === 'retrait' && selectedPaymentMethod && (
-                  <li>• Pour un retrait, l'agent vous donnera l'argent et vous recevrez les fonds via {selectedPaymentMethod}</li>
-                )}
-                {selectedOperation === 'recharge' && selectedPaymentMethod && (
-                  <li>• Pour une recharge, envoyez l'argent via {selectedPaymentMethod} à l'agent</li>
+                {selectedOperation === 'recharge' ? (
+                  <>
+                    <li>• Contactez l'agent choisi pour finaliser votre recharge</li>
+                    <li>• Vérifiez toujours l'identité de l'agent avant toute transaction</li>
+                    <li>• Gardez vos reçus de transaction comme preuve</li>
+                    <li>• Les agents affichés ont du cash disponible</li>
+                    {selectedPaymentMethod && (
+                      <li>• Pour une recharge, envoyez l'argent via {selectedPaymentMethod} à l'agent</li>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <li>• Vous recevrez l'argent directement via le mode de paiement sélectionné</li>
+                    <li>• Vérifiez que vous avez suffisamment de solde avant de faire la demande</li>
+                    <li>• Gardez vos reçus de transaction comme preuve</li>
+                    {selectedPaymentMethod && (
+                      <li>• Pour un retrait, vous recevrez les fonds via {selectedPaymentMethod}</li>
+                    )}
+                  </>
                 )}
               </ul>
             </CardContent>
