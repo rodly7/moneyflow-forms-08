@@ -58,7 +58,7 @@ const UserRequestsManagement = () => {
           processed_by,
           processed_at,
           rejection_reason,
-          profiles!user_id (
+          profiles:user_id (
             full_name,
             phone,
             country
@@ -72,7 +72,7 @@ const UserRequestsManagement = () => {
       }
 
       console.log('✅ Demandes chargées:', requests);
-      setUserRequests(requests as UserRequest[] || []);
+      setUserRequests(requests || []);
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
@@ -354,7 +354,7 @@ const UserRequestsManagement = () => {
                           <User className="w-3 h-3" />
                           <span>{request.profiles?.full_name || 'Utilisateur inconnu'}</span>
                           <Phone className="w-3 h-3 ml-2" />
-                          <span>{request.profiles?.phone}</span>
+                          <span>{request.profiles?.phone || 'Téléphone inconnu'}</span>
                         </div>
                       </div>
                     </div>
