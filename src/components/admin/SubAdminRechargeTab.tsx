@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,7 +44,7 @@ const SubAdminRechargeTab = () => {
         .from('user_requests')
         .select(`
           *,
-          profiles!user_requests_user_id_fkey (
+          profiles!inner (
             full_name,
             phone,
             country
@@ -55,7 +54,9 @@ const SubAdminRechargeTab = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as UserRequest[];
+      
+      // Type assertion avec validation appropriée
+      return (data || []) as UserRequest[];
     },
   });
 
