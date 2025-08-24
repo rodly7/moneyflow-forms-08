@@ -62,7 +62,6 @@ const SubAdminRechargeTab = () => {
   const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
-  const [processedRequests, setProcessedRequests] = useState<Set<string>>(new Set());
 
   // Fonction pour charger les demandes
   const fetchUserRequests = async () => {
@@ -146,22 +145,8 @@ const SubAdminRechargeTab = () => {
 
       console.log('✅ Demandes chargées:', allRequests);
       
-      // Ne pas écraser les demandes qui sont en cours de traitement
-      setUserRequests(prev => {
-        const updatedRequests = allRequests.map(request => {
-          const existingRequest = prev.find(r => r.id === request.id);
-          // Si la demande était en cours de traitement et a été traitée localement, garder le statut local
-          if (processedRequests.has(request.id) && request.status !== 'pending') {
-            return request; // Utiliser les données de la DB si elles confirment le traitement
-          }
-          // Si la demande est en cours de traitement, garder l'état local
-          if (existingRequest && isProcessing === request.id) {
-            return existingRequest;
-          }
-          return request;
-        });
-        return updatedRequests;
-      });
+      // Mise à jour simple sans logique complexe
+      setUserRequests(allRequests);
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
@@ -182,11 +167,13 @@ const SubAdminRechargeTab = () => {
   // Auto-refresh toutes les 5 secondes
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchUserRequests();
+      if (!isProcessing) { // Ne pas actualiser si une opération est en cours
+        fetchUserRequests();
+      }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [processedRequests, isProcessing]);
+  }, [isProcessing]);
 
   // Écouter les changements en temps réel
   useEffect(() => {
@@ -204,10 +191,11 @@ const SubAdminRechargeTab = () => {
         }, 
         (payload) => {
           console.log('📨 Changement détecté dans recharges:', payload);
-          // Délai pour éviter les conflits avec l'état local
-          setTimeout(() => {
-            fetchUserRequests();
-          }, 1000);
+          if (!isProcessing) {
+            setTimeout(() => {
+              fetchUserRequests();
+            }, 500);
+          }
         }
       )
       .subscribe();
@@ -222,10 +210,11 @@ const SubAdminRechargeTab = () => {
         }, 
         (payload) => {
           console.log('📨 Changement détecté dans withdrawals:', payload);
-          // Délai pour éviter les conflits avec l'état local
-          setTimeout(() => {
-            fetchUserRequests();
-          }, 1000);
+          if (!isProcessing) {
+            setTimeout(() => {
+              fetchUserRequests();
+            }, 500);
+          }
         }
       )
       .subscribe();
@@ -235,7 +224,7 @@ const SubAdminRechargeTab = () => {
       supabase.removeChannel(rechargesChannel);
       supabase.removeChannel(withdrawalsChannel);
     };
-  }, [user, toast, processedRequests, isProcessing]);
+  }, [user, isProcessing]);
 
   const handleApprove = async (requestId: string) => {
     try {
@@ -248,7 +237,7 @@ const SubAdminRechargeTab = () => {
         return;
       }
 
-      // Mise à jour optimiste de l'état local avant l'appel API
+      // Mise à jour immédiate de l'interface utilisateur
       setUserRequests(prev => 
         prev.map(req => 
           req.id === requestId 
@@ -270,14 +259,8 @@ const SubAdminRechargeTab = () => {
 
       if (error) {
         console.error('❌ Erreur lors de l\'approbation:', error);
-        // Revertir la mise à jour optimiste en cas d'erreur
-        setUserRequests(prev => 
-          prev.map(req => 
-            req.id === requestId 
-              ? { ...req, status: request.status, updated_at: request.updated_at }
-              : req
-          )
-        );
+        // En cas d'erreur, recharger les données pour revenir à l'état correct
+        await fetchUserRequests();
         
         toast({
           title: "Erreur",
@@ -288,28 +271,20 @@ const SubAdminRechargeTab = () => {
       }
 
       console.log('✅ Approbation réussie pour:', requestId);
-      
-      // Marquer comme traité pour éviter qu'elle réapparaisse
-      setProcessedRequests(prev => new Set([...prev, requestId]));
 
       toast({
         title: "Demande approuvée",
         description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} approuvé avec succès`,
       });
 
+      // Attendre un peu puis recharger pour être sûr
+      setTimeout(() => {
+        fetchUserRequests();
+      }, 1000);
+
     } catch (error) {
       console.error('💥 Erreur lors de l\'approbation:', error);
-      // Revertir en cas d'erreur
-      const request = userRequests.find(r => r.id === requestId);
-      if (request) {
-        setUserRequests(prev => 
-          prev.map(req => 
-            req.id === requestId 
-              ? { ...req, status: request.status, updated_at: request.updated_at }
-              : req
-          )
-        );
-      }
+      await fetchUserRequests(); // Recharger en cas d'erreur
       
       toast({
         title: "Erreur",
@@ -332,7 +307,7 @@ const SubAdminRechargeTab = () => {
         return;
       }
 
-      // Mise à jour optimiste de l'état local avant l'appel API
+      // Mise à jour immédiate de l'interface utilisateur
       setUserRequests(prev => 
         prev.map(req => 
           req.id === requestId 
@@ -354,14 +329,8 @@ const SubAdminRechargeTab = () => {
 
       if (error) {
         console.error('❌ Erreur lors du rejet:', error);
-        // Revertir la mise à jour optimiste en cas d'erreur
-        setUserRequests(prev => 
-          prev.map(req => 
-            req.id === requestId 
-              ? { ...req, status: request.status, updated_at: request.updated_at }
-              : req
-          )
-        );
+        // En cas d'erreur, recharger les données pour revenir à l'état correct
+        await fetchUserRequests();
         
         toast({
           title: "Erreur",
@@ -372,28 +341,20 @@ const SubAdminRechargeTab = () => {
       }
 
       console.log('✅ Rejet réussi pour:', requestId);
-      
-      // Marquer comme traité pour éviter qu'elle réapparaisse
-      setProcessedRequests(prev => new Set([...prev, requestId]));
 
       toast({
         title: "Demande rejetée",
         description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} rejeté`,
       });
 
+      // Attendre un peu puis recharger pour être sûr
+      setTimeout(() => {
+        fetchUserRequests();
+      }, 1000);
+
     } catch (error) {
       console.error('💥 Erreur lors du rejet:', error);
-      // Revertir en cas d'erreur
-      const request = userRequests.find(r => r.id === requestId);
-      if (request) {
-        setUserRequests(prev => 
-          prev.map(req => 
-            req.id === requestId 
-              ? { ...req, status: request.status, updated_at: request.updated_at }
-              : req
-          )
-        );
-      }
+      await fetchUserRequests(); // Recharger en cas d'erreur
       
       toast({
         title: "Erreur",
