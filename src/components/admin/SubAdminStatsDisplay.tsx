@@ -8,7 +8,14 @@ import { useSubAdminStats } from '@/hooks/useSubAdminStats';
 const SubAdminStatsDisplay = () => {
   const { stats, loading } = useSubAdminStats();
 
+  // Debug: afficher les statistiques reçues
+  React.useEffect(() => {
+    console.log('📊 Debug SubAdminStatsDisplay - Stats reçues:', stats);
+    console.log('⏳ Debug SubAdminStatsDisplay - Loading:', loading);
+  }, [stats, loading]);
+
   if (loading) {
+    console.log('🔄 Debug - Affichage du loading...');
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
         {[1, 2, 3, 4].map((i) => (
@@ -28,6 +35,8 @@ const SubAdminStatsDisplay = () => {
     if (stats.quotaUtilization >= 80) return 'text-yellow-600 bg-yellow-50';
     return 'text-blue-600 bg-blue-50';
   };
+
+  console.log('✅ Debug - Rendu des statistiques:', stats);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
