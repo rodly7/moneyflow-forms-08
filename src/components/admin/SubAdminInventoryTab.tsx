@@ -5,8 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Package, AlertTriangle, TrendingUp, Wallet } from 'lucide-react';
 import { formatCurrency } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 
 interface InventoryItem {
   id: string;
@@ -22,50 +20,57 @@ interface InventoryItem {
 }
 
 const SubAdminInventoryTab = () => {
-  const { data: inventory = [], isLoading } = useQuery({
-    queryKey: ['inventory-items'],
-    queryFn: async (): Promise<InventoryItem[]> => {
-      const { data, error } = await supabase
-        .from('inventory_items')
-        .select('*')
-        .order('name');
-
-      if (error) {
-        console.error('Erreur lors de la récupération de l\'inventaire:', error);
-        return [];
-      }
-
-      // Mettre à jour le statut en fonction du stock
-      const updatedItems = data?.map(item => {
-        let status: 'available' | 'low_stock' | 'out_of_stock';
-        if (item.stock === 0) {
-          status = 'out_of_stock';
-        } else if (item.stock <= item.min_threshold) {
-          status = 'low_stock';
-        } else {
-          status = 'available';
-        }
-
-        return {
-          ...item,
-          status
-        };
-      }) || [];
-
-      return updatedItems;
+  // Mock inventory data until the database tables are available
+  const inventory: InventoryItem[] = [
+    {
+      id: '1',
+      name: 'Cartes de recharge Orange',
+      category: 'Télécommunications',
+      stock: 150,
+      max_stock: 200,
+      min_threshold: 20,
+      unit_price: 1000,
+      status: 'available',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     },
-    refetchInterval: 30000, // Actualiser toutes les 30 secondes
-  });
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    );
-  }
+    {
+      id: '2',
+      name: 'Cartes de recharge MTN',
+      category: 'Télécommunications',
+      stock: 15,
+      max_stock: 200,
+      min_threshold: 20,
+      unit_price: 1000,
+      status: 'low_stock',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: '3',
+      name: 'Cartes de recharge Moov',
+      category: 'Télécommunications',
+      stock: 0,
+      max_stock: 200,
+      min_threshold: 20,
+      unit_price: 1000,
+      status: 'out_of_stock',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: '4',
+      name: 'Billets de 1000 XAF',
+      category: 'Espèces',
+      stock: 500,
+      max_stock: 1000,
+      min_threshold: 100,
+      unit_price: 1000,
+      status: 'available',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
