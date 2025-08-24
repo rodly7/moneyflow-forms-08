@@ -62,6 +62,7 @@ const SubAdminRechargeTab = () => {
   const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [processedIds, setProcessedIds] = useState<Set<string>>(new Set());
 
   // Fonction pour charger les demandes
   const fetchUserRequests = async () => {
@@ -145,7 +146,6 @@ const SubAdminRechargeTab = () => {
 
       console.log('✅ Demandes chargées:', allRequests);
       
-      // Mise à jour simple sans logique complexe
       setUserRequests(allRequests);
     } catch (error) {
       console.error('Erreur critique:', error);
@@ -167,7 +167,7 @@ const SubAdminRechargeTab = () => {
   // Auto-refresh toutes les 5 secondes
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!isProcessing) { // Ne pas actualiser si une opération est en cours
+      if (!isProcessing) {
         fetchUserRequests();
       }
     }, 5000);
@@ -229,6 +229,10 @@ const SubAdminRechargeTab = () => {
   const handleApprove = async (requestId: string) => {
     try {
       setIsProcessing(requestId);
+      
+      // Ajouter à la liste des IDs traités immédiatement
+      setProcessedIds(prev => new Set([...prev, requestId]));
+      
       console.log('🔄 Début approbation pour:', requestId);
       
       const request = userRequests.find(r => r.id === requestId);
@@ -236,15 +240,6 @@ const SubAdminRechargeTab = () => {
         console.error('Demande non trouvée:', requestId);
         return;
       }
-
-      // Mise à jour immédiate de l'interface utilisateur
-      setUserRequests(prev => 
-        prev.map(req => 
-          req.id === requestId 
-            ? { ...req, status: 'completed', updated_at: new Date().toISOString() }
-            : req
-        )
-      );
 
       const tableName = request.operation_type === 'recharge' ? 'recharges' : 'withdrawals';
       console.log('📊 Mise à jour dans la table:', tableName);
@@ -259,8 +254,12 @@ const SubAdminRechargeTab = () => {
 
       if (error) {
         console.error('❌ Erreur lors de l\'approbation:', error);
-        // En cas d'erreur, recharger les données pour revenir à l'état correct
-        await fetchUserRequests();
+        // Retirer de la liste des IDs traités en cas d'erreur
+        setProcessedIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(requestId);
+          return newSet;
+        });
         
         toast({
           title: "Erreur",
@@ -277,14 +276,15 @@ const SubAdminRechargeTab = () => {
         description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} approuvé avec succès`,
       });
 
-      // Attendre un peu puis recharger pour être sûr
-      setTimeout(() => {
-        fetchUserRequests();
-      }, 1000);
-
     } catch (error) {
       console.error('💥 Erreur lors de l\'approbation:', error);
-      await fetchUserRequests(); // Recharger en cas d'erreur
+      
+      // Retirer de la liste des IDs traités en cas d'erreur
+      setProcessedIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(requestId);
+        return newSet;
+      });
       
       toast({
         title: "Erreur",
@@ -299,6 +299,10 @@ const SubAdminRechargeTab = () => {
   const handleReject = async (requestId: string, reason = 'Demande rejetée par l\'administrateur') => {
     try {
       setIsProcessing(requestId);
+      
+      // Ajouter à la liste des IDs traités immédiatement
+      setProcessedIds(prev => new Set([...prev, requestId]));
+      
       console.log('🔄 Début rejet pour:', requestId);
       
       const request = userRequests.find(r => r.id === requestId);
@@ -306,15 +310,6 @@ const SubAdminRechargeTab = () => {
         console.error('Demande non trouvée:', requestId);
         return;
       }
-
-      // Mise à jour immédiate de l'interface utilisateur
-      setUserRequests(prev => 
-        prev.map(req => 
-          req.id === requestId 
-            ? { ...req, status: 'failed', updated_at: new Date().toISOString() }
-            : req
-        )
-      );
 
       const tableName = request.operation_type === 'recharge' ? 'recharges' : 'withdrawals';
       console.log('📊 Mise à jour dans la table:', tableName);
@@ -329,8 +324,13 @@ const SubAdminRechargeTab = () => {
 
       if (error) {
         console.error('❌ Erreur lors du rejet:', error);
-        // En cas d'erreur, recharger les données pour revenir à l'état correct
-        await fetchUserRequests();
+        
+        // Retirer de la liste des IDs traités en cas d'erreur
+        setProcessedIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(requestId);
+          return newSet;
+        });
         
         toast({
           title: "Erreur",
@@ -347,14 +347,15 @@ const SubAdminRechargeTab = () => {
         description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} rejeté`,
       });
 
-      // Attendre un peu puis recharger pour être sûr
-      setTimeout(() => {
-        fetchUserRequests();
-      }, 1000);
-
     } catch (error) {
       console.error('💥 Erreur lors du rejet:', error);
-      await fetchUserRequests(); // Recharger en cas d'erreur
+      
+      // Retirer de la liste des IDs traités en cas d'erreur
+      setProcessedIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(requestId);
+        return newSet;
+      });
       
       toast({
         title: "Erreur",
@@ -389,8 +390,14 @@ const SubAdminRechargeTab = () => {
       <CreditCard className="w-4 h-4 text-red-600" />;
   };
 
-  const pendingRequests = userRequests.filter(req => req.status === 'pending');
-  const processedRequestsList = userRequests.filter(req => req.status !== 'pending');
+  // Filtrer les demandes en attente en excluant celles qui ont été traitées
+  const pendingRequests = userRequests.filter(req => 
+    req.status === 'pending' && !processedIds.has(req.id)
+  );
+  
+  const processedRequestsList = userRequests.filter(req => 
+    req.status !== 'pending' || processedIds.has(req.id)
+  );
 
   if (isLoading) {
     return (
