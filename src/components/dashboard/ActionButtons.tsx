@@ -83,7 +83,6 @@ const ActionButtons = () => {
         
         <div className="mt-4 pt-4 border-t">
           <UserRechargeRequestModal
-            size="lg"
             className="w-full"
           />
         </div>

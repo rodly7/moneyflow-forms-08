@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,7 +58,7 @@ const SubAdminRechargeTab = () => {
       // Filtrer et typer correctement les données avec gestion du null
       return (data || []).map(item => ({
         ...item,
-        profiles: item.profiles && typeof item.profiles === 'object' && !('error' in item.profiles) && item.profiles !== null
+        profiles: item.profiles && typeof item.profiles === 'object' && !Array.isArray(item.profiles) && 'full_name' in item.profiles
           ? item.profiles as { full_name: string; phone: string; country: string }
           : null
       })) as UserRequest[];

@@ -75,7 +75,6 @@ const MobileDashboard = () => {
             {/* Recharge Button */}
             <div className="pt-4 border-t">
               <UserRechargeRequestModal
-                size="lg"
                 className="w-full"
               />
             </div>

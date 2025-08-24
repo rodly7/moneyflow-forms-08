@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -102,7 +103,6 @@ const MobileOptimizedDashboard = () => {
         
         <div className="ultra-compact-recharge-section">
           <UserRechargeRequestModal
-            size="lg"
             className="w-full ultra-compact-recharge-button"
           />
         </div>
