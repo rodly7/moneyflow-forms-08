@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -217,6 +216,15 @@ const SubAdminRechargeTab = () => {
         return;
       }
 
+      // Mise à jour optimiste de l'état local avant l'appel API
+      setUserRequests(prev => 
+        prev.map(req => 
+          req.id === requestId 
+            ? { ...req, status: 'completed', updated_at: new Date().toISOString() }
+            : req
+        )
+      );
+
       const tableName = request.operation_type === 'recharge' ? 'recharges' : 'withdrawals';
       console.log('📊 Mise à jour dans la table:', tableName);
       
@@ -230,6 +238,15 @@ const SubAdminRechargeTab = () => {
 
       if (error) {
         console.error('❌ Erreur lors de l\'approbation:', error);
+        // Revertir la mise à jour optimiste en cas d'erreur
+        setUserRequests(prev => 
+          prev.map(req => 
+            req.id === requestId 
+              ? { ...req, status: request.status, updated_at: request.updated_at }
+              : req
+          )
+        );
+        
         toast({
           title: "Erreur",
           description: "Impossible d'approuver la demande: " + error.message,
@@ -239,28 +256,26 @@ const SubAdminRechargeTab = () => {
       }
 
       console.log('✅ Approbation réussie pour:', requestId);
-      
-      // Mettre à jour immédiatement l'état local
-      setUserRequests(prev => 
-        prev.map(req => 
-          req.id === requestId 
-            ? { ...req, status: 'completed', updated_at: new Date().toISOString() }
-            : req
-        )
-      );
 
       toast({
         title: "Demande approuvée",
         description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} approuvé avec succès`,
       });
 
-      // Recharger les données pour s'assurer de la cohérence
-      setTimeout(() => {
-        fetchUserRequests();
-      }, 1000);
-
     } catch (error) {
       console.error('💥 Erreur lors de l\'approbation:', error);
+      // Revertir en cas d'erreur
+      const request = userRequests.find(r => r.id === requestId);
+      if (request) {
+        setUserRequests(prev => 
+          prev.map(req => 
+            req.id === requestId 
+              ? { ...req, status: request.status, updated_at: request.updated_at }
+              : req
+          )
+        );
+      }
+      
       toast({
         title: "Erreur",
         description: "Erreur lors du traitement de la demande",
@@ -282,6 +297,15 @@ const SubAdminRechargeTab = () => {
         return;
       }
 
+      // Mise à jour optimiste de l'état local avant l'appel API
+      setUserRequests(prev => 
+        prev.map(req => 
+          req.id === requestId 
+            ? { ...req, status: 'failed', updated_at: new Date().toISOString() }
+            : req
+        )
+      );
+
       const tableName = request.operation_type === 'recharge' ? 'recharges' : 'withdrawals';
       console.log('📊 Mise à jour dans la table:', tableName);
       
@@ -295,6 +319,15 @@ const SubAdminRechargeTab = () => {
 
       if (error) {
         console.error('❌ Erreur lors du rejet:', error);
+        // Revertir la mise à jour optimiste en cas d'erreur
+        setUserRequests(prev => 
+          prev.map(req => 
+            req.id === requestId 
+              ? { ...req, status: request.status, updated_at: request.updated_at }
+              : req
+          )
+        );
+        
         toast({
           title: "Erreur",
           description: "Impossible de rejeter la demande: " + error.message,
@@ -304,28 +337,26 @@ const SubAdminRechargeTab = () => {
       }
 
       console.log('✅ Rejet réussi pour:', requestId);
-      
-      // Mettre à jour immédiatement l'état local
-      setUserRequests(prev => 
-        prev.map(req => 
-          req.id === requestId 
-            ? { ...req, status: 'failed', updated_at: new Date().toISOString() }
-            : req
-        )
-      );
 
       toast({
         title: "Demande rejetée",
         description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} rejeté`,
       });
 
-      // Recharger les données pour s'assurer de la cohérence
-      setTimeout(() => {
-        fetchUserRequests();
-      }, 1000);
-
     } catch (error) {
       console.error('💥 Erreur lors du rejet:', error);
+      // Revertir en cas d'erreur
+      const request = userRequests.find(r => r.id === requestId);
+      if (request) {
+        setUserRequests(prev => 
+          prev.map(req => 
+            req.id === requestId 
+              ? { ...req, status: request.status, updated_at: request.updated_at }
+              : req
+          )
+        );
+      }
+      
       toast({
         title: "Erreur",
         description: "Erreur lors du traitement de la demande",
