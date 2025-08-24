@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, Settings, TrendingUp, Clock, BarChart3 } from 'lucide-react';
+import { AlertCircle, Settings, TrendingUp, Clock, BarChart3, History } from 'lucide-react';
 import { useSubAdminDailyRequests } from '@/hooks/useSubAdminDailyRequests';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,7 +16,7 @@ const SubAdminDailyLimitSettings = () => {
   const { user } = useAuth();
   const [newLimit, setNewLimit] = useState(status.maxRequests.toString());
   const [isUpdating, setIsUpdating] = useState(false);
-  const [totalHistoricalRequests, setTotalHistoricalRequests] = useState(0);
+  const [totalProcessedRequests, setTotalProcessedRequests] = useState(0);
   const [dynamicQuota, setDynamicQuota] = useState(300);
 
   useEffect(() => {
@@ -24,19 +24,21 @@ const SubAdminDailyLimitSettings = () => {
       if (!user?.id) return;
 
       try {
-        // Compter le total historique
+        // Compter le total des demandes traitées dans l'historique
         const { count } = await supabase
           .from('sub_admin_daily_requests')
           .select('*', { count: 'exact', head: true })
           .eq('sub_admin_id', user.id);
 
-        setTotalHistoricalRequests(count || 0);
+        setTotalProcessedRequests(count || 0);
 
-        // Calculer le quota dynamique
+        // Calculer le quota dynamique basé sur les demandes traitées
         const baseQuota = 300;
         const bonusQuota = Math.floor((count || 0) / 100) * 50;
         const calculated = Math.min(1000, baseQuota + bonusQuota);
         setDynamicQuota(calculated);
+
+        console.log(`Données historiques: ${count} demandes traitées, quota calculé: ${calculated}`);
       } catch (error) {
         console.error('Erreur lors du chargement des données historiques:', error);
       }
@@ -86,7 +88,7 @@ const SubAdminDailyLimitSettings = () => {
             Plafond des Demandes Quotidiennes
           </CardTitle>
           <CardDescription>
-            Gérez votre limite quotidienne de demandes administratives
+            Votre quota est calculé automatiquement selon votre historique de demandes traitées
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -134,20 +136,20 @@ const SubAdminDailyLimitSettings = () => {
             </div>
           </div>
 
-          {/* Quota dynamique basé sur l'historique */}
+          {/* Historique des demandes et quota dynamique */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <BarChart3 className="w-5 h-5 text-blue-600 mt-0.5" />
+              <History className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
-                <h4 className="font-medium text-blue-900 mb-1">Quota Dynamique Calculé</h4>
+                <h4 className="font-medium text-blue-900 mb-1">Quota Basé sur l'Historique</h4>
                 <p className="text-sm text-blue-700 mb-2">
-                  Basé sur vos {totalHistoricalRequests} demandes historiques totales
+                  Calculé à partir de vos {totalProcessedRequests} demandes traitées au total
                 </p>
                 <div className="text-sm text-blue-600">
-                  <span className="font-medium">Quota suggéré: {dynamicQuota} demandes/jour</span>
+                  <span className="font-medium">Quota automatique: {dynamicQuota} demandes/jour</span>
                   <br />
                   <span className="text-xs">
-                    (Base: 300 + Bonus: {Math.floor(totalHistoricalRequests / 100) * 50} pour {Math.floor(totalHistoricalRequests / 100)} tranches de 100 demandes)
+                    (Base: 300 + Bonus: {Math.floor(totalProcessedRequests / 100) * 50} pour {Math.floor(totalProcessedRequests / 100)} tranches de 100 demandes traitées)
                   </span>
                 </div>
               </div>
@@ -158,10 +160,10 @@ const SubAdminDailyLimitSettings = () => {
           <div className="space-y-4 border-t pt-4">
             <div>
               <Label htmlFor="newLimit" className="text-base font-medium">
-                Modifier le plafond quotidien
+                Personnaliser le plafond quotidien
               </Label>
               <p className="text-sm text-gray-600 mb-2">
-                Entre 100 et 1000 demandes par jour (suggéré: {dynamicQuota})
+                Entre 100 et 1000 demandes par jour (automatique: {dynamicQuota})
               </p>
             </div>
             
@@ -188,16 +190,16 @@ const SubAdminDailyLimitSettings = () => {
             </div>
           </div>
 
-          {/* Avertissement */}
+          {/* Information sur le système */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
               <div>
-                <h4 className="font-medium text-amber-900 mb-1">Important</h4>
+                <h4 className="font-medium text-amber-900 mb-1">Système Intelligent</h4>
                 <p className="text-sm text-amber-700">
-                  Le plafond se remet à zéro chaque jour à minuit. 
-                  Plus vous utilisez le système, plus votre quota suggéré augmente automatiquement.
-                  Une fois le plafond atteint, vous ne pourrez plus effectuer de nouvelles demandes jusqu'au lendemain.
+                  Votre quota journalier augmente automatiquement en fonction de votre historique de demandes traitées.
+                  Plus vous travaillez efficacement, plus votre plafond quotidien s'élève.
+                  Le plafond se remet à zéro chaque jour à minuit.
                 </p>
               </div>
             </div>
