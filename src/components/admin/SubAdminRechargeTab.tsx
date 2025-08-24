@@ -62,6 +62,7 @@ const SubAdminRechargeTab = () => {
   const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [processedRequests, setProcessedRequests] = useState<Set<string>>(new Set());
 
   // Fonction pour charger les demandes
   const fetchUserRequests = async () => {
@@ -144,7 +145,23 @@ const SubAdminRechargeTab = () => {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       console.log('✅ Demandes chargées:', allRequests);
-      setUserRequests(allRequests);
+      
+      // Ne pas écraser les demandes qui sont en cours de traitement
+      setUserRequests(prev => {
+        const updatedRequests = allRequests.map(request => {
+          const existingRequest = prev.find(r => r.id === request.id);
+          // Si la demande était en cours de traitement et a été traitée localement, garder le statut local
+          if (processedRequests.has(request.id) && request.status !== 'pending') {
+            return request; // Utiliser les données de la DB si elles confirment le traitement
+          }
+          // Si la demande est en cours de traitement, garder l'état local
+          if (existingRequest && isProcessing === request.id) {
+            return existingRequest;
+          }
+          return request;
+        });
+        return updatedRequests;
+      });
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
@@ -162,6 +179,15 @@ const SubAdminRechargeTab = () => {
     fetchUserRequests();
   }, []);
 
+  // Auto-refresh toutes les 5 secondes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchUserRequests();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [processedRequests, isProcessing]);
+
   // Écouter les changements en temps réel
   useEffect(() => {
     if (!user) return;
@@ -178,7 +204,10 @@ const SubAdminRechargeTab = () => {
         }, 
         (payload) => {
           console.log('📨 Changement détecté dans recharges:', payload);
-          fetchUserRequests();
+          // Délai pour éviter les conflits avec l'état local
+          setTimeout(() => {
+            fetchUserRequests();
+          }, 1000);
         }
       )
       .subscribe();
@@ -193,7 +222,10 @@ const SubAdminRechargeTab = () => {
         }, 
         (payload) => {
           console.log('📨 Changement détecté dans withdrawals:', payload);
-          fetchUserRequests();
+          // Délai pour éviter les conflits avec l'état local
+          setTimeout(() => {
+            fetchUserRequests();
+          }, 1000);
         }
       )
       .subscribe();
@@ -203,7 +235,7 @@ const SubAdminRechargeTab = () => {
       supabase.removeChannel(rechargesChannel);
       supabase.removeChannel(withdrawalsChannel);
     };
-  }, [user, toast]);
+  }, [user, toast, processedRequests, isProcessing]);
 
   const handleApprove = async (requestId: string) => {
     try {
@@ -256,6 +288,9 @@ const SubAdminRechargeTab = () => {
       }
 
       console.log('✅ Approbation réussie pour:', requestId);
+      
+      // Marquer comme traité pour éviter qu'elle réapparaisse
+      setProcessedRequests(prev => new Set([...prev, requestId]));
 
       toast({
         title: "Demande approuvée",
@@ -337,6 +372,9 @@ const SubAdminRechargeTab = () => {
       }
 
       console.log('✅ Rejet réussi pour:', requestId);
+      
+      // Marquer comme traité pour éviter qu'elle réapparaisse
+      setProcessedRequests(prev => new Set([...prev, requestId]));
 
       toast({
         title: "Demande rejetée",
@@ -391,7 +429,7 @@ const SubAdminRechargeTab = () => {
   };
 
   const pendingRequests = userRequests.filter(req => req.status === 'pending');
-  const processedRequests = userRequests.filter(req => req.status !== 'pending');
+  const processedRequestsList = userRequests.filter(req => req.status !== 'pending');
 
   if (isLoading) {
     return (
@@ -544,8 +582,8 @@ const SubAdminRechargeTab = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {processedRequests.length > 0 ? (
-              processedRequests.slice(0, 10).map((request) => (
+            {processedRequestsList.length > 0 ? (
+              processedRequestsList.slice(0, 10).map((request) => (
                 <div key={request.id} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
