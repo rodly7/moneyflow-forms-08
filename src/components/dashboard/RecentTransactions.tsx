@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { 
   ArrowUpRight, 
   ArrowDownLeft, 
@@ -10,14 +11,17 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Eye
 } from 'lucide-react';
 import { useRealtimeTransactions } from '@/hooks/useRealtimeTransactions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const RecentTransactions = () => {
   const { user } = useAuth();
   const { transactions, isLoading } = useRealtimeTransactions(user?.id);
+  const navigate = useNavigate();
 
   console.log("🎯 RecentTransactions - user:", user?.id, "transactions:", transactions.length, "isLoading:", isLoading);
 
@@ -116,6 +120,10 @@ const RecentTransactions = () => {
     return '';
   };
 
+  const handleViewAll = () => {
+    navigate('/transactions');
+  };
+
   if (isLoading) {
     console.log("⏳ Affichage du loader");
     return (
@@ -150,11 +158,15 @@ const RecentTransactions = () => {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="w-5 h-5" />
           Transactions récentes
         </CardTitle>
+        <Button variant="outline" size="sm" onClick={handleViewAll}>
+          <Eye className="w-4 h-4 mr-1" />
+          Voir tout
+        </Button>
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (
