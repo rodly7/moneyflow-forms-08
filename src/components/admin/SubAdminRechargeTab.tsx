@@ -29,7 +29,7 @@ const SubAdminRechargeTab = () => {
         .from('user_requests')
         .select(`
           *,
-          profiles!user_requests_user_id_fkey (
+          profiles (
             full_name,
             phone
           )
@@ -47,7 +47,9 @@ const SubAdminRechargeTab = () => {
       }
 
       console.log('✅ Demandes chargées:', data);
-      setUserRequests(data || []);
+      // Type assertion sécurisée avec vérification
+      const typedData = (data || []) as UserRequest[];
+      setUserRequests(typedData);
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
