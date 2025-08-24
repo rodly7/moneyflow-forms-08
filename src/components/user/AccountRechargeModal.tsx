@@ -39,7 +39,6 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
 
   // Reset state when modal closes
   const handleOpenChange = (open: boolean) => {
@@ -50,7 +49,6 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
       setSelectedPaymentMethod(null);
       setSelectedAgent(null);
       setAmount('');
-      setDescription('');
     }
   };
 
@@ -323,16 +321,6 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
             placeholder="Entrez le montant"
             min="1000"
             step="1000"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="description">Description (optionnel)</Label>
-          <Input
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Ajoutez une description"
           />
         </div>
 
