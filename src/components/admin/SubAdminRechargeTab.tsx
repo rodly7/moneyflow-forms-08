@@ -1,11 +1,13 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CreditCard, Clock, CheckCircle, XCircle, User, Phone } from 'lucide-react';
 import { formatCurrency } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserRequest {
   id: string;
@@ -17,6 +19,8 @@ interface UserRequest {
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   processed_at?: string;
+  processed_by?: string;
+  rejection_reason?: string;
   profiles?: {
     full_name: string;
     phone: string;
@@ -25,66 +29,167 @@ interface UserRequest {
 
 const SubAdminRechargeTab = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock user requests until the database table is available
-  const userRequests: UserRequest[] = [
-    {
-      id: '1',
-      user_id: 'user1',
-      operation_type: 'recharge',
-      amount: 50000,
-      payment_method: 'Orange Money',
-      payment_phone: '+221701234567',
-      status: 'pending',
-      created_at: new Date().toISOString(),
-      profiles: {
-        full_name: 'Mamadou Diallo',
-        phone: '+221701234567'
+  // Fonction pour charger les demandes
+  const fetchUserRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_requests')
+        .select(`
+          *,
+          profiles:user_id (
+            full_name,
+            phone
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erreur lors du chargement des demandes:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les demandes",
+          variant: "destructive"
+        });
+        return;
       }
-    },
-    {
-      id: '2',
-      user_id: 'user2',
-      operation_type: 'withdrawal',
-      amount: 25000,
-      payment_method: 'Wave',
-      payment_phone: '+221702345678',
-      status: 'pending',
-      created_at: new Date(Date.now() - 3600000).toISOString(),
-      profiles: {
-        full_name: 'Fatou Sall',
-        phone: '+221702345678'
-      }
-    },
-    {
-      id: '3',
-      user_id: 'user3',
-      operation_type: 'recharge',
-      amount: 75000,
-      payment_method: 'Free Money',
-      payment_phone: '+221703456789',
-      status: 'approved',
-      created_at: new Date(Date.now() - 7200000).toISOString(),
-      processed_at: new Date(Date.now() - 3600000).toISOString(),
-      profiles: {
-        full_name: 'Ousmane Ba',
-        phone: '+221703456789'
-      }
+
+      console.log('✅ Demandes chargées:', data);
+      setUserRequests(data || []);
+    } catch (error) {
+      console.error('Erreur critique:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors du chargement des données",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
-  ];
-
-  const handleApprove = (requestId: string) => {
-    toast({
-      title: "Demande approuvée",
-      description: "La demande a été approuvée avec succès",
-    });
   };
 
-  const handleReject = (requestId: string) => {
-    toast({
-      title: "Demande rejetée",
-      description: "La demande a été rejetée",
-    });
+  // Charger les demandes au montage
+  useEffect(() => {
+    fetchUserRequests();
+  }, []);
+
+  // Écouter les changements en temps réel
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('🔄 Configuration de l\'écoute temps réel pour user_requests');
+    
+    const channel = supabase
+      .channel('user_requests_changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'user_requests'
+        }, 
+        (payload) => {
+          console.log('📨 Changement détecté dans user_requests:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            const newRequest = payload.new as UserRequest;
+            toast({
+              title: "Nouvelle demande",
+              description: `Nouvelle demande de ${newRequest.operation_type} de ${formatCurrency(newRequest.amount, 'XAF')}`,
+            });
+            // Recharger les données pour avoir les profils associés
+            fetchUserRequests();
+          } else if (payload.eventType === 'UPDATE') {
+            // Recharger les données en cas de mise à jour
+            fetchUserRequests();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('🔇 Désabonnement du canal user_requests');
+      supabase.removeChannel(channel);
+    };
+  }, [user, toast]);
+
+  const handleApprove = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_requests')
+        .update({
+          status: 'approved',
+          processed_at: new Date().toISOString(),
+          processed_by: user?.id
+        })
+        .eq('id', requestId);
+
+      if (error) {
+        console.error('Erreur lors de l\'approbation:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible d'approuver la demande",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Demande approuvée",
+        description: "La demande a été approuvée avec succès",
+      });
+
+      // Recharger les données
+      fetchUserRequests();
+    } catch (error) {
+      console.error('Erreur lors de l\'approbation:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors du traitement de la demande",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleReject = async (requestId: string, reason = 'Demande rejetée par l\'administrateur') => {
+    try {
+      const { error } = await supabase
+        .from('user_requests')
+        .update({
+          status: 'rejected',
+          processed_at: new Date().toISOString(),
+          processed_by: user?.id,
+          rejection_reason: reason
+        })
+        .eq('id', requestId);
+
+      if (error) {
+        console.error('Erreur lors du rejet:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de rejeter la demande",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Demande rejetée",
+        description: "La demande a été rejetée",
+      });
+
+      // Recharger les données
+      fetchUserRequests();
+    } catch (error) {
+      console.error('Erreur lors du rejet:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors du traitement de la demande",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -112,6 +217,27 @@ const SubAdminRechargeTab = () => {
 
   const pendingRequests = userRequests.filter(req => req.status === 'pending');
   const processedRequests = userRequests.filter(req => req.status !== 'pending');
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              Chargement des demandes...
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="animate-pulse space-y-3">
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -251,6 +377,9 @@ const SubAdminRechargeTab = () => {
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Traité le: {request.processed_at ? new Date(request.processed_at).toLocaleDateString('fr-FR') : 'N/A'}
+                    {request.rejection_reason && (
+                      <div className="text-red-600 mt-1">Raison: {request.rejection_reason}</div>
+                    )}
                   </div>
                 </div>
               ))
