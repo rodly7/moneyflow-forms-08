@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, Settings, Clock, History } from 'lucide-react';
+import { AlertCircle, Settings, Clock, History, Calculator } from 'lucide-react';
 import { useSubAdminDailyRequests } from '@/hooks/useSubAdminDailyRequests';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -15,28 +14,24 @@ const SubAdminDailyLimitSettings = () => {
   const { user } = useAuth();
   const [newLimit, setNewLimit] = useState(status.maxRequests.toString());
   const [isUpdating, setIsUpdating] = useState(false);
-  const [dynamicQuota, setDynamicQuota] = useState(300);
 
-  useEffect(() => {
-    // Calculer le quota automatique basé sur le total des demandes historiques
-    const calculateAutomaticQuota = () => {
-      const baseQuota = 300;
-      const totalRequests = status.totalRequests || 0;
-      const bonusQuota = Math.floor(totalRequests / 100) * 50;
-      const calculated = Math.min(1000, baseQuota + bonusQuota);
-      
-      console.log(`Calcul du quota automatique:`, {
-        totalRequests,
-        baseQuota, 
-        bonusQuota,
-        calculated
-      });
-      
-      setDynamicQuota(calculated);
-    };
+  // Calculer le quota automatique basé sur le total des demandes historiques
+  const calculateAutomaticQuota = (totalRequests: number) => {
+    const baseQuota = 300;
+    const bonusQuota = Math.floor(totalRequests / 100) * 50;
+    const calculatedQuota = Math.min(1000, baseQuota + bonusQuota);
+    
+    console.log('Calcul quota dans composant:', {
+      totalRequests,
+      baseQuota,
+      bonusQuota,
+      calculatedQuota
+    });
+    
+    return calculatedQuota;
+  };
 
-    calculateAutomaticQuota();
-  }, [status.totalRequests]);
+  const automaticQuota = calculateAutomaticQuota(status.totalRequests);
 
   useEffect(() => {
     setNewLimit(status.maxRequests.toString());
@@ -76,13 +71,44 @@ const SubAdminDailyLimitSettings = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5" />
-            Plafond des Demandes Quotidiennes
+            Plafond des Demandes Quotidiennes (Système Dynamique)
           </CardTitle>
           <CardDescription>
-            Votre quota est calculé automatiquement selon votre total de demandes traitées: {status.totalRequests} demandes
+            Votre quota est calculé automatiquement selon votre total de demandes historiques: <span className="font-semibold text-blue-600">{status.totalRequests} demandes</span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Affichage du calcul du quota */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Calculator className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-medium text-blue-900 mb-2">Calcul du Quota Dynamique</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-blue-700">Quota de base:</span>
+                    <span className="font-semibold">300 demandes</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-blue-700">Demandes historiques:</span>
+                    <span className="font-semibold">{status.totalRequests}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-blue-700">Bonus (50 par tranche de 100):</span>
+                    <span className="font-semibold">{Math.floor(status.totalRequests / 100)} × 50 = {Math.floor(status.totalRequests / 100) * 50}</span>
+                  </div>
+                  <div className="border-t border-blue-300 pt-2 flex justify-between items-center">
+                    <span className="text-blue-800 font-medium">Quota automatique calculé:</span>
+                    <span className="font-bold text-lg text-blue-800">{automaticQuota} demandes</span>
+                  </div>
+                  <div className="text-xs text-blue-600 italic">
+                    Formule: 300 + ({status.totalRequests} ÷ 100) × 50 = {automaticQuota} (max 1000)
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Statut actuel */}
           <div className="grid gap-4 md:grid-cols-4">
             <Card className={`p-4 border ${getStatusColor()}`}>
@@ -95,7 +121,7 @@ const SubAdminDailyLimitSettings = () => {
             <Card className="p-4 border border-purple-200 bg-purple-50">
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">{status.totalRequests}</div>
-                <div className="text-sm text-purple-600">Total demandes historiques</div>
+                <div className="text-sm text-purple-600">Total historique</div>
               </div>
             </Card>
             
@@ -103,13 +129,16 @@ const SubAdminDailyLimitSettings = () => {
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">{status.maxRequests}</div>
                 <div className="text-sm text-blue-600">Plafond actuel</div>
+                {status.maxRequests !== automaticQuota && (
+                  <Badge variant="secondary" className="mt-1 text-xs">Personnalisé</Badge>
+                )}
               </div>
             </Card>
             
             <Card className="p-4 border border-green-200 bg-green-50">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">{status.remainingRequests}</div>
-                <div className="text-sm text-green-600">Restantes aujourd'hui</div>
+                <div className="text-sm text-green-600">Restantes</div>
               </div>
             </Card>
           </div>
@@ -134,26 +163,6 @@ const SubAdminDailyLimitSettings = () => {
             </div>
           </div>
 
-          {/* Explication du système de quota basé sur l'historique */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <History className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-blue-900 mb-1">Quota Basé sur l'Historique Total</h4>
-                <p className="text-sm text-blue-700 mb-2">
-                  Calculé à partir de vos <span className="font-semibold">{status.totalRequests} demandes</span> traitées au total
-                </p>
-                <div className="text-sm text-blue-600">
-                  <span className="font-medium">Quota automatique: {dynamicQuota} demandes/jour</span>
-                  <br />
-                  <span className="text-xs">
-                    Formule: 300 (base) + {Math.floor((status.totalRequests || 0) / 100)} × 50 (bonus) = {dynamicQuota}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Modification du plafond */}
           <div className="space-y-4 border-t pt-4">
             <div>
@@ -161,7 +170,7 @@ const SubAdminDailyLimitSettings = () => {
                 Personnaliser le plafond quotidien
               </Label>
               <p className="text-sm text-gray-600 mb-2">
-                Entre 100 et 1000 demandes par jour (quota automatique: {dynamicQuota})
+                Entre 100 et 1000 demandes par jour (quota automatique recommandé: <span className="font-semibold">{automaticQuota}</span>)
               </p>
             </div>
             
@@ -174,7 +183,7 @@ const SubAdminDailyLimitSettings = () => {
                   max="1000"
                   value={newLimit}
                   onChange={(e) => setNewLimit(e.target.value)}
-                  placeholder="Nouveau plafond"
+                  placeholder={`Nouveau plafond (recommandé: ${automaticQuota})`}
                 />
               </div>
               <Button 
@@ -186,6 +195,17 @@ const SubAdminDailyLimitSettings = () => {
                 {isUpdating ? 'Mise à jour...' : 'Mettre à jour'}
               </Button>
             </div>
+            
+            {status.maxRequests !== automaticQuota && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  <span className="text-sm text-amber-800">
+                    Vous utilisez un quota personnalisé ({status.maxRequests}) au lieu du quota automatique recommandé ({automaticQuota})
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Information système */}

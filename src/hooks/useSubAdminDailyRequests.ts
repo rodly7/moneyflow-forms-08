@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,11 +28,12 @@ export const useSubAdminDailyRequests = () => {
     const bonusQuota = Math.floor(totalRequests / 100) * 50;
     const dynamicQuota = Math.min(1000, baseQuota + bonusQuota);
     
-    console.log(`Calcul du quota dynamique:`, {
+    console.log(`Calcul du quota dynamique FINAL:`, {
       totalRequests,
       baseQuota,
       bonusQuota,
-      dynamicQuota
+      dynamicQuota,
+      formula: `${baseQuota} + ${Math.floor(totalRequests / 100)} * 50 = ${dynamicQuota}`
     });
 
     return dynamicQuota;
@@ -42,6 +42,7 @@ export const useSubAdminDailyRequests = () => {
   const fetchDailyStatus = useCallback(async () => {
     if (!user?.id || profile?.role !== 'sub_admin') {
       console.log('Utilisateur non autorisé ou pas sous-admin');
+      setLoading(false);
       return;
     }
 
@@ -51,10 +52,15 @@ export const useSubAdminDailyRequests = () => {
       const today = new Date().toISOString().split('T')[0];
       
       // Compter le nombre total de demandes historiques dans sub_admin_daily_requests
-      const { count: totalProcessedRequests } = await supabase
+      console.log('Comptage du total des demandes historiques...');
+      const { count: totalProcessedRequests, error: totalError } = await supabase
         .from('sub_admin_daily_requests')
         .select('*', { count: 'exact', head: true })
         .eq('sub_admin_id', user.id);
+
+      if (totalError) {
+        console.error('Erreur lors du comptage total:', totalError);
+      }
 
       const totalRequests = totalProcessedRequests || 0;
       console.log(`Total des demandes historiques trouvées: ${totalRequests}`);
@@ -62,47 +68,51 @@ export const useSubAdminDailyRequests = () => {
       // Calculer le quota dynamique basé sur le total historique
       const calculatedQuota = calculateDynamicQuota(totalRequests);
       
-      console.log(`Quota calculé: ${calculatedQuota}`);
+      console.log(`Quota calculé dynamiquement: ${calculatedQuota}`);
       
       // Vérifier s'il y a des paramètres personnalisés
-      const { data: settings } = await supabase
+      const { data: settings, error: settingsError } = await supabase
         .from('sub_admin_settings')
         .select('daily_request_limit')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
+
+      if (settingsError) {
+        console.error('Erreur lors de la récupération des paramètres:', settingsError);
+      }
 
       // Utiliser le quota personnalisé s'il existe, sinon le quota calculé
       const maxRequests = settings?.daily_request_limit || calculatedQuota;
 
-      console.log(`Quota final utilisé: ${maxRequests}`);
+      console.log(`Quota final utilisé: ${maxRequests} (settings: ${settings?.daily_request_limit}, calculated: ${calculatedQuota})`);
 
       // Compter les demandes du jour actuel
-      const { count: todayCount } = await supabase
+      const { count: todayCount, error: todayError } = await supabase
         .from('sub_admin_daily_requests')
         .select('*', { count: 'exact', head: true })
         .eq('sub_admin_id', user.id)
         .gte('created_at', `${today}T00:00:00`)
         .lt('created_at', `${today}T23:59:59`);
 
+      if (todayError) {
+        console.error('Erreur lors du comptage du jour:', todayError);
+      }
+
       const todayRequests = todayCount || 0;
       const remainingRequests = Math.max(0, maxRequests - todayRequests);
       const canMakeRequest = todayRequests < maxRequests;
 
-      console.log(`Statut final:`, {
+      const finalStatus = {
         todayRequests,
         totalRequests,
         maxRequests,
         remainingRequests,
         canMakeRequest
-      });
+      };
 
-      setStatus({
-        todayRequests,
-        totalRequests,
-        maxRequests,
-        canMakeRequest,
-        remainingRequests
-      });
+      console.log(`Statut final COMPLET:`, finalStatus);
+
+      setStatus(finalStatus);
 
     } catch (error) {
       console.error('Erreur lors du chargement du statut des demandes:', error);
