@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,10 +19,9 @@ type UserRequest = {
   payment_phone: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
-  updated_at: string;
-  processed_by?: string;
-  processed_at?: string;
-  rejection_reason?: string;
+  processed_by?: string | null;
+  processed_at?: string | null;
+  rejection_reason?: string | null;
   profiles?: {
     full_name: string;
     phone: string;
@@ -57,7 +55,6 @@ const UserRequestsManagement = () => {
           payment_phone,
           status,
           created_at,
-          updated_at,
           processed_by,
           processed_at,
           rejection_reason,
