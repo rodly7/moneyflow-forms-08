@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,12 +24,11 @@ export const useSubAdminDailyRequests = () => {
   const [loading, setLoading] = useState(true);
 
   const calculateDynamicQuota = useCallback((totalRequests: number) => {
-    // Formule: 300 (base) + (total demandes / 100) * 50, plafonné à 1000
     const baseQuota = 300;
     const bonusQuota = Math.floor(totalRequests / 100) * 50;
     const dynamicQuota = Math.min(1000, baseQuota + bonusQuota);
     
-    console.log(`Calcul du quota dynamique FINAL:`, {
+    console.log(`Calcul du quota dynamique:`, {
       totalRequests,
       baseQuota,
       bonusQuota,
@@ -49,26 +49,45 @@ export const useSubAdminDailyRequests = () => {
     console.log(`Récupération du statut quotidien pour: ${user.id}`);
     
     try {
-      const today = new Date().toISOString().split('T')[0];
+      // Obtenir la date d'aujourd'hui au format YYYY-MM-DD
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
       
-      // Compter le nombre total de demandes historiques dans sub_admin_daily_requests
-      console.log('Comptage du total des demandes historiques...');
-      const { count: totalProcessedRequests, error: totalError } = await supabase
+      console.log(`Recherche des demandes pour la période: ${todayStart.toISOString()} - ${todayEnd.toISOString()}`);
+      
+      // Compter SEULEMENT les demandes d'AUJOURD'HUI
+      const { count: todayCount, error: todayError } = await supabase
+        .from('sub_admin_daily_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('sub_admin_id', user.id)
+        .gte('created_at', todayStart.toISOString())
+        .lt('created_at', todayEnd.toISOString());
+
+      if (todayError) {
+        console.error('Erreur lors du comptage des demandes du jour:', todayError);
+        throw todayError;
+      }
+
+      const todayRequests = todayCount || 0;
+      console.log(`Demandes trouvées pour aujourd'hui: ${todayRequests}`);
+
+      // Compter le total historique pour calculer le quota dynamique
+      const { count: totalHistoricCount, error: totalError } = await supabase
         .from('sub_admin_daily_requests')
         .select('*', { count: 'exact', head: true })
         .eq('sub_admin_id', user.id);
 
       if (totalError) {
         console.error('Erreur lors du comptage total:', totalError);
+        throw totalError;
       }
 
-      const totalRequests = totalProcessedRequests || 0;
-      console.log(`Total des demandes historiques trouvées: ${totalRequests}`);
+      const totalRequests = totalHistoricCount || 0;
+      console.log(`Total historique des demandes: ${totalRequests}`);
 
-      // Calculer le quota dynamique basé sur le total historique
+      // Calculer le quota dynamique basé sur l'historique
       const calculatedQuota = calculateDynamicQuota(totalRequests);
-      
-      console.log(`Quota calculé dynamiquement: ${calculatedQuota}`);
       
       // Vérifier s'il y a des paramètres personnalisés
       const { data: settings, error: settingsError } = await supabase
@@ -84,21 +103,6 @@ export const useSubAdminDailyRequests = () => {
       // Utiliser le quota personnalisé s'il existe, sinon le quota calculé
       const maxRequests = settings?.daily_request_limit || calculatedQuota;
 
-      console.log(`Quota final utilisé: ${maxRequests} (settings: ${settings?.daily_request_limit}, calculated: ${calculatedQuota})`);
-
-      // Compter les demandes du jour actuel
-      const { count: todayCount, error: todayError } = await supabase
-        .from('sub_admin_daily_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('sub_admin_id', user.id)
-        .gte('created_at', `${today}T00:00:00`)
-        .lt('created_at', `${today}T23:59:59`);
-
-      if (todayError) {
-        console.error('Erreur lors du comptage du jour:', todayError);
-      }
-
-      const todayRequests = todayCount || 0;
       const remainingRequests = Math.max(0, maxRequests - todayRequests);
       const canMakeRequest = todayRequests < maxRequests;
 
@@ -110,12 +114,13 @@ export const useSubAdminDailyRequests = () => {
         canMakeRequest
       };
 
-      console.log(`Statut final COMPLET:`, finalStatus);
+      console.log(`Statut final:`, finalStatus);
 
       setStatus(finalStatus);
 
     } catch (error) {
       console.error('Erreur lors du chargement du statut des demandes:', error);
+      toast.error('Erreur lors du chargement du statut des demandes');
     } finally {
       setLoading(false);
     }

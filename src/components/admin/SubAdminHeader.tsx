@@ -24,6 +24,8 @@ const SubAdminHeader = () => {
   };
 
   const getRequestsStatusColor = () => {
+    if (loading) return 'text-gray-500 bg-gray-50';
+    
     const percentage = (status.todayRequests / status.maxRequests) * 100;
     if (percentage >= 90) return 'text-red-600 bg-red-50';
     if (percentage >= 70) return 'text-orange-600 bg-orange-50';
@@ -97,7 +99,7 @@ const SubAdminHeader = () => {
                   </span>
                 </div>
                 <div className="text-xs text-purple-600 font-medium">
-                  Total demandes: {status.totalRequests}
+                  Total historique: {status.totalRequests}
                 </div>
               </div>
             )}
