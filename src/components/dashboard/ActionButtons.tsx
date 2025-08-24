@@ -1,145 +1,94 @@
 
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Send, Scan, QrCode, CreditCard, Receipt, Bell, User, Settings } from "lucide-react";
-import RechargeAccountButton from "@/components/dashboard/RechargeAccountButton";
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Send, Download, Smartphone, QrCode, Receipt, CreditCard } from 'lucide-react';
+import { UserRechargeRequestModal } from '@/components/user/UserRechargeRequestModal';
 
 const ActionButtons = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
-  
-  const isAgent = profile?.role === 'agent';
 
-  const primaryActions = [
+  const actions = [
     {
+      title: 'Transférer',
+      description: 'Envoyer de l\'argent',
       icon: Send,
-      label: "Transférer",
-      path: "/transfer",
-      color: "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700",
-      description: "Envoyer de l'argent"
+      href: '/transfer',
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100'
     },
     {
-      icon: Scan,
-      label: "Scanner QR",
-      path: "/qr-payment",
-      color: "bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700",
-      description: "Payer avec QR"
+      title: 'Retirer',
+      description: 'Retirer de l\'argent',
+      icon: Download,
+      href: '/withdraw',
+      color: 'text-green-600',
+      bgColor: 'bg-green-100'
     },
     {
-      icon: QrCode,
-      label: "Mon QR Code",
-      path: "/qr-code",
-      color: "bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700",
-      description: "Partager mon code"
-    },
-    {
-      icon: CreditCard,
-      label: isAgent ? "Services Agent" : "Épargnes",
-      path: isAgent ? "/agent-services" : "/savings",
-      color: "bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700",
-      description: isAgent ? "Services d'agent" : "Gérer mes épargnes"
-    },
-  ];
-
-  const secondaryActions = [
-    {
+      title: 'Payer facture',
+      description: 'Régler vos factures',
       icon: Receipt,
-      label: "Historique",
-      path: "/transactions",
-      color: "bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700",
-      description: "Mes transactions"
+      href: '/bill-payments',
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-100'
     },
     {
+      title: 'Cartes prépayées',
+      description: 'Acheter des cartes',
       icon: CreditCard,
-      label: "Factures",
-      path: "/bill-payments",
-      color: "bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700",
-      description: "Payer mes factures"
+      href: '/prepaid-cards',
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-100'
     },
     {
-      icon: User,
-      label: "Profil",
-      path: "/verify-identity",
-      color: "bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700",
-      description: "Mon compte"
+      title: 'Code QR',
+      description: 'Scanner pour payer',
+      icon: QrCode,
+      href: '/qr-code',
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-100'
     },
     {
-      icon: Settings,
-      label: "Paramètres",
-      path: "/change-password",
-      color: "bg-gradient-to-r from-gray-500 to-slate-600 hover:from-gray-600 hover:to-slate-700",
-      description: "Configuration"
-    },
+      title: 'Mobile Money',
+      description: 'Gestion mobile',
+      icon: Smartphone,
+      href: '/mobile-money',
+      color: 'text-teal-600',
+      bgColor: 'bg-teal-100'
+    }
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Bouton Recharger mon compte - en évidence */}
-      <div className="mb-6">
-        <RechargeAccountButton 
-          fullWidth 
-          size="lg" 
-          className="h-20 text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-xl rounded-2xl"
-        />
-      </div>
-
-      {/* Actions principales - encore plus grandes */}
-      <div className="grid grid-cols-2 gap-4">
-        {primaryActions.map((action, index) => {
-          const IconComponent = action.icon;
-          return (
-            <button
-              key={index}
-              onClick={() => navigate(action.path)}
-              className={`
-                min-h-[160px] w-full flex flex-col items-center justify-center gap-4 
-                rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 
-                transform hover:scale-105 active:scale-95 ${action.color} 
-                text-white border-0 p-6
-              `}
-              style={{ height: '160px' }}
+    <Card>
+      <CardContent className="p-6">
+        <h3 className="font-semibold mb-4">Actions rapides</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {actions.map((action) => (
+            <Button
+              key={action.title}
+              variant="outline"
+              className="h-auto flex-col p-4 text-left"
+              onClick={() => navigate(action.href)}
             >
-              <div className="p-4 bg-white/20 rounded-xl backdrop-blur-sm">
-                <IconComponent className="w-12 h-12 text-white" />
+              <div className={`w-10 h-10 rounded-lg ${action.bgColor} flex items-center justify-center mb-2`}>
+                <action.icon className={`w-5 h-5 ${action.color}`} />
               </div>
-              <div className="text-center">
-                <div className="text-lg font-bold text-white leading-tight">{action.label}</div>
-                <div className="text-sm text-white/80 mt-1">{action.description}</div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Actions secondaires - également agrandies */}
-      <div className="grid grid-cols-2 gap-4">
-        {secondaryActions.map((action, index) => {
-          const IconComponent = action.icon;
-          return (
-            <button
-              key={index}
-              onClick={() => navigate(action.path)}
-              className={`
-                min-h-[120px] w-full flex flex-col items-center justify-center gap-3 
-                rounded-xl shadow-md hover:shadow-lg transition-all duration-300 
-                transform hover:scale-105 active:scale-95 ${action.color} 
-                text-white border-0 p-4
-              `}
-              style={{ height: '120px' }}
-            >
-              <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
-                <IconComponent className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-center">
-                <div className="text-base font-semibold text-white leading-tight">{action.label}</div>
-                <div className="text-xs text-white/80 mt-1">{action.description}</div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+              <div className="text-sm font-medium">{action.title}</div>
+              <div className="text-xs text-muted-foreground">{action.description}</div>
+            </Button>
+          ))}
+        </div>
+        
+        <div className="mt-4 pt-4 border-t">
+          <UserRechargeRequestModal
+            size="lg"
+            className="w-full"
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

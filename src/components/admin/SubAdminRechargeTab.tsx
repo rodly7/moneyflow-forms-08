@@ -27,7 +27,7 @@ interface UserRequest {
     full_name: string;
     phone: string;
     country: string;
-  };
+  } | null;
 }
 
 const SubAdminRechargeTab = () => {
@@ -55,7 +55,14 @@ const SubAdminRechargeTab = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as UserRequest[];
+      
+      // Filtrer et typer correctement les données
+      return (data || []).map(item => ({
+        ...item,
+        profiles: item.profiles && typeof item.profiles === 'object' && !('error' in item.profiles) 
+          ? item.profiles as { full_name: string; phone: string; country: string }
+          : null
+      })) as UserRequest[];
     },
   });
 
