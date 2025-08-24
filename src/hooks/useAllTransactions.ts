@@ -53,7 +53,7 @@ export const useAllTransactions = (userId?: string) => {
             type: 'withdrawal',
             amount: withdrawal.amount,
             date: new Date(withdrawal.created_at),
-            description: `Retrait de ${withdrawal.amount.toLocaleString()} XAF vers ${withdrawal.withdrawal_phone || 'N/A'}`,
+            description: `Retrait de ${withdrawal.amount?.toLocaleString() || '0'} XAF vers ${withdrawal.withdrawal_phone || 'N/A'}`,
             currency: 'XAF',
             status: withdrawal.status || 'pending',
             verification_code: withdrawal.verification_code || '',
@@ -140,7 +140,7 @@ export const useAllTransactions = (userId?: string) => {
         });
       }
 
-      // 4. Récupérer les dépôts/recharges
+      // 4. Récupérer les dépôts/recharges - CORRECTION ICI
       console.log("🔋 Récupération des dépôts...");
       const { data: recharges, error: rechargeError } = await supabase
         .from('recharges')
@@ -158,7 +158,7 @@ export const useAllTransactions = (userId?: string) => {
             type: 'deposit',
             amount: recharge.amount,
             date: new Date(recharge.created_at),
-            description: `Recharge de ${recharge.amount.toLocaleString()} XAF via ${recharge.payment_method || 'Mobile Money'}`,
+            description: `Recharge de ${recharge.amount?.toLocaleString() || '0'} XAF via ${recharge.payment_method || 'Mobile Money'}`,
             currency: 'XAF',
             status: recharge.status,
             created_at: recharge.created_at,
@@ -187,7 +187,7 @@ export const useAllTransactions = (userId?: string) => {
             type: 'bill_payment',
             amount: payment.amount,
             date: new Date(payment.created_at),
-            description: `Paiement de facture de ${payment.amount.toLocaleString()} XAF`,
+            description: `Paiement de facture de ${payment.amount?.toLocaleString() || '0'} XAF`,
             currency: 'XAF',
             status: payment.status,
             created_at: payment.created_at,
