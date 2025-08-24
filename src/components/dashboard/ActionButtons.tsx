@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Send, Download, Smartphone, QrCode, Receipt, CreditCard } from 'lucide-react';
-import { UserRechargeRequestModal } from '@/components/user/UserRechargeRequestModal';
+import UserRechargeRequestModal from '@/components/user/UserRechargeRequestModal';
 
 const ActionButtons = () => {
   const navigate = useNavigate();

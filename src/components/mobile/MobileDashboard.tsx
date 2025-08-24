@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Send, Download, Smartphone, QrCode, Receipt, CreditCard, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { UserRechargeRequestModal } from '@/components/user/UserRechargeRequestModal';
+import UserRechargeRequestModal from '@/components/user/UserRechargeRequestModal';
 
 const MobileDashboard = () => {
   const { profile } = useAuth();
@@ -82,8 +82,11 @@ const MobileDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Recent Transactions */}
-        <TransactionsCard />
+        {/* Recent Transactions - Passer des propriétés vides pour maintenir la compatibilité */}
+        <TransactionsCard 
+          transactions={[]}
+          onDeleteTransaction={() => {}}
+        />
       </div>
     </div>
   );

@@ -56,10 +56,10 @@ const SubAdminRechargeTab = () => {
 
       if (error) throw error;
       
-      // Filtrer et typer correctement les données
+      // Filtrer et typer correctement les données avec gestion du null
       return (data || []).map(item => ({
         ...item,
-        profiles: item.profiles && typeof item.profiles === 'object' && !('error' in item.profiles) 
+        profiles: item.profiles && typeof item.profiles === 'object' && !('error' in item.profiles) && item.profiles !== null
           ? item.profiles as { full_name: string; phone: string; country: string }
           : null
       })) as UserRequest[];
