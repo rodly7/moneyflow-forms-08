@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, Settings, TrendingUp, Clock, BarChart3, History } from 'lucide-react';
+import { AlertCircle, Settings, Clock, History } from 'lucide-react';
 import { useSubAdminDailyRequests } from '@/hooks/useSubAdminDailyRequests';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -18,7 +18,7 @@ const SubAdminDailyLimitSettings = () => {
   const [dynamicQuota, setDynamicQuota] = useState(300);
 
   useEffect(() => {
-    // Calculer le quota automatique basé sur le total des demandes
+    // Calculer le quota automatique basé sur le total des demandes historiques
     const calculateAutomaticQuota = () => {
       const baseQuota = 300;
       const totalRequests = status.totalRequests || 0;
@@ -134,7 +134,7 @@ const SubAdminDailyLimitSettings = () => {
             </div>
           </div>
 
-          {/* Explication du système de quota */}
+          {/* Explication du système de quota basé sur l'historique */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <History className="w-5 h-5 text-blue-600 mt-0.5" />
@@ -147,7 +147,7 @@ const SubAdminDailyLimitSettings = () => {
                   <span className="font-medium">Quota automatique: {dynamicQuota} demandes/jour</span>
                   <br />
                   <span className="text-xs">
-                    Calcul: 300 (base) + {Math.floor((status.totalRequests || 0) / 100)} × 50 (bonus) = {dynamicQuota}
+                    Formule: 300 (base) + {Math.floor((status.totalRequests || 0) / 100)} × 50 (bonus) = {dynamicQuota}
                   </span>
                 </div>
               </div>

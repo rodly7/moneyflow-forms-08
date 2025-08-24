@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,43 +23,20 @@ export const useSubAdminDailyRequests = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  const calculateDynamicQuota = useCallback(async (userId: string) => {
-    try {
-      console.log(`Calcul du quota dynamique pour l'utilisateur: ${userId}`);
-      
-      // Compter le nombre total de demandes historiques dans sub_admin_daily_requests
-      const { count: totalProcessedRequests } = await supabase
-        .from('sub_admin_daily_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('sub_admin_id', userId);
+  const calculateDynamicQuota = useCallback((totalRequests: number) => {
+    // Formule: 300 (base) + (total demandes / 100) * 50, plafonné à 1000
+    const baseQuota = 300;
+    const bonusQuota = Math.floor(totalRequests / 100) * 50;
+    const dynamicQuota = Math.min(1000, baseQuota + bonusQuota);
+    
+    console.log(`Calcul du quota dynamique:`, {
+      totalRequests,
+      baseQuota,
+      bonusQuota,
+      dynamicQuota
+    });
 
-      console.log(`Total des demandes historiques trouvées: ${totalProcessedRequests}`);
-
-      // Calculer le quota dynamique basé sur le total historique
-      // Formule: 300 (base) + (total demandes / 100) * 50, plafonné à 1000
-      const baseQuota = 300;
-      const totalRequests = totalProcessedRequests || 0;
-      const bonusQuota = Math.floor(totalRequests / 100) * 50;
-      const dynamicQuota = Math.min(1000, baseQuota + bonusQuota);
-
-      console.log(`Calcul du quota:`, {
-        totalRequests,
-        baseQuota,
-        bonusQuota,
-        dynamicQuota
-      });
-
-      return {
-        quota: dynamicQuota,
-        totalRequests
-      };
-    } catch (error) {
-      console.error('Erreur lors du calcul du quota dynamique:', error);
-      return {
-        quota: 300,
-        totalRequests: 0
-      };
-    }
+    return dynamicQuota;
   }, []);
 
   const fetchDailyStatus = useCallback(async () => {
@@ -72,10 +50,19 @@ export const useSubAdminDailyRequests = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      // Calculer le quota dynamique basé sur l'historique total
-      const { quota: calculatedQuota, totalRequests } = await calculateDynamicQuota(user.id);
+      // Compter le nombre total de demandes historiques dans sub_admin_daily_requests
+      const { count: totalProcessedRequests } = await supabase
+        .from('sub_admin_daily_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('sub_admin_id', user.id);
+
+      const totalRequests = totalProcessedRequests || 0;
+      console.log(`Total des demandes historiques trouvées: ${totalRequests}`);
+
+      // Calculer le quota dynamique basé sur le total historique
+      const calculatedQuota = calculateDynamicQuota(totalRequests);
       
-      console.log(`Quota calculé: ${calculatedQuota}, Total demandes: ${totalRequests}`);
+      console.log(`Quota calculé: ${calculatedQuota}`);
       
       // Vérifier s'il y a des paramètres personnalisés
       const { data: settings } = await supabase
