@@ -28,7 +28,7 @@ export const useSubAdminDailyRequests = () => {
     const bonusQuota = Math.floor(totalRequests / 100) * 50;
     const dynamicQuota = Math.min(1000, baseQuota + bonusQuota);
     
-    console.log(`Calcul du quota dynamique:`, {
+    console.log(`🧮 Calcul du quota dynamique:`, {
       totalRequests,
       baseQuota,
       bonusQuota,
@@ -41,22 +41,26 @@ export const useSubAdminDailyRequests = () => {
 
   const fetchDailyStatus = useCallback(async () => {
     if (!user?.id || profile?.role !== 'sub_admin') {
-      console.log('Utilisateur non autorisé ou pas sous-admin');
+      console.log('❌ Utilisateur non autorisé ou pas sous-admin');
       setLoading(false);
       return;
     }
 
-    console.log(`Récupération du statut quotidien pour: ${user.id}`);
+    console.log(`🔍 Récupération du statut quotidien pour: ${user.id}`);
     
     try {
-      // Obtenir la date d'aujourd'hui au format YYYY-MM-DD
-      const today = new Date();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+      // Obtenir les dates précises pour aujourd'hui en UTC
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000); // +24h
       
-      console.log(`Recherche des demandes pour la période: ${todayStart.toISOString()} - ${todayEnd.toISOString()}`);
+      console.log(`📅 Période de recherche:`, {
+        todayStart: todayStart.toISOString(),
+        todayEnd: todayEnd.toISOString(),
+        currentTime: now.toISOString()
+      });
       
-      // Compter SEULEMENT les demandes d'AUJOURD'HUI
+      // Compter SEULEMENT les enregistrements d'AUJOURD'HUI dans sub_admin_daily_requests
       const { count: todayCount, error: todayError } = await supabase
         .from('sub_admin_daily_requests')
         .select('*', { count: 'exact', head: true })
@@ -65,12 +69,12 @@ export const useSubAdminDailyRequests = () => {
         .lt('created_at', todayEnd.toISOString());
 
       if (todayError) {
-        console.error('Erreur lors du comptage des demandes du jour:', todayError);
+        console.error('❌ Erreur lors du comptage des demandes du jour:', todayError);
         throw todayError;
       }
 
       const todayRequests = todayCount || 0;
-      console.log(`Demandes trouvées pour aujourd'hui: ${todayRequests}`);
+      console.log(`📊 Demandes d'aujourd'hui trouvées: ${todayRequests}`);
 
       // Compter le total historique pour calculer le quota dynamique
       const { count: totalHistoricCount, error: totalError } = await supabase
@@ -79,12 +83,12 @@ export const useSubAdminDailyRequests = () => {
         .eq('sub_admin_id', user.id);
 
       if (totalError) {
-        console.error('Erreur lors du comptage total:', totalError);
+        console.error('❌ Erreur lors du comptage total:', totalError);
         throw totalError;
       }
 
       const totalRequests = totalHistoricCount || 0;
-      console.log(`Total historique des demandes: ${totalRequests}`);
+      console.log(`📈 Total historique des demandes: ${totalRequests}`);
 
       // Calculer le quota dynamique basé sur l'historique
       const calculatedQuota = calculateDynamicQuota(totalRequests);
@@ -97,7 +101,7 @@ export const useSubAdminDailyRequests = () => {
         .maybeSingle();
 
       if (settingsError) {
-        console.error('Erreur lors de la récupération des paramètres:', settingsError);
+        console.error('⚠️ Erreur lors de la récupération des paramètres:', settingsError);
       }
 
       // Utiliser le quota personnalisé s'il existe, sinon le quota calculé
@@ -114,12 +118,12 @@ export const useSubAdminDailyRequests = () => {
         canMakeRequest
       };
 
-      console.log(`Statut final:`, finalStatus);
+      console.log(`✅ Statut final calculé:`, finalStatus);
 
       setStatus(finalStatus);
 
     } catch (error) {
-      console.error('Erreur lors du chargement du statut des demandes:', error);
+      console.error('💥 Erreur lors du chargement du statut des demandes:', error);
       toast.error('Erreur lors du chargement du statut des demandes');
     } finally {
       setLoading(false);
@@ -133,7 +137,7 @@ export const useSubAdminDailyRequests = () => {
     }
 
     try {
-      console.log(`Enregistrement d'une nouvelle demande de type: ${requestType}`);
+      console.log(`📝 Enregistrement d'une nouvelle demande de type: ${requestType}`);
       
       const { error } = await supabase
         .from('sub_admin_daily_requests')
@@ -145,7 +149,7 @@ export const useSubAdminDailyRequests = () => {
 
       if (error) throw error;
 
-      console.log('Demande enregistrée avec succès');
+      console.log('✅ Demande enregistrée avec succès');
 
       // Actualiser le statut après enregistrement
       await fetchDailyStatus();
@@ -158,7 +162,7 @@ export const useSubAdminDailyRequests = () => {
 
       return true;
     } catch (error) {
-      console.error('Erreur lors de l\'enregistrement de la demande:', error);
+      console.error('❌ Erreur lors de l\'enregistrement de la demande:', error);
       toast.error('Erreur lors de l\'enregistrement de la demande');
       return false;
     }
@@ -168,7 +172,7 @@ export const useSubAdminDailyRequests = () => {
     if (!user?.id) return false;
 
     try {
-      console.log(`Mise à jour du plafond quotidien à: ${newLimit}`);
+      console.log(`⚙️ Mise à jour du plafond quotidien à: ${newLimit}`);
       
       const { error } = await supabase
         .from('sub_admin_settings')
@@ -184,7 +188,7 @@ export const useSubAdminDailyRequests = () => {
       toast.success(`Plafond mis à jour à ${newLimit} demandes par jour`);
       return true;
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du plafond:', error);
+      console.error('❌ Erreur lors de la mise à jour du plafond:', error);
       toast.error('Erreur lors de la mise à jour du plafond');
       return false;
     }

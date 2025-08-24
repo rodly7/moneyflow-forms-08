@@ -12,6 +12,19 @@ const SubAdminHeader = () => {
   const { profile } = useAuth();
   const { status, loading } = useSubAdminDailyRequests();
 
+  // Debug: afficher les valeurs du status
+  React.useEffect(() => {
+    if (!loading) {
+      console.log(`🎯 Header - Status debug:`, {
+        todayRequests: status.todayRequests,
+        maxRequests: status.maxRequests,
+        totalRequests: status.totalRequests,
+        remainingRequests: status.remainingRequests,
+        canMakeRequest: status.canMakeRequest
+      });
+    }
+  }, [status, loading]);
+
   if (!profile) return null;
 
   const getInitials = (name: string) => {
