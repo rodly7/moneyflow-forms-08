@@ -115,6 +115,16 @@ export const LineChart = () => {
     return [formatCurrency(value, 'XAF'), labels[name] || name];
   };
 
+  const formatYAxisTick = (value: number) => {
+    // Format for Y-axis with abbreviated values for large numbers
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `${(value / 1000).toFixed(0)}K`;
+    }
+    return value.toString();
+  };
+
   return (
     <ResponsiveContainer width="100%" height={300}>
       <RechartsLineChart data={revenueData}>
@@ -125,7 +135,7 @@ export const LineChart = () => {
         />
         <YAxis 
           className="text-muted-foreground"
-          tickFormatter={(value) => formatCurrency(value, 'XAF', true)}
+          tickFormatter={formatYAxisTick}
         />
         <Tooltip 
           formatter={formatTooltip}
