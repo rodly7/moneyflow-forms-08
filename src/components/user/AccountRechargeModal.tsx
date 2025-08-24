@@ -145,12 +145,8 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
 
   const handlePaymentMethodSelect = (method: string) => {
     setSelectedPaymentMethod(method);
-    if (selectedOperation === 'recharge') {
-      setCurrentStep('agent_selection');
-    } else {
-      // Pour retrait, aller directement aux détails
-      setCurrentStep('request_details');
-    }
+    // Pour toutes les opérations (recharge et retrait), aller directement aux détails
+    setCurrentStep('request_details');
   };
 
   const renderOperationSelection = () => (
@@ -277,7 +273,7 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
         <Button 
           variant="ghost" 
           size="sm" 
-          onClick={() => setCurrentStep(selectedOperation === 'recharge' ? 'agent_selection' : 'payment_method')}
+          onClick={() => setCurrentStep('payment_method')}
         >
           <ArrowLeft className="w-4 h-4" />
         </Button>
