@@ -17,9 +17,9 @@ export const useSubAdminDailyRequests = () => {
   const [status, setStatus] = useState<DailyRequestsStatus>({
     todayRequests: 0,
     totalRequests: 0,
-    dailyLimit: 50,
+    dailyLimit: 300, // Nouvelle limite par défaut
     canMakeRequest: true,
-    remainingRequests: 50
+    remainingRequests: 300
   });
   const [loading, setLoading] = useState(true);
 

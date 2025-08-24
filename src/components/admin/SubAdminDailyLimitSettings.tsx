@@ -11,13 +11,13 @@ const SubAdminDailyLimitSettings = () => {
 
   const getStatusColor = () => {
     if (status.remainingRequests === 0) return 'text-red-600';
-    if (status.remainingRequests <= 5) return 'text-yellow-600';
+    if (status.remainingRequests <= 10) return 'text-yellow-600'; // Seuil ajusté pour 300
     return 'text-green-600';
   };
 
   const getStatusBadgeVariant = () => {
     if (status.remainingRequests === 0) return 'destructive';
-    if (status.remainingRequests <= 5) return 'secondary';
+    if (status.remainingRequests <= 10) return 'secondary'; // Seuil ajusté pour 300
     return 'default';
   };
 
