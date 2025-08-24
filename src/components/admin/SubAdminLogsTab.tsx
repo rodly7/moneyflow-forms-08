@@ -35,7 +35,7 @@ const SubAdminLogsTab = () => {
         .from('audit_logs')
         .select(`
           *,
-          profiles!audit_logs_user_id_fkey (full_name)
+          profiles!fk_audit_logs_user_id (full_name)
         `)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -45,7 +45,10 @@ const SubAdminLogsTab = () => {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Erreur lors de la récupération des journaux:', error);
+        throw error;
+      }
 
       return (data || []).map(log => ({
         ...log,
@@ -180,9 +183,11 @@ const SubAdminLogsTab = () => {
                   <User className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm">
                     <span className="font-medium">{log.user_name}</span>
-                    <span className="text-muted-foreground ml-1">
-                      ({log.user_id?.slice(0, 8)}...)
-                    </span>
+                    {log.user_id && (
+                      <span className="text-muted-foreground ml-1">
+                        ({log.user_id.slice(0, 8)}...)
+                      </span>
+                    )}
                   </span>
                 </div>
 

@@ -506,6 +506,13 @@ export type Database = {
             referencedRelation: "auth_users_agents_view"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_audit_logs_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       automatic_bills: {
