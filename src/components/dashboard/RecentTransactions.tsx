@@ -42,25 +42,6 @@ const RecentTransactions = () => {
     }
   };
 
-  const getTransactionMessage = (type: string, amount: number, recipient_name?: string, sender_name?: string, withdrawal_phone?: string) => {
-    const formattedAmount = amount.toLocaleString();
-    
-    switch (type) {
-      case 'transfer_sent':
-        return `Transfert envoyé de ${formattedAmount} XAF${recipient_name ? ` vers ${recipient_name}` : ''}`;
-      case 'transfer_received':
-        return `Transfert reçu de ${formattedAmount} XAF${sender_name ? ` de ${sender_name}` : ''}`;
-      case 'deposit':
-        return `Recharge de ${formattedAmount} XAF effectuée`;
-      case 'withdrawal':
-        return `Retrait de ${formattedAmount} XAF${withdrawal_phone ? ` vers ${withdrawal_phone}` : ''}`;
-      case 'bill_payment':
-        return `Paiement de facture de ${formattedAmount} XAF`;
-      default:
-        return `Transaction de ${formattedAmount} XAF`;
-    }
-  };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -185,13 +166,7 @@ const RecentTransactions = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-medium text-sm">
-                        {getTransactionMessage(
-                          transaction.type, 
-                          transaction.amount, 
-                          transaction.recipient_full_name,
-                          transaction.sender_name,
-                          transaction.withdrawal_phone
-                        )}
+                        {transaction.description}
                       </p>
                       {getStatusIcon(transaction.status)}
                     </div>
