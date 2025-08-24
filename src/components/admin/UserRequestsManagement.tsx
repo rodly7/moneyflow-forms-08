@@ -101,6 +101,17 @@ const UserRequestsManagement = () => {
     fetchUserRequests();
   }, []);
 
+  // Auto-refresh toutes les 5 secondes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isProcessing) {
+        fetchUserRequests();
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isProcessing]);
+
   // Écouter les changements en temps réel
   useEffect(() => {
     if (!user) return;
