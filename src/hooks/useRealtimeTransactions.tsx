@@ -39,15 +39,20 @@ export const useRealtimeTransactions = (userId?: string) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchTransactions = async (currentUserId?: string) => {
-    if (!currentUserId) return;
+    if (!currentUserId) {
+      console.log("❌ Pas d'utilisateur connecté");
+      setIsLoading(false);
+      return;
+    }
     
     try {
-      console.log("🔄 Récupération des transactions temps réel pour:", currentUserId);
+      console.log("🔄 Récupération des transactions pour:", currentUserId);
       
       const allTransactions: Transaction[] = [];
 
       // 1. Récupérer les transferts envoyés récents
-      const { data: sentTransfersData } = await supabase
+      console.log("📤 Récupération des transferts envoyés...");
+      const { data: sentTransfersData, error: sentError } = await supabase
         .from('transfers')
         .select(`
           id, 
@@ -64,8 +69,15 @@ export const useRealtimeTransactions = (userId?: string) => {
         .order('created_at', { ascending: false })
         .limit(10);
 
+      if (sentError) {
+        console.error("❌ Erreur transferts envoyés:", sentError);
+      } else {
+        console.log("✅ Transferts envoyés récupérés:", sentTransfersData?.length || 0);
+      }
+
       // 2. Récupérer les transferts reçus récents  
-      const { data: receivedTransfersData } = await supabase
+      console.log("📥 Récupération des transferts reçus...");
+      const { data: receivedTransfersData, error: receivedError } = await supabase
         .from('transfers')
         .select(`
           id, 
@@ -81,8 +93,15 @@ export const useRealtimeTransactions = (userId?: string) => {
         .order('created_at', { ascending: false })
         .limit(10);
 
+      if (receivedError) {
+        console.error("❌ Erreur transferts reçus:", receivedError);
+      } else {
+        console.log("✅ Transferts reçus récupérés:", receivedTransfersData?.length || 0);
+      }
+
       // 3. Récupérer les retraits récents
-      const { data: withdrawalsData } = await supabase
+      console.log("💸 Récupération des retraits...");
+      const { data: withdrawalsData, error: withdrawalsError } = await supabase
         .from('withdrawals')
         .select(`
           id, 
@@ -98,8 +117,15 @@ export const useRealtimeTransactions = (userId?: string) => {
         .order('created_at', { ascending: false })
         .limit(10);
 
+      if (withdrawalsError) {
+        console.error("❌ Erreur retraits:", withdrawalsError);
+      } else {
+        console.log("✅ Retraits récupérés:", withdrawalsData?.length || 0);
+      }
+
       // 4. Récupérer les dépôts/recharges récents
-      const { data: depositsData } = await supabase
+      console.log("💰 Récupération des recharges...");
+      const { data: depositsData, error: depositsError } = await supabase
         .from('recharges')
         .select(`
           id, 
@@ -114,8 +140,15 @@ export const useRealtimeTransactions = (userId?: string) => {
         .order('created_at', { ascending: false })
         .limit(10);
 
+      if (depositsError) {
+        console.error("❌ Erreur recharges:", depositsError);
+      } else {
+        console.log("✅ Recharges récupérées:", depositsData?.length || 0);
+      }
+
       // 5. Récupérer les paiements de factures récents
-      const { data: billPaymentsData } = await supabase
+      console.log("🧾 Récupération des paiements de factures...");
+      const { data: billPaymentsData, error: billError } = await supabase
         .from('bill_payment_history')
         .select(`
           id, 
@@ -127,6 +160,12 @@ export const useRealtimeTransactions = (userId?: string) => {
         .eq('user_id', currentUserId)
         .order('created_at', { ascending: false })
         .limit(10);
+
+      if (billError) {
+        console.error("❌ Erreur paiements factures:", billError);
+      } else {
+        console.log("✅ Paiements factures récupérés:", billPaymentsData?.length || 0);
+      }
 
       // Transformer les transferts envoyés
       const transformedSentTransfers: Transaction[] = (sentTransfersData || []).map(transfer => ({
@@ -174,7 +213,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         status: deposit.status,
         userType: 'user' as const,
         created_at: deposit.created_at,
-        impact: 'credit' // Les recharges sont des crédits
+        impact: 'credit'
       }));
 
       // Transformer les retraits (DÉBIT)
@@ -197,7 +236,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           verification_code: withdrawal.verification_code,
           created_at: withdrawal.created_at,
           showCode,
-          impact: 'debit' // Les retraits sont des débits
+          impact: 'debit'
         };
       });
 
@@ -212,7 +251,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         status: payment.status,
         userType: 'user' as const,
         created_at: payment.created_at,
-        impact: 'debit' // Les paiements de factures sont des débits
+        impact: 'debit'
       }));
 
       // Transformer les retraits avec gestion du code de vérification pour la liste séparée
@@ -243,10 +282,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         ...transformedBillPayments
       ].sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
 
-      setTransactions(allCombined);
-      setWithdrawals(transformedWithdrawals);
-      
-      console.log("✅ Transactions temps réel chargées:", {
+      console.log("📊 Transactions combinées:", {
         total: allCombined.length,
         transferts_envoyés: transformedSentTransfers.length,
         transferts_reçus: transformedReceivedTransfers.length,
@@ -255,17 +291,23 @@ export const useRealtimeTransactions = (userId?: string) => {
         paiements: transformedBillPayments.length,
         retraits_séparés: transformedWithdrawals.length
       });
+
+      setTransactions(allCombined);
+      setWithdrawals(transformedWithdrawals);
       
     } catch (error) {
-      console.error('Erreur lors du chargement des transactions:', error);
+      console.error('❌ Erreur lors du chargement des transactions:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    console.log("🔄 useEffect déclenché, userId:", userId);
     if (userId) {
       fetchTransactions(userId);
+    } else {
+      setIsLoading(false);
     }
 
     // Écouter les changements en temps réel pour les transferts
@@ -279,6 +321,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           table: 'transfers'
         },
         () => {
+          console.log("🔄 Changement détecté dans transfers");
           if (userId) {
             fetchTransactions(userId);
           }
@@ -297,6 +340,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           table: 'withdrawals'
         },
         () => {
+          console.log("🔄 Changement détecté dans withdrawals");
           if (userId) {
             fetchTransactions(userId);
           }
@@ -315,6 +359,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           table: 'recharges'
         },
         () => {
+          console.log("🔄 Changement détecté dans recharges");
           if (userId) {
             fetchTransactions(userId);
           }
@@ -333,6 +378,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           table: 'bill_payment_history'
         },
         () => {
+          console.log("🔄 Changement détecté dans bill_payment_history");
           if (userId) {
             fetchTransactions(userId);
           }
@@ -341,6 +387,7 @@ export const useRealtimeTransactions = (userId?: string) => {
       .subscribe();
 
     return () => {
+      console.log("🧹 Nettoyage des canaux en temps réel");
       supabase.removeChannel(transfersChannel);
       supabase.removeChannel(withdrawalsChannel);
       supabase.removeChannel(rechargesChannel);

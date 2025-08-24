@@ -19,6 +19,8 @@ const RecentTransactions = () => {
   const { user } = useAuth();
   const { transactions, isLoading } = useRealtimeTransactions(user?.id);
 
+  console.log("🎯 RecentTransactions - user:", user?.id, "transactions:", transactions.length, "isLoading:", isLoading);
+
   const getTransactionIcon = (type: string, impact?: string) => {
     switch (type) {
       case 'transfer_sent':
@@ -96,6 +98,7 @@ const RecentTransactions = () => {
   };
 
   if (isLoading) {
+    console.log("⏳ Affichage du loader");
     return (
       <Card>
         <CardHeader>
@@ -123,6 +126,8 @@ const RecentTransactions = () => {
       </Card>
     );
   }
+
+  console.log("📋 Rendu des transactions:", transactions.length);
 
   return (
     <Card>
