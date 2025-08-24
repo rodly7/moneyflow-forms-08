@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,11 +14,11 @@ import { useAuth } from '@/contexts/AuthContext';
 type UserRequest = {
   id: string;
   user_id: string;
-  operation_type: 'recharge' | 'withdrawal';
+  operation_type: string; // Changed from 'recharge' | 'withdrawal' to string
   amount: number;
   payment_method: string;
   payment_phone: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: string; // Changed from 'pending' | 'approved' | 'rejected' to string
   created_at: string;
   processed_by?: string | null;
   processed_at?: string | null;
