@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -194,11 +195,7 @@ const MobileDashboard: React.FC = () => {
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
           <CardContent className="p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-5">Gestion du compte</h2>
-            <RechargeAccountButton 
-              fullWidth 
-              size="lg" 
-              className="h-16 text-lg font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg"
-            />
+            <RechargeAccountButton />
           </CardContent>
         </Card>
       </div>

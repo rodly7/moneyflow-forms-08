@@ -77,11 +77,7 @@ const ActionButtons = () => {
     <div className="space-y-6">
       {/* Bouton Recharger mon compte - en évidence */}
       <div className="mb-6">
-        <RechargeAccountButton 
-          fullWidth 
-          size="lg" 
-          className="h-20 text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-xl rounded-2xl"
-        />
+        <RechargeAccountButton />
       </div>
 
       {/* Actions principales - encore plus grandes */}

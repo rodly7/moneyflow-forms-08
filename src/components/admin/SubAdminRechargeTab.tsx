@@ -27,7 +27,7 @@ interface UserRequest {
     full_name: string;
     phone: string;
     country: string;
-  };
+  } | null;
 }
 
 const SubAdminRechargeTab = () => {

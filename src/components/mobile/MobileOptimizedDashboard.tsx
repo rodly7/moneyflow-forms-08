@@ -227,11 +227,7 @@ const MobileOptimizedDashboard = memo(({
 
         {/* Recharge Account Button */}
         <div className="mt-4">
-          <RechargeAccountButton 
-            fullWidth 
-            size="lg" 
-            className="h-14 text-base font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg rounded-xl"
-          />
+          <RechargeAccountButton />
         </div>
 
         {/* Tips Section - Compact for mobile */}
