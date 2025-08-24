@@ -20,7 +20,10 @@ const Transactions = () => {
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  console.log("🎯 Transactions Page - user:", user?.id, "transactions:", transactions.length, "loading:", loading);
+
   const openTransactionDetail = (transaction: any) => {
+    console.log("📖 Opening transaction detail:", transaction);
     setSelectedTransaction(transaction);
     setIsModalOpen(true);
   };
@@ -65,6 +68,14 @@ const Transactions = () => {
       </div>
     );
   }
+
+  console.log("💰 Transactions stats:", {
+    total: transactions.length,
+    credits: creditTransactions.length,
+    debits: debitTransactions.length,
+    totalCredits,
+    totalDebits
+  });
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -180,6 +191,12 @@ const Transactions = () => {
                         {transaction.recipient_full_name && (
                           <p className="text-xs text-muted-foreground mt-1">
                             Vers: {transaction.recipient_full_name}
+                          </p>
+                        )}
+
+                        {transaction.withdrawal_phone && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Téléphone: {transaction.withdrawal_phone}
                           </p>
                         )}
                       </div>
