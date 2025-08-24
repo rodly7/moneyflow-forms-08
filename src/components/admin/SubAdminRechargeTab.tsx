@@ -209,11 +209,16 @@ const SubAdminRechargeTab = () => {
   const handleApprove = async (requestId: string) => {
     try {
       setIsProcessing(requestId);
+      console.log('🔄 Début approbation pour:', requestId);
       
       const request = userRequests.find(r => r.id === requestId);
-      if (!request) return;
+      if (!request) {
+        console.error('Demande non trouvée:', requestId);
+        return;
+      }
 
       const tableName = request.operation_type === 'recharge' ? 'recharges' : 'withdrawals';
+      console.log('📊 Mise à jour dans la table:', tableName);
       
       const { error } = await supabase
         .from(tableName as any)
@@ -224,24 +229,38 @@ const SubAdminRechargeTab = () => {
         .eq('id', requestId);
 
       if (error) {
-        console.error('Erreur lors de l\'approbation:', error);
+        console.error('❌ Erreur lors de l\'approbation:', error);
         toast({
           title: "Erreur",
-          description: "Impossible d'approuver la demande",
+          description: "Impossible d'approuver la demande: " + error.message,
           variant: "destructive"
         });
         return;
       }
 
+      console.log('✅ Approbation réussie pour:', requestId);
+      
+      // Mettre à jour immédiatement l'état local
+      setUserRequests(prev => 
+        prev.map(req => 
+          req.id === requestId 
+            ? { ...req, status: 'completed', updated_at: new Date().toISOString() }
+            : req
+        )
+      );
+
       toast({
         title: "Demande approuvée",
-        description: "La demande a été approuvée avec succès",
+        description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} approuvé avec succès`,
       });
 
-      // Recharger immédiatement les données
-      await fetchUserRequests();
+      // Recharger les données pour s'assurer de la cohérence
+      setTimeout(() => {
+        fetchUserRequests();
+      }, 1000);
+
     } catch (error) {
-      console.error('Erreur lors de l\'approbation:', error);
+      console.error('💥 Erreur lors de l\'approbation:', error);
       toast({
         title: "Erreur",
         description: "Erreur lors du traitement de la demande",
@@ -255,11 +274,16 @@ const SubAdminRechargeTab = () => {
   const handleReject = async (requestId: string, reason = 'Demande rejetée par l\'administrateur') => {
     try {
       setIsProcessing(requestId);
+      console.log('🔄 Début rejet pour:', requestId);
       
       const request = userRequests.find(r => r.id === requestId);
-      if (!request) return;
+      if (!request) {
+        console.error('Demande non trouvée:', requestId);
+        return;
+      }
 
       const tableName = request.operation_type === 'recharge' ? 'recharges' : 'withdrawals';
+      console.log('📊 Mise à jour dans la table:', tableName);
       
       const { error } = await supabase
         .from(tableName as any)
@@ -270,24 +294,38 @@ const SubAdminRechargeTab = () => {
         .eq('id', requestId);
 
       if (error) {
-        console.error('Erreur lors du rejet:', error);
+        console.error('❌ Erreur lors du rejet:', error);
         toast({
           title: "Erreur",
-          description: "Impossible de rejeter la demande",
+          description: "Impossible de rejeter la demande: " + error.message,
           variant: "destructive"
         });
         return;
       }
 
+      console.log('✅ Rejet réussi pour:', requestId);
+      
+      // Mettre à jour immédiatement l'état local
+      setUserRequests(prev => 
+        prev.map(req => 
+          req.id === requestId 
+            ? { ...req, status: 'failed', updated_at: new Date().toISOString() }
+            : req
+        )
+      );
+
       toast({
         title: "Demande rejetée",
-        description: "La demande a été rejetée",
+        description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} rejeté`,
       });
 
-      // Recharger immédiatement les données
-      await fetchUserRequests();
+      // Recharger les données pour s'assurer de la cohérence
+      setTimeout(() => {
+        fetchUserRequests();
+      }, 1000);
+
     } catch (error) {
-      console.error('Erreur lors du rejet:', error);
+      console.error('💥 Erreur lors du rejet:', error);
       toast({
         title: "Erreur",
         description: "Erreur lors du traitement de la demande",
