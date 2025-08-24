@@ -9,39 +9,100 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Database } from '@/integrations/supabase/types';
 
-type UserRequestsWithProfiles = Database['public']['Tables']['user_requests']['Row'] & {
+type RechargeWithProfile = Database['public']['Tables']['recharges']['Row'] & {
+  profiles?: Database['public']['Tables']['profiles']['Row'] | null;
+};
+
+type WithdrawalWithProfile = Database['public']['Tables']['withdrawals']['Row'] & {
+  profiles?: Database['public']['Tables']['profiles']['Row'] | null;
+};
+
+type UserRequest = {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  payment_method: string;
+  payment_phone: string;
+  created_at: string;
+  processed_at?: string | null;
+  processed_by?: string | null;
+  rejection_reason?: string | null;
+  operation_type: 'recharge' | 'withdrawal';
   profiles?: Database['public']['Tables']['profiles']['Row'] | null;
 };
 
 const SubAdminRechargeTab = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [userRequests, setUserRequests] = useState<UserRequestsWithProfiles[]>([]);
+  const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fonction pour charger les demandes
   const fetchUserRequests = async () => {
     try {
-      const { data, error } = await supabase
-        .from('user_requests')
+      // Fetch recharges
+      const { data: rechargesData, error: rechargesError } = await supabase
+        .from('recharges')
         .select(`
           *,
           profiles (*)
         `)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Erreur lors du chargement des demandes:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les demandes",
-          variant: "destructive"
-        });
-        return;
+      if (rechargesError) {
+        console.error('Erreur lors du chargement des recharges:', rechargesError);
       }
 
-      console.log('✅ Demandes chargées:', data);
-      setUserRequests(data || []);
+      // Fetch withdrawals
+      const { data: withdrawalsData, error: withdrawalsError } = await supabase
+        .from('withdrawals')
+        .select(`
+          *,
+          profiles (*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (withdrawalsError) {
+        console.error('Erreur lors du chargement des retraits:', withdrawalsError);
+      }
+
+      // Combine and transform data
+      const transformedRecharges: UserRequest[] = (rechargesData || []).map((recharge: RechargeWithProfile) => ({
+        id: recharge.id,
+        user_id: recharge.user_id,
+        amount: recharge.amount,
+        status: recharge.status,
+        payment_method: recharge.payment_method,
+        payment_phone: recharge.payment_phone,
+        created_at: recharge.created_at,
+        processed_at: recharge.updated_at,
+        processed_by: null,
+        rejection_reason: null,
+        operation_type: 'recharge' as const,
+        profiles: recharge.profiles
+      }));
+
+      const transformedWithdrawals: UserRequest[] = (withdrawalsData || []).map((withdrawal: WithdrawalWithProfile) => ({
+        id: withdrawal.id,
+        user_id: withdrawal.user_id,
+        amount: withdrawal.amount,
+        status: withdrawal.status,
+        payment_method: 'mobile_money', // Default for withdrawals
+        payment_phone: withdrawal.withdrawal_phone || '',
+        created_at: withdrawal.created_at,
+        processed_at: withdrawal.processed_at,
+        processed_by: withdrawal.processed_by,
+        rejection_reason: withdrawal.rejection_reason,
+        operation_type: 'withdrawal' as const,
+        profiles: withdrawal.profiles
+      }));
+
+      const allRequests = [...transformedRecharges, ...transformedWithdrawals]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      console.log('✅ Demandes chargées:', allRequests);
+      setUserRequests(allRequests);
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
@@ -63,49 +124,62 @@ const SubAdminRechargeTab = () => {
   useEffect(() => {
     if (!user) return;
 
-    console.log('🔄 Configuration de l\'écoute temps réel pour user_requests');
+    console.log('🔄 Configuration de l\'écoute temps réel pour recharges et retraits');
     
-    const channel = supabase
-      .channel('user_requests_changes')
+    const rechargesChannel = supabase
+      .channel('recharges_changes')
       .on('postgres_changes', 
         { 
           event: '*', 
           schema: 'public', 
-          table: 'user_requests'
+          table: 'recharges'
         }, 
         (payload) => {
-          console.log('📨 Changement détecté dans user_requests:', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            const newRequest = payload.new as Database['public']['Tables']['user_requests']['Row'];
-            toast({
-              title: "Nouvelle demande",
-              description: `Nouvelle demande de ${newRequest.operation_type} de ${formatCurrency(newRequest.amount, 'XAF')}`,
-            });
-            // Recharger les données pour avoir les profils associés
-            fetchUserRequests();
-          } else if (payload.eventType === 'UPDATE') {
-            // Recharger les données en cas de mise à jour
-            fetchUserRequests();
-          }
+          console.log('📨 Changement détecté dans recharges:', payload);
+          fetchUserRequests();
+        }
+      )
+      .subscribe();
+
+    const withdrawalsChannel = supabase
+      .channel('withdrawals_changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'withdrawals'
+        }, 
+        (payload) => {
+          console.log('📨 Changement détecté dans withdrawals:', payload);
+          fetchUserRequests();
         }
       )
       .subscribe();
 
     return () => {
-      console.log('🔇 Désabonnement du canal user_requests');
-      supabase.removeChannel(channel);
+      console.log('🔇 Désabonnement des canaux');
+      supabase.removeChannel(rechargesChannel);
+      supabase.removeChannel(withdrawalsChannel);
     };
   }, [user, toast]);
 
   const handleApprove = async (requestId: string) => {
     try {
+      const request = userRequests.find(r => r.id === requestId);
+      if (!request) return;
+
+      const tableName = request.operation_type === 'recharge' ? 'recharges' : 'withdrawals';
+      
       const { error } = await supabase
-        .from('user_requests')
+        .from(tableName as any)
         .update({
-          status: 'approved',
-          processed_at: new Date().toISOString(),
-          processed_by: user?.id
+          status: 'completed',
+          ...(request.operation_type === 'withdrawal' ? {
+            processed_at: new Date().toISOString(),
+            processed_by: user?.id
+          } : {
+            updated_at: new Date().toISOString()
+          })
         })
         .eq('id', requestId);
 
@@ -138,13 +212,22 @@ const SubAdminRechargeTab = () => {
 
   const handleReject = async (requestId: string, reason = 'Demande rejetée par l\'administrateur') => {
     try {
+      const request = userRequests.find(r => r.id === requestId);
+      if (!request) return;
+
+      const tableName = request.operation_type === 'recharge' ? 'recharges' : 'withdrawals';
+      
       const { error } = await supabase
-        .from('user_requests')
+        .from(tableName as any)
         .update({
-          status: 'rejected',
-          processed_at: new Date().toISOString(),
-          processed_by: user?.id,
-          rejection_reason: reason
+          status: 'failed',
+          ...(request.operation_type === 'withdrawal' ? {
+            processed_at: new Date().toISOString(),
+            processed_by: user?.id,
+            rejection_reason: reason
+          } : {
+            updated_at: new Date().toISOString()
+          })
         })
         .eq('id', requestId);
 
@@ -179,9 +262,9 @@ const SubAdminRechargeTab = () => {
     switch (status) {
       case 'pending':
         return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1" />En attente</Badge>;
-      case 'approved':
+      case 'completed':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Approuvée</Badge>;
-      case 'rejected':
+      case 'failed':
         return <Badge className="bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Rejetée</Badge>;
       default:
         return <Badge variant="secondary">Inconnu</Badge>;
