@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, XCircle, Clock, Phone, CreditCard, User } from 'lucide-react';
+import { formatCurrency } from '@/integrations/supabase/client';
 
 interface UserRequest {
   id: string;
@@ -54,11 +55,12 @@ const SubAdminRechargeTab = () => {
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erreur lors de la récupération des demandes:', error);
+        throw error;
+      }
       
-      // Convertir au type approprié avec gestion sécurisée
       return (data || []).map(item => {
-        // Vérifier si profiles est un objet valide et pas une erreur
         const isValidProfiles = item.profiles && 
                                typeof item.profiles === 'object' && 
                                item.profiles !== null && 
@@ -115,7 +117,7 @@ const SubAdminRechargeTab = () => {
     onSuccess: (_, request) => {
       toast({
         title: "Demande approuvée",
-        description: `La ${request.operation_type === 'recharge' ? 'recharge' : 'demande de retrait'} de ${request.amount.toLocaleString()} FCFA a été approuvée`,
+        description: `La ${request.operation_type === 'recharge' ? 'recharge' : 'demande de retrait'} de ${formatCurrency(request.amount, 'XAF')} a été approuvée`,
       });
       queryClient.invalidateQueries({ queryKey: ['user-requests'] });
       setSelectedRequest(null);
@@ -235,7 +237,7 @@ const SubAdminRechargeTab = () => {
                   <Badge className={`${
                     request.operation_type === 'recharge' ? 'bg-green-600' : 'bg-blue-600'
                   } text-white`}>
-                    {request.amount.toLocaleString()} FCFA
+                    {formatCurrency(request.amount, 'XAF')}
                   </Badge>
                 </CardTitle>
               </CardHeader>

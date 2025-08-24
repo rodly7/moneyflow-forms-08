@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Package, AlertTriangle, TrendingUp, Wallet } from 'lucide-react';
+import { formatCurrency } from '@/integrations/supabase/client';
 
 interface InventoryItem {
   id: string;
@@ -16,7 +17,6 @@ interface InventoryItem {
   max_stock: number;
   min_threshold: number;
   unit_price: number;
-  total_value: number;
   status: 'available' | 'low_stock' | 'out_of_stock';
 }
 
@@ -28,67 +28,26 @@ const SubAdminInventoryTab = () => {
     queryFn: async () => {
       if (!user?.id) return [];
 
-      // Simuler les données d'inventaire pour l'instant
-      // Dans une vraie implémentation, ces données viendraient d'une table inventory
-      const mockInventory: InventoryItem[] = [
-        {
-          id: '1',
-          name: 'Cartes Prépayées Orange Money',
-          category: 'Télécom',
-          stock: 150,
-          max_stock: 200,
-          min_threshold: 50,
-          unit_price: 1000,
-          total_value: 150000,
-          status: 'available'
-        },
-        {
-          id: '2',
-          name: 'Cartes MTN Mobile Money',
-          category: 'Télécom',
-          stock: 25,
-          max_stock: 100,
-          min_threshold: 30,
-          unit_price: 1000,
-          total_value: 25000,
-          status: 'low_stock'
-        },
-        {
-          id: '3',
-          name: 'Cartes Airtel Money',
-          category: 'Télécom',
-          stock: 0,
-          max_stock: 100,
-          min_threshold: 20,
-          unit_price: 1000,
-          total_value: 0,
-          status: 'out_of_stock'
-        },
-        {
-          id: '4',
-          name: 'Crédits de Communication',
-          category: 'Services',
-          stock: 500,
-          max_stock: 1000,
-          min_threshold: 100,
-          unit_price: 100,
-          total_value: 50000,
-          status: 'available'
-        },
-      ];
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select('*')
+        .order('name');
 
-      return mockInventory;
+      if (error) {
+        console.error('Erreur lors de la récupération de l\'inventaire:', error);
+        throw error;
+      }
+
+      return (data || []).map(item => ({
+        ...item,
+        // Mettre à jour automatiquement le statut basé sur le stock
+        status: item.stock === 0 ? 'out_of_stock' as const :
+                item.stock <= item.min_threshold ? 'low_stock' as const :
+                'available' as const
+      })) as InventoryItem[];
     },
     enabled: !!user?.id
   });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'XAF',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -104,10 +63,10 @@ const SubAdminInventoryTab = () => {
   };
 
   const getStockPercentage = (current: number, max: number) => {
-    return (current / max) * 100;
+    return Math.min((current / max) * 100, 100);
   };
 
-  const totalValue = inventory?.reduce((sum, item) => sum + item.total_value, 0) || 0;
+  const totalValue = inventory?.reduce((sum, item) => sum + (item.stock * item.unit_price), 0) || 0;
   const lowStockItems = inventory?.filter(item => item.status === 'low_stock').length || 0;
   const outOfStockItems = inventory?.filter(item => item.status === 'out_of_stock').length || 0;
 
@@ -136,7 +95,7 @@ const SubAdminInventoryTab = () => {
             <Wallet className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalValue)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalValue, 'XAF')}</div>
             <p className="text-sm text-muted-foreground">Inventaire total</p>
           </CardContent>
         </Card>
@@ -209,11 +168,13 @@ const SubAdminInventoryTab = () => {
                 <div className="flex justify-between items-center text-sm">
                   <div>
                     <span className="text-muted-foreground">Prix unitaire: </span>
-                    <span className="font-semibold">{formatCurrency(item.unit_price)}</span>
+                    <span className="font-semibold">{formatCurrency(item.unit_price, 'XAF')}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Valeur totale: </span>
-                    <span className="font-semibold text-green-600">{formatCurrency(item.total_value)}</span>
+                    <span className="font-semibold text-green-600">
+                      {formatCurrency(item.stock * item.unit_price, 'XAF')}
+                    </span>
                   </div>
                 </div>
               </div>

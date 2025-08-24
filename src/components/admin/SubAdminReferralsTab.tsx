@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserPlus, Gift, TrendingUp, Users } from 'lucide-react';
+import { formatCurrency } from '@/integrations/supabase/client';
 
 interface ReferralStats {
   totalReferrals: number;
@@ -27,31 +28,66 @@ const SubAdminReferralsTab = () => {
     queryFn: async () => {
       if (!user?.id) return null;
 
-      // Simuler les données de parrainage pour l'instant
-      // Dans une vraie implémentation, ces données viendraient d'une table referrals
-      const mockStats: ReferralStats = {
-        totalReferrals: 147,
-        activeReferrals: 132,
-        totalRewards: 73500,
-        topReferrers: [
-          { id: '1', full_name: 'Marie Dubois', phone: '+237650123456', referral_count: 15 },
-          { id: '2', full_name: 'Jean Martin', phone: '+237651234567', referral_count: 12 },
-          { id: '3', full_name: 'Sophie Bernard', phone: '+237652345678', referral_count: 9 },
-        ]
+      // Récupérer le total des parrainages
+      const { data: referralsData } = await supabase
+        .from('referrals')
+        .select('*');
+
+      const totalReferrals = referralsData?.length || 0;
+      const activeReferrals = referralsData?.filter(r => r.status === 'completed').length || 0;
+
+      // Récupérer le total des récompenses distribuées
+      const { data: rewardsData } = await supabase
+        .from('referral_rewards')
+        .select('amount')
+        .eq('status', 'paid');
+
+      const totalRewards = rewardsData?.reduce((sum, reward) => sum + reward.amount, 0) || 0;
+
+      // Récupérer les top parraineurs
+      const { data: topReferrersData } = await supabase
+        .from('referrals')
+        .select(`
+          referrer_id,
+          profiles!referrals_referrer_id_fkey (full_name, phone)
+        `)
+        .eq('status', 'completed');
+
+      // Grouper par parrain et compter
+      const referrerCounts: { [key: string]: { profile: any, count: number } } = {};
+      
+      topReferrersData?.forEach(referral => {
+        const referrerId = referral.referrer_id;
+        if (!referrerCounts[referrerId]) {
+          referrerCounts[referrerId] = {
+            profile: referral.profiles,
+            count: 0
+          };
+        }
+        referrerCounts[referrerId].count++;
+      });
+
+      const topReferrers = Object.entries(referrerCounts)
+        .map(([id, data]) => ({
+          id,
+          full_name: data.profile?.full_name || 'Utilisateur inconnu',
+          phone: data.profile?.phone || 'N/A',
+          referral_count: data.count
+        }))
+        .sort((a, b) => b.referral_count - a.referral_count)
+        .slice(0, 3);
+
+      const statsResult: ReferralStats = {
+        totalReferrals,
+        activeReferrals,
+        totalRewards,
+        topReferrers
       };
 
-      return mockStats;
+      return statsResult;
     },
     enabled: !!user?.id
   });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'XAF',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
 
   if (isLoading) {
     return (
@@ -79,7 +115,7 @@ const SubAdminReferralsTab = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.totalReferrals || 0}</div>
-            <p className="text-sm text-muted-foreground">+8 ce mois-ci</p>
+            <p className="text-sm text-muted-foreground">Parrainages créés</p>
           </CardContent>
         </Card>
 
@@ -90,7 +126,7 @@ const SubAdminReferralsTab = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.activeReferrals || 0}</div>
-            <p className="text-sm text-muted-foreground">89% du total</p>
+            <p className="text-sm text-muted-foreground">Parrainages complétés</p>
           </CardContent>
         </Card>
 
@@ -100,8 +136,8 @@ const SubAdminReferralsTab = () => {
             <Gift className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats?.totalRewards || 0)}</div>
-            <p className="text-sm text-muted-foreground">+15% ce mois-ci</p>
+            <div className="text-2xl font-bold">{formatCurrency(stats?.totalRewards || 0, 'XAF')}</div>
+            <p className="text-sm text-muted-foreground">Montant total payé</p>
           </CardContent>
         </Card>
 
@@ -111,8 +147,10 @@ const SubAdminReferralsTab = () => {
             <TrendingUp className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">72%</div>
-            <p className="text-sm text-muted-foreground">+5% vs mois dernier</p>
+            <div className="text-2xl font-bold">
+              {stats?.totalReferrals ? Math.round((stats.activeReferrals / stats.totalReferrals) * 100) : 0}%
+            </div>
+            <p className="text-sm text-muted-foreground">Parrainages complétés</p>
           </CardContent>
         </Card>
       </div>
@@ -122,29 +160,31 @@ const SubAdminReferralsTab = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
-            Top Parraineurs du Mois
+            Top Parraineurs
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {stats?.topReferrers.map((referrer, index) => (
-              <div key={referrer.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold">
-                    {index + 1}
+            {stats?.topReferrers && stats.topReferrers.length > 0 ? (
+              stats.topReferrers.map((referrer, index) => (
+                <div key={referrer.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">{referrer.full_name}</h4>
+                      <p className="text-sm text-muted-foreground">{referrer.phone}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold">{referrer.full_name}</h4>
-                    <p className="text-sm text-muted-foreground">{referrer.phone}</p>
-                  </div>
+                  <Badge variant="secondary" className="text-lg px-3 py-1">
+                    {referrer.referral_count} parrainages
+                  </Badge>
                 </div>
-                <Badge variant="secondary" className="text-lg px-3 py-1">
-                  {referrer.referral_count} parrainages
-                </Badge>
-              </div>
-            )) || (
+              ))
+            ) : (
               <div className="text-center py-8 text-muted-foreground">
-                Aucune donnée de parrainage disponible
+                Aucun parrainage complété pour le moment
               </div>
             )}
           </div>
