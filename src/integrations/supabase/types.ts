@@ -1466,6 +1466,38 @@ export type Database = {
           },
         ]
       }
+      sub_admin_quota_settings: {
+        Row: {
+          created_at: string
+          daily_limit: number
+          id: string
+          sub_admin_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          daily_limit?: number
+          id?: string
+          sub_admin_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          daily_limit?: number
+          id?: string
+          sub_admin_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_admin_quota_settings_sub_admin_id_fkey"
+            columns: ["sub_admin_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sub_admin_settings: {
         Row: {
           created_at: string

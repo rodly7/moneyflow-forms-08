@@ -7,13 +7,19 @@ import { toast } from 'sonner';
 interface DailyRequestsStatus {
   todayRequests: number;
   totalRequests: number;
+  dailyLimit: number;
+  canMakeRequest: boolean;
+  remainingRequests: number;
 }
 
 export const useSubAdminDailyRequests = () => {
   const { user, profile } = useAuth();
   const [status, setStatus] = useState<DailyRequestsStatus>({
     todayRequests: 0,
-    totalRequests: 0
+    totalRequests: 0,
+    dailyLimit: 50,
+    canMakeRequest: true,
+    remainingRequests: 50
   });
   const [loading, setLoading] = useState(true);
 
@@ -34,6 +40,21 @@ export const useSubAdminDailyRequests = () => {
         String(today.getDate()).padStart(2, '0');
       
       console.log(`📅 Recherche des demandes traitées pour la date: ${todayDateString}`);
+      
+      // Récupérer les paramètres de quota
+      const { data: quotaSettings, error: quotaError } = await supabase
+        .from('sub_admin_quota_settings')
+        .select('daily_limit')
+        .eq('sub_admin_id', user.id)
+        .single();
+
+      if (quotaError && quotaError.code !== 'PGRST116') { // PGRST116 = no rows
+        console.error('❌ Erreur lors de la récupération du quota:', quotaError);
+        throw quotaError;
+      }
+
+      const dailyLimit = quotaSettings?.daily_limit || 50;
+      console.log(`📏 Limite quotidienne: ${dailyLimit}`);
       
       // Compter les vraies demandes traitées AUJOURD'HUI dans user_requests
       const { count: todayCount, error: todayError } = await supabase
@@ -65,9 +86,15 @@ export const useSubAdminDailyRequests = () => {
       const totalRequests = totalHistoricCount || 0;
       console.log(`📈 Total historique des demandes traitées: ${totalRequests}`);
 
+      const remainingRequests = Math.max(0, dailyLimit - todayRequests);
+      const canMakeRequest = todayRequests < dailyLimit;
+
       const finalStatus = {
         todayRequests,
-        totalRequests
+        totalRequests,
+        dailyLimit,
+        canMakeRequest,
+        remainingRequests
       };
 
       console.log(`✅ Statut final calculé:`, finalStatus);
@@ -85,6 +112,12 @@ export const useSubAdminDailyRequests = () => {
   const recordRequest = useCallback(async (requestType: string) => {
     if (!user?.id) {
       toast.error('Utilisateur non connecté');
+      return false;
+    }
+
+    // Vérifier le quota avant d'enregistrer
+    if (!status.canMakeRequest && requestType !== 'data_check') {
+      toast.error(`Quota journalier atteint (${status.dailyLimit}). Revenez demain.`);
       return false;
     }
 
@@ -112,6 +145,13 @@ export const useSubAdminDailyRequests = () => {
       // Actualiser le statut après enregistrement (pour les vraies demandes traitées)
       if (requestType !== 'data_check') {
         await fetchDailyStatus();
+        
+        // Afficher un avertissement si proche de la limite
+        if (status.remainingRequests <= 5 && status.remainingRequests > 1) {
+          toast.warning(`Plus que ${status.remainingRequests - 1} demandes aujourd'hui`);
+        } else if (status.remainingRequests === 1) {
+          toast.warning('Dernière demande de la journée !');
+        }
       }
 
       return true;
@@ -120,7 +160,7 @@ export const useSubAdminDailyRequests = () => {
       toast.error('Erreur lors de l\'enregistrement de la demande');
       return false;
     }
-  }, [user?.id, fetchDailyStatus]);
+  }, [user?.id, fetchDailyStatus, status.canMakeRequest, status.dailyLimit, status.remainingRequests]);
 
   useEffect(() => {
     fetchDailyStatus();
