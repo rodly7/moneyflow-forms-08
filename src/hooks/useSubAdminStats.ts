@@ -12,6 +12,9 @@ interface SubAdminStats {
   dailyLimit: number;
   pendingWithdrawals: number;
   totalTransactions: number;
+  totalRechargeAmount: number;
+  totalWithdrawalAmount: number;
+  totalAmount: number;
 }
 
 export const useSubAdminStats = () => {
@@ -24,221 +27,174 @@ export const useSubAdminStats = () => {
     dailyRequests: 0,
     dailyLimit: 300,
     pendingWithdrawals: 0,
-    totalTransactions: 0
+    totalTransactions: 0,
+    totalRechargeAmount: 0,
+    totalWithdrawalAmount: 0,
+    totalAmount: 0
   });
   const [loading, setLoading] = useState(true);
 
   const fetchStats = async () => {
-    console.log('🔍 Debug - Démarrage fetchStats');
-    console.log('🔍 Debug - User:', user?.id);
-    console.log('🔍 Debug - Profile role:', profile?.role);
-    console.log('🔍 Debug - Profile country:', profile?.country);
-
-    // Si ce n'est pas un sous-admin, on retourne des stats vides mais on continue à charger
+    console.log('🔍 Debug - Démarrage fetchStats pour:', user?.id, profile?.role);
+    
     if (!user?.id) {
       console.log('❌ Debug - Pas d\'utilisateur connecté');
       setLoading(false);
       return;
     }
 
-    // Pour l'admin principal, on va chercher des données globales
-    if (profile?.role === 'admin') {
-      console.log('🔍 Debug - Admin principal détecté, récupération des stats globales');
-      try {
-        // Récupérer tous les sous-administrateurs
-        const { data: subAdmins, error: subAdminsError } = await supabase
-          .from('profiles')
-          .select('id, full_name, country, phone')
-          .eq('role', 'sub_admin');
+    try {
+      if (profile?.role === 'admin') {
+        console.log('👑 Debug - Admin principal détecté');
+        // Pour l'admin principal, récupérer toutes les données globales
+        const [usersResult, agentsResult, transfersResult, withdrawalsResult, rechargesResult] = await Promise.all([
+          supabase.from('profiles').select('id, role, country').neq('role', 'admin').neq('role', 'sub_admin'),
+          supabase.from('agents').select('id, status, country'),
+          supabase.from('transfers').select('id, amount, status').eq('status', 'completed'),
+          supabase.from('withdrawals').select('id, amount, status').eq('status', 'completed'),
+          supabase.from('recharges').select('id, amount, status').eq('status', 'completed')
+        ]);
 
-        console.log('👥 Debug - Sous-administrateurs trouvés:', subAdmins?.length || 0);
-
-        // Récupérer tous les utilisateurs
-        const { data: allUsers, error: usersError } = await supabase
-          .from('profiles')
-          .select('id, role, country')
-          .neq('role', 'admin')
-          .neq('role', 'sub_admin');
-
-        console.log('👤 Debug - Utilisateurs totaux:', allUsers?.length || 0);
-
-        // Récupérer tous les agents
-        const { data: allAgents, error: agentsError } = await supabase
-          .from('agents')
-          .select('id, status, country');
-
-        console.log('🏪 Debug - Agents totaux:', allAgents?.length || 0);
-        console.log('✅ Debug - Agents actifs:', allAgents?.filter(a => a.status === 'active').length || 0);
-
-        // Récupérer toutes les transactions
-        const { data: allTransfers, error: transfersError } = await supabase
-          .from('transfers')
-          .select('id, amount, status')
-          .eq('status', 'completed');
-
-        console.log('💸 Debug - Transferts totaux:', allTransfers?.length || 0);
-
-        // Récupérer tous les retraits en attente
-        const { data: allWithdrawals, error: withdrawalsError } = await supabase
-          .from('withdrawals')
-          .select('id, amount, status')
-          .eq('status', 'pending');
-
-        console.log('💰 Debug - Retraits en attente:', allWithdrawals?.length || 0);
-
-        // Récupérer toutes les recharges
-        const { data: allRecharges, error: rechargesError } = await supabase
-          .from('recharges')
-          .select('id, amount, status')
-          .eq('status', 'completed');
-
-        console.log('🔋 Debug - Recharges totales:', allRecharges?.length || 0);
+        const totalRechargeAmount = rechargesResult.data?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0;
+        const totalWithdrawalAmount = withdrawalsResult.data?.reduce((sum, w) => sum + (w.amount || 0), 0) || 0;
 
         const finalStats = {
-          totalUsersManaged: allUsers?.length || 0,
-          totalAgentsManaged: allAgents?.length || 0,
-          activeAgents: allAgents?.filter(a => a.status === 'active').length || 0,
-          quotaUtilization: 0, // Pas de quota pour l'admin principal
+          totalUsersManaged: usersResult.data?.length || 0,
+          totalAgentsManaged: agentsResult.data?.length || 0,
+          activeAgents: agentsResult.data?.filter(a => a.status === 'active').length || 0,
+          quotaUtilization: 0,
           dailyRequests: 0,
-          dailyLimit: 999999, // Pas de limite pour l'admin principal
-          pendingWithdrawals: allWithdrawals?.length || 0,
-          totalTransactions: (allTransfers?.length || 0) + (allRecharges?.length || 0)
+          dailyLimit: 999999,
+          pendingWithdrawals: 0,
+          totalTransactions: (transfersResult.data?.length || 0) + (rechargesResult.data?.length || 0) + (withdrawalsResult.data?.length || 0),
+          totalRechargeAmount,
+          totalWithdrawalAmount,
+          totalAmount: totalRechargeAmount + totalWithdrawalAmount
         };
 
         console.log('✅ Debug - Stats admin principal calculées:', finalStats);
         setStats(finalStats);
+        
+      } else if (profile?.role === 'sub_admin' && profile?.country) {
+        console.log('🎯 Debug - Sous-admin détecté pour le pays:', profile.country);
+        
+        // Récupérer le quota journalier réel
+        const today = new Date().toISOString().split('T')[0];
+        console.log('📅 Debug - Date du jour:', today);
 
-      } catch (error) {
-        console.error('💥 Debug - Erreur admin principal:', error);
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
+        // Compter les vraies demandes traitées aujourd'hui dans user_requests
+        const { count: todayRequests, error: todayError } = await supabase
+          .from('user_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('processed_by', user.id)
+          .gte('processed_at', `${today}T00:00:00.000Z`)
+          .lt('processed_at', `${today}T23:59:59.999Z`);
 
-    // Pour un sous-admin spécifique
-    if (profile?.role === 'sub_admin' && profile?.country) {
-      console.log('🔍 Debug - Sous-admin détecté pour le pays:', profile.country);
-      try {
-        // Récupérer le quota journalier
-        const { data: quotaSettings, error: quotaError } = await supabase
+        console.log('📊 Debug - Vraies demandes traitées aujourd\'hui:', todayRequests);
+
+        // Récupérer les paramètres de quota
+        const { data: quotaSettings } = await supabase
           .from('sub_admin_quota_settings')
           .select('daily_limit')
           .eq('sub_admin_id', user.id)
           .single();
 
-        console.log('📏 Debug - Quota settings:', { quotaSettings, quotaError });
-
         const dailyLimit = quotaSettings?.daily_limit || 300;
+        const dailyRequests = todayRequests || 0;
+        const quotaUtilization = dailyLimit > 0 ? Math.round(dailyRequests / dailyLimit * 100) : 0;
 
-        // Compter les demandes du jour
-        const today = new Date().toISOString().split('T')[0];
-        console.log('📅 Debug - Date du jour:', today);
-        
-        const { count: dailyRequests, error: dailyError } = await supabase
-          .from('sub_admin_daily_requests')
-          .select('*', { count: 'exact', head: true })
-          .eq('sub_admin_id', user.id)
-          .eq('date', today);
+        // Compter les utilisateurs et agents gérés dans le même pays
+        const [usersResult, agentsResult, activeAgentsResult] = await Promise.all([
+          supabase.from('profiles').select('*', { count: 'exact', head: true })
+            .eq('country', profile.country)
+            .neq('role', 'admin')
+            .neq('role', 'sub_admin'),
+          supabase.from('agents').select('*', { count: 'exact', head: true })
+            .eq('country', profile.country),
+          supabase.from('agents').select('*', { count: 'exact', head: true })
+            .eq('country', profile.country)
+            .eq('status', 'active')
+        ]);
 
-        console.log('📊 Debug - Demandes du jour:', { dailyRequests, dailyError });
-
-        // Compter les utilisateurs gérés (même pays)
-        const { count: totalUsersManaged, error: usersError } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('country', profile.country)
-          .neq('role', 'admin')
-          .neq('role', 'sub_admin');
-
-        console.log('👥 Debug - Utilisateurs gérés:', { totalUsersManaged, usersError, country: profile.country });
-
-        // Compter les agents gérés
-        const { count: totalAgentsManaged, error: agentsError } = await supabase
-          .from('agents')
-          .select('*', { count: 'exact', head: true })
-          .eq('country', profile.country);
-
-        console.log('🔧 Debug - Agents gérés:', { totalAgentsManaged, agentsError });
-
-        // Compter les agents actifs
-        const { count: activeAgents, error: activeAgentsError } = await supabase
-          .from('agents')
-          .select('*', { count: 'exact', head: true })
-          .eq('country', profile.country)
-          .eq('status', 'active');
-
-        console.log('✅ Debug - Agents actifs:', { activeAgents, activeAgentsError });
-
-        // Récupérer les agents de cette zone pour les transactions
-        const { data: agentsData, error: agentsDataError } = await supabase
+        // Récupérer les IDs des agents de ce pays pour calculer les montants
+        const { data: agentsData } = await supabase
           .from('agents')
           .select('user_id')
           .eq('country', profile.country);
 
-        console.log('🎯 Debug - Données agents pour transactions:', { agentsData, agentsDataError });
-
         const agentUserIds = agentsData?.map(agent => agent.user_id).filter(Boolean) || [];
-        console.log('🆔 Debug - IDs des agents:', agentUserIds);
+        console.log('🆔 Debug - IDs des agents pour', profile.country, ':', agentUserIds);
 
         let totalTransactions = 0;
         let pendingWithdrawals = 0;
+        let totalRechargeAmount = 0;
+        let totalWithdrawalAmount = 0;
 
         if (agentUserIds.length > 0) {
-          // Compter les transactions
-          const { count: transactionCount, error: transactionError } = await supabase
-            .from('transfers')
-            .select('*', { count: 'exact', head: true })
-            .in('sender_id', agentUserIds)
+          // Calculer les montants des recharges effectuées par les agents de ce pays
+          const { data: recharges } = await supabase
+            .from('recharges')
+            .select('amount')
+            .in('provider_transaction_id', agentUserIds.map(id => id.toString()))
             .eq('status', 'completed');
 
-          console.log('💸 Debug - Transactions:', { transactionCount, transactionError });
-          totalTransactions = transactionCount || 0;
+          totalRechargeAmount = recharges?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0;
+
+          // Calculer les montants des retraits effectués par les agents de ce pays
+          const { data: withdrawals } = await supabase
+            .from('withdrawals')
+            .select('amount, status')
+            .in('user_id', agentUserIds)
+            .eq('status', 'completed');
+
+          totalWithdrawalAmount = withdrawals?.reduce((sum, w) => sum + (w.amount || 0), 0) || 0;
 
           // Compter les retraits en attente
-          const { count: withdrawalCount, error: withdrawalError } = await supabase
+          const { count: pendingCount } = await supabase
             .from('withdrawals')
             .select('*', { count: 'exact', head: true })
             .in('user_id', agentUserIds)
             .eq('status', 'pending');
 
-          console.log('💰 Debug - Retraits en attente:', { withdrawalCount, withdrawalError });
-          pendingWithdrawals = withdrawalCount || 0;
-        } else {
-          console.log('⚠️ Debug - Aucun agent trouvé pour ce pays');
+          pendingWithdrawals = pendingCount || 0;
+
+          // Compter toutes les transactions
+          const { count: transactionCount } = await supabase
+            .from('transfers')
+            .select('*', { count: 'exact', head: true })
+            .in('sender_id', agentUserIds)
+            .eq('status', 'completed');
+
+          totalTransactions = (transactionCount || 0) + (recharges?.length || 0) + (withdrawals?.length || 0);
         }
 
-        const quotaUtilization = dailyLimit > 0 ? Math.round((dailyRequests || 0) / dailyLimit * 100) : 0;
-
         const finalStats = {
-          totalUsersManaged: totalUsersManaged || 0,
-          totalAgentsManaged: totalAgentsManaged || 0,
-          activeAgents: activeAgents || 0,
+          totalUsersManaged: usersResult.count || 0,
+          totalAgentsManaged: agentsResult.count || 0,
+          activeAgents: activeAgentsResult.count || 0,
           quotaUtilization,
-          dailyRequests: dailyRequests || 0,
+          dailyRequests,
           dailyLimit,
-          pendingWithdrawals: pendingWithdrawals || 0,
-          totalTransactions: totalTransactions || 0
+          pendingWithdrawals,
+          totalTransactions,
+          totalRechargeAmount,
+          totalWithdrawalAmount,
+          totalAmount: totalRechargeAmount + totalWithdrawalAmount
         };
 
-        console.log('✅ Debug - Statistiques sous-admin finales calculées:', finalStats);
+        console.log('✅ Debug - Statistiques sous-admin finales:', finalStats);
         setStats(finalStats);
-
-      } catch (error) {
-        console.error('💥 Debug - Erreur lors de la récupération sous-admin:', error);
-      } finally {
-        setLoading(false);
       }
-      return;
+      
+    } catch (error) {
+      console.error('💥 Debug - Erreur lors de la récupération des stats:', error);
+    } finally {
+      setLoading(false);
     }
-
-    // Si aucune condition n'est remplie
-    console.log('⚠️ Debug - Aucune condition remplie, stats par défaut');
-    setLoading(false);
   };
 
   useEffect(() => {
-    console.log('🚀 Debug - Démarrage du hook useSubAdminStats');
+    console.log('🚀 Debug - Démarrage du hook useSubAdminStats pour:', profile?.role);
     fetchStats();
   }, [user?.id, profile?.role, profile?.country]);
 
