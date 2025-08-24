@@ -57,12 +57,7 @@ const UserRequestsManagement = () => {
           created_at,
           processed_by,
           processed_at,
-          rejection_reason,
-          profiles!user_requests_user_id_fkey (
-            full_name,
-            phone,
-            country
-          )
+          rejection_reason
         `)
         .order('created_at', { ascending: false });
 
@@ -71,8 +66,24 @@ const UserRequestsManagement = () => {
         throw error;
       }
 
-      console.log('✅ Demandes chargées:', requests);
-      setUserRequests(requests || []);
+      // Fetch profile data separately for each request
+      const requestsWithProfiles = await Promise.all(
+        (requests || []).map(async (request) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, phone, country')
+            .eq('id', request.user_id)
+            .single();
+          
+          return {
+            ...request,
+            profiles: profile
+          };
+        })
+      );
+
+      console.log('✅ Demandes chargées:', requestsWithProfiles);
+      setUserRequests(requestsWithProfiles);
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
