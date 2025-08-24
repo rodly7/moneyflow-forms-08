@@ -28,13 +28,32 @@ const RecentTransactions = () => {
       case 'transfer_received':
         return <ArrowDownLeft className="w-4 h-4 text-green-600" />;
       case 'deposit':
-        return <ArrowDownLeft className="w-4 h-4 text-green-600" />; // Recharge = crédit (entrée d'argent)
+        return <ArrowDownLeft className="w-4 h-4 text-green-600" />;
       case 'withdrawal':
-        return <ArrowUpRight className="w-4 h-4 text-red-600" />; // Retrait = débit (sortie d'argent)
+        return <ArrowUpRight className="w-4 h-4 text-red-600" />;
       case 'bill_payment':
         return <Receipt className="w-4 h-4 text-orange-600" />;
       default:
         return <CreditCard className="w-4 h-4" />;
+    }
+  };
+
+  const getTransactionMessage = (type: string, amount: number, recipient_name?: string, sender_name?: string, withdrawal_phone?: string) => {
+    const formattedAmount = amount.toLocaleString();
+    
+    switch (type) {
+      case 'transfer_sent':
+        return `Transfert envoyé de ${formattedAmount} XAF${recipient_name ? ` vers ${recipient_name}` : ''}`;
+      case 'transfer_received':
+        return `Transfert reçu de ${formattedAmount} XAF${sender_name ? ` de ${sender_name}` : ''}`;
+      case 'deposit':
+        return `Recharge de ${formattedAmount} XAF effectuée`;
+      case 'withdrawal':
+        return `Retrait de ${formattedAmount} XAF${withdrawal_phone ? ` vers ${withdrawal_phone}` : ''}`;
+      case 'bill_payment':
+        return `Paiement de facture de ${formattedAmount} XAF`;
+      default:
+        return `Transaction de ${formattedAmount} XAF`;
     }
   };
 
@@ -154,7 +173,13 @@ const RecentTransactions = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-medium text-sm">
-                        {transaction.description}
+                        {getTransactionMessage(
+                          transaction.type, 
+                          transaction.amount, 
+                          transaction.recipient_full_name,
+                          transaction.sender_name,
+                          transaction.withdrawal_phone
+                        )}
                       </p>
                       {getStatusIcon(transaction.status)}
                     </div>
