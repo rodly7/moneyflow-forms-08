@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,14 +8,40 @@ import { formatCurrency } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Database } from '@/integrations/supabase/types';
 
-type RechargeWithProfile = Database['public']['Tables']['recharges']['Row'] & {
-  profiles?: Database['public']['Tables']['profiles']['Row'] | null;
+// Updated types to match actual database structure
+type RechargeData = {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  payment_method: string;
+  payment_phone: string;
+  created_at: string;
+  updated_at: string;
+  country: string;
+  transaction_reference: string;
+  payment_provider: string;
+  provider_transaction_id: string | null;
 };
 
-type WithdrawalWithProfile = Database['public']['Tables']['withdrawals']['Row'] & {
-  profiles?: Database['public']['Tables']['profiles']['Row'] | null;
+type WithdrawalData = {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  withdrawal_phone: string;
+  verification_code: string;
+  is_deleted: boolean;
+};
+
+type ProfileData = {
+  id: string;
+  full_name: string | null;
+  phone: string;
+  country: string | null;
 };
 
 type UserRequest = {
@@ -29,7 +56,7 @@ type UserRequest = {
   processed_by?: string | null;
   rejection_reason?: string | null;
   operation_type: 'recharge' | 'withdrawal';
-  profiles?: Database['public']['Tables']['profiles']['Row'] | null;
+  profile?: ProfileData | null;
 };
 
 const SubAdminRechargeTab = () => {
@@ -41,34 +68,54 @@ const SubAdminRechargeTab = () => {
   // Fonction pour charger les demandes
   const fetchUserRequests = async () => {
     try {
-      // Fetch recharges
+      console.log('🔄 Chargement des recharges et retraits...');
+
+      // Fetch recharges with profiles
       const { data: rechargesData, error: rechargesError } = await supabase
         .from('recharges')
-        .select(`
-          *,
-          profiles (*)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (rechargesError) {
         console.error('Erreur lors du chargement des recharges:', rechargesError);
+        throw rechargesError;
       }
 
       // Fetch withdrawals
       const { data: withdrawalsData, error: withdrawalsError } = await supabase
         .from('withdrawals')
-        .select(`
-          *,
-          profiles (*)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (withdrawalsError) {
         console.error('Erreur lors du chargement des retraits:', withdrawalsError);
+        throw withdrawalsError;
       }
 
-      // Combine and transform data
-      const transformedRecharges: UserRequest[] = (rechargesData || []).map((recharge: RechargeWithProfile) => ({
+      // Get unique user IDs
+      const userIds = [
+        ...(rechargesData || []).map(r => r.user_id),
+        ...(withdrawalsData || []).map(w => w.user_id)
+      ].filter((id, index, arr) => arr.indexOf(id) === index);
+
+      // Fetch profiles for all users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, country')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('Erreur lors du chargement des profils:', profilesError);
+      }
+
+      // Create a map for quick profile lookup
+      const profilesMap = new Map<string, ProfileData>();
+      (profilesData || []).forEach(profile => {
+        profilesMap.set(profile.id, profile);
+      });
+
+      // Transform recharges data
+      const transformedRecharges: UserRequest[] = (rechargesData || []).map((recharge) => ({
         id: recharge.id,
         user_id: recharge.user_id,
         amount: recharge.amount,
@@ -80,22 +127,23 @@ const SubAdminRechargeTab = () => {
         processed_by: null,
         rejection_reason: null,
         operation_type: 'recharge' as const,
-        profiles: recharge.profiles
+        profile: profilesMap.get(recharge.user_id) || null
       }));
 
-      const transformedWithdrawals: UserRequest[] = (withdrawalsData || []).map((withdrawal: WithdrawalWithProfile) => ({
+      // Transform withdrawals data
+      const transformedWithdrawals: UserRequest[] = (withdrawalsData || []).map((withdrawal) => ({
         id: withdrawal.id,
         user_id: withdrawal.user_id,
         amount: withdrawal.amount,
         status: withdrawal.status,
-        payment_method: 'mobile_money', // Default for withdrawals
+        payment_method: 'mobile_money',
         payment_phone: withdrawal.withdrawal_phone || '',
         created_at: withdrawal.created_at,
-        processed_at: withdrawal.processed_at,
-        processed_by: withdrawal.processed_by,
-        rejection_reason: withdrawal.rejection_reason,
+        processed_at: withdrawal.updated_at,
+        processed_by: null,
+        rejection_reason: null,
         operation_type: 'withdrawal' as const,
-        profiles: withdrawal.profiles
+        profile: profilesMap.get(withdrawal.user_id) || null
       }));
 
       const allRequests = [...transformedRecharges, ...transformedWithdrawals]
@@ -174,12 +222,7 @@ const SubAdminRechargeTab = () => {
         .from(tableName as any)
         .update({
           status: 'completed',
-          ...(request.operation_type === 'withdrawal' ? {
-            processed_at: new Date().toISOString(),
-            processed_by: user?.id
-          } : {
-            updated_at: new Date().toISOString()
-          })
+          updated_at: new Date().toISOString()
         })
         .eq('id', requestId);
 
@@ -221,13 +264,7 @@ const SubAdminRechargeTab = () => {
         .from(tableName as any)
         .update({
           status: 'failed',
-          ...(request.operation_type === 'withdrawal' ? {
-            processed_at: new Date().toISOString(),
-            processed_by: user?.id,
-            rejection_reason: reason
-          } : {
-            updated_at: new Date().toISOString()
-          })
+          updated_at: new Date().toISOString()
         })
         .eq('id', requestId);
 
@@ -369,7 +406,7 @@ const SubAdminRechargeTab = () => {
                         <h4 className="font-semibold">{getOperationTypeLabel(request.operation_type)} - {formatCurrency(request.amount, 'XAF')}</h4>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <User className="w-3 h-3" />
-                          <span>{request.profiles?.full_name || 'Utilisateur inconnu'}</span>
+                          <span>{request.profile?.full_name || 'Utilisateur inconnu'}</span>
                           <Phone className="w-3 h-3 ml-2" />
                           <span>{request.payment_phone}</span>
                         </div>
@@ -435,7 +472,7 @@ const SubAdminRechargeTab = () => {
                         <h4 className="font-semibold">{getOperationTypeLabel(request.operation_type)} - {formatCurrency(request.amount, 'XAF')}</h4>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <User className="w-3 h-3" />
-                          <span>{request.profiles?.full_name || 'Utilisateur inconnu'}</span>
+                          <span>{request.profile?.full_name || 'Utilisateur inconnu'}</span>
                         </div>
                       </div>
                     </div>
