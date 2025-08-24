@@ -143,7 +143,8 @@ const UserRequestsManagement = () => {
         return;
       }
 
-      const { error } = await supabase
+      // 1. Mettre à jour le statut de la demande
+      const { error: updateError } = await supabase
         .from('user_requests')
         .update({
           status: 'approved',
@@ -152,21 +153,77 @@ const UserRequestsManagement = () => {
         })
         .eq('id', requestId);
 
-      if (error) {
-        console.error('❌ Erreur lors de l\'approbation:', error);
+      if (updateError) {
+        console.error('❌ Erreur lors de l\'approbation:', updateError);
         toast({
           title: "Erreur",
-          description: "Impossible d'approuver la demande: " + error.message,
+          description: "Impossible d'approuver la demande: " + updateError.message,
           variant: "destructive"
         });
         return;
       }
 
-      console.log('✅ Approbation réussie pour:', requestId);
+      // 2. Traiter automatiquement le solde selon le type d'opération
+      if (request.operation_type === 'recharge') {
+        // Pour une recharge approuvée : créditer le compte de l'utilisateur
+        const { error: creditError } = await supabase.rpc('secure_increment_balance', {
+          target_user_id: request.user_id,
+          amount: request.amount,
+          operation_type: 'admin_approved_recharge',
+          performed_by: user?.id
+        });
 
+        if (creditError) {
+          console.error('❌ Erreur lors du crédit:', creditError);
+          toast({
+            title: "Erreur",
+            description: "Erreur lors du crédit automatique: " + creditError.message,
+            variant: "destructive"
+          });
+          // Annuler l'approbation en cas d'erreur
+          await supabase
+            .from('user_requests')
+            .update({ status: 'pending', processed_by: null, processed_at: null })
+            .eq('id', requestId);
+          return;
+        }
+
+        console.log(`✅ Compte crédité de ${request.amount} FCFA pour l'utilisateur`);
+      } else if (request.operation_type === 'withdrawal') {
+        // Pour un retrait approuvé : débiter le compte de l'utilisateur
+        const { error: debitError } = await supabase.rpc('secure_increment_balance', {
+          target_user_id: request.user_id,
+          amount: -request.amount,
+          operation_type: 'admin_approved_withdrawal',
+          performed_by: user?.id
+        });
+
+        if (debitError) {
+          console.error('❌ Erreur lors du débit:', debitError);
+          toast({
+            title: "Erreur",
+            description: "Erreur lors du débit automatique: " + debitError.message,
+            variant: "destructive"
+          });
+          // Annuler l'approbation en cas d'erreur
+          await supabase
+            .from('user_requests')
+            .update({ status: 'pending', processed_by: null, processed_at: null })
+            .eq('id', requestId);
+          return;
+        }
+
+        console.log(`✅ Compte débité de ${request.amount} FCFA pour l'utilisateur`);
+      }
+
+      console.log('✅ Approbation et traitement automatique réussis pour:', requestId);
+
+      const operationText = request.operation_type === 'recharge' ? 'Recharge' : 'Retrait';
+      const balanceAction = request.operation_type === 'recharge' ? 'crédité' : 'débité';
+      
       toast({
         title: "Demande approuvée",
-        description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} approuvé avec succès`,
+        description: `${operationText} approuvé avec succès. Le compte a été ${balanceAction} automatiquement de ${request.amount.toLocaleString()} FCFA`,
       });
 
       // Recharger les données immédiatement
