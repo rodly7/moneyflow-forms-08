@@ -69,14 +69,6 @@ const Transactions = () => {
     );
   }
 
-  console.log("💰 Transactions stats:", {
-    total: transactions.length,
-    credits: creditTransactions.length,
-    debits: debitTransactions.length,
-    totalCredits,
-    totalDebits
-  });
-
   return (
     <div className="container mx-auto p-4 space-y-6">
       {/* Résumé financier */}
@@ -111,13 +103,15 @@ const Transactions = () => {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="w-5 h-5" />
-              Total Transactions
+              Solde Net
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{transactions.length}</div>
+            <div className={`text-2xl font-bold ${(totalCredits - totalDebits) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {(totalCredits - totalDebits).toLocaleString()} XAF
+            </div>
             <p className="text-sm text-muted-foreground">
-              Solde net: {(totalCredits - totalDebits).toLocaleString()} XAF
+              {transactions.length} transactions totales
             </p>
           </CardContent>
         </Card>
@@ -232,7 +226,7 @@ const Transactions = () => {
                       
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Eye className="w-4 h-4" />
-                        <span className="text-xs">Cliquer pour détails</span>
+                        <span className="text-xs">Voir détails</span>
                       </div>
                     </div>
                   </div>
