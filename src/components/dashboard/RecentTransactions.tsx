@@ -29,6 +29,7 @@ const RecentTransactions = () => {
         return <ArrowUpRight className="w-4 h-4 text-red-600" />;
       case 'transfer_received':
         return <ArrowDownLeft className="w-4 h-4 text-green-600" />;
+      case 'recharge':
       case 'deposit':
         return <Plus className="w-4 h-4 text-green-600" />;
       case 'withdrawal':
