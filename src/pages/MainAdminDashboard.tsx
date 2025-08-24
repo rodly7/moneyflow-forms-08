@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMainAdmin } from '@/hooks/useMainAdmin';
@@ -10,6 +9,7 @@ import { SimpleTransactionsList } from '@/components/admin/SimpleTransactionsLis
 import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
 import { SimpleSettingsTab } from '@/components/admin/SimpleSettingsTab';
 import LogoutButton from '@/components/auth/LogoutButton';
+import SubAdminTrafficMonitor from '@/components/admin/SubAdminTrafficMonitor';
 
 export default function MainAdminDashboard() {
   const { user, profile } = useAuth();
@@ -53,6 +53,7 @@ export default function MainAdminDashboard() {
     { id: 'dashboard', label: 'Tableau de bord', icon: '📊' },
     { id: 'users', label: 'Gestion Utilisateurs', icon: '👥' },
     { id: 'agents', label: 'Gestion Agents', icon: '🔧' },
+    { id: 'sub-admins', label: 'Trafic Sous-Admins', icon: '👨‍💼' },
     { id: 'revenue', label: 'Revenus & Analytics', icon: '💰' },
     { id: 'transactions', label: 'Transactions', icon: '💸' },
     { id: 'messages', label: 'Messages', icon: '📧' },
@@ -67,6 +68,8 @@ export default function MainAdminDashboard() {
         return <AdminUsersManagement />;
       case 'agents':
         return <AgentManagementPanel />;
+      case 'sub-admins':
+        return <SubAdminTrafficMonitor />;
       case 'revenue':
         return <RevenueAnalytics />;
       case 'transactions':
