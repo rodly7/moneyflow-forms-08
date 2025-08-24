@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,15 +57,19 @@ const SubAdminRechargeTab = () => {
       if (error) throw error;
       
       // Convert to proper type with safe handling
-      return (data || []).map(item => ({
-        ...item,
-        profiles: item.profiles && 
-                 typeof item.profiles === 'object' && 
-                 item.profiles !== null && 
-                 'full_name' in item.profiles 
-          ? item.profiles 
-          : null
-      })) as UserRequest[];
+      return (data || []).map(item => {
+        // Properly check if profiles exists and has the expected structure
+        const hasValidProfiles = item.profiles && 
+                                typeof item.profiles === 'object' && 
+                                item.profiles !== null && 
+                                !Array.isArray(item.profiles) &&
+                                typeof (item.profiles as any).full_name === 'string';
+        
+        return {
+          ...item,
+          profiles: hasValidProfiles ? item.profiles as { full_name: string; phone: string; country: string; } : null
+        };
+      }) as UserRequest[];
     },
   });
 
