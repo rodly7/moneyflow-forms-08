@@ -33,14 +33,15 @@ export const useSubAdminDailyRequests = () => {
         String(today.getMonth() + 1).padStart(2, '0') + '-' + 
         String(today.getDate()).padStart(2, '0');
       
-      console.log(`📅 Recherche des demandes pour la date: ${todayDateString}`);
+      console.log(`📅 Recherche des demandes traitées pour la date: ${todayDateString}`);
       
-      // Compter SEULEMENT les enregistrements d'AUJOURD'HUI dans sub_admin_daily_requests
+      // Compter les vraies demandes traitées AUJOURD'HUI dans user_requests
       const { count: todayCount, error: todayError } = await supabase
-        .from('sub_admin_daily_requests')
+        .from('user_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('sub_admin_id', user.id)
-        .eq('date', todayDateString);
+        .eq('processed_by', user.id)
+        .gte('processed_at', `${todayDateString}T00:00:00.000Z`)
+        .lt('processed_at', `${todayDateString}T23:59:59.999Z`);
 
       if (todayError) {
         console.error('❌ Erreur lors du comptage des demandes du jour:', todayError);
@@ -48,13 +49,13 @@ export const useSubAdminDailyRequests = () => {
       }
 
       const todayRequests = todayCount || 0;
-      console.log(`📊 Demandes d'aujourd'hui (${todayDateString}) trouvées: ${todayRequests}`);
+      console.log(`📊 Vraies demandes traitées aujourd'hui (${todayDateString}): ${todayRequests}`);
 
-      // Compter le total historique
+      // Compter le total historique des demandes traitées par ce sous-admin
       const { count: totalHistoricCount, error: totalError } = await supabase
-        .from('sub_admin_daily_requests')
+        .from('user_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('sub_admin_id', user.id);
+        .eq('processed_by', user.id);
 
       if (totalError) {
         console.error('❌ Erreur lors du comptage total:', totalError);
@@ -62,7 +63,7 @@ export const useSubAdminDailyRequests = () => {
       }
 
       const totalRequests = totalHistoricCount || 0;
-      console.log(`📈 Total historique des demandes: ${totalRequests}`);
+      console.log(`📈 Total historique des demandes traitées: ${totalRequests}`);
 
       const finalStatus = {
         todayRequests,
@@ -108,8 +109,10 @@ export const useSubAdminDailyRequests = () => {
 
       console.log(`✅ Demande enregistrée avec succès pour la date: ${todayDateString}`);
 
-      // Actualiser le statut après enregistrement
-      await fetchDailyStatus();
+      // Actualiser le statut après enregistrement (pour les vraies demandes traitées)
+      if (requestType !== 'data_check') {
+        await fetchDailyStatus();
+      }
 
       return true;
     } catch (error) {
