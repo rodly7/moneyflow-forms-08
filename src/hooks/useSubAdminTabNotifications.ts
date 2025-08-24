@@ -47,6 +47,17 @@ export const useSubAdminTabNotifications = () => {
       // Enregistrer la demande de vérification
       await recordRequest('data_check');
 
+      // Vérifier les demandes utilisateurs en attente
+      const { count: pendingUserRequestsCount } = await supabase
+        .from('user_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      // Vérifier le total des demandes utilisateurs
+      const { count: totalUserRequestsCount } = await supabase
+        .from('user_requests')
+        .select('*', { count: 'exact', head: true });
+
       // Vérifier les nouveaux utilisateurs
       const { count: newUsersCount } = await supabase
         .from('profiles')
@@ -70,11 +81,11 @@ export const useSubAdminTabNotifications = () => {
 
       setNotifications(prev => ({
         'user-requests': {
-          hasNewData: false,
-          hasNew: false,
+          hasNewData: (pendingUserRequestsCount || 0) > 0,
+          hasNew: (pendingUserRequestsCount || 0) > (prev['user-requests'].count || 0),
           lastUpdate: now,
           tabId: 'user-requests',
-          count: 0
+          count: pendingUserRequestsCount || 0
         },
         users: {
           hasNewData: (newUsersCount || 0) > 0,
@@ -122,6 +133,7 @@ export const useSubAdminTabNotifications = () => {
 
       setLastChecked(prev => ({
         ...prev,
+        'user-requests': now,
         users: now,
         agents: now,
         messages: now
