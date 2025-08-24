@@ -2,7 +2,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { 
   ArrowUpRight, 
   ArrowDownLeft, 
@@ -11,19 +10,14 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle,
-  Eye
+  AlertCircle
 } from 'lucide-react';
 import { useRealtimeTransactions } from '@/hooks/useRealtimeTransactions';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 const RecentTransactions = () => {
   const { user } = useAuth();
   const { transactions, isLoading } = useRealtimeTransactions(user?.id);
-  const navigate = useNavigate();
-
-  console.log("🎯 RecentTransactions - user:", user?.id, "transactions:", transactions.length, "isLoading:", isLoading);
 
   const getTransactionIcon = (type: string, impact?: string) => {
     switch (type) {
@@ -32,9 +26,9 @@ const RecentTransactions = () => {
       case 'transfer_received':
         return <ArrowDownLeft className="w-4 h-4 text-green-600" />;
       case 'deposit':
-        return <ArrowDownLeft className="w-4 h-4 text-green-600" />;
+        return <ArrowDownLeft className="w-4 h-4 text-green-600" />; // Recharge = crédit (entrée d'argent)
       case 'withdrawal':
-        return <ArrowUpRight className="w-4 h-4 text-red-600" />;
+        return <ArrowUpRight className="w-4 h-4 text-red-600" />; // Retrait = débit (sortie d'argent)
       case 'bill_payment':
         return <Receipt className="w-4 h-4 text-orange-600" />;
       default:
@@ -101,12 +95,7 @@ const RecentTransactions = () => {
     return '';
   };
 
-  const handleViewAll = () => {
-    navigate('/transactions');
-  };
-
   if (isLoading) {
-    console.log("⏳ Affichage du loader");
     return (
       <Card>
         <CardHeader>
@@ -135,19 +124,13 @@ const RecentTransactions = () => {
     );
   }
 
-  console.log("📋 Rendu des transactions:", transactions.length);
-
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="w-5 h-5" />
           Transactions récentes
         </CardTitle>
-        <Button variant="outline" size="sm" onClick={handleViewAll}>
-          <Eye className="w-4 h-4 mr-1" />
-          Voir tout
-        </Button>
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (

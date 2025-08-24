@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CreditCard, Minus, Plus, Eye } from "lucide-react";
+import { CreditCard, Minus, Plus } from "lucide-react";
 import { useAllTransactions } from "@/hooks/useAllTransactions";
 import { useState } from "react";
 import TransactionDetailModal from "@/components/transactions/TransactionDetailModal";
@@ -20,10 +20,7 @@ const Transactions = () => {
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  console.log("🎯 Transactions Page - user:", user?.id, "transactions:", transactions.length, "loading:", loading);
-
   const openTransactionDetail = (transaction: any) => {
-    console.log("📖 Opening transaction detail:", transaction);
     setSelectedTransaction(transaction);
     setIsModalOpen(true);
   };
@@ -103,15 +100,13 @@ const Transactions = () => {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="w-5 h-5" />
-              Solde Net
+              Total Transactions
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${(totalCredits - totalDebits) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {(totalCredits - totalDebits).toLocaleString()} XAF
-            </div>
+            <div className="text-2xl font-bold">{transactions.length}</div>
             <p className="text-sm text-muted-foreground">
-              {transactions.length} transactions totales
+              Solde net: {(totalCredits - totalDebits).toLocaleString()} XAF
             </p>
           </CardContent>
         </Card>
@@ -120,12 +115,9 @@ const Transactions = () => {
       {/* Liste des transactions */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="w-6 h-6" />
-            Toutes vos Transactions
-          </CardTitle>
+          <CardTitle>Historique Complet des Transactions</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Historique complet de toutes vos opérations financières
+            Toutes vos opérations financières : dépôts, retraits, transferts, paiements et ajustements
           </p>
         </CardHeader>
         <CardContent>
@@ -142,80 +134,59 @@ const Transactions = () => {
               {transactions.map((transaction, index) => (
                 <div key={transaction.id}>
                   <div 
-                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer group"
+                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
                     onClick={() => openTransactionDetail(transaction)}
                   >
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="p-3 rounded-full bg-muted group-hover:bg-background transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 rounded-full bg-muted">
                         {getTransactionIcon(transaction.type, transaction.impact)}
                       </div>
                       
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <h3 className="font-semibold text-lg">{transaction.description}</h3>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className="font-medium">{transaction.description}</h3>
                           <Badge className={getStatusColor(transaction.status)}>
                             {getStatusLabel(transaction.status)}
                           </Badge>
                           <Badge variant={transaction.impact === 'credit' ? 'default' : 'destructive'}>
-                            {transaction.impact === 'credit' ? '↗️ Entrée' : '↙️ Sortie'}
+                            {transaction.impact === 'credit' ? 'Entrée' : 'Sortie'}
                           </Badge>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                          <span className="font-medium">{formatDate(transaction.date)}</span>
                           <Badge variant="outline" className="text-xs">
                             {getTransactionTypeLabel(transaction.type)}
                           </Badge>
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>{formatDate(transaction.date)}</span>
                           {transaction.reference_id && (
-                            <span className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                            <span className="text-xs font-mono">
                               Réf: {transaction.reference_id.substring(0, 8)}
                             </span>
                           )}
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
-                          {transaction.verification_code && (
-                            <div className="bg-blue-50 p-2 rounded flex items-center gap-1">
-                              <span className="text-blue-600">🔒 Code:</span>
-                              <span className="font-mono font-bold text-blue-800">{transaction.verification_code}</span>
-                            </div>
-                          )}
+                        {transaction.verification_code && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Code: {transaction.verification_code}
+                          </p>
+                        )}
 
-                          {transaction.sender_name && (
-                            <div className="bg-green-50 p-2 rounded">
-                              <span className="text-green-600">👤 De:</span> {transaction.sender_name}
-                            </div>
-                          )}
+                        {transaction.sender_name && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            De: {transaction.sender_name}
+                          </p>
+                        )}
 
-                          {transaction.recipient_full_name && (
-                            <div className="bg-orange-50 p-2 rounded">
-                              <span className="text-orange-600">👤 Vers:</span> {transaction.recipient_full_name}
-                            </div>
-                          )}
-
-                          {transaction.withdrawal_phone && (
-                            <div className="bg-purple-50 p-2 rounded">
-                              <span className="text-purple-600">📱 Tél:</span> {transaction.withdrawal_phone}
-                            </div>
-                          )}
-
-                          {transaction.recipient_phone && (
-                            <div className="bg-indigo-50 p-2 rounded">
-                              <span className="text-indigo-600">📱 Destinataire:</span> {transaction.recipient_phone}
-                            </div>
-                          )}
-
-                          {transaction.fees && transaction.fees > 0 && (
-                            <div className="bg-red-50 p-2 rounded">
-                              <span className="text-red-600">💰 Frais:</span> {transaction.fees.toLocaleString()} XAF
-                            </div>
-                          )}
-                        </div>
+                        {transaction.recipient_full_name && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Vers: {transaction.recipient_full_name}
+                          </p>
+                        )}
                       </div>
                     </div>
                     
-                    <div className="text-right flex flex-col items-end gap-2">
-                      <div className={`font-bold text-xl ${
+                    <div className="text-right">
+                      <div className={`font-semibold text-lg ${
                         transaction.impact === 'credit' 
                           ? 'text-green-600' 
                           : 'text-red-600'
@@ -224,14 +195,15 @@ const Transactions = () => {
                         {transaction.amount.toLocaleString()} {transaction.currency}
                       </div>
                       
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Eye className="w-4 h-4" />
-                        <span className="text-xs">Voir détails</span>
-                      </div>
+                      {transaction.fees && transaction.fees > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          Frais: {transaction.fees.toLocaleString()} XAF
+                        </div>
+                      )}
                     </div>
                   </div>
                   
-                  {index < transactions.length - 1 && <Separator className="my-2" />}
+                  {index < transactions.length - 1 && <Separator />}
                 </div>
               ))}
             </div>

@@ -27,11 +27,7 @@ export const useAllTransactions = (userId?: string) => {
   const [loading, setLoading] = useState(true);
 
   const fetchAllTransactions = async () => {
-    if (!userId) {
-      console.log("❌ Pas d'utilisateur connecté pour récupérer les transactions");
-      setLoading(false);
-      return;
-    }
+    if (!userId) return;
 
     try {
       console.log("🔍 Récupération complète des transactions pour:", userId);
@@ -39,7 +35,7 @@ export const useAllTransactions = (userId?: string) => {
 
       const allTransactions: UnifiedTransaction[] = [];
 
-      // 1. Récupérer les retraits (DÉBIT)
+      // 1. Récupérer les retraits
       console.log("📤 Récupération des retraits...");
       const { data: withdrawals, error: withdrawalError } = await supabase
         .from('withdrawals')
@@ -71,36 +67,7 @@ export const useAllTransactions = (userId?: string) => {
         });
       }
 
-      // 2. Récupérer les recharges (CRÉDIT)
-      console.log("🔋 Récupération des recharges...");
-      const { data: recharges, error: rechargeError } = await supabase
-        .from('recharges')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (rechargeError) {
-        console.error("❌ Erreur recharges:", rechargeError);
-      } else if (recharges) {
-        console.log("✅ Recharges trouvées:", recharges.length);
-        recharges.forEach(recharge => {
-          allTransactions.push({
-            id: `recharge_${recharge.id}`,
-            type: 'deposit',
-            amount: recharge.amount,
-            date: new Date(recharge.created_at),
-            description: `Recharge par ${recharge.payment_method || 'Agent'}`,
-            currency: 'XAF',
-            status: recharge.status,
-            created_at: recharge.created_at,
-            userType: "user" as const,
-            impact: "credit" as const,
-            reference_id: recharge.id
-          });
-        });
-      }
-
-      // 3. Récupérer les transferts envoyés (DÉBIT)
+      // 2. Récupérer les transferts envoyés
       console.log("📤 Récupération des transferts envoyés...");
       const { data: sentTransfers, error: sentError } = await supabase
         .from('transfers')
@@ -132,7 +99,7 @@ export const useAllTransactions = (userId?: string) => {
         });
       }
 
-      // 4. Récupérer les transferts reçus (CRÉDIT)
+      // 3. Récupérer les transferts reçus (avec expéditeur)
       console.log("📥 Récupération des transferts reçus...");
       const { data: receivedTransfers, error: receivedError } = await supabase
         .from('transfers')
@@ -173,13 +140,42 @@ export const useAllTransactions = (userId?: string) => {
         });
       }
 
-      // 5. Récupérer les paiements de factures (DÉBIT)
+      // 4. Récupérer les dépôts/recharges
+      console.log("🔋 Récupération des dépôts...");
+      const { data: recharges, error: rechargeError } = await supabase
+        .from('recharges')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (rechargeError) {
+        console.error("❌ Erreur dépôts:", rechargeError);
+      } else if (recharges) {
+        console.log("✅ Dépôts trouvés:", recharges.length);
+        recharges.forEach(recharge => {
+          allTransactions.push({
+            id: `deposit_${recharge.id}`,
+            type: 'deposit',
+            amount: recharge.amount,
+            date: new Date(recharge.created_at),
+            description: `Dépôt par ${recharge.payment_method || 'Agent'}`,
+            currency: 'XAF',
+            status: recharge.status,
+            created_at: recharge.created_at,
+            userType: "user" as const,
+            impact: "credit" as const,
+            reference_id: recharge.id
+          });
+        });
+      }
+
+      // 5. Récupérer les paiements de factures
       console.log("🧾 Récupération des paiements de factures...");
       const { data: billPayments, error: billError } = await supabase
         .from('bill_payment_history')
         .select('*')
         .eq('user_id', userId)
-        .order('payment_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (billError) {
         console.error("❌ Erreur paiements factures:", billError);
@@ -190,11 +186,11 @@ export const useAllTransactions = (userId?: string) => {
             id: `bill_${payment.id}`,
             type: 'bill_payment',
             amount: payment.amount,
-            date: new Date(payment.payment_date),
+            date: new Date(payment.created_at),
             description: `Paiement facture`,
             currency: 'XAF',
             status: payment.status,
-            created_at: payment.payment_date,
+            created_at: payment.created_at,
             userType: "user" as const,
             impact: "debit" as const,
             reference_id: payment.id
@@ -202,7 +198,7 @@ export const useAllTransactions = (userId?: string) => {
         });
       }
 
-      // 6. Récupérer les transferts en attente (DÉBIT)
+      // 6. Récupérer les transferts en attente (pending_transfers)
       console.log("⏳ Récupération des transferts en attente...");
       const { data: pendingTransfers, error: pendingError } = await supabase
         .from('pending_transfers')
@@ -241,10 +237,10 @@ export const useAllTransactions = (userId?: string) => {
       console.log("📊 Total transactions récupérées:", sortedTransactions.length);
       console.log("📋 Détail par type:", {
         retraits: sortedTransactions.filter(t => t.type === 'withdrawal').length,
-        recharges: sortedTransactions.filter(t => t.type === 'deposit').length,
         transferts_envoyés: sortedTransactions.filter(t => t.type === 'transfer_sent').length,
         transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
         transferts_en_attente: sortedTransactions.filter(t => t.type === 'transfer_pending').length,
+        dépôts: sortedTransactions.filter(t => t.type === 'deposit').length,
         paiements_factures: sortedTransactions.filter(t => t.type === 'bill_payment').length
       });
 

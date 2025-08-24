@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, Settings, MessageCircle, BarChart3, Package, History, UserCheck } from 'lucide-react';
@@ -174,8 +175,12 @@ const SubAdminDashboardTabs = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="stats" className="space-y-6">
-            <SubAdminStatsTab />
+          <TabsContent value="stats" className="space-y-0">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-6">
+                <SubAdminStatsTab />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="inventory" className="space-y-0">
