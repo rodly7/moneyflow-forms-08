@@ -164,8 +164,8 @@ export const useRealtimeTransactions = (userId?: string) => {
 
       // Transformer les dépôts/recharges (CRÉDIT)
       const transformedDeposits: Transaction[] = (depositsData || []).map(deposit => ({
-        id: `deposit_${deposit.id}`,
-        type: 'deposit',
+        id: `recharge_${deposit.id}`,
+        type: 'recharge',
         amount: deposit.amount,
         date: new Date(deposit.created_at),
         description: `Recharge de ${deposit.amount?.toLocaleString() || '0'} XAF via ${deposit.payment_method || 'Mobile Money'}`,
@@ -249,7 +249,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         total: allCombined.length,
         transferts_envoyés: transformedSentTransfers.length,
         transferts_reçus: transformedReceivedTransfers.length,
-        dépôts: transformedDeposits.length,
+        recharges: transformedDeposits.length,
         retraits: transformedWithdrawalTransactions.length,
         paiements: transformedBillPayments.length,
         retraits_séparés: transformedWithdrawals.length
