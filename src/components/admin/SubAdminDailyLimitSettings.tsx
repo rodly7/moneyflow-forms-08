@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { AlertCircle, Settings, TrendingUp, Clock, BarChart3, History } from 'lucide-react';
 import { useSubAdminDailyRequests } from '@/hooks/useSubAdminDailyRequests';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const SubAdminDailyLimitSettings = () => {
@@ -18,24 +18,25 @@ const SubAdminDailyLimitSettings = () => {
   const [dynamicQuota, setDynamicQuota] = useState(300);
 
   useEffect(() => {
-    const fetchHistoricalData = async () => {
-      if (!user?.id) return;
-
-      try {
-        // Calculer le quota dynamique basé sur le total des demandes traitées
-        const baseQuota = 300;
-        const bonusQuota = Math.floor((status.totalRequests || 0) / 100) * 50;
-        const calculated = Math.min(1000, baseQuota + bonusQuota);
-        setDynamicQuota(calculated);
-
-        console.log(`Données historiques: ${status.totalRequests} demandes traitées, quota calculé: ${calculated}`);
-      } catch (error) {
-        console.error('Erreur lors du calcul du quota:', error);
-      }
+    // Calculer le quota automatique basé sur le total des demandes
+    const calculateAutomaticQuota = () => {
+      const baseQuota = 300;
+      const totalRequests = status.totalRequests || 0;
+      const bonusQuota = Math.floor(totalRequests / 100) * 50;
+      const calculated = Math.min(1000, baseQuota + bonusQuota);
+      
+      console.log(`Calcul du quota automatique:`, {
+        totalRequests,
+        baseQuota, 
+        bonusQuota,
+        calculated
+      });
+      
+      setDynamicQuota(calculated);
     };
 
-    fetchHistoricalData();
-  }, [user?.id, status.totalRequests]);
+    calculateAutomaticQuota();
+  }, [status.totalRequests]);
 
   useEffect(() => {
     setNewLimit(status.maxRequests.toString());
@@ -78,7 +79,7 @@ const SubAdminDailyLimitSettings = () => {
             Plafond des Demandes Quotidiennes
           </CardTitle>
           <CardDescription>
-            Votre quota est calculé automatiquement selon votre total de demandes traitées
+            Votre quota est calculé automatiquement selon votre total de demandes traitées: {status.totalRequests} demandes
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -94,21 +95,21 @@ const SubAdminDailyLimitSettings = () => {
             <Card className="p-4 border border-purple-200 bg-purple-50">
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">{status.totalRequests}</div>
-                <div className="text-sm text-purple-600">Total demandes</div>
+                <div className="text-sm text-purple-600">Total demandes historiques</div>
               </div>
             </Card>
             
-            <Card className="p-4 border border-gray-200">
+            <Card className="p-4 border border-blue-200 bg-blue-50">
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">{status.maxRequests}</div>
-                <div className="text-sm text-gray-600">Plafond actuel</div>
+                <div className="text-sm text-blue-600">Plafond actuel</div>
               </div>
             </Card>
             
-            <Card className="p-4 border border-gray-200">
+            <Card className="p-4 border border-green-200 bg-green-50">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">{status.remainingRequests}</div>
-                <div className="text-sm text-gray-600">Restantes</div>
+                <div className="text-sm text-green-600">Restantes aujourd'hui</div>
               </div>
             </Card>
           </div>
@@ -133,20 +134,20 @@ const SubAdminDailyLimitSettings = () => {
             </div>
           </div>
 
-          {/* Historique des demandes et quota dynamique */}
+          {/* Explication du système de quota */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <History className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
-                <h4 className="font-medium text-blue-900 mb-1">Quota Basé sur le Total</h4>
+                <h4 className="font-medium text-blue-900 mb-1">Quota Basé sur l'Historique Total</h4>
                 <p className="text-sm text-blue-700 mb-2">
-                  Calculé à partir de vos {status.totalRequests} demandes traitées au total
+                  Calculé à partir de vos <span className="font-semibold">{status.totalRequests} demandes</span> traitées au total
                 </p>
                 <div className="text-sm text-blue-600">
                   <span className="font-medium">Quota automatique: {dynamicQuota} demandes/jour</span>
                   <br />
                   <span className="text-xs">
-                    (Base: 300 + Bonus: {Math.floor((status.totalRequests || 0) / 100) * 50} pour {Math.floor((status.totalRequests || 0) / 100)} tranches de 100 demandes traitées)
+                    Calcul: 300 (base) + {Math.floor((status.totalRequests || 0) / 100)} × 50 (bonus) = {dynamicQuota}
                   </span>
                 </div>
               </div>
@@ -160,7 +161,7 @@ const SubAdminDailyLimitSettings = () => {
                 Personnaliser le plafond quotidien
               </Label>
               <p className="text-sm text-gray-600 mb-2">
-                Entre 100 et 1000 demandes par jour (automatique: {dynamicQuota})
+                Entre 100 et 1000 demandes par jour (quota automatique: {dynamicQuota})
               </p>
             </div>
             
@@ -187,15 +188,15 @@ const SubAdminDailyLimitSettings = () => {
             </div>
           </div>
 
-          {/* Information sur le système */}
+          {/* Information système */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
               <div>
-                <h4 className="font-medium text-amber-900 mb-1">Système Intelligent</h4>
+                <h4 className="font-medium text-amber-900 mb-1">Système de Quota Intelligent</h4>
                 <p className="text-sm text-amber-700">
-                  Votre quota journalier augmente automatiquement en fonction de votre historique de demandes traitées.
-                  Plus vous travaillez efficacement, plus votre plafond quotidien s'élève.
+                  Votre quota quotidien augmente automatiquement en fonction de votre historique total de demandes traitées.
+                  Formule: 300 (base) + 50 points pour chaque tranche de 100 demandes historiques (maximum 1000).
                   Le plafond se remet à zéro chaque jour à minuit.
                 </p>
               </div>

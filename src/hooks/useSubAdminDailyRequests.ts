@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,23 +24,33 @@ export const useSubAdminDailyRequests = () => {
 
   const calculateDynamicQuota = useCallback(async (userId: string) => {
     try {
-      // Compter le nombre total de demandes historiques traitées
+      console.log(`Calcul du quota dynamique pour l'utilisateur: ${userId}`);
+      
+      // Compter le nombre total de demandes historiques dans sub_admin_daily_requests
       const { count: totalProcessedRequests } = await supabase
         .from('sub_admin_daily_requests')
         .select('*', { count: 'exact', head: true })
         .eq('sub_admin_id', userId);
 
-      // Calculer le quota basé sur le total des demandes traitées
-      // Formule: quota de base (300) + (total historique / 100) * 50 plafonné à 1000
+      console.log(`Total des demandes historiques trouvées: ${totalProcessedRequests}`);
+
+      // Calculer le quota dynamique basé sur le total historique
+      // Formule: 300 (base) + (total demandes / 100) * 50, plafonné à 1000
       const baseQuota = 300;
-      const bonusQuota = Math.floor((totalProcessedRequests || 0) / 100) * 50;
+      const totalRequests = totalProcessedRequests || 0;
+      const bonusQuota = Math.floor(totalRequests / 100) * 50;
       const dynamicQuota = Math.min(1000, baseQuota + bonusQuota);
 
-      console.log(`Quota dynamique calculé pour ${userId}: ${dynamicQuota} (base: ${baseQuota} + bonus: ${bonusQuota} basé sur ${totalProcessedRequests} demandes traitées)`);
+      console.log(`Calcul du quota:`, {
+        totalRequests,
+        baseQuota,
+        bonusQuota,
+        dynamicQuota
+      });
 
       return {
         quota: dynamicQuota,
-        totalRequests: totalProcessedRequests || 0
+        totalRequests
       };
     } catch (error) {
       console.error('Erreur lors du calcul du quota dynamique:', error);
@@ -53,23 +62,32 @@ export const useSubAdminDailyRequests = () => {
   }, []);
 
   const fetchDailyStatus = useCallback(async () => {
-    if (!user?.id || profile?.role !== 'sub_admin') return;
+    if (!user?.id || profile?.role !== 'sub_admin') {
+      console.log('Utilisateur non autorisé ou pas sous-admin');
+      return;
+    }
 
+    console.log(`Récupération du statut quotidien pour: ${user.id}`);
+    
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      // Calculer le quota dynamique et récupérer le total des demandes
-      const { quota: dynamicQuota, totalRequests } = await calculateDynamicQuota(user.id);
+      // Calculer le quota dynamique basé sur l'historique total
+      const { quota: calculatedQuota, totalRequests } = await calculateDynamicQuota(user.id);
       
-      // Récupérer le plafond personnalisé depuis les paramètres (s'il existe)
+      console.log(`Quota calculé: ${calculatedQuota}, Total demandes: ${totalRequests}`);
+      
+      // Vérifier s'il y a des paramètres personnalisés
       const { data: settings } = await supabase
         .from('sub_admin_settings')
         .select('daily_request_limit')
         .eq('user_id', user.id)
         .single();
 
-      // Utiliser le quota personnalisé s'il existe, sinon le quota dynamique calculé
-      const maxRequests = settings?.daily_request_limit || dynamicQuota;
+      // Utiliser le quota personnalisé s'il existe, sinon le quota calculé
+      const maxRequests = settings?.daily_request_limit || calculatedQuota;
+
+      console.log(`Quota final utilisé: ${maxRequests}`);
 
       // Compter les demandes du jour actuel
       const { count: todayCount } = await supabase
@@ -83,7 +101,7 @@ export const useSubAdminDailyRequests = () => {
       const remainingRequests = Math.max(0, maxRequests - todayRequests);
       const canMakeRequest = todayRequests < maxRequests;
 
-      console.log(`Statut des demandes pour ${user.id}:`, {
+      console.log(`Statut final:`, {
         todayRequests,
         totalRequests,
         maxRequests,
@@ -113,6 +131,8 @@ export const useSubAdminDailyRequests = () => {
     }
 
     try {
+      console.log(`Enregistrement d'une nouvelle demande de type: ${requestType}`);
+      
       const { error } = await supabase
         .from('sub_admin_daily_requests')
         .insert({
@@ -122,6 +142,8 @@ export const useSubAdminDailyRequests = () => {
         });
 
       if (error) throw error;
+
+      console.log('Demande enregistrée avec succès');
 
       // Actualiser le statut après enregistrement
       await fetchDailyStatus();
@@ -144,6 +166,8 @@ export const useSubAdminDailyRequests = () => {
     if (!user?.id) return false;
 
     try {
+      console.log(`Mise à jour du plafond quotidien à: ${newLimit}`);
+      
       const { error } = await supabase
         .from('sub_admin_settings')
         .upsert({
