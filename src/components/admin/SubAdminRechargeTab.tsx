@@ -11,7 +11,7 @@ import { Database } from '@/integrations/supabase/types';
 
 type UserRequest = Database['public']['Tables']['user_requests']['Row'] & {
   profiles?: {
-    full_name: string;
+    full_name: string | null;
     phone: string;
   } | null;
 };
@@ -29,7 +29,7 @@ const SubAdminRechargeTab = () => {
         .from('user_requests')
         .select(`
           *,
-          profiles:user_id (
+          profiles!user_requests_user_id_fkey (
             full_name,
             phone
           )
@@ -47,7 +47,7 @@ const SubAdminRechargeTab = () => {
       }
 
       console.log('✅ Demandes chargées:', data);
-      setUserRequests(data as UserRequest[]);
+      setUserRequests(data || []);
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
