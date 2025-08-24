@@ -3,18 +3,15 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CircleDollarSign, Users, UserPlus, ChevronsUpDown, Package, ScrollText } from 'lucide-react';
+import { CircleDollarSign, Users, UserPlus, Package, ScrollText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import SubAdminRechargeTab from './SubAdminRechargeTab';
-
-interface StatsCardProps {
-  title: string;
-  value: string;
-  percentageChange: string;
-  icon: React.ReactNode;
-}
+import SubAdminUsersManagement from './SubAdminUsersManagement';
+import SubAdminReferralsTab from './SubAdminReferralsTab';
+import SubAdminInventoryTab from './SubAdminInventoryTab';
+import SubAdminLogsTab from './SubAdminLogsTab';
 
 const SubAdminDashboardTabs = () => {
   const { user } = useAuth();
@@ -84,12 +81,12 @@ const SubAdminDashboardTabs = () => {
   return (
     <Tabs defaultValue="stats" className="space-y-4">
       <TabsList className="grid w-full grid-cols-6">
-        <TabsTrigger value="stats" className="col-span-2 sm:col-span-1">Statistiques</TabsTrigger>
-        <TabsTrigger value="users" className="col-span-2 sm:col-span-1">Utilisateurs</TabsTrigger>
-        <TabsTrigger value="referrals" className="col-span-2 sm:col-span-1">Parrainages</TabsTrigger>
+        <TabsTrigger value="stats">Statistiques</TabsTrigger>
+        <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+        <TabsTrigger value="referrals">Parrainages</TabsTrigger>
         <TabsTrigger value="recharge">Recharges</TabsTrigger>
-        <TabsTrigger value="inventory" className="col-span-2 sm:col-span-1">Inventaire</TabsTrigger>
-        <TabsTrigger value="logs" className="col-span-2 sm:col-span-1">Journaux</TabsTrigger>
+        <TabsTrigger value="inventory">Inventaire</TabsTrigger>
+        <TabsTrigger value="logs">Journaux</TabsTrigger>
       </TabsList>
 
       <TabsContent value="stats" className="space-y-4">
@@ -138,25 +135,11 @@ const SubAdminDashboardTabs = () => {
       </TabsContent>
 
       <TabsContent value="users">
-        <Card>
-          <CardHeader>
-            <CardTitle>Utilisateurs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Voici l'onglet des utilisateurs.</p>
-          </CardContent>
-        </Card>
+        <SubAdminUsersManagement />
       </TabsContent>
 
       <TabsContent value="referrals">
-        <Card>
-          <CardHeader>
-            <CardTitle>Parrainages</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Voici l'onglet des parrainages.</p>
-          </CardContent>
-        </Card>
+        <SubAdminReferralsTab />
       </TabsContent>
 
       <TabsContent value="recharge" className="space-y-4">
@@ -164,25 +147,11 @@ const SubAdminDashboardTabs = () => {
       </TabsContent>
 
       <TabsContent value="inventory">
-        <Card>
-          <CardHeader>
-            <CardTitle>Inventaire</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Voici l'onglet de l'inventaire.</p>
-          </CardContent>
-        </Card>
+        <SubAdminInventoryTab />
       </TabsContent>
 
       <TabsContent value="logs">
-        <Card>
-          <CardHeader>
-            <CardTitle>Journaux</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Voici l'onglet des journaux.</p>
-          </CardContent>
-        </Card>
+        <SubAdminLogsTab />
       </TabsContent>
     </Tabs>
   );
