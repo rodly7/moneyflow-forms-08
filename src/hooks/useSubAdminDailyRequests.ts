@@ -27,24 +27,20 @@ export const useSubAdminDailyRequests = () => {
     console.log(`🔍 Récupération du statut quotidien pour: ${user.id}`);
     
     try {
-      // Obtenir les dates précises pour aujourd'hui en UTC
-      const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000); // +24h
+      // Obtenir la date d'aujourd'hui en format YYYY-MM-DD (heure locale)
+      const today = new Date();
+      const todayDateString = today.getFullYear() + '-' + 
+        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(today.getDate()).padStart(2, '0');
       
-      console.log(`📅 Période de recherche:`, {
-        todayStart: todayStart.toISOString(),
-        todayEnd: todayEnd.toISOString(),
-        currentTime: now.toISOString()
-      });
+      console.log(`📅 Recherche des demandes pour la date: ${todayDateString}`);
       
       // Compter SEULEMENT les enregistrements d'AUJOURD'HUI dans sub_admin_daily_requests
       const { count: todayCount, error: todayError } = await supabase
         .from('sub_admin_daily_requests')
         .select('*', { count: 'exact', head: true })
         .eq('sub_admin_id', user.id)
-        .gte('created_at', todayStart.toISOString())
-        .lt('created_at', todayEnd.toISOString());
+        .eq('date', todayDateString);
 
       if (todayError) {
         console.error('❌ Erreur lors du comptage des demandes du jour:', todayError);
@@ -52,7 +48,7 @@ export const useSubAdminDailyRequests = () => {
       }
 
       const todayRequests = todayCount || 0;
-      console.log(`📊 Demandes d'aujourd'hui trouvées: ${todayRequests}`);
+      console.log(`📊 Demandes d'aujourd'hui (${todayDateString}) trouvées: ${todayRequests}`);
 
       // Compter le total historique
       const { count: totalHistoricCount, error: totalError } = await supabase
@@ -94,17 +90,23 @@ export const useSubAdminDailyRequests = () => {
     try {
       console.log(`📝 Enregistrement d'une nouvelle demande de type: ${requestType}`);
       
+      // Utiliser la date locale au format YYYY-MM-DD
+      const today = new Date();
+      const todayDateString = today.getFullYear() + '-' + 
+        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(today.getDate()).padStart(2, '0');
+      
       const { error } = await supabase
         .from('sub_admin_daily_requests')
         .insert({
           sub_admin_id: user.id,
           request_type: requestType,
-          date: new Date().toISOString().split('T')[0]
+          date: todayDateString
         });
 
       if (error) throw error;
 
-      console.log('✅ Demande enregistrée avec succès');
+      console.log(`✅ Demande enregistrée avec succès pour la date: ${todayDateString}`);
 
       // Actualiser le statut après enregistrement
       await fetchDailyStatus();

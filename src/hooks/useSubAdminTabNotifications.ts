@@ -38,13 +38,13 @@ export const useSubAdminTabNotifications = () => {
   const [lastChecked, setLastChecked] = useState<Record<string, Date>>({});
 
   const checkForUpdates = useCallback(async () => {
-    if (!user?.id || profile?.role !== 'sub_admin' || !status.canMakeRequest) return;
+    if (!user?.id || profile?.role !== 'sub_admin') return;
 
     const now = new Date();
     const country = profile?.country;
 
     try {
-      // Enregistrer la demande de vérification
+      // Enregistrer la demande de vérification (sans vérification de quota)
       await recordRequest('data_check');
 
       // Vérifier les demandes utilisateurs en attente
@@ -142,7 +142,7 @@ export const useSubAdminTabNotifications = () => {
     } catch (error) {
       console.error('Erreur lors de la vérification des mises à jour:', error);
     }
-  }, [user?.id, profile?.country, profile?.role, lastChecked, recordRequest, status.canMakeRequest]);
+  }, [user?.id, profile?.country, profile?.role, lastChecked, recordRequest]);
 
   const markTabAsSeen = useCallback((tabId: keyof TabNotifications) => {
     setNotifications(prev => ({
