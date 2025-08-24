@@ -44,7 +44,7 @@ const SubAdminRechargeTab = () => {
         .from('user_requests')
         .select(`
           *,
-          profiles!inner (
+          profiles (
             full_name,
             phone,
             country
@@ -55,8 +55,13 @@ const SubAdminRechargeTab = () => {
 
       if (error) throw error;
       
-      // Type assertion avec validation appropriée
-      return (data || []) as UserRequest[];
+      // Convert to proper type with safe handling
+      return (data || []).map(item => ({
+        ...item,
+        profiles: item.profiles && typeof item.profiles === 'object' && 'full_name' in item.profiles 
+          ? item.profiles 
+          : null
+      })) as UserRequest[];
     },
   });
 
