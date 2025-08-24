@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,24 +7,14 @@ import { formatCurrency } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Database } from '@/integrations/supabase/types';
 
-interface UserRequest {
-  id: string;
-  user_id: string;
-  operation_type: 'recharge' | 'withdrawal';
-  amount: number;
-  payment_method: string;
-  payment_phone: string;
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
-  processed_at?: string;
-  processed_by?: string;
-  rejection_reason?: string;
+type UserRequest = Database['public']['Tables']['user_requests']['Row'] & {
   profiles?: {
     full_name: string;
     phone: string;
-  };
-}
+  } | null;
+};
 
 const SubAdminRechargeTab = () => {
   const { toast } = useToast();
@@ -58,7 +47,7 @@ const SubAdminRechargeTab = () => {
       }
 
       console.log('✅ Demandes chargées:', data);
-      setUserRequests(data || []);
+      setUserRequests(data as UserRequest[]);
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
@@ -94,7 +83,7 @@ const SubAdminRechargeTab = () => {
           console.log('📨 Changement détecté dans user_requests:', payload);
           
           if (payload.eventType === 'INSERT') {
-            const newRequest = payload.new as UserRequest;
+            const newRequest = payload.new as Database['public']['Tables']['user_requests']['Row'];
             toast({
               title: "Nouvelle demande",
               description: `Nouvelle demande de ${newRequest.operation_type} de ${formatCurrency(newRequest.amount, 'XAF')}`,
