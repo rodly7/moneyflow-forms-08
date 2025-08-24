@@ -58,7 +58,10 @@ const SubAdminRechargeTab = () => {
       // Convert to proper type with safe handling
       return (data || []).map(item => ({
         ...item,
-        profiles: item.profiles && typeof item.profiles === 'object' && 'full_name' in item.profiles 
+        profiles: item.profiles && 
+                 typeof item.profiles === 'object' && 
+                 item.profiles !== null && 
+                 'full_name' in item.profiles 
           ? item.profiles 
           : null
       })) as UserRequest[];
