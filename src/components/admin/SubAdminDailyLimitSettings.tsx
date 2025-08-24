@@ -1,29 +1,59 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, Settings, TrendingUp, Clock } from 'lucide-react';
+import { AlertCircle, Settings, TrendingUp, Clock, BarChart3 } from 'lucide-react';
 import { useSubAdminDailyRequests } from '@/hooks/useSubAdminDailyRequests';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const SubAdminDailyLimitSettings = () => {
   const { status, updateDailyLimit, loading } = useSubAdminDailyRequests();
+  const { user } = useAuth();
   const [newLimit, setNewLimit] = useState(status.maxRequests.toString());
   const [isUpdating, setIsUpdating] = useState(false);
+  const [totalHistoricalRequests, setTotalHistoricalRequests] = useState(0);
+  const [dynamicQuota, setDynamicQuota] = useState(300);
+
+  useEffect(() => {
+    const fetchHistoricalData = async () => {
+      if (!user?.id) return;
+
+      try {
+        // Compter le total historique
+        const { count } = await supabase
+          .from('sub_admin_daily_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('sub_admin_id', user.id);
+
+        setTotalHistoricalRequests(count || 0);
+
+        // Calculer le quota dynamique
+        const baseQuota = 300;
+        const bonusQuota = Math.floor((count || 0) / 100) * 50;
+        const calculated = Math.min(1000, baseQuota + bonusQuota);
+        setDynamicQuota(calculated);
+      } catch (error) {
+        console.error('Erreur lors du chargement des données historiques:', error);
+      }
+    };
+
+    fetchHistoricalData();
+  }, [user?.id]);
+
+  useEffect(() => {
+    setNewLimit(status.maxRequests.toString());
+  }, [status.maxRequests]);
 
   const handleUpdateLimit = async () => {
     const limit = parseInt(newLimit);
     
-    if (isNaN(limit) || limit < 1) {
-      toast.error('Le plafond doit être un nombre positif');
-      return;
-    }
-
-    if (limit < 100) {
-      toast.error('Le plafond minimum est de 100 demandes par jour');
+    if (isNaN(limit) || limit < 100) {
+      toast.error('Le plafond doit être un nombre positif minimum de 100');
       return;
     }
 
@@ -45,11 +75,6 @@ const SubAdminDailyLimitSettings = () => {
     if (percentage >= 90) return 'bg-red-100 text-red-800 border-red-200';
     if (percentage >= 70) return 'bg-orange-100 text-orange-800 border-orange-200';
     return 'bg-green-100 text-green-800 border-green-200';
-  };
-
-  const getRecommendedLimit = () => {
-    const avgDailyUsage = status.todayRequests; // Simplification pour l'exemple
-    return Math.min(1000, Math.max(300, avgDailyUsage * 1.5));
   };
 
   return (
@@ -109,6 +134,26 @@ const SubAdminDailyLimitSettings = () => {
             </div>
           </div>
 
+          {/* Quota dynamique basé sur l'historique */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <BarChart3 className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-blue-900 mb-1">Quota Dynamique Calculé</h4>
+                <p className="text-sm text-blue-700 mb-2">
+                  Basé sur vos {totalHistoricalRequests} demandes historiques totales
+                </p>
+                <div className="text-sm text-blue-600">
+                  <span className="font-medium">Quota suggéré: {dynamicQuota} demandes/jour</span>
+                  <br />
+                  <span className="text-xs">
+                    (Base: 300 + Bonus: {Math.floor(totalHistoricalRequests / 100) * 50} pour {Math.floor(totalHistoricalRequests / 100)} tranches de 100 demandes)
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Modification du plafond */}
           <div className="space-y-4 border-t pt-4">
             <div>
@@ -116,7 +161,7 @@ const SubAdminDailyLimitSettings = () => {
                 Modifier le plafond quotidien
               </Label>
               <p className="text-sm text-gray-600 mb-2">
-                Entre 100 et 1000 demandes par jour
+                Entre 100 et 1000 demandes par jour (suggéré: {dynamicQuota})
               </p>
             </div>
             
@@ -143,22 +188,6 @@ const SubAdminDailyLimitSettings = () => {
             </div>
           </div>
 
-          {/* Recommandation */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-blue-900 mb-1">Recommandation</h4>
-                <p className="text-sm text-blue-700">
-                  Basé sur votre utilisation actuelle, nous recommandons un plafond de{' '}
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                    {getRecommendedLimit()} demandes/jour
-                  </Badge>
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Avertissement */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
@@ -167,6 +196,7 @@ const SubAdminDailyLimitSettings = () => {
                 <h4 className="font-medium text-amber-900 mb-1">Important</h4>
                 <p className="text-sm text-amber-700">
                   Le plafond se remet à zéro chaque jour à minuit. 
+                  Plus vous utilisez le système, plus votre quota suggéré augmente automatiquement.
                   Une fois le plafond atteint, vous ne pourrez plus effectuer de nouvelles demandes jusqu'au lendemain.
                 </p>
               </div>

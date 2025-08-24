@@ -21,20 +21,45 @@ export const useSubAdminDailyRequests = () => {
   });
   const [loading, setLoading] = useState(true);
 
+  const calculateDynamicQuota = useCallback(async (userId: string) => {
+    try {
+      // Compter le nombre total de demandes historiques
+      const { count: totalHistoricalRequests } = await supabase
+        .from('sub_admin_daily_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('sub_admin_id', userId);
+
+      // Calculer le quota basé sur l'historique
+      // Formule: quota de base (300) + (total historique / 100) plafonné à 1000
+      const baseQuota = 300;
+      const bonusQuota = Math.floor((totalHistoricalRequests || 0) / 100) * 50;
+      const dynamicQuota = Math.min(1000, baseQuota + bonusQuota);
+
+      return dynamicQuota;
+    } catch (error) {
+      console.error('Erreur lors du calcul du quota dynamique:', error);
+      return 300; // Quota par défaut en cas d'erreur
+    }
+  }, []);
+
   const fetchDailyStatus = useCallback(async () => {
     if (!user?.id || profile?.role !== 'sub_admin') return;
 
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      // Récupérer le plafond personnalisé depuis les paramètres
+      // Calculer le quota dynamique basé sur l'historique
+      const dynamicQuota = await calculateDynamicQuota(user.id);
+      
+      // Récupérer le plafond personnalisé depuis les paramètres (s'il existe)
       const { data: settings } = await supabase
         .from('sub_admin_settings')
         .select('daily_request_limit')
         .eq('user_id', user.id)
         .single();
 
-      const maxRequests = settings?.daily_request_limit || 300;
+      // Utiliser le quota personnalisé s'il existe, sinon le quota dynamique
+      const maxRequests = settings?.daily_request_limit || dynamicQuota;
 
       // Compter les demandes du jour
       const { count: todayCount } = await supabase
@@ -60,7 +85,7 @@ export const useSubAdminDailyRequests = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, profile?.role]);
+  }, [user?.id, profile?.role, calculateDynamicQuota]);
 
   const recordRequest = useCallback(async (requestType: string) => {
     if (!user?.id || !status.canMakeRequest) {
