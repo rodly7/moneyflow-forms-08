@@ -1609,6 +1609,48 @@ export type Database = {
           },
         ]
       }
+      user_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          operation_type: string
+          payment_method: string
+          payment_phone: string
+          processed_at: string | null
+          processed_by: string | null
+          rejection_reason: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          operation_type: string
+          payment_method: string
+          payment_phone: string
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          operation_type?: string
+          payment_method?: string
+          payment_phone?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_sessions: {
         Row: {
           created_at: string

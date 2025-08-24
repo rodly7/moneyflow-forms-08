@@ -2,34 +2,16 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Wallet } from 'lucide-react';
-import AccountRechargeModal from '@/components/user/AccountRechargeModal';
+import UserRechargeRequestModal from '@/components/user/UserRechargeRequestModal';
 
-interface RechargeAccountButtonProps {
-  variant?: 'default' | 'outline' | 'secondary' | 'ghost';
-  size?: 'default' | 'sm' | 'lg' | 'icon';
-  className?: string;
-  showIcon?: boolean;
-  fullWidth?: boolean;
-}
-
-const RechargeAccountButton = ({ 
-  variant = 'default', 
-  size = 'default', 
-  className = '',
-  showIcon = true,
-  fullWidth = false
-}: RechargeAccountButtonProps) => {
+const RechargeAccountButton = () => {
   return (
-    <AccountRechargeModal>
-      <Button 
-        variant={variant} 
-        size={size} 
-        className={`${fullWidth ? 'w-full' : ''} ${className}`}
-      >
-        {showIcon && <Wallet className="w-4 h-4 mr-2" />}
+    <UserRechargeRequestModal>
+      <Button className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800">
+        <Wallet className="mr-2 h-4 w-4" />
         Recharger mon compte
       </Button>
-    </AccountRechargeModal>
+    </UserRechargeRequestModal>
   );
 };
 
