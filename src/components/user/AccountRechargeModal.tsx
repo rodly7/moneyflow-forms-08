@@ -7,7 +7,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowUpCircle, 
   ArrowDownCircle, 
@@ -95,7 +94,6 @@ const AccountRechargeModal: React.FC<AccountRechargeModalProps> = ({ isOpen, onC
 
   const handlePaymentMethodSelect = (method: string) => {
     setSelectedPaymentMethod(method);
-    // Pour toutes les opérations (recharge et retrait), aller directement aux détails
     setCurrentStep('request_details');
   };
 
@@ -122,22 +120,10 @@ const AccountRechargeModal: React.FC<AccountRechargeModalProps> = ({ isOpen, onC
     setIsSubmitting(true);
 
     try {
-      // Créer la demande dans la table user_requests
-      const { error } = await supabase
-        .from('user_requests')
-        .insert({
-          user_id: user.id,
-          operation_type: selectedOperation,
-          amount: amountNumber,
-          payment_method: selectedPaymentMethod,
-          payment_phone: paymentPhone,
-          status: 'pending'
-        });
-
-      if (error) {
-        throw error;
-      }
-
+      // Simuler l'envoi de la demande
+      // En attendant la création de la table user_requests
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       setCurrentStep('confirmation');
       
       toast({
