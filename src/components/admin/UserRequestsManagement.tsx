@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,11 +13,11 @@ import { useAuth } from '@/contexts/AuthContext';
 type UserRequest = {
   id: string;
   user_id: string;
-  operation_type: string; // Changed from 'recharge' | 'withdrawal' to string
+  operation_type: string;
   amount: number;
   payment_method: string;
   payment_phone: string;
-  status: string; // Changed from 'pending' | 'approved' | 'rejected' to string
+  status: string;
   created_at: string;
   processed_by?: string | null;
   processed_at?: string | null;
@@ -59,7 +58,7 @@ const UserRequestsManagement = () => {
           processed_by,
           processed_at,
           rejection_reason,
-          profiles:user_id (
+          profiles!user_requests_user_id_fkey (
             full_name,
             phone,
             country
