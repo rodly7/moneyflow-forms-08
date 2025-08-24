@@ -96,6 +96,9 @@ const SubAdminHeader = () => {
                     {status.remainingRequests} restantes
                   </span>
                 </div>
+                <div className="text-xs text-purple-600 font-medium">
+                  Total demandes: {status.totalRequests}
+                </div>
               </div>
             )}
           </div>
