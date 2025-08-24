@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,7 +37,7 @@ const SubAdminRechargeTab = () => {
   const [selectedRequest, setSelectedRequest] = useState<UserRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // Récupérer les demandes en attente
+  // Récupérer les demandes de recharge utilisateur en attente
   const { data: requests, isLoading } = useQuery({
     queryKey: ['user-requests', 'pending'],
     queryFn: async () => {
@@ -55,14 +56,14 @@ const SubAdminRechargeTab = () => {
 
       if (error) throw error;
       
-      // Convert to proper type with safe handling
+      // Convertir au type approprié avec gestion sécurisée
       return (data || []).map(item => {
-        // Check if profiles is a valid object and not an error
+        // Vérifier si profiles est un objet valide et pas une erreur
         const isValidProfiles = item.profiles && 
                                typeof item.profiles === 'object' && 
                                item.profiles !== null && 
                                !Array.isArray(item.profiles) &&
-                               !('error' in item.profiles) && // Check it's not a SelectQueryError
+                               !('error' in item.profiles) &&
                                typeof (item.profiles as any).full_name === 'string';
         
         return {
@@ -114,7 +115,7 @@ const SubAdminRechargeTab = () => {
     onSuccess: (_, request) => {
       toast({
         title: "Demande approuvée",
-        description: `La ${request.operation_type === 'recharge' ? 'recharge' : 'retrait'} de ${request.amount.toLocaleString()} FCFA a été approuvée`,
+        description: `La ${request.operation_type === 'recharge' ? 'recharge' : 'demande de retrait'} de ${request.amount.toLocaleString()} FCFA a été approuvée`,
       });
       queryClient.invalidateQueries({ queryKey: ['user-requests'] });
       setSelectedRequest(null);
@@ -310,7 +311,7 @@ const SubAdminRechargeTab = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Veuillez indiquer la raison du rejet de cette demande de {selectedRequest.operation_type}.
+                Veuillez indiquer la raison du rejet de cette demande de {selectedRequest.operation_type === 'recharge' ? 'recharge' : 'retrait'}.
               </p>
               
               <Textarea

@@ -4,6 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CircleDollarSign, Users, UserPlus, ChevronsUpDown, Package, ScrollText } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import SubAdminRechargeTab from './SubAdminRechargeTab';
 
 interface StatsCardProps {
@@ -14,62 +17,121 @@ interface StatsCardProps {
 }
 
 const SubAdminDashboardTabs = () => {
-  const [totalUsers, setTotalUsers] = useState(123);
-  const [newUsers, setNewUsers] = useState(12);
-  const [totalRevenue, setTotalRevenue] = useState("$12,345");
-  const [ordersProcessed, setOrdersProcessed] = useState(1234);
+  const { user } = useAuth();
+
+  // Récupérer les statistiques réelles depuis la base de données
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['sub-admin-stats', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+
+      // Récupérer les utilisateurs totaux
+      const { data: usersData } = await supabase
+        .from('profiles')
+        .select('id, created_at, role')
+        .neq('role', 'admin');
+
+      // Récupérer les nouveaux utilisateurs de ce mois
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const newUsers = usersData?.filter(user => 
+        new Date(user.created_at) >= startOfMonth
+      ).length || 0;
+
+      // Récupérer les revenus totaux (somme des recharges approuvées)
+      const { data: revenueData } = await supabase
+        .from('user_requests')
+        .select('amount')
+        .eq('status', 'approved')
+        .eq('operation_type', 'recharge');
+
+      const totalRevenue = revenueData?.reduce((sum, item) => sum + item.amount, 0) || 0;
+
+      // Récupérer les commandes traitées (transferts complétés)
+      const { data: ordersData } = await supabase
+        .from('transfers')
+        .select('id')
+        .eq('status', 'completed');
+
+      return {
+        totalUsers: usersData?.length || 0,
+        newUsers,
+        totalRevenue,
+        ordersProcessed: ordersData?.length || 0
+      };
+    },
+    enabled: !!user?.id
+  });
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'XAF',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <Tabs defaultValue="stats" className="space-y-4">
       <TabsList className="grid w-full grid-cols-6">
-        <TabsTrigger value="stats" className="col-span-2 sm:col-span-1">Stats</TabsTrigger>
-        <TabsTrigger value="users" className="col-span-2 sm:col-span-1">Users</TabsTrigger>
-        <TabsTrigger value="referrals" className="col-span-2 sm:col-span-1">Referrals</TabsTrigger>
-        <TabsTrigger value="recharge">Recharge</TabsTrigger>
-        <TabsTrigger value="inventory" className="col-span-2 sm:col-span-1">Inventory</TabsTrigger>
-        <TabsTrigger value="logs" className="col-span-2 sm:col-span-1">Logs</TabsTrigger>
+        <TabsTrigger value="stats" className="col-span-2 sm:col-span-1">Statistiques</TabsTrigger>
+        <TabsTrigger value="users" className="col-span-2 sm:col-span-1">Utilisateurs</TabsTrigger>
+        <TabsTrigger value="referrals" className="col-span-2 sm:col-span-1">Parrainages</TabsTrigger>
+        <TabsTrigger value="recharge">Recharges</TabsTrigger>
+        <TabsTrigger value="inventory" className="col-span-2 sm:col-span-1">Inventaire</TabsTrigger>
+        <TabsTrigger value="logs" className="col-span-2 sm:col-span-1">Journaux</TabsTrigger>
       </TabsList>
 
       <TabsContent value="stats" className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium">Revenus Totaux</CardTitle>
               <CircleDollarSign className="h-4 w-4 text-gray-500 dark:text-gray-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalRevenue}</div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">+20.1% from last month</p>
+              <div className="text-2xl font-bold">{formatCurrency(stats?.totalRevenue || 0)}</div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">+20,1% par rapport au mois dernier</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">New Users</CardTitle>
+              <CardTitle className="text-sm font-medium">Nouveaux Utilisateurs</CardTitle>
               <Users className="h-4 w-4 text-gray-500 dark:text-gray-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{newUsers}</div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">+10% from last month</p>
+              <div className="text-2xl font-bold">{stats?.newUsers || 0}</div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">+10% par rapport au mois dernier</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+              <CardTitle className="text-sm font-medium">Utilisateurs Totaux</CardTitle>
               <UserPlus className="h-4 w-4 text-gray-500 dark:text-gray-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalUsers}</div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">+12% from last month</p>
+              <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">+12% par rapport au mois dernier</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Orders Processed</CardTitle>
+              <CardTitle className="text-sm font-medium">Commandes Traitées</CardTitle>
               <Package className="h-4 w-4 text-gray-500 dark:text-gray-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{ordersProcessed}</div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">+19% from last month</p>
+              <div className="text-2xl font-bold">{stats?.ordersProcessed || 0}</div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">+19% par rapport au mois dernier</p>
             </CardContent>
           </Card>
         </div>
@@ -78,10 +140,10 @@ const SubAdminDashboardTabs = () => {
       <TabsContent value="users">
         <Card>
           <CardHeader>
-            <CardTitle>Users</CardTitle>
+            <CardTitle>Utilisateurs</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>This is the users tab.</p>
+            <p>Voici l'onglet des utilisateurs.</p>
           </CardContent>
         </Card>
       </TabsContent>
@@ -89,10 +151,10 @@ const SubAdminDashboardTabs = () => {
       <TabsContent value="referrals">
         <Card>
           <CardHeader>
-            <CardTitle>Referrals</CardTitle>
+            <CardTitle>Parrainages</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>This is the referrals tab.</p>
+            <p>Voici l'onglet des parrainages.</p>
           </CardContent>
         </Card>
       </TabsContent>
@@ -104,10 +166,10 @@ const SubAdminDashboardTabs = () => {
       <TabsContent value="inventory">
         <Card>
           <CardHeader>
-            <CardTitle>Inventory</CardTitle>
+            <CardTitle>Inventaire</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>This is the inventory tab.</p>
+            <p>Voici l'onglet de l'inventaire.</p>
           </CardContent>
         </Card>
       </TabsContent>
@@ -115,10 +177,10 @@ const SubAdminDashboardTabs = () => {
       <TabsContent value="logs">
         <Card>
           <CardHeader>
-            <CardTitle>Logs</CardTitle>
+            <CardTitle>Journaux</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>This is the logs tab.</p>
+            <p>Voici l'onglet des journaux.</p>
           </CardContent>
         </Card>
       </TabsContent>
