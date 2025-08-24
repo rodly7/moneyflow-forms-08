@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -48,7 +49,18 @@ const UserRequestsManagement = () => {
       const { data: requests, error } = await supabase
         .from('user_requests')
         .select(`
-          *,
+          id,
+          user_id,
+          operation_type,
+          amount,
+          payment_method,
+          payment_phone,
+          status,
+          created_at,
+          updated_at,
+          processed_by,
+          processed_at,
+          rejection_reason,
           profiles!user_id (
             full_name,
             phone,
@@ -63,7 +75,7 @@ const UserRequestsManagement = () => {
       }
 
       console.log('✅ Demandes chargées:', requests);
-      setUserRequests(requests || []);
+      setUserRequests(requests as UserRequest[] || []);
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
