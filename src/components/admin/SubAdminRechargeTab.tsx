@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-// Updated types to match actual database structure
+// Types simplifiés basés sur les vraies tables
 type RechargeData = {
   id: string;
   user_id: string;
@@ -52,9 +52,7 @@ type UserRequest = {
   payment_method: string;
   payment_phone: string;
   created_at: string;
-  processed_at?: string | null;
-  processed_by?: string | null;
-  rejection_reason?: string | null;
+  updated_at: string;
   operation_type: 'recharge' | 'withdrawal';
   profile?: ProfileData | null;
 };
@@ -64,13 +62,14 @@ const SubAdminRechargeTab = () => {
   const { user } = useAuth();
   const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
 
   // Fonction pour charger les demandes
   const fetchUserRequests = async () => {
     try {
       console.log('🔄 Chargement des recharges et retraits...');
 
-      // Fetch recharges with profiles
+      // Fetch recharges
       const { data: rechargesData, error: rechargesError } = await supabase
         .from('recharges')
         .select('*')
@@ -123,9 +122,7 @@ const SubAdminRechargeTab = () => {
         payment_method: recharge.payment_method,
         payment_phone: recharge.payment_phone,
         created_at: recharge.created_at,
-        processed_at: recharge.updated_at,
-        processed_by: null,
-        rejection_reason: null,
+        updated_at: recharge.updated_at,
         operation_type: 'recharge' as const,
         profile: profilesMap.get(recharge.user_id) || null
       }));
@@ -139,9 +136,7 @@ const SubAdminRechargeTab = () => {
         payment_method: 'mobile_money',
         payment_phone: withdrawal.withdrawal_phone || '',
         created_at: withdrawal.created_at,
-        processed_at: withdrawal.updated_at,
-        processed_by: null,
-        rejection_reason: null,
+        updated_at: withdrawal.updated_at,
         operation_type: 'withdrawal' as const,
         profile: profilesMap.get(withdrawal.user_id) || null
       }));
@@ -213,6 +208,8 @@ const SubAdminRechargeTab = () => {
 
   const handleApprove = async (requestId: string) => {
     try {
+      setIsProcessing(requestId);
+      
       const request = userRequests.find(r => r.id === requestId);
       if (!request) return;
 
@@ -241,8 +238,8 @@ const SubAdminRechargeTab = () => {
         description: "La demande a été approuvée avec succès",
       });
 
-      // Recharger les données
-      fetchUserRequests();
+      // Recharger immédiatement les données
+      await fetchUserRequests();
     } catch (error) {
       console.error('Erreur lors de l\'approbation:', error);
       toast({
@@ -250,11 +247,15 @@ const SubAdminRechargeTab = () => {
         description: "Erreur lors du traitement de la demande",
         variant: "destructive"
       });
+    } finally {
+      setIsProcessing(null);
     }
   };
 
   const handleReject = async (requestId: string, reason = 'Demande rejetée par l\'administrateur') => {
     try {
+      setIsProcessing(requestId);
+      
       const request = userRequests.find(r => r.id === requestId);
       if (!request) return;
 
@@ -283,8 +284,8 @@ const SubAdminRechargeTab = () => {
         description: "La demande a été rejetée",
       });
 
-      // Recharger les données
-      fetchUserRequests();
+      // Recharger immédiatement les données
+      await fetchUserRequests();
     } catch (error) {
       console.error('Erreur lors du rejet:', error);
       toast({
@@ -292,6 +293,8 @@ const SubAdminRechargeTab = () => {
         description: "Erreur lors du traitement de la demande",
         variant: "destructive"
       });
+    } finally {
+      setIsProcessing(null);
     }
   };
 
@@ -349,6 +352,14 @@ const SubAdminRechargeTab = () => {
           <CreditCard className="w-6 h-6" />
           <h2 className="text-2xl font-bold">Demandes de Recharge et Retrait</h2>
         </div>
+        <Button 
+          onClick={fetchUserRequests}
+          variant="outline"
+          size="sm"
+          disabled={isLoading}
+        >
+          Actualiser
+        </Button>
       </div>
 
       {/* Statistiques */}
@@ -431,17 +442,19 @@ const SubAdminRechargeTab = () => {
                       size="sm"
                       className="bg-green-600 hover:bg-green-700 text-white"
                       onClick={() => handleApprove(request.id)}
+                      disabled={isProcessing === request.id}
                     >
                       <CheckCircle className="w-4 h-4 mr-1" />
-                      Approuver
+                      {isProcessing === request.id ? 'Traitement...' : 'Approuver'}
                     </Button>
                     <Button
                       size="sm"
                       variant="destructive"
                       onClick={() => handleReject(request.id)}
+                      disabled={isProcessing === request.id}
                     >
                       <XCircle className="w-4 h-4 mr-1" />
-                      Rejeter
+                      {isProcessing === request.id ? 'Traitement...' : 'Rejeter'}
                     </Button>
                   </div>
                 </div>
@@ -479,10 +492,7 @@ const SubAdminRechargeTab = () => {
                     {getStatusBadge(request.status)}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Traité le: {request.processed_at ? new Date(request.processed_at).toLocaleDateString('fr-FR') : 'N/A'}
-                    {request.rejection_reason && (
-                      <div className="text-red-600 mt-1">Raison: {request.rejection_reason}</div>
-                    )}
+                    Traité le: {new Date(request.updated_at).toLocaleDateString('fr-FR')}
                   </div>
                 </div>
               ))
