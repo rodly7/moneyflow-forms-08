@@ -6,11 +6,14 @@ import { useSubAdminDailyRequests } from './useSubAdminDailyRequests';
 
 interface TabNotification {
   hasNewData: boolean;
+  hasNew: boolean;
   lastUpdate: Date;
   count?: number;
+  tabId: string;
 }
 
 interface TabNotifications {
+  'user-requests': TabNotification;
   users: TabNotification;
   agents: TabNotification;
   stats: TabNotification;
@@ -23,12 +26,13 @@ export const useSubAdminTabNotifications = () => {
   const { user, profile } = useAuth();
   const { recordRequest, status } = useSubAdminDailyRequests();
   const [notifications, setNotifications] = useState<TabNotifications>({
-    users: { hasNewData: false, lastUpdate: new Date() },
-    agents: { hasNewData: false, lastUpdate: new Date() },
-    stats: { hasNewData: false, lastUpdate: new Date() },
-    recharge: { hasNewData: false, lastUpdate: new Date() },
-    messages: { hasNewData: false, lastUpdate: new Date() },
-    settings: { hasNewData: false, lastUpdate: new Date() }
+    'user-requests': { hasNewData: false, hasNew: false, lastUpdate: new Date(), tabId: 'user-requests', count: 0 },
+    users: { hasNewData: false, hasNew: false, lastUpdate: new Date(), tabId: 'users', count: 0 },
+    agents: { hasNewData: false, hasNew: false, lastUpdate: new Date(), tabId: 'agents', count: 0 },
+    stats: { hasNewData: false, hasNew: false, lastUpdate: new Date(), tabId: 'stats', count: 0 },
+    recharge: { hasNewData: false, hasNew: false, lastUpdate: new Date(), tabId: 'recharge', count: 0 },
+    messages: { hasNewData: false, hasNew: false, lastUpdate: new Date(), tabId: 'messages', count: 0 },
+    settings: { hasNewData: false, hasNew: false, lastUpdate: new Date(), tabId: 'settings', count: 0 }
   });
 
   const [lastChecked, setLastChecked] = useState<Record<string, Date>>({});
@@ -65,32 +69,54 @@ export const useSubAdminTabNotifications = () => {
         .gt('created_at', lastChecked.messages?.toISOString() || new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
       setNotifications(prev => ({
+        'user-requests': {
+          hasNewData: false,
+          hasNew: false,
+          lastUpdate: now,
+          tabId: 'user-requests',
+          count: 0
+        },
         users: {
           hasNewData: (newUsersCount || 0) > 0,
+          hasNew: (newUsersCount || 0) > 0,
           lastUpdate: now,
+          tabId: 'users',
           count: newUsersCount || 0
         },
         agents: {
           hasNewData: (newAgentsCount || 0) > 0,
+          hasNew: (newAgentsCount || 0) > 0,
           lastUpdate: now,
+          tabId: 'agents',
           count: newAgentsCount || 0
         },
         stats: {
-          hasNewData: false, // Les stats sont toujours mises à jour
-          lastUpdate: now
+          hasNewData: false,
+          hasNew: false,
+          lastUpdate: now,
+          tabId: 'stats',
+          count: 0
         },
         recharge: {
           hasNewData: false,
-          lastUpdate: now
+          hasNew: false,
+          lastUpdate: now,
+          tabId: 'recharge',
+          count: 0
         },
         messages: {
           hasNewData: (newMessagesCount || 0) > 0,
+          hasNew: (newMessagesCount || 0) > 0,
           lastUpdate: now,
+          tabId: 'messages',
           count: newMessagesCount || 0
         },
         settings: {
           hasNewData: prev.settings.hasNewData,
-          lastUpdate: prev.settings.lastUpdate
+          hasNew: prev.settings.hasNew,
+          lastUpdate: prev.settings.lastUpdate,
+          tabId: 'settings',
+          count: 0
         }
       }));
 
@@ -106,15 +132,20 @@ export const useSubAdminTabNotifications = () => {
     }
   }, [user?.id, profile?.country, profile?.role, lastChecked, recordRequest, status.canMakeRequest]);
 
-  const markTabAsViewed = useCallback((tab: keyof TabNotifications) => {
+  const markTabAsSeen = useCallback((tabId: keyof TabNotifications) => {
     setNotifications(prev => ({
       ...prev,
-      [tab]: {
-        ...prev[tab],
-        hasNewData: false
+      [tabId]: {
+        ...prev[tabId],
+        hasNewData: false,
+        hasNew: false
       }
     }));
   }, []);
+
+  const markTabAsViewed = useCallback((tab: keyof TabNotifications) => {
+    markTabAsSeen(tab);
+  }, [markTabAsSeen]);
 
   // Vérification automatique toutes les 5 secondes
   useEffect(() => {
@@ -130,6 +161,7 @@ export const useSubAdminTabNotifications = () => {
 
   return {
     notifications,
+    markTabAsSeen,
     markTabAsViewed,
     refresh: checkForUpdates,
     dailyRequestsStatus: status

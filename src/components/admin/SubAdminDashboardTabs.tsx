@@ -22,9 +22,9 @@ const SubAdminDashboardTabs = () => {
   useEffect(() => {
     const newBlinking: Record<string, boolean> = {};
     
-    Object.values(notifications).forEach(notification => {
+    Object.entries(notifications).forEach(([tabId, notification]) => {
       if (notification.hasNew) {
-        newBlinking[notification.tabId] = true;
+        newBlinking[tabId] = true;
       }
     });
     
@@ -34,7 +34,7 @@ const SubAdminDashboardTabs = () => {
   // Marquer un onglet comme vu quand on le sélectionne
   const handleTabChange = (tabValue: string) => {
     setActiveTab(tabValue);
-    markTabAsSeen(tabValue);
+    markTabAsSeen(tabValue as keyof typeof notifications);
     setBlinkingTabs(prev => ({
       ...prev,
       [tabValue]: false

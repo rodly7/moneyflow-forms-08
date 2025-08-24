@@ -1434,6 +1434,70 @@ export type Database = {
           },
         ]
       }
+      sub_admin_daily_requests: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          request_type: string
+          sub_admin_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          request_type: string
+          sub_admin_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          request_type?: string
+          sub_admin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_admin_daily_requests_sub_admin_id_fkey"
+            columns: ["sub_admin_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_agents_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sub_admin_settings: {
+        Row: {
+          created_at: string
+          daily_request_limit: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          daily_request_limit?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          daily_request_limit?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_admin_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_agents_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_settings: {
         Row: {
           category: string | null
