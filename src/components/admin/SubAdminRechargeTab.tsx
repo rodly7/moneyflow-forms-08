@@ -9,17 +9,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Database } from '@/integrations/supabase/types';
 
-type UserRequest = Database['public']['Tables']['user_requests']['Row'] & {
-  profiles?: {
-    full_name: string | null;
-    phone: string;
-  } | null;
+type UserRequestsWithProfiles = Database['public']['Tables']['user_requests']['Row'] & {
+  profiles?: Database['public']['Tables']['profiles']['Row'] | null;
 };
 
 const SubAdminRechargeTab = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
+  const [userRequests, setUserRequests] = useState<UserRequestsWithProfiles[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fonction pour charger les demandes
@@ -29,10 +26,7 @@ const SubAdminRechargeTab = () => {
         .from('user_requests')
         .select(`
           *,
-          profiles (
-            full_name,
-            phone
-          )
+          profiles (*)
         `)
         .order('created_at', { ascending: false });
 
@@ -47,9 +41,7 @@ const SubAdminRechargeTab = () => {
       }
 
       console.log('✅ Demandes chargées:', data);
-      // Type assertion sécurisée avec vérification
-      const typedData = (data || []) as UserRequest[];
-      setUserRequests(typedData);
+      setUserRequests(data || []);
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
