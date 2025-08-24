@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -134,7 +133,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         type: 'transfer_sent',
         amount: transfer.amount,
         date: new Date(transfer.created_at),
-        description: `Transfert envoyé vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
+        description: `Transfert envoyé à ${transfer.recipient_full_name || transfer.recipient_phone}`,
         currency: 'XAF',
         status: transfer.status,
         userType: (transfer.profiles as any)?.role === 'agent' ? 'agent' : 'user',
