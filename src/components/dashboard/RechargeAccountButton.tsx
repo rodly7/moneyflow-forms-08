@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Wallet } from 'lucide-react';
 import AccountRechargeModal from '@/components/user/AccountRechargeModal';
@@ -19,33 +19,17 @@ const RechargeAccountButton = ({
   showIcon = true,
   fullWidth = false
 }: RechargeAccountButtonProps) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const handleOpenModal = () => {
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-
   return (
-    <>
+    <AccountRechargeModal>
       <Button 
         variant={variant} 
         size={size} 
         className={`${fullWidth ? 'w-full' : ''} ${className}`}
-        onClick={handleOpenModal}
       >
         {showIcon && <Wallet className="w-4 h-4 mr-2" />}
         Recharger mon compte
       </Button>
-      
-      <AccountRechargeModal 
-        isOpen={isModalOpen} 
-        onClose={handleCloseModal} 
-      />
-    </>
+    </AccountRechargeModal>
   );
 };
 
