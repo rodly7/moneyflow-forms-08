@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -98,7 +99,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         .limit(10);
 
       // 4. Récupérer les dépôts/recharges récents
-      const { data: depositsData } = await supabase
+      const { data: rechargesData } = await supabase
         .from('recharges')
         .select(`
           id, 
@@ -162,22 +163,22 @@ export const useRealtimeTransactions = (userId?: string) => {
         };
       });
 
-      // Transformer les dépôts/recharges (CRÉDIT)
-      const transformedDeposits: Transaction[] = (depositsData || []).map(deposit => ({
-        id: `recharge_${deposit.id}`,
+      // Transformer les recharges (CRÉDIT) - CORRECTION ICI
+      const transformedRecharges: Transaction[] = (rechargesData || []).map(recharge => ({
+        id: `recharge_${recharge.id}`,
         type: 'recharge',
-        amount: deposit.amount,
-        date: new Date(deposit.created_at),
-        description: `Recharge de ${deposit.amount?.toLocaleString() || '0'} XAF via ${deposit.payment_method || 'Mobile Money'}`,
+        amount: recharge.amount,
+        date: new Date(recharge.created_at),
+        description: `Recharge de ${recharge.amount?.toLocaleString() || '0'} XAF via ${recharge.payment_method || 'Mobile Money'}`,
         currency: 'XAF',
-        status: deposit.status,
+        status: recharge.status,
         userType: 'user' as const,
-        created_at: deposit.created_at,
+        created_at: recharge.created_at,
         impact: 'credit'
       }));
 
-      // Transformer les retraits (DÉBIT)
-      const transformedWithdrawalTransactions: Transaction[] = (withdrawalsData || []).map(withdrawal => {
+      // Transformer les retraits (DÉBIT) - CORRECTION ICI
+      const transformedWithdrawals: Transaction[] = (withdrawalsData || []).map(withdrawal => {
         const createdAt = new Date(withdrawal.created_at);
         const now = new Date();
         const timeDiffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
@@ -215,7 +216,7 @@ export const useRealtimeTransactions = (userId?: string) => {
       }));
 
       // Transformer les retraits avec gestion du code de vérification pour la liste séparée
-      const transformedWithdrawals: Withdrawal[] = (withdrawalsData || []).map(withdrawal => {
+      const transformedWithdrawalsList: Withdrawal[] = (withdrawalsData || []).map(withdrawal => {
         const createdAt = new Date(withdrawal.created_at);
         const now = new Date();
         const timeDiffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
@@ -237,22 +238,22 @@ export const useRealtimeTransactions = (userId?: string) => {
       const allCombined = [
         ...transformedSentTransfers, 
         ...transformedReceivedTransfers,
-        ...transformedDeposits,
-        ...transformedWithdrawalTransactions,
+        ...transformedRecharges,  // CORRECTION: Utiliser transformedRecharges au lieu de transformedDeposits
+        ...transformedWithdrawals,
         ...transformedBillPayments
       ].sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
 
       setTransactions(allCombined);
-      setWithdrawals(transformedWithdrawals);
+      setWithdrawals(transformedWithdrawalsList);
       
       console.log("✅ Transactions temps réel chargées:", {
         total: allCombined.length,
         transferts_envoyés: transformedSentTransfers.length,
         transferts_reçus: transformedReceivedTransfers.length,
-        recharges: transformedDeposits.length,
-        retraits: transformedWithdrawalTransactions.length,
+        recharges: transformedRecharges.length,
+        retraits: transformedWithdrawals.length,
         paiements: transformedBillPayments.length,
-        retraits_séparés: transformedWithdrawals.length
+        retraits_séparés: transformedWithdrawalsList.length
       });
       
     } catch (error) {
