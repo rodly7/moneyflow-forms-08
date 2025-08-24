@@ -10,14 +10,18 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Download,
+  Plus
 } from 'lucide-react';
 import { useRealtimeTransactions } from '@/hooks/useRealtimeTransactions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const RecentTransactions = () => {
   const { user } = useAuth();
   const { transactions, isLoading } = useRealtimeTransactions(user?.id);
+  const navigate = useNavigate();
 
   const getTransactionIcon = (type: string, impact?: string) => {
     switch (type) {
@@ -26,9 +30,9 @@ const RecentTransactions = () => {
       case 'transfer_received':
         return <ArrowDownLeft className="w-4 h-4 text-green-600" />;
       case 'deposit':
-        return <ArrowDownLeft className="w-4 h-4 text-green-600" />; // Recharge = crédit (entrée d'argent)
+        return <Plus className="w-4 h-4 text-green-600" />;
       case 'withdrawal':
-        return <ArrowUpRight className="w-4 h-4 text-red-600" />; // Retrait = débit (sortie d'argent)
+        return <Download className="w-4 h-4 text-red-600" />;
       case 'bill_payment':
         return <Receipt className="w-4 h-4 text-orange-600" />;
       default:
@@ -95,6 +99,10 @@ const RecentTransactions = () => {
     return '';
   };
 
+  const handleViewAll = () => {
+    navigate('/transactions');
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -126,11 +134,19 @@ const RecentTransactions = () => {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="w-5 h-5" />
           Transactions récentes
         </CardTitle>
+        {transactions.length > 0 && (
+          <button
+            onClick={handleViewAll}
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Voir tout
+          </button>
+        )}
       </CardHeader>
       <CardContent>
         {transactions.length === 0 ? (

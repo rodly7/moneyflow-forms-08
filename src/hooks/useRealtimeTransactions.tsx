@@ -134,7 +134,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         type: 'transfer_sent',
         amount: transfer.amount,
         date: new Date(transfer.created_at),
-        description: `Transfert vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
+        description: `Transfert envoyé vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
         currency: 'XAF',
         status: transfer.status,
         userType: (transfer.profiles as any)?.role === 'agent' ? 'agent' : 'user',
@@ -153,7 +153,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           type: 'transfer_received',
           amount: transfer.amount,
           date: new Date(transfer.created_at),
-          description: `Reçu de ${senderName}`,
+          description: `Transfert reçu de ${senderName}`,
           currency: 'XAF',
           status: transfer.status,
           userType: 'user' as const,
@@ -169,12 +169,12 @@ export const useRealtimeTransactions = (userId?: string) => {
         type: 'deposit',
         amount: deposit.amount,
         date: new Date(deposit.created_at),
-        description: `Recharge par ${deposit.payment_method || 'Mobile Money'}`,
+        description: `Recharge de ${deposit.amount.toLocaleString()} XAF via ${deposit.payment_method || 'Mobile Money'}`,
         currency: 'XAF',
         status: deposit.status,
         userType: 'user' as const,
         created_at: deposit.created_at,
-        impact: 'credit' // Les recharges sont des crédits
+        impact: 'credit'
       }));
 
       // Transformer les retraits (DÉBIT)
@@ -189,7 +189,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           type: 'withdrawal',
           amount: withdrawal.amount,
           date: new Date(withdrawal.created_at),
-          description: `Retrait vers ${withdrawal.withdrawal_phone || 'N/A'}`,
+          description: `Retrait de ${withdrawal.amount.toLocaleString()} XAF vers ${withdrawal.withdrawal_phone || 'N/A'}`,
           currency: 'XAF',
           status: withdrawal.status,
           userType: (withdrawal.profiles as any)?.role === 'agent' ? 'agent' : 'user',
@@ -197,7 +197,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           verification_code: withdrawal.verification_code,
           created_at: withdrawal.created_at,
           showCode,
-          impact: 'debit' // Les retraits sont des débits
+          impact: 'debit'
         };
       });
 
@@ -207,12 +207,12 @@ export const useRealtimeTransactions = (userId?: string) => {
         type: 'bill_payment',
         amount: payment.amount,
         date: new Date(payment.created_at),
-        description: 'Paiement de facture',
+        description: `Paiement de facture de ${payment.amount.toLocaleString()} XAF`,
         currency: 'XAF',
         status: payment.status,
         userType: 'user' as const,
         created_at: payment.created_at,
-        impact: 'debit' // Les paiements de factures sont des débits
+        impact: 'debit'
       }));
 
       // Transformer les retraits avec gestion du code de vérification pour la liste séparée
