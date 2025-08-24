@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -62,7 +63,6 @@ const SubAdminRechargeTab = () => {
   const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
-  const [processedIds, setProcessedIds] = useState<Set<string>>(new Set());
 
   // Fonction pour charger les demandes
   const fetchUserRequests = async () => {
@@ -230,9 +230,6 @@ const SubAdminRechargeTab = () => {
     try {
       setIsProcessing(requestId);
       
-      // Ajouter à la liste des IDs traités immédiatement
-      setProcessedIds(prev => new Set([...prev, requestId]));
-      
       console.log('🔄 Début approbation pour:', requestId);
       
       const request = userRequests.find(r => r.id === requestId);
@@ -254,13 +251,6 @@ const SubAdminRechargeTab = () => {
 
       if (error) {
         console.error('❌ Erreur lors de l\'approbation:', error);
-        // Retirer de la liste des IDs traités en cas d'erreur
-        setProcessedIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(requestId);
-          return newSet;
-        });
-        
         toast({
           title: "Erreur",
           description: "Impossible d'approuver la demande: " + error.message,
@@ -276,16 +266,11 @@ const SubAdminRechargeTab = () => {
         description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} approuvé avec succès`,
       });
 
+      // Recharger immédiatement les données pour voir le changement
+      fetchUserRequests();
+
     } catch (error) {
       console.error('💥 Erreur lors de l\'approbation:', error);
-      
-      // Retirer de la liste des IDs traités en cas d'erreur
-      setProcessedIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(requestId);
-        return newSet;
-      });
-      
       toast({
         title: "Erreur",
         description: "Erreur lors du traitement de la demande",
@@ -299,9 +284,6 @@ const SubAdminRechargeTab = () => {
   const handleReject = async (requestId: string, reason = 'Demande rejetée par l\'administrateur') => {
     try {
       setIsProcessing(requestId);
-      
-      // Ajouter à la liste des IDs traités immédiatement
-      setProcessedIds(prev => new Set([...prev, requestId]));
       
       console.log('🔄 Début rejet pour:', requestId);
       
@@ -324,14 +306,6 @@ const SubAdminRechargeTab = () => {
 
       if (error) {
         console.error('❌ Erreur lors du rejet:', error);
-        
-        // Retirer de la liste des IDs traités en cas d'erreur
-        setProcessedIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(requestId);
-          return newSet;
-        });
-        
         toast({
           title: "Erreur",
           description: "Impossible de rejeter la demande: " + error.message,
@@ -347,16 +321,11 @@ const SubAdminRechargeTab = () => {
         description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} rejeté`,
       });
 
+      // Recharger immédiatement les données pour voir le changement
+      fetchUserRequests();
+
     } catch (error) {
       console.error('💥 Erreur lors du rejet:', error);
-      
-      // Retirer de la liste des IDs traités en cas d'erreur
-      setProcessedIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(requestId);
-        return newSet;
-      });
-      
       toast({
         title: "Erreur",
         description: "Erreur lors du traitement de la demande",
@@ -390,14 +359,9 @@ const SubAdminRechargeTab = () => {
       <CreditCard className="w-4 h-4 text-red-600" />;
   };
 
-  // Filtrer les demandes en attente en excluant celles qui ont été traitées
-  const pendingRequests = userRequests.filter(req => 
-    req.status === 'pending' && !processedIds.has(req.id)
-  );
-  
-  const processedRequestsList = userRequests.filter(req => 
-    req.status !== 'pending' || processedIds.has(req.id)
-  );
+  // Séparer les demandes basées uniquement sur le statut de la base de données
+  const pendingRequests = userRequests.filter(req => req.status === 'pending');
+  const processedRequests = userRequests.filter(req => req.status !== 'pending');
 
   if (isLoading) {
     return (
@@ -550,8 +514,8 @@ const SubAdminRechargeTab = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {processedRequestsList.length > 0 ? (
-              processedRequestsList.slice(0, 10).map((request) => (
+            {processedRequests.length > 0 ? (
+              processedRequests.slice(0, 10).map((request) => (
                 <div key={request.id} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
