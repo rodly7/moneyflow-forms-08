@@ -1,260 +1,220 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useSubAdmin } from '@/hooks/useSubAdmin';
-import { supabase } from '@/integrations/supabase/client';
-import { BarChart3, TrendingUp, Users, DollarSign, AlertCircle } from 'lucide-react';
-
-interface TerritorialStats {
-  totalUsers: number;
-  totalAgents: number;
-  activeAgents: number;
-  totalTransactions: number;
-  totalVolume: number;
-  thisMonthTransactions: number;
-  thisMonthVolume: number;
-}
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAllTransactions } from '@/hooks/useAllTransactions';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Eye, CreditCard, Plus, Minus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { 
+  getTransactionIcon, 
+  getTransactionTypeLabel, 
+  getStatusColor, 
+  getStatusLabel 
+} from '@/components/transactions/TransactionTypeUtils';
 
 const SubAdminStatsTab = () => {
-  const { canViewTerritorialStats, userCountry } = useSubAdmin();
-  const [stats, setStats] = useState<TerritorialStats>({
-    totalUsers: 0,
-    totalAgents: 0,
-    activeAgents: 0,
-    totalTransactions: 0,
-    totalVolume: 0,
-    thisMonthTransactions: 0,
-    thisMonthVolume: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { transactions, loading } = useAllTransactions(user?.id);
 
-  useEffect(() => {
-    if (canViewTerritorialStats) {
-      fetchStats();
-    }
-  }, [canViewTerritorialStats]);
+  console.log("🎯 SubAdminStatsTab - user:", user?.id, "transactions:", transactions.length, "loading:", loading);
 
-  const fetchStats = async () => {
-    setLoading(true);
-    try {
-      // Statistiques des utilisateurs
-      let usersQuery = supabase
-        .from('profiles')
-        .select('id, role')
-        .neq('role', 'admin');
-
-      if (userCountry) {
-        usersQuery = usersQuery.eq('country', userCountry);
-      }
-
-      const { data: users } = await usersQuery;
-      const totalUsers = users?.filter(u => u.role === 'user').length || 0;
-      const totalAgents = users?.filter(u => u.role === 'agent').length || 0;
-
-      // Agents actifs
-      let agentsQuery = supabase
-        .from('agents')
-        .select('id')
-        .eq('status', 'active');
-
-      if (userCountry) {
-        agentsQuery = agentsQuery.eq('country', userCountry);
-      }
-
-      const { data: activeAgentsData } = await agentsQuery;
-      const activeAgents = activeAgentsData?.length || 0;
-
-      // Transactions (simulation)
-      const { data: transfers } = await supabase
-        .from('transfers')
-        .select('amount, created_at')
-        .eq('status', 'completed');
-
-      const totalTransactions = transfers?.length || 0;
-      const totalVolume = transfers?.reduce((sum, t) => sum + t.amount, 0) || 0;
-
-      // Ce mois
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-
-      const thisMonthTransfers = transfers?.filter(t => 
-        new Date(t.created_at) >= startOfMonth
-      ) || [];
-
-      const thisMonthTransactions = thisMonthTransfers.length;
-      const thisMonthVolume = thisMonthTransfers.reduce((sum, t) => sum + t.amount, 0);
-
-      setStats({
-        totalUsers,
-        totalAgents,
-        activeAgents,
-        totalTransactions,
-        totalVolume,
-        thisMonthTransactions,
-        thisMonthVolume,
-      });
-    } catch (error) {
-      console.error('Erreur lors du chargement des statistiques:', error);
-    } finally {
-      setLoading(false);
-    }
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('fr-FR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
   };
 
-  if (!canViewTerritorialStats) {
+  // Calculer les totaux
+  const creditTransactions = transactions.filter(t => t.impact === 'credit');
+  const debitTransactions = transactions.filter(t => t.impact === 'debit');
+  
+  const totalCredits = creditTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const totalDebits = debitTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+  if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <div className="text-center">
-            <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Accès limité</h3>
-            <p className="text-muted-foreground">
-              Vous n'avez pas les permissions pour voir les statistiques territoriales.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="animate-pulse space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="animate-pulse space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-16 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Statistiques Territoriales</h2>
-          <p className="text-muted-foreground">
-            Vue d'ensemble de votre territoire{userCountry && ` (${userCountry})`}
-          </p>
-        </div>
+      {/* Résumé financier */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-green-600">
+              <Plus className="w-5 h-5" />
+              Entrées (Crédits)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{totalCredits.toLocaleString()} XAF</div>
+            <p className="text-sm text-muted-foreground">{creditTransactions.length} opérations</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-red-600">
+              <Minus className="w-5 h-5" />
+              Sorties (Débits)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{totalDebits.toLocaleString()} XAF</div>
+            <p className="text-sm text-muted-foreground">{debitTransactions.length} opérations</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              Total Transactions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{transactions.length}</div>
+            <p className="text-sm text-muted-foreground">
+              Solde net: {(totalCredits - totalDebits).toLocaleString()} XAF
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      ) : (
-        <>
-          {/* Statistiques générales */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Utilisateurs Totaux</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                <p className="text-xs text-muted-foreground">
-                  Dans votre territoire
-                </p>
-              </CardContent>
-            </Card>
+      {/* Transactions récentes */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5" />
+            Transactions récentes
+          </CardTitle>
+          <Link to="/transactions">
+            <Button variant="outline" size="sm">
+              <Eye className="w-4 h-4 mr-1" />
+              Voir tout
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {transactions.length === 0 ? (
+            <div className="text-center py-8">
+              <CreditCard className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+              <p className="text-muted-foreground mb-2">Aucune transaction trouvée</p>
+              <p className="text-sm text-muted-foreground">
+                Vos transactions apparaîtront ici une fois que vous effectuerez des opérations
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {transactions.slice(0, 5).map((transaction) => (
+                <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-white border">
+                      {getTransactionIcon(transaction.type, transaction.impact)}
+                    </div>
+                    
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h3 className="font-medium text-sm">{transaction.description}</h3>
+                        <Badge className={getStatusColor(transaction.status)}>
+                          {getStatusLabel(transaction.status)}
+                        </Badge>
+                        <Badge variant={transaction.impact === 'credit' ? 'default' : 'destructive'}>
+                          {transaction.impact === 'credit' ? 'Entrée' : 'Sortie'}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {getTransactionTypeLabel(transaction.type)}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span>{formatDate(transaction.date)}</span>
+                        {transaction.reference_id && (
+                          <span className="text-xs font-mono">
+                            Réf: {transaction.reference_id.substring(0, 8)}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {transaction.verification_code && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Code: {transaction.verification_code}
+                        </p>
+                      )}
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Agents Actifs</CardTitle>
-                <TrendingUp className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{stats.activeAgents}</div>
-                <p className="text-xs text-muted-foreground">
-                  Sur {stats.totalAgents} agents
-                </p>
-              </CardContent>
-            </Card>
+                      {transaction.sender_name && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          De: {transaction.sender_name}
+                        </p>
+                      )}
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Transactions Totales</CardTitle>
-                <BarChart3 className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{stats.totalTransactions}</div>
-                <p className="text-xs text-muted-foreground">
-                  Toutes transactions
-                </p>
-              </CardContent>
-            </Card>
+                      {transaction.recipient_full_name && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Vers: {transaction.recipient_full_name}
+                        </p>
+                      )}
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Volume Total</CardTitle>
-                <DollarSign className="h-4 w-4 text-purple-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-600">
-                  {stats.totalVolume.toLocaleString()} FCFA
+                      {transaction.withdrawal_phone && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Téléphone: {transaction.withdrawal_phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="text-right">
+                    <div className={`font-semibold ${
+                      transaction.impact === 'credit' 
+                        ? 'text-green-600' 
+                        : 'text-red-600'
+                    }`}>
+                      {transaction.impact === 'credit' ? '+' : '-'}
+                      {transaction.amount.toLocaleString()} {transaction.currency}
+                    </div>
+                    
+                    {transaction.fees && transaction.fees > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        Frais: {transaction.fees.toLocaleString()} XAF
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Volume traité
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Statistiques du mois */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Performance du Mois</CardTitle>
-                <CardDescription>Statistiques du mois en cours</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Transactions ce mois</span>
-                  <span className="text-2xl font-bold text-blue-600">
-                    {stats.thisMonthTransactions}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Volume ce mois</span>
-                  <span className="text-2xl font-bold text-green-600">
-                    {stats.thisMonthVolume.toLocaleString()} FCFA
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Moyenne par transaction</span>
-                  <span className="text-lg font-semibold">
-                    {stats.thisMonthTransactions > 0 
-                      ? Math.round(stats.thisMonthVolume / stats.thisMonthTransactions).toLocaleString()
-                      : 0
-                    } FCFA
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Taux de Performance</CardTitle>
-                <CardDescription>Indicateurs de performance</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Taux d'agents actifs</span>
-                  <span className="text-2xl font-bold text-green-600">
-                    {stats.totalAgents > 0 
-                      ? Math.round((stats.activeAgents / stats.totalAgents) * 100)
-                      : 0
-                    }%
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Croissance mensuelle</span>
-                  <span className="text-lg font-semibold text-blue-600">
-                    +{stats.thisMonthTransactions} trans.
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Couverture territoriale</span>
-                  <span className="text-lg font-semibold text-purple-600">
-                    {userCountry || 'Multi-pays'}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      )}
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
