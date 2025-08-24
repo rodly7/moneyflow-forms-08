@@ -49,11 +49,10 @@ export const useSubAdminStats = () => {
       // Compter les demandes du jour
       const today = new Date().toISOString().split('T')[0];
       const { count: dailyRequests } = await supabase
-        .from('user_requests')
+        .from('sub_admin_daily_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('processed_by', user.id)
-        .gte('processed_at', `${today}T00:00:00.000Z`)
-        .lt('processed_at', `${today}T23:59:59.999Z`);
+        .eq('sub_admin_id', user.id)
+        .eq('date', today);
 
       // Compter les utilisateurs gérés (même pays)
       const { count: totalUsersManaged } = await supabase
