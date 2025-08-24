@@ -1,142 +1,137 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSubAdminDailyRequests } from './useSubAdminDailyRequests';
 
 interface TabNotification {
-  tabId: string;
-  count: number;
-  hasNew: boolean;
-  lastSeen: string;
+  hasNewData: boolean;
+  lastUpdate: Date;
+  count?: number;
+}
+
+interface TabNotifications {
+  users: TabNotification;
+  agents: TabNotification;
+  stats: TabNotification;
+  recharge: TabNotification;
+  messages: TabNotification;
+  settings: TabNotification;
 }
 
 export const useSubAdminTabNotifications = () => {
   const { user, profile } = useAuth();
-  const [notifications, setNotifications] = useState<Record<string, TabNotification>>({
-    'user-requests': { tabId: 'user-requests', count: 0, hasNew: false, lastSeen: new Date().toISOString() },
-    'users': { tabId: 'users', count: 0, hasNew: false, lastSeen: new Date().toISOString() },
-    'stats': { tabId: 'stats', count: 0, hasNew: false, lastSeen: new Date().toISOString() },
-    'messages': { tabId: 'messages', count: 0, hasNew: false, lastSeen: new Date().toISOString() },
+  const { recordRequest, status } = useSubAdminDailyRequests();
+  const [notifications, setNotifications] = useState<TabNotifications>({
+    users: { hasNewData: false, lastUpdate: new Date() },
+    agents: { hasNewData: false, lastUpdate: new Date() },
+    stats: { hasNewData: false, lastUpdate: new Date() },
+    recharge: { hasNewData: false, lastUpdate: new Date() },
+    messages: { hasNewData: false, lastUpdate: new Date() },
+    settings: { hasNewData: false, lastUpdate: new Date() }
   });
 
-  // Marquer un onglet comme vu
-  const markTabAsSeen = useCallback((tabId: string) => {
+  const [lastChecked, setLastChecked] = useState<Record<string, Date>>({});
+
+  const checkForUpdates = useCallback(async () => {
+    if (!user?.id || profile?.role !== 'sub_admin' || !status.canMakeRequest) return;
+
+    const now = new Date();
+    const country = profile?.country;
+
+    try {
+      // Enregistrer la demande de vérification
+      await recordRequest('data_check');
+
+      // Vérifier les nouveaux utilisateurs
+      const { count: newUsersCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('country', country)
+        .gt('created_at', lastChecked.users?.toISOString() || new Date(Date.now() - 5 * 60 * 1000).toISOString());
+
+      // Vérifier les nouveaux agents
+      const { count: newAgentsCount } = await supabase
+        .from('agents')
+        .select('*', { count: 'exact', head: true })
+        .eq('country', country)
+        .gt('created_at', lastChecked.agents?.toISOString() || new Date(Date.now() - 5 * 60 * 1000).toISOString());
+
+      // Vérifier les nouveaux messages
+      const { count: newMessagesCount } = await supabase
+        .from('customer_support_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'unread')
+        .gt('created_at', lastChecked.messages?.toISOString() || new Date(Date.now() - 5 * 60 * 1000).toISOString());
+
+      setNotifications(prev => ({
+        users: {
+          hasNewData: (newUsersCount || 0) > 0,
+          lastUpdate: now,
+          count: newUsersCount || 0
+        },
+        agents: {
+          hasNewData: (newAgentsCount || 0) > 0,
+          lastUpdate: now,
+          count: newAgentsCount || 0
+        },
+        stats: {
+          hasNewData: false, // Les stats sont toujours mises à jour
+          lastUpdate: now
+        },
+        recharge: {
+          hasNewData: false,
+          lastUpdate: now
+        },
+        messages: {
+          hasNewData: (newMessagesCount || 0) > 0,
+          lastUpdate: now,
+          count: newMessagesCount || 0
+        },
+        settings: {
+          hasNewData: prev.settings.hasNewData,
+          lastUpdate: prev.settings.lastUpdate
+        }
+      }));
+
+      setLastChecked(prev => ({
+        ...prev,
+        users: now,
+        agents: now,
+        messages: now
+      }));
+
+    } catch (error) {
+      console.error('Erreur lors de la vérification des mises à jour:', error);
+    }
+  }, [user?.id, profile?.country, profile?.role, lastChecked, recordRequest, status.canMakeRequest]);
+
+  const markTabAsViewed = useCallback((tab: keyof TabNotifications) => {
     setNotifications(prev => ({
       ...prev,
-      [tabId]: {
-        ...prev[tabId],
-        hasNew: false,
-        lastSeen: new Date().toISOString()
+      [tab]: {
+        ...prev[tab],
+        hasNewData: false
       }
     }));
   }, []);
 
-  // Vérifier les nouvelles demandes utilisateur
-  const checkUserRequests = useCallback(async () => {
-    if (!user?.id || !profile?.country) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('password_reset_requests')
-        .select('*')
-        .eq('status', 'pending')
-        .gte('created_at', notifications['user-requests'].lastSeen);
-
-      if (error) throw error;
-
-      const newCount = data?.length || 0;
-      if (newCount > notifications['user-requests'].count) {
-        setNotifications(prev => ({
-          ...prev,
-          'user-requests': {
-            ...prev['user-requests'],
-            count: newCount,
-            hasNew: true
-          }
-        }));
-      }
-    } catch (error) {
-      console.error('Erreur lors de la vérification des demandes:', error);
-    }
-  }, [user?.id, profile?.country, notifications]);
-
-  // Vérifier les nouveaux utilisateurs
-  const checkNewUsers = useCallback(async () => {
-    if (!user?.id || !profile?.country) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, created_at')
-        .eq('country', profile.country)
-        .gte('created_at', notifications['users'].lastSeen);
-
-      if (error) throw error;
-
-      const newCount = data?.length || 0;
-      if (newCount > notifications['users'].count) {
-        setNotifications(prev => ({
-          ...prev,
-          'users': {
-            ...prev['users'],
-            count: newCount,
-            hasNew: true
-          }
-        }));
-      }
-    } catch (error) {
-      console.error('Erreur lors de la vérification des nouveaux utilisateurs:', error);
-    }
-  }, [user?.id, profile?.country, notifications]);
-
-  // Vérifier les nouveaux messages de support
-  const checkSupportMessages = useCallback(async () => {
-    if (!user?.id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('customer_support_messages')
-        .select('id, created_at')
-        .eq('status', 'unread')
-        .gte('created_at', notifications['messages'].lastSeen);
-
-      if (error) throw error;
-
-      const newCount = data?.length || 0;
-      if (newCount > notifications['messages'].count) {
-        setNotifications(prev => ({
-          ...prev,
-          'messages': {
-            ...prev['messages'],
-            count: newCount,
-            hasNew: true
-          }
-        }));
-      }
-    } catch (error) {
-      console.error('Erreur lors de la vérification des messages:', error);
-    }
-  }, [user?.id, notifications]);
-
-  // Actualisation automatique toutes les 5 secondes
+  // Vérification automatique toutes les 5 secondes
   useEffect(() => {
-    const interval = setInterval(() => {
-      checkUserRequests();
-      checkNewUsers();
-      checkSupportMessages();
-    }, 5000);
+    if (profile?.role !== 'sub_admin') return;
 
+    const interval = setInterval(checkForUpdates, 5000);
+    
     // Vérification initiale
-    checkUserRequests();
-    checkNewUsers();
-    checkSupportMessages();
+    checkForUpdates();
 
     return () => clearInterval(interval);
-  }, [checkUserRequests, checkNewUsers, checkSupportMessages]);
+  }, [checkForUpdates, profile?.role]);
 
   return {
     notifications,
-    markTabAsSeen,
-    hasNewNotifications: Object.values(notifications).some(n => n.hasNew)
+    markTabAsViewed,
+    refresh: checkForUpdates,
+    dailyRequestsStatus: status
   };
 };

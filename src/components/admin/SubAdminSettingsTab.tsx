@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useSubAdmin } from '@/hooks/useSubAdmin';
 import { useAuth } from '@/contexts/AuthContext';
 import { Settings, User, MapPin, Shield, AlertCircle } from 'lucide-react';
+import SubAdminDailyLimitSettings from './SubAdminDailyLimitSettings';
 
 const SubAdminSettingsTab = () => {
   const { profile } = useAuth();
@@ -20,6 +21,9 @@ const SubAdminSettingsTab = () => {
           </p>
         </div>
       </div>
+
+      {/* Gestion du plafond quotidien */}
+      <SubAdminDailyLimitSettings />
 
       {/* Informations du profil */}
       <Card>
