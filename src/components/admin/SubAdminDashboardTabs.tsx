@@ -1,8 +1,7 @@
 
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CreditCard, Users, Settings, MessageCircle, BarChart3, Package, History, UserCheck } from 'lucide-react';
-import SubAdminRechargeTab from './SubAdminRechargeTab';
+import { Users, Settings, MessageCircle, BarChart3, Package, History, UserCheck } from 'lucide-react';
 import SubAdminUsersTab from './SubAdminUsersTab';
 import SubAdminSettingsTab from './SubAdminSettingsTab';
 import SubAdminMessagesTab from './SubAdminMessagesTab';
@@ -17,14 +16,10 @@ const SubAdminDashboardTabs = () => {
   return (
     <div className="w-full">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
           <TabsTrigger value="user-requests" className="flex items-center gap-2">
             <UserCheck className="w-4 h-4" />
             <span className="hidden sm:inline">Demandes</span>
-          </TabsTrigger>
-          <TabsTrigger value="recharges" className="flex items-center gap-2">
-            <CreditCard className="w-4 h-4" />
-            <span className="hidden sm:inline">Recharges</span>
           </TabsTrigger>
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
@@ -54,10 +49,6 @@ const SubAdminDashboardTabs = () => {
 
         <TabsContent value="user-requests" className="mt-6">
           <UserRequestsManagement />
-        </TabsContent>
-
-        <TabsContent value="recharges" className="mt-6">
-          <SubAdminRechargeTab />
         </TabsContent>
 
         <TabsContent value="users" className="mt-6">
