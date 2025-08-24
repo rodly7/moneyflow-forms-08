@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -162,21 +163,45 @@ export const useRealtimeTransactions = (userId?: string) => {
         };
       });
 
-      // Transformer les dépôts
+      // Transformer les dépôts/recharges (CRÉDIT)
       const transformedDeposits: Transaction[] = (depositsData || []).map(deposit => ({
         id: `deposit_${deposit.id}`,
         type: 'deposit',
         amount: deposit.amount,
         date: new Date(deposit.created_at),
-        description: `Dépôt par ${deposit.payment_method || 'Mobile Money'}`,
+        description: `Recharge par ${deposit.payment_method || 'Mobile Money'}`,
         currency: 'XAF',
         status: deposit.status,
         userType: 'user' as const,
         created_at: deposit.created_at,
-        impact: 'credit'
+        impact: 'credit' // Les recharges sont des crédits
       }));
 
-      // Transformer les paiements de factures
+      // Transformer les retraits (DÉBIT)
+      const transformedWithdrawalTransactions: Transaction[] = (withdrawalsData || []).map(withdrawal => {
+        const createdAt = new Date(withdrawal.created_at);
+        const now = new Date();
+        const timeDiffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+        const showCode = timeDiffMinutes <= 5 && withdrawal.verification_code && withdrawal.status === 'pending';
+        
+        return {
+          id: `withdrawal_${withdrawal.id}`,
+          type: 'withdrawal',
+          amount: withdrawal.amount,
+          date: new Date(withdrawal.created_at),
+          description: `Retrait vers ${withdrawal.withdrawal_phone || 'N/A'}`,
+          currency: 'XAF',
+          status: withdrawal.status,
+          userType: (withdrawal.profiles as any)?.role === 'agent' ? 'agent' : 'user',
+          withdrawal_phone: withdrawal.withdrawal_phone,
+          verification_code: withdrawal.verification_code,
+          created_at: withdrawal.created_at,
+          showCode,
+          impact: 'debit' // Les retraits sont des débits
+        };
+      });
+
+      // Transformer les paiements de factures (DÉBIT)
       const transformedBillPayments: Transaction[] = (billPaymentsData || []).map(payment => ({
         id: `bill_${payment.id}`,
         type: 'bill_payment',
@@ -187,10 +212,10 @@ export const useRealtimeTransactions = (userId?: string) => {
         status: payment.status,
         userType: 'user' as const,
         created_at: payment.created_at,
-        impact: 'debit'
+        impact: 'debit' // Les paiements de factures sont des débits
       }));
 
-      // Transformer les retraits avec gestion du code de vérification
+      // Transformer les retraits avec gestion du code de vérification pour la liste séparée
       const transformedWithdrawals: Withdrawal[] = (withdrawalsData || []).map(withdrawal => {
         const createdAt = new Date(withdrawal.created_at);
         const now = new Date();
@@ -214,6 +239,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         ...transformedSentTransfers, 
         ...transformedReceivedTransfers,
         ...transformedDeposits,
+        ...transformedWithdrawalTransactions,
         ...transformedBillPayments
       ].sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
 
@@ -225,8 +251,9 @@ export const useRealtimeTransactions = (userId?: string) => {
         transferts_envoyés: transformedSentTransfers.length,
         transferts_reçus: transformedReceivedTransfers.length,
         dépôts: transformedDeposits.length,
+        retraits: transformedWithdrawalTransactions.length,
         paiements: transformedBillPayments.length,
-        retraits: transformedWithdrawals.length
+        retraits_séparés: transformedWithdrawals.length
       });
       
     } catch (error) {
