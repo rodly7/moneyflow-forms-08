@@ -1,144 +1,94 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Phone, MapPin, Copy, CreditCard, Wallet, ArrowLeft, Send } from 'lucide-react';
-import { toast } from 'sonner';
-import { countries } from '@/data/countries';
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  ArrowUpCircle, 
+  ArrowDownCircle, 
+  CreditCard, 
+  Smartphone, 
+  ArrowLeft,
+  CheckCircle,
+  X
+} from 'lucide-react';
 
-interface Agent {
-  id: string;
-  full_name: string;
-  phone: string;
-  country: string;
-  status: string;
-  user_id: string;
-  commission_balance: number;
-  agent_location?: {
-    address: string;
-    zone: string;
-    is_active: boolean;
-  } | null;
+interface AccountRechargeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-type OperationType = 'recharge' | 'retrait';
-type StepType = 'operation' | 'payment_method' | 'agent_selection' | 'request_details';
+type Step = 'operation' | 'payment_method' | 'request_details' | 'confirmation';
+type Operation = 'recharge' | 'retrait';
 
-const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
-  const { profile } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
-  const [currentStep, setCurrentStep] = useState<StepType>('operation');
-  const [selectedOperation, setSelectedOperation] = useState<OperationType | null>(null);
+const AccountRechargeModal: React.FC<AccountRechargeModalProps> = ({ isOpen, onClose }) => {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [currentStep, setCurrentStep] = useState<Step>('operation');
+  const [selectedOperation, setSelectedOperation] = useState<Operation | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [amount, setAmount] = useState('');
+  const [paymentPhone, setPaymentPhone] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reset state when modal closes
-  const handleOpenChange = (open: boolean) => {
-    setIsOpen(open);
-    if (!open) {
-      setCurrentStep('operation');
-      setSelectedOperation(null);
-      setSelectedPaymentMethod(null);
-      setSelectedAgent(null);
-      setAmount('');
-    }
-  };
-
-  // Get payment methods for user's country
-  const getPaymentMethods = () => {
-    const userCountry = countries.find(country => country.name === profile?.country);
-    return userCountry?.paymentMethods || [];
-  };
-
-  // Get payment numbers for specific methods and country
-  const getPaymentNumbers = (method: string): string[] => {
-    if (!profile?.country) return [];
-    
-    const paymentNumbers: { [key: string]: { [key: string]: string[] } } = {
-      "Congo Brazzaville": {
-        "Airtel Money": ["+242055524407"],
-        "Mobile Money": ["+242065224790"]
-      },
-      "Sénégal": {
-        "Wave": ["+221770192989"],
-        "Orange Money": ["+221774596609"]
-      }
-    };
-
-    return paymentNumbers[profile.country]?.[method] || [];
-  };
-
-  // Fetch agents with available cash
-  const { data: agents, isLoading: agentsLoading } = useQuery({
-    queryKey: ['agents-with-cash', profile?.country],
-    queryFn: async () => {
-      if (!profile?.country) return [];
-      
-      const { data: agentsData, error: agentsError } = await supabase
-        .from('agents')
-        .select('id, full_name, phone, country, status, user_id, commission_balance')
-        .eq('country', profile.country)
-        .eq('status', 'active')
-        .gt('commission_balance', 0)
-        .limit(10);
-
-      if (agentsError) throw agentsError;
-      if (!agentsData) return [];
-
-      const agentUserIds = agentsData.map(agent => agent.user_id);
-      const { data: locationsData, error: locationsError } = await supabase
-        .from('agent_locations')
-        .select('agent_id, address, zone, is_active')
-        .in('agent_id', agentUserIds)
-        .eq('is_active', true);
-
-      if (locationsError) {
-        console.warn('Could not fetch agent locations:', locationsError);
-      }
-
-      const agentsWithLocations: Agent[] = agentsData.map(agent => ({
-        ...agent,
-        agent_location: locationsData?.find(loc => loc.agent_id === agent.user_id) || null
-      }));
-
-      return agentsWithLocations;
+  const paymentMethods = [
+    { 
+      id: 'airtel_money', 
+      name: 'Airtel Money', 
+      icon: Smartphone, 
+      number: '+242 05 123 4567',
+      color: 'from-red-600 to-red-700' 
     },
-    enabled: !!profile?.country && isOpen && currentStep === 'agent_selection',
-  });
-
-  const copyToClipboard = (text: string, type: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success(`${type} copié dans le presse-papiers`);
-  };
-
-  const callAgent = (phoneNumber: string) => {
-    window.open(`tel:${phoneNumber}`, '_self');
-  };
-
-  const handleSubmitRequest = async () => {
-    if (!amount || !selectedOperation) {
-      toast.error('Veuillez remplir tous les champs requis');
-      return;
+    { 
+      id: 'moov_money', 
+      name: 'Moov Money', 
+      icon: Smartphone, 
+      number: '+242 06 123 4567',
+      color: 'from-blue-600 to-blue-700' 
+    },
+    { 
+      id: 'orange_money_congo', 
+      name: 'Orange Money Congo', 
+      icon: Smartphone, 
+      number: '+242 05 789 0123',
+      color: 'from-orange-600 to-orange-700' 
+    },
+    { 
+      id: 'orange_money_senegal', 
+      name: 'Orange Money Sénégal', 
+      icon: Smartphone, 
+      number: '+221 70 123 4567',
+      color: 'from-orange-600 to-orange-700' 
+    },
+    { 
+      id: 'wave', 
+      name: 'Wave', 
+      icon: CreditCard, 
+      number: '+221 77 123 4567',
+      color: 'from-purple-600 to-purple-700' 
     }
+  ];
 
-    try {
-      // Here you would create the request in the database
-      toast.success(`Demande de ${selectedOperation} envoyée`);
-      setIsOpen(false);
-    } catch (error) {
-      toast.error('Erreur lors de l\'envoi de la demande');
-    }
+  const resetModal = () => {
+    setCurrentStep('operation');
+    setSelectedOperation(null);
+    setSelectedPaymentMethod(null);
+    setAmount('');
+    setPaymentPhone('');
+    setIsSubmitting(false);
   };
 
-  const handleOperationSelect = (operation: OperationType) => {
+  const handleClose = () => {
+    resetModal();
+    onClose();
+  };
+
+  const handleOperationSelect = (operation: Operation) => {
     setSelectedOperation(operation);
     setCurrentStep('payment_method');
   };
@@ -149,127 +99,157 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
     setCurrentStep('request_details');
   };
 
+  const handleSubmitRequest = async () => {
+    if (!selectedOperation || !selectedPaymentMethod || !amount || !paymentPhone || !user) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const amountNumber = parseFloat(amount);
+    if (isNaN(amountNumber) || amountNumber <= 0) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez saisir un montant valide",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Créer la demande dans la table user_requests
+      const { error } = await supabase
+        .from('user_requests')
+        .insert({
+          user_id: user.id,
+          operation_type: selectedOperation,
+          amount: amountNumber,
+          payment_method: selectedPaymentMethod,
+          payment_phone: paymentPhone,
+          status: 'pending'
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      setCurrentStep('confirmation');
+      
+      toast({
+        title: "Demande envoyée",
+        description: `Votre demande de ${selectedOperation} de ${amountNumber} FCFA a été envoyée. Elle sera traitée par un administrateur.`,
+      });
+
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi de la demande:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de l'envoi de la demande",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const renderOperationSelection = () => (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-center">
-        Que souhaitez-vous faire ?
-      </h3>
-      <div className="grid grid-cols-1 gap-4">
+    <div className="space-y-6">
+      <div className="text-center">
+        <h3 className="text-xl font-semibold text-gray-800 mb-2">Choisir une opération</h3>
+        <p className="text-gray-600">Sélectionnez le type d'opération que vous souhaitez effectuer</p>
+      </div>
+
+      <div className="grid gap-4">
         <Card 
-          className={`cursor-pointer transition-colors hover:bg-accent ${selectedOperation === 'recharge' ? 'ring-2 ring-primary' : ''}`}
+          className="cursor-pointer border-2 border-transparent hover:border-green-300 hover:shadow-lg transition-all duration-200"
           onClick={() => handleOperationSelect('recharge')}
         >
-          <CardContent className="p-6 text-center">
-            <Wallet className="w-8 h-8 mx-auto mb-2 text-green-600" />
-            <h4 className="font-semibold">Recharger mon compte</h4>
-            <p className="text-sm text-muted-foreground">Ajouter de l'argent à votre compte</p>
+          <CardContent className="flex items-center gap-4 p-6">
+            <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-full">
+              <ArrowDownCircle className="w-8 h-8 text-white" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-lg font-semibold text-gray-800">Recharge de compte</h4>
+              <p className="text-gray-600">Ajouter de l'argent à votre compte</p>
+            </div>
+            <Badge className="bg-green-100 text-green-800">
+              Recharge
+            </Badge>
           </CardContent>
         </Card>
-        
+
         <Card 
-          className={`cursor-pointer transition-colors hover:bg-accent ${selectedOperation === 'retrait' ? 'ring-2 ring-primary' : ''}`}
+          className="cursor-pointer border-2 border-transparent hover:border-blue-300 hover:shadow-lg transition-all duration-200"
           onClick={() => handleOperationSelect('retrait')}
         >
-          <CardContent className="p-6 text-center">
-            <CreditCard className="w-8 h-8 mx-auto mb-2 text-blue-600" />
-            <h4 className="font-semibold">Retirer de l'argent</h4>
-            <p className="text-sm text-muted-foreground">Retirer de l'argent de votre compte</p>
+          <CardContent className="flex items-center gap-4 p-6">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full">
+              <ArrowUpCircle className="w-8 h-8 text-white" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-lg font-semibold text-gray-800">Retrait d'argent</h4>
+              <p className="text-gray-600">Retirer de l'argent de votre compte</p>
+            </div>
+            <Badge className="bg-blue-100 text-blue-800">
+              Retrait
+            </Badge>
           </CardContent>
         </Card>
       </div>
     </div>
   );
 
-  const renderPaymentMethodSelection = () => {
-    const paymentMethods = getPaymentMethods();
-    
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setCurrentStep('operation')}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <h3 className="text-lg font-semibold">
-            Choisissez un mode de paiement
-          </h3>
+  const renderPaymentMethodSelection = () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4 mb-4">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => setCurrentStep('operation')}
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <div>
+          <h3 className="text-xl font-semibold text-gray-800">Mode de paiement</h3>
+          <p className="text-gray-600">
+            Choisir le mode de paiement pour votre {selectedOperation}
+          </p>
         </div>
-        
-        {paymentMethods.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3">
-            {paymentMethods.map((method, index) => {
-              const paymentNumbers = getPaymentNumbers(method);
-              return (
-                <Card 
-                  key={index} 
-                  className={`cursor-pointer transition-colors hover:bg-accent border-l-4 ${selectedOperation === 'recharge' ? 'border-l-green-500' : 'border-l-blue-500'} ${selectedPaymentMethod === method ? 'ring-2 ring-primary' : ''}`}
-                  onClick={() => handlePaymentMethodSelect(method)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${selectedOperation === 'recharge' ? 'bg-green-100' : 'bg-blue-100'}`}>
-                          <Wallet className={`w-5 h-5 ${selectedOperation === 'recharge' ? 'text-green-600' : 'text-blue-600'}`} />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold">{method}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {selectedOperation === 'recharge' 
-                              ? `Paiement mobile disponible au ${profile?.country}`
-                              : `Réception mobile disponible au ${profile?.country}`
-                            }
-                          </p>
-                          {paymentNumbers.length > 0 && (
-                            <div className="mt-2">
-                              {paymentNumbers.map((number, idx) => (
-                                <div key={idx} className="flex items-center gap-2 text-sm">
-                                  <Phone className="w-3 h-3" />
-                                  <span className="font-mono">{number}</span>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      copyToClipboard(number, 'Numéro');
-                                    }}
-                                  >
-                                    <Copy className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <Badge variant="outline" className={selectedOperation === 'recharge' ? 'text-green-600' : 'text-blue-600'}>
-                        Mobile Money
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground">
-                Aucun moyen de paiement mobile disponible pour {profile?.country}
-              </p>
-            </CardContent>
-          </Card>
-        )}
       </div>
-    );
-  };
 
-  const getBackStep = (): StepType => {
-    return 'payment_method';
-  };
+      <div className="grid gap-3">
+        {paymentMethods.map((method) => {
+          const Icon = method.icon;
+          return (
+            <Card 
+              key={method.id}
+              className="cursor-pointer border-2 border-transparent hover:border-blue-300 hover:shadow-lg transition-all duration-200"
+              onClick={() => handlePaymentMethodSelect(method.id)}
+            >
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className={`p-2 bg-gradient-to-br ${method.color} rounded-lg`}>
+                  <Icon className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-800">{method.name}</h4>
+                  <p className="text-sm text-gray-600">{method.number}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   const renderRequestDetails = () => (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
+    <div className="space-y-6">
+      <div className="flex items-center gap-4 mb-4">
         <Button 
           variant="ghost" 
           size="sm" 
@@ -277,160 +257,99 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
         >
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <h3 className="text-lg font-semibold">
-          Détails de la demande
-        </h3>
+        <div>
+          <h3 className="text-xl font-semibold text-gray-800">Détails de la demande</h3>
+          <p className="text-gray-600">
+            Complétez les informations pour votre {selectedOperation}
+          </p>
+        </div>
       </div>
-
-      <Card>
-        <CardContent className="p-4">
-          <h4 className="font-semibold mb-2">Récapitulatif</h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Opération:</span>
-              <span className="font-medium">{selectedOperation === 'recharge' ? 'Recharge' : 'Retrait'}</span>
-            </div>
-            {selectedPaymentMethod && (
-              <div className="flex justify-between">
-                <span>Mode de paiement:</span>
-                <span className="font-medium">{selectedPaymentMethod}</span>
-              </div>
-            )}
-            {selectedAgent && (
-              <div className="flex justify-between">
-                <span>Agent:</span>
-                <span className="font-medium">{selectedAgent.full_name}</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       <div className="space-y-4">
         <div>
-          <Label htmlFor="amount">Montant (FCFA) *</Label>
+          <Label htmlFor="amount" className="text-sm font-medium text-gray-700">
+            Montant (FCFA)
+          </Label>
           <Input
             id="amount"
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder="Entrez le montant"
+            placeholder="Saisissez le montant"
+            className="mt-2"
             min="1000"
-            step="1000"
+            step="500"
           />
         </div>
 
-        <Button 
+        <div>
+          <Label htmlFor="paymentPhone" className="text-sm font-medium text-gray-700">
+            Votre numéro de téléphone
+          </Label>
+          <Input
+            id="paymentPhone"
+            type="tel"
+            value={paymentPhone}
+            onChange={(e) => setPaymentPhone(e.target.value)}
+            placeholder="Ex: +242 XX XX XX XX"
+            className="mt-2"
+          />
+        </div>
+
+        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h4 className="font-semibold text-blue-800 mb-2">Résumé de votre demande</h4>
+          <div className="space-y-1 text-sm text-blue-700">
+            <p>Opération: <span className="font-medium">{selectedOperation === 'recharge' ? 'Recharge' : 'Retrait'}</span></p>
+            <p>Mode de paiement: <span className="font-medium">
+              {paymentMethods.find(m => m.id === selectedPaymentMethod)?.name}
+            </span></p>
+            {amount && <p>Montant: <span className="font-medium">{parseFloat(amount).toLocaleString()} FCFA</span></p>}
+          </div>
+        </div>
+
+        <Button
           onClick={handleSubmitRequest}
-          className="w-full"
-          disabled={!amount}
+          disabled={isSubmitting || !amount || !paymentPhone}
+          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
         >
-          <Send className="w-4 h-4 mr-2" />
-          Envoyer la demande
+          {isSubmitting ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+              Envoi en cours...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Envoyer la demande
+            </>
+          )}
         </Button>
       </div>
     </div>
   );
 
-  const renderAgentSelection = () => (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => setCurrentStep(getBackStep())}
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <h3 className="text-lg font-semibold">
-          Choisissez un agent disponible
-        </h3>
+  const renderConfirmation = () => (
+    <div className="space-y-6 text-center">
+      <div className="p-4 bg-green-100 rounded-full mx-auto w-fit">
+        <CheckCircle className="w-12 h-12 text-green-600" />
       </div>
       
-      {agentsLoading ? (
-        <div className="flex justify-center py-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      ) : agents && agents.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4">
-          {agents.map((agent) => (
-            <Card 
-              key={agent.id} 
-              className={`cursor-pointer transition-colors hover:bg-accent border-l-4 ${selectedOperation === 'recharge' ? 'border-l-green-500' : 'border-l-blue-500'} ${selectedAgent?.id === agent.id ? 'ring-2 ring-primary' : ''}`}
-              onClick={() => {
-                setSelectedAgent(agent);
-                setCurrentStep('request_details');
-              }}
-            >
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <span>{agent.full_name}</span>
-                  <div className="flex flex-col items-end gap-1">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      Disponible
-                    </Badge>
-                    <Badge variant="outline" className="text-blue-600">
-                      {agent.commission_balance.toLocaleString()} FCFA
-                    </Badge>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-mono">{agent.phone}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          copyToClipboard(agent.phone, 'Numéro');
-                        }}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          callAgent(agent.phone);
-                        }}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <Phone className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
+      <div>
+        <h3 className="text-xl font-semibold text-green-800 mb-2">Demande envoyée avec succès</h3>
+        <p className="text-green-700">
+          Votre demande de {selectedOperation} de {parseFloat(amount || '0').toLocaleString()} FCFA a été envoyée.
+        </p>
+        <p className="text-sm text-green-600 mt-2">
+          Elle sera traitée par un administrateur dans les plus brefs délais.
+        </p>
+      </div>
 
-                  {agent.agent_location && (
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                      <div className="text-sm">
-                        <p>{agent.agent_location.address}</p>
-                        {agent.agent_location.zone && (
-                          <p className="text-muted-foreground">Zone: {agent.agent_location.zone}</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-muted-foreground">
-              Aucun agent avec du cash disponible dans votre territoire ({profile?.country})
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      <Button
+        onClick={handleClose}
+        className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+      >
+        Fermer
+      </Button>
     </div>
   );
 
@@ -440,61 +359,32 @@ const AccountRechargeModal = ({ children }: { children: React.ReactNode }) => {
         return renderOperationSelection();
       case 'payment_method':
         return renderPaymentMethodSelection();
-      case 'agent_selection':
-        return renderAgentSelection();
       case 'request_details':
         return renderRequestDetails();
+      case 'confirmation':
+        return renderConfirmation();
       default:
         return renderOperationSelection();
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center">
-            💰 Recharger mon compte
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <DialogTitle className="text-lg font-semibold">
+            {selectedOperation ? 
+              (selectedOperation === 'recharge' ? 'Recharge de compte' : 'Retrait d\'argent') : 
+              'Compte'
+            }
           </DialogTitle>
-          <p className="text-center text-muted-foreground">
-            Gérez vos recharges et retraits facilement
-          </p>
+          <Button variant="ghost" size="sm" onClick={handleClose}>
+            <X className="w-4 h-4" />
+          </Button>
         </DialogHeader>
-
-        <div className="space-y-6">
+        
+        <div className="mt-4">
           {renderCurrentStep()}
-
-          {/* Instructions générales */}
-          <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="p-4">
-              <h4 className="font-semibold text-blue-900 mb-2">💡 Instructions</h4>
-              <ul className="text-sm text-blue-800 space-y-1">
-                {selectedOperation === 'recharge' ? (
-                  <>
-                    <li>• Contactez l'agent choisi pour finaliser votre recharge</li>
-                    <li>• Vérifiez toujours l'identité de l'agent avant toute transaction</li>
-                    <li>• Gardez vos reçus de transaction comme preuve</li>
-                    <li>• Les agents affichés ont du cash disponible</li>
-                    {selectedPaymentMethod && (
-                      <li>• Pour une recharge, envoyez l'argent via {selectedPaymentMethod} à l'agent</li>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <li>• Vous recevrez l'argent directement via le mode de paiement sélectionné</li>
-                    <li>• Vérifiez que vous avez suffisamment de solde avant de faire la demande</li>
-                    <li>• Gardez vos reçus de transaction comme preuve</li>
-                    {selectedPaymentMethod && (
-                      <li>• Pour un retrait, vous recevrez les fonds via {selectedPaymentMethod}</li>
-                    )}
-                  </>
-                )}
-              </ul>
-            </CardContent>
-          </Card>
         </div>
       </DialogContent>
     </Dialog>
