@@ -19,11 +19,11 @@ import AdminGlobalStats from './AdminGlobalStats';
 import SubAdminRechargeTab from './SubAdminRechargeTab';
 import UserRequestsManagement from './UserRequestsManagement';
 import AdminUserRequestsOverview from './AdminUserRequestsOverview';
-import SimpleUsersList from './SimpleUsersList';
+import { SimpleUsersList } from './SimpleUsersList';
 import SimpleAgentsTab from './SimpleAgentsTab';
-import SimpleMessagesTab from './SimpleMessagesTab';
-import SimpleSettingsTab from './SimpleSettingsTab';
-import SimpleTreasuryTab from './SimpleTreasuryTab';
+import { SimpleMessagesTab } from './SimpleMessagesTab';
+import { SimpleSettingsTab } from './SimpleSettingsTab';
+import { SimpleTreasuryTab } from './SimpleTreasuryTab';
 import SimpleAdvancedTab from './SimpleAdvancedTab';
 
 const SimpleMainAdminDashboard = () => {
