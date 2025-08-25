@@ -1,6 +1,20 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+export const getUserBalance = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('balance, country')
+    .eq('id', userId)
+    .single();
+
+  if (error) throw error;
+  return { 
+    balance: data.balance || 0,
+    country: data.country || 'Congo Brazzaville'
+  };
+};
+
 export const rechargeUserBalance = async (
   userId: string,
   amount: number,

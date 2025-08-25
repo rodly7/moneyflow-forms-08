@@ -6,17 +6,40 @@ export interface ClientData {
   full_name: string;
   phone: string;
   balance: number;
+  country?: string;
 }
 
 export const getUserBalance = async (userId: string) => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('balance')
+    .select('balance, country')
     .eq('id', userId)
     .single();
 
   if (error) throw error;
-  return { balance: data.balance || 0 };
+  return { 
+    balance: data.balance || 0,
+    country: data.country || 'Congo Brazzaville'
+  };
+};
+
+export const getCountryCodeForAgent = (country: string): string => {
+  switch (country?.toLowerCase()) {
+    case 'congo brazzaville':
+    case 'congo':
+    case 'brazzaville':
+      return '+242';
+    case 'cameroun':
+    case 'cameroon':
+      return '+237';
+    case 'gabon':
+      return '+241';
+    case 'tchad':
+    case 'chad':
+      return '+235';
+    default:
+      return '+242'; // Défaut Congo Brazzaville
+  }
 };
 
 export const findUserByPhone = async (phone: string): Promise<ClientData | null> => {
@@ -24,7 +47,7 @@ export const findUserByPhone = async (phone: string): Promise<ClientData | null>
   
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, phone, balance')
+    .select('id, full_name, phone, balance, country')
     .eq('phone', phone)
     .maybeSingle();
 

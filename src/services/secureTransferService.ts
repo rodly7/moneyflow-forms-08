@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { SecurityService } from './securityService';
-import { getUserBalance } from './balanceService';
+import { getUserBalance } from './withdrawalService';
 
 export interface SecureTransferRequest {
   recipientPhone: string;
@@ -70,8 +70,8 @@ class SecureTransferService {
     }
 
     // Check balance
-    const currentBalance = await getUserBalance(userId);
-    if (currentBalance < request.amount) {
+    const balanceData = await getUserBalance(userId);
+    if (balanceData.balance < request.amount) {
       throw new Error('Solde insuffisant');
     }
 

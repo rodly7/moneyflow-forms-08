@@ -1,15 +1,16 @@
 
-import { getUserBalance } from './balanceService';
+import { getUserBalance } from './withdrawalService';
 
 // Simple balance service for components that need basic balance operations
 export const simpleBalanceService = {
   async getBalance(userId: string): Promise<number> {
-    return await getUserBalance(userId);
+    const result = await getUserBalance(userId);
+    return result.balance;
   },
 
   async checkSufficientBalance(userId: string, amount: number): Promise<boolean> {
-    const balance = await getUserBalance(userId);
-    return balance >= amount;
+    const result = await getUserBalance(userId);
+    return result.balance >= amount;
   },
 
   async updateBalance(userId: string, amount: number, operation: string): Promise<void> {
