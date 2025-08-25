@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -167,7 +166,7 @@ function App() {
           <Route path="transactions" element={<Transactions />} />
           <Route path="deposit" element={<UnifiedDepositWithdrawal />} />
           <Route path="unified-deposit-withdrawal" element={<UnifiedDepositWithdrawal />} />
-          <Route path="deposit-withdrawal" element={<DepositWithdrawalForm />} />
+          <Route path="deposit-withdrawal" element={<UnifiedDepositWithdrawal />} />
           <Route path="withdraw" element={<UnifiedDepositWithdrawal />} />
           <Route path="agent-services" element={<AgentServices />} />
           

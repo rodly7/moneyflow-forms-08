@@ -65,7 +65,7 @@ const Withdraw = () => {
           </Card>
         ) : (
           <>
-            <AutomaticWithdrawalForm userBalance={userBalance} />
+            <AutomaticWithdrawalForm />
             
             <Card>
               <CardHeader>
