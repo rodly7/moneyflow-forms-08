@@ -57,7 +57,7 @@ const SimpleMainAdminDashboard = () => {
 
       {/* Onglets principaux */}
       <Tabs defaultValue="requests-overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="requests-overview" className="flex items-center gap-2">
             <Eye className="w-4 h-4" />
             Historique
