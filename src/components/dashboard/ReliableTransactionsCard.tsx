@@ -11,36 +11,28 @@ const ReliableTransactionsCard = () => {
   const { user } = useAuth();
   const { transactions, isLoading, refetch } = useRealtimeTransactions(user?.id);
 
-  console.log("🔍 Total transactions récupérées:", transactions.length);
-  console.log("📊 Types de transactions:", transactions.map(t => t.type));
+  console.log("🔍 TRANSACTIONS RÉCENTES - Total récupéré:", transactions.length);
+  console.log("📊 TRANSACTIONS RÉCENTES - Détail par type:", {
+    recharges: transactions.filter(t => t.type === 'recharge').length,
+    retraits: transactions.filter(t => t.type === 'withdrawal').length,
+    transferts_envoyés: transactions.filter(t => t.type === 'transfer_sent').length,
+    transferts_reçus: transactions.filter(t => t.type === 'transfer_received').length,
+    paiements_factures: transactions.filter(t => t.type === 'bill_payment').length
+  });
 
-  // Grouper les transactions par type pour un affichage équilibré
-  const groupedTransactions = {
-    recharges: transactions.filter(t => t.type === 'recharge').slice(0, 3),
-    withdrawals: transactions.filter(t => t.type === 'withdrawal').slice(0, 3),
-    transfers_sent: transactions.filter(t => t.type === 'transfer_sent').slice(0, 2),
-    transfers_received: transactions.filter(t => t.type === 'transfer_received').slice(0, 2),
-    bills: transactions.filter(t => t.type === 'bill_payment').slice(0, 2)
+  // Afficher les 8 transactions les plus récentes, toutes types confondus
+  const recentTransactions = transactions.slice(0, 8);
+
+  // Statistiques par type pour les badges
+  const stats = {
+    recharges: transactions.filter(t => t.type === 'recharge').length,
+    withdrawals: transactions.filter(t => t.type === 'withdrawal').length,
+    transfers_sent: transactions.filter(t => t.type === 'transfer_sent').length,
+    transfers_received: transactions.filter(t => t.type === 'transfer_received').length,
+    bills: transactions.filter(t => t.type === 'bill_payment').length
   };
 
-  // Créer une liste équilibrée en prenant des éléments de chaque type
-  const balancedTransactions = [
-    ...groupedTransactions.recharges,
-    ...groupedTransactions.withdrawals,
-    ...groupedTransactions.transfers_sent,
-    ...groupedTransactions.transfers_received,
-    ...groupedTransactions.bills
-  ].sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
-  .slice(0, 8);
-
-  console.log("⚖️ Transactions équilibrées à afficher:", balancedTransactions.length);
-  console.log("📋 Répartition équilibrée:", {
-    recharges: groupedTransactions.recharges.length,
-    retraits: groupedTransactions.withdrawals.length,
-    transferts_envoyés: groupedTransactions.transfers_sent.length,
-    transferts_reçus: groupedTransactions.transfers_received.length,
-    factures: groupedTransactions.bills.length
-  });
+  console.log("📋 TRANSACTIONS RÉCENTES - Affichage des", recentTransactions.length, "plus récentes");
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
@@ -98,31 +90,36 @@ const ReliableTransactionsCard = () => {
           </div>
         </CardTitle>
         
-        {/* Affichage du résumé par type */}
+        {/* Statistiques par type */}
         <div className="flex flex-wrap gap-2">
-          {groupedTransactions.recharges.length > 0 && (
+          {stats.recharges > 0 && (
             <Badge variant="secondary" className="bg-green-50 text-green-700">
-              {groupedTransactions.recharges.length} recharge{groupedTransactions.recharges.length > 1 ? 's' : ''}
+              <Plus className="w-3 h-3 mr-1" />
+              {stats.recharges} recharge{stats.recharges > 1 ? 's' : ''}
             </Badge>
           )}
-          {groupedTransactions.withdrawals.length > 0 && (
+          {stats.withdrawals > 0 && (
             <Badge variant="secondary" className="bg-red-50 text-red-700">
-              {groupedTransactions.withdrawals.length} retrait{groupedTransactions.withdrawals.length > 1 ? 's' : ''}
+              <ArrowUpRight className="w-3 h-3 mr-1" />
+              {stats.withdrawals} retrait{stats.withdrawals > 1 ? 's' : ''}
             </Badge>
           )}
-          {groupedTransactions.transfers_sent.length > 0 && (
+          {stats.transfers_sent > 0 && (
             <Badge variant="secondary" className="bg-blue-50 text-blue-700">
-              {groupedTransactions.transfers_sent.length} envoi{groupedTransactions.transfers_sent.length > 1 ? 's' : ''}
+              <ArrowUpRight className="w-3 h-3 mr-1" />
+              {stats.transfers_sent} envoi{stats.transfers_sent > 1 ? 's' : ''}
             </Badge>
           )}
-          {groupedTransactions.transfers_received.length > 0 && (
+          {stats.transfers_received > 0 && (
             <Badge variant="secondary" className="bg-green-50 text-green-700">
-              {groupedTransactions.transfers_received.length} réception{groupedTransactions.transfers_received.length > 1 ? 's' : ''}
+              <ArrowDownLeft className="w-3 h-3 mr-1" />
+              {stats.transfers_received} réception{stats.transfers_received > 1 ? 's' : ''}
             </Badge>
           )}
-          {groupedTransactions.bills.length > 0 && (
+          {stats.bills > 0 && (
             <Badge variant="secondary" className="bg-purple-50 text-purple-700">
-              {groupedTransactions.bills.length} facture{groupedTransactions.bills.length > 1 ? 's' : ''}
+              <FileText className="w-3 h-3 mr-1" />
+              {stats.bills} facture{stats.bills > 1 ? 's' : ''}
             </Badge>
           )}
         </div>
@@ -133,7 +130,7 @@ const ReliableTransactionsCard = () => {
           <div className="flex items-center justify-center p-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
-        ) : balancedTransactions.length === 0 ? (
+        ) : recentTransactions.length === 0 ? (
           <div className="text-center p-8 text-gray-500">
             <Activity className="w-16 h-16 mx-auto mb-4 text-gray-300" />
             <p className="text-lg font-medium">Aucune transaction récente</p>
@@ -141,7 +138,7 @@ const ReliableTransactionsCard = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {balancedTransactions.map((transaction) => (
+            {recentTransactions.map((transaction) => (
               <div
                 key={`${transaction.type}-${transaction.id}`}
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"

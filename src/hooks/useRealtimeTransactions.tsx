@@ -43,236 +43,218 @@ export const useRealtimeTransactions = (userId?: string) => {
   const fetchTransactions = async (currentUserId?: string) => {
     if (!currentUserId) {
       console.log("❌ Pas d'ID utilisateur fourni");
+      setTransactions([]);
+      setWithdrawals([]);
       setIsLoading(false);
       return;
     }
     
     try {
-      console.log("🔄 Début récupération des transactions pour:", currentUserId);
+      console.log("🔄 Début récupération complète des transactions pour:", currentUserId);
       setIsLoading(true);
       
       const allTransactions: Transaction[] = [];
 
-      // 1. Récupérer les transferts envoyés récents
+      // 1. Récupérer les recharges en premier (CRÉDIT)
+      console.log("💳 Récupération des recharges...");
+      const { data: rechargesData, error: rechargesError } = await supabase
+        .from('recharges')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false });
+
+      if (rechargesError) {
+        console.error('❌ Erreur recharges:', rechargesError);
+      } else if (rechargesData) {
+        console.log("✅ Recharges trouvées:", rechargesData.length);
+        const transformedRecharges: Transaction[] = rechargesData.map(recharge => ({
+          id: `recharge_${recharge.id}`,
+          type: 'recharge',
+          amount: recharge.amount,
+          date: new Date(recharge.created_at),
+          description: `💳 Recharge de compte de ${recharge.amount?.toLocaleString() || '0'} XAF via ${recharge.payment_method || 'Mobile Money'}`,
+          currency: 'XAF',
+          status: recharge.status,
+          userType: 'user' as const,
+          created_at: recharge.created_at,
+          impact: 'credit',
+          payment_method: recharge.payment_method,
+          payment_phone: recharge.payment_phone
+        }));
+        allTransactions.push(...transformedRecharges);
+      }
+
+      // 2. Récupérer les retraits (DÉBIT)
+      console.log("🏧 Récupération des retraits...");
+      const { data: withdrawalsData, error: withdrawalsError } = await supabase
+        .from('withdrawals')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false });
+
+      if (withdrawalsError) {
+        console.error('❌ Erreur retraits:', withdrawalsError);
+      } else if (withdrawalsData) {
+        console.log("✅ Retraits trouvés:", withdrawalsData.length);
+        const transformedWithdrawals: Transaction[] = withdrawalsData.map(withdrawal => {
+          const createdAt = new Date(withdrawal.created_at);
+          const now = new Date();
+          const timeDiffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+          const showCode = timeDiffMinutes <= 5 && withdrawal.verification_code && withdrawal.status === 'pending';
+          
+          return {
+            id: `withdrawal_${withdrawal.id}`,
+            type: 'withdrawal',
+            amount: withdrawal.amount,
+            date: new Date(withdrawal.created_at),
+            description: `🏧 Retrait d'argent de ${withdrawal.amount?.toLocaleString() || '0'} XAF vers ${withdrawal.withdrawal_phone || 'N/A'}`,
+            currency: 'XAF',
+            status: withdrawal.status,
+            userType: 'user' as const,
+            withdrawal_phone: withdrawal.withdrawal_phone,
+            verification_code: withdrawal.verification_code,
+            created_at: withdrawal.created_at,
+            showCode,
+            impact: 'debit'
+          };
+        });
+        allTransactions.push(...transformedWithdrawals);
+
+        // Liste séparée pour les retraits avec codes
+        const transformedWithdrawalsList: Withdrawal[] = withdrawalsData.map(withdrawal => {
+          const createdAt = new Date(withdrawal.created_at);
+          const now = new Date();
+          const timeDiffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+          const showCode = timeDiffMinutes <= 5 && withdrawal.verification_code && withdrawal.status === 'pending';
+          
+          return {
+            id: withdrawal.id,
+            amount: withdrawal.amount,
+            created_at: withdrawal.created_at,
+            withdrawal_phone: withdrawal.withdrawal_phone,
+            status: withdrawal.status,
+            verification_code: withdrawal.verification_code,
+            userType: 'user' as const,
+            showCode
+          };
+        });
+        setWithdrawals(transformedWithdrawalsList);
+      }
+
+      // 3. Récupérer les transferts envoyés
       console.log("📤 Récupération des transferts envoyés...");
       const { data: sentTransfersData, error: sentTransfersError } = await supabase
         .from('transfers')
         .select('*')
         .eq('sender_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      console.log("📤 Transferts envoyés:", sentTransfersData?.length || 0, "erreur:", sentTransfersError);
+        .order('created_at', { ascending: false });
 
       if (sentTransfersError) {
         console.error('❌ Erreur transferts envoyés:', sentTransfersError);
+      } else if (sentTransfersData) {
+        console.log("✅ Transferts envoyés trouvés:", sentTransfersData.length);
+        const transformedSentTransfers: Transaction[] = sentTransfersData.map(transfer => ({
+          id: transfer.id,
+          type: 'transfer_sent',
+          amount: transfer.amount,
+          date: new Date(transfer.created_at),
+          description: `💸 Transfert envoyé de ${transfer.amount?.toLocaleString() || '0'} XAF vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
+          currency: 'XAF',
+          status: transfer.status,
+          userType: 'user' as const,
+          recipient_full_name: transfer.recipient_full_name,
+          recipient_phone: transfer.recipient_phone,
+          fees: transfer.fees,
+          created_at: transfer.created_at,
+          impact: 'debit'
+        }));
+        allTransactions.push(...transformedSentTransfers);
       }
 
-      // 2. Récupérer le profil utilisateur pour les transferts reçus
-      console.log("👤 Récupération du profil utilisateur...");
+      // 4. Récupérer les transferts reçus
+      console.log("📥 Récupération des transferts reçus...");
       const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('phone')
         .eq('id', currentUserId)
         .single();
 
-      console.log("👤 Profil utilisateur:", userProfile, "erreur:", profileError);
-
-      let receivedTransfersData = [];
       if (userProfile?.phone) {
-        console.log("📥 Récupération des transferts reçus pour:", userProfile.phone);
-        const { data, error: receivedTransfersError } = await supabase
+        const { data: receivedTransfersData, error: receivedTransfersError } = await supabase
           .from('transfers')
           .select('*')
           .eq('recipient_phone', userProfile.phone)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        console.log("📥 Transferts reçus:", data?.length || 0, "erreur:", receivedTransfersError);
+          .order('created_at', { ascending: false });
 
         if (receivedTransfersError) {
           console.error('❌ Erreur transferts reçus:', receivedTransfersError);
-        } else {
-          receivedTransfersData = data || [];
+        } else if (receivedTransfersData) {
+          console.log("✅ Transferts reçus trouvés:", receivedTransfersData.length);
+          const transformedReceivedTransfers: Transaction[] = receivedTransfersData.map(transfer => ({
+            id: `received_${transfer.id}`,
+            type: 'transfer_received',
+            amount: transfer.amount,
+            date: new Date(transfer.created_at),
+            description: `💰 Transfert reçu de ${transfer.amount?.toLocaleString() || '0'} XAF d'un expéditeur`,
+            currency: 'XAF',
+            status: transfer.status,
+            userType: 'user' as const,
+            sender_name: 'Expéditeur',
+            created_at: transfer.created_at,
+            impact: 'credit'
+          }));
+          allTransactions.push(...transformedReceivedTransfers);
         }
       }
 
-      // 3. Récupérer les retraits récents
-      console.log("🏧 Récupération des retraits...");
-      const { data: withdrawalsData, error: withdrawalsError } = await supabase
-        .from('withdrawals')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      console.log("🏧 Retraits:", withdrawalsData?.length || 0, "erreur:", withdrawalsError);
-
-      if (withdrawalsError) {
-        console.error('❌ Erreur retraits:', withdrawalsError);
-      }
-
-      // 4. Récupérer les recharges récentes
-      console.log("💳 Récupération des recharges...");
-      const { data: rechargesData, error: rechargesError } = await supabase
-        .from('recharges')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      console.log("💳 Recharges:", rechargesData?.length || 0, "erreur:", rechargesError);
-
-      if (rechargesError) {
-        console.error('❌ Erreur recharges:', rechargesError);
-      }
-
-      // 5. Récupérer les paiements de factures récents
+      // 5. Récupérer les paiements de factures (DÉBIT)
       console.log("📄 Récupération des paiements de factures...");
       const { data: billPaymentsData, error: billPaymentsError } = await supabase
         .from('bill_payment_history')
         .select('*')
         .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      console.log("📄 Paiements factures:", billPaymentsData?.length || 0, "erreur:", billPaymentsError);
+        .order('created_at', { ascending: false });
 
       if (billPaymentsError) {
         console.error('❌ Erreur paiements factures:', billPaymentsError);
+      } else if (billPaymentsData) {
+        console.log("✅ Paiements de factures trouvés:", billPaymentsData.length);
+        const transformedBillPayments: Transaction[] = billPaymentsData.map(payment => ({
+          id: `bill_${payment.id}`,
+          type: 'bill_payment',
+          amount: payment.amount,
+          date: new Date(payment.created_at || payment.payment_date),
+          description: `📄 Paiement de facture de ${payment.amount?.toLocaleString() || '0'} XAF effectué avec succès`,
+          currency: 'XAF',
+          status: payment.status,
+          userType: 'user' as const,
+          created_at: payment.created_at || payment.payment_date,
+          impact: 'debit'
+        }));
+        allTransactions.push(...transformedBillPayments);
       }
 
-      // Transformer les transferts envoyés
-      const transformedSentTransfers: Transaction[] = (sentTransfersData || []).map(transfer => ({
-        id: transfer.id,
-        type: 'transfer_sent',
-        amount: transfer.amount,
-        date: new Date(transfer.created_at),
-        description: `💸 Transfert envoyé de ${transfer.amount?.toLocaleString() || '0'} XAF vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
-        currency: 'XAF',
-        status: transfer.status,
-        userType: 'user' as const,
-        recipient_full_name: transfer.recipient_full_name,
-        recipient_phone: transfer.recipient_phone,
-        fees: transfer.fees,
-        created_at: transfer.created_at,
-        impact: 'debit'
-      }));
-
-      // Transformer les transferts reçus
-      const transformedReceivedTransfers: Transaction[] = receivedTransfersData.map(transfer => ({
-        id: `received_${transfer.id}`,
-        type: 'transfer_received',
-        amount: transfer.amount,
-        date: new Date(transfer.created_at),
-        description: `💰 Transfert reçu de ${transfer.amount?.toLocaleString() || '0'} XAF d'un expéditeur`,
-        currency: 'XAF',
-        status: transfer.status,
-        userType: 'user' as const,
-        sender_name: 'Expéditeur',
-        created_at: transfer.created_at,
-        impact: 'credit'
-      }));
-
-      // Transformer les recharges (CRÉDIT)
-      const transformedRecharges: Transaction[] = (rechargesData || []).map(recharge => ({
-        id: `recharge_${recharge.id}`,
-        type: 'recharge',
-        amount: recharge.amount,
-        date: new Date(recharge.created_at),
-        description: `💳 Recharge de compte de ${recharge.amount?.toLocaleString() || '0'} XAF via ${recharge.payment_method || 'Mobile Money'}`,
-        currency: 'XAF',
-        status: recharge.status,
-        userType: 'user' as const,
-        created_at: recharge.created_at,
-        impact: 'credit',
-        payment_method: recharge.payment_method,
-        payment_phone: recharge.payment_phone
-      }));
-
-      // Transformer les retraits (DÉBIT)
-      const transformedWithdrawals: Transaction[] = (withdrawalsData || []).map(withdrawal => {
-        const createdAt = new Date(withdrawal.created_at);
-        const now = new Date();
-        const timeDiffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
-        const showCode = timeDiffMinutes <= 5 && withdrawal.verification_code && withdrawal.status === 'pending';
-        
-        return {
-          id: `withdrawal_${withdrawal.id}`,
-          type: 'withdrawal',
-          amount: withdrawal.amount,
-          date: new Date(withdrawal.created_at),
-          description: `🏧 Retrait d'argent de ${withdrawal.amount?.toLocaleString() || '0'} XAF vers le numéro ${withdrawal.withdrawal_phone || 'N/A'}`,
-          currency: 'XAF',
-          status: withdrawal.status,
-          userType: 'user' as const,
-          withdrawal_phone: withdrawal.withdrawal_phone,
-          verification_code: withdrawal.verification_code,
-          created_at: withdrawal.created_at,
-          showCode,
-          impact: 'debit'
-        };
-      });
-
-      // Transformer les paiements de factures (DÉBIT)
-      const transformedBillPayments: Transaction[] = (billPaymentsData || []).map(payment => ({
-        id: `bill_${payment.id}`,
-        type: 'bill_payment',
-        amount: payment.amount,
-        date: new Date(payment.created_at || payment.payment_date),
-        description: `📄 Paiement de facture de ${payment.amount?.toLocaleString() || '0'} XAF effectué avec succès`,
-        currency: 'XAF',
-        status: payment.status,
-        userType: 'user' as const,
-        created_at: payment.created_at || payment.payment_date,
-        impact: 'debit'
-      }));
-
-      // Transformer les retraits avec gestion du code de vérification pour la liste séparée
-      const transformedWithdrawalsList: Withdrawal[] = (withdrawalsData || []).map(withdrawal => {
-        const createdAt = new Date(withdrawal.created_at);
-        const now = new Date();
-        const timeDiffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
-        const showCode = timeDiffMinutes <= 5 && withdrawal.verification_code && withdrawal.status === 'pending';
-        
-        return {
-          id: withdrawal.id,
-          amount: withdrawal.amount,
-          created_at: withdrawal.created_at,
-          withdrawal_phone: withdrawal.withdrawal_phone,
-          status: withdrawal.status,
-          verification_code: withdrawal.verification_code,
-          userType: 'user' as const,
-          showCode
-        };
-      });
-
-      // Combiner toutes les transactions et trier par date
-      const allCombined = [
-        ...transformedSentTransfers, 
-        ...transformedReceivedTransfers,
-        ...transformedRecharges,
-        ...transformedWithdrawals,
-        ...transformedBillPayments
-      ].sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
+      // Trier toutes les transactions par date décroissante
+      const sortedTransactions = allTransactions.sort((a, b) => 
+        new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime()
+      );
 
       console.log("📊 Résumé final des transactions:", {
-        total: allCombined.length,
-        transferts_envoyés: transformedSentTransfers.length,
-        transferts_reçus: transformedReceivedTransfers.length,
-        recharges: transformedRecharges.length,
-        retraits: transformedWithdrawals.length,
-        paiements: transformedBillPayments.length,
-        retraits_séparés: transformedWithdrawalsList.length
+        total: sortedTransactions.length,
+        recharges: sortedTransactions.filter(t => t.type === 'recharge').length,
+        retraits: sortedTransactions.filter(t => t.type === 'withdrawal').length,
+        transferts_envoyés: sortedTransactions.filter(t => t.type === 'transfer_sent').length,
+        transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
+        paiements_factures: sortedTransactions.filter(t => t.type === 'bill_payment').length
       });
 
-      setTransactions(allCombined);
-      setWithdrawals(transformedWithdrawalsList);
-      
-      console.log("✅ Transactions mises à jour dans l'état");
+      setTransactions(sortedTransactions);
+      console.log("✅ Transactions mises à jour dans l'état avec", sortedTransactions.length, "éléments");
       
     } catch (error) {
       console.error('❌ Erreur lors du chargement des transactions:', error);
+      setTransactions([]);
+      setWithdrawals([]);
     } finally {
       setIsLoading(false);
     }
@@ -284,89 +266,55 @@ export const useRealtimeTransactions = (userId?: string) => {
       fetchTransactions(userId);
     } else {
       setIsLoading(false);
+      setTransactions([]);
+      setWithdrawals([]);
     }
 
-    // Écouter les changements en temps réel pour les transferts
+    // Écouter les changements en temps réel
+    const channels = [];
+
+    // Transferts
     const transfersChannel = supabase
       .channel('realtime-transfers')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'transfers'
-        },
-        () => {
-          console.log('🔄 Changement détecté dans transfers, rechargement...');
-          if (userId) {
-            fetchTransactions(userId);
-          }
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transfers' }, () => {
+        console.log('🔄 Changement détecté dans transfers, rechargement...');
+        if (userId) fetchTransactions(userId);
+      })
       .subscribe();
+    channels.push(transfersChannel);
 
-    // Écouter les changements en temps réel pour les retraits
+    // Retraits
     const withdrawalsChannel = supabase
       .channel('realtime-withdrawals')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'withdrawals'
-        },
-        () => {
-          console.log('🔄 Changement détecté dans withdrawals, rechargement...');
-          if (userId) {
-            fetchTransactions(userId);
-          }
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawals' }, () => {
+        console.log('🔄 Changement détecté dans withdrawals, rechargement...');
+        if (userId) fetchTransactions(userId);
+      })
       .subscribe();
+    channels.push(withdrawalsChannel);
 
-    // Écouter les changements en temps réel pour les recharges
+    // Recharges
     const rechargesChannel = supabase
       .channel('realtime-recharges')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'recharges'
-        },
-        () => {
-          console.log('🔄 Changement détecté dans recharges, rechargement...');
-          if (userId) {
-            fetchTransactions(userId);
-          }
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recharges' }, () => {
+        console.log('🔄 Changement détecté dans recharges, rechargement...');
+        if (userId) fetchTransactions(userId);
+      })
       .subscribe();
+    channels.push(rechargesChannel);
 
-    // Écouter les changements en temps réel pour les paiements de factures
+    // Paiements de factures
     const billPaymentsChannel = supabase
       .channel('realtime-bill-payments')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'bill_payment_history'
-        },
-        () => {
-          console.log('🔄 Changement détecté dans bill_payment_history, rechargement...');
-          if (userId) {
-            fetchTransactions(userId);
-          }
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bill_payment_history' }, () => {
+        console.log('🔄 Changement détecté dans bill_payment_history, rechargement...');
+        if (userId) fetchTransactions(userId);
+      })
       .subscribe();
+    channels.push(billPaymentsChannel);
 
     return () => {
-      supabase.removeChannel(transfersChannel);
-      supabase.removeChannel(withdrawalsChannel);
-      supabase.removeChannel(rechargesChannel);
-      supabase.removeChannel(billPaymentsChannel);
+      channels.forEach(channel => supabase.removeChannel(channel));
     };
   }, [userId]);
 
