@@ -9,9 +9,11 @@ const SubAdminStatsDisplay = () => {
   const { profile } = useAuth();
   const { stats, loading } = useSubAdminStats();
 
-  console.log('📊 SubAdminStatsDisplay - Profile role:', profile?.role);
-  console.log('📊 SubAdminStatsDisplay - Stats:', stats);
-  console.log('📊 SubAdminStatsDisplay - Loading:', loading);
+  console.log('📊 SubAdminStatsDisplay - Rendu avec:', { 
+    role: profile?.role, 
+    stats, 
+    loading 
+  });
 
   // Si c'est l'administrateur principal, afficher les statistiques globales
   if (profile?.role === 'admin') {
@@ -21,7 +23,7 @@ const SubAdminStatsDisplay = () => {
 
   // Pour les sous-administrateurs, afficher leurs statistiques spécifiques
   if (profile?.role === 'sub_admin') {
-    console.log('🎯 Affichage des stats sous-admin avec quota:', `${stats.dailyRequests}/${stats.dailyLimit}`);
+    console.log('🎯 Affichage des stats sous-admin');
     
     if (loading) {
       return (
@@ -93,7 +95,7 @@ const SubAdminStatsDisplay = () => {
             <div className="text-2xl font-bold text-emerald-600">
               {formatCurrency(stats.totalRechargeAmount)}
             </div>
-            <span className="text-xs text-gray-500">Montant rechargé</span>
+            <span className="text-xs text-gray-500">Montant rechargé par les agents</span>
           </div>
 
           <div className="bg-red-50 border-l-4 border-l-red-500 p-4 rounded-lg">
@@ -103,7 +105,7 @@ const SubAdminStatsDisplay = () => {
             <div className="text-2xl font-bold text-red-600">
               {formatCurrency(stats.totalWithdrawalAmount)}
             </div>
-            <span className="text-xs text-gray-500">Montant retiré</span>
+            <span className="text-xs text-gray-500">Montant retiré par les agents</span>
           </div>
 
           <div className="bg-indigo-50 border-l-4 border-l-indigo-500 p-4 rounded-lg">
@@ -120,7 +122,7 @@ const SubAdminStatsDisplay = () => {
     );
   }
 
-  console.log('❌ Rôle non autorisé:', profile?.role);
+  console.log('❌ Rôle non autorisé ou pas de profil:', profile?.role);
   return null;
 };
 
