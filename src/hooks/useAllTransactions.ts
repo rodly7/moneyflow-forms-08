@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -31,32 +30,56 @@ export const useAllTransactions = (userId?: string) => {
 
   const fetchAllTransactions = async () => {
     if (!userId) {
-      console.log("❌ Pas d'ID utilisateur fourni");
+      console.log("❌ DEBUG: Pas d'ID utilisateur fourni");
       setTransactions([]);
       setLoading(false);
       return;
     }
 
     try {
-      console.log("🔍 Récupération complète des transactions pour:", userId);
+      console.log("🔍 DEBUG: Récupération complète des transactions pour userId:", userId);
       setLoading(true);
       setError(null);
 
       const allTransactions: UnifiedTransaction[] = [];
 
-      // 1. Récupérer les recharges (CRÉDIT)
-      console.log("💳 Récupération des recharges...");
-      const { data: rechargesData, error: rechargesError } = await supabase
+      // 1. Récupérer les recharges (CRÉDIT) - DEBUG DÉTAILLÉ
+      console.log("💳 DEBUG: Début récupération des recharges...");
+      
+      const rechargesQuery = supabase
         .from('recharges')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
+      
+      console.log("💳 DEBUG: Requête recharges construite pour user_id:", userId);
+      
+      const { data: rechargesData, error: rechargesError } = await rechargesQuery;
+
+      console.log("💳 DEBUG: Résultat requête recharges:");
+      console.log("💳 DEBUG: - Erreur:", rechargesError);
+      console.log("💳 DEBUG: - Données brutes:", rechargesData);
+      console.log("💳 DEBUG: - Nombre de recharges trouvées:", rechargesData?.length || 0);
 
       if (rechargesError) {
-        console.error('❌ Erreur recharges:', rechargesError);
-      } else if (rechargesData) {
-        console.log("✅ Recharges trouvées:", rechargesData.length);
-        rechargesData.forEach(recharge => {
+        console.error('❌ DEBUG: Erreur détaillée recharges:', {
+          message: rechargesError.message,
+          details: rechargesError.details,
+          hint: rechargesError.hint,
+          code: rechargesError.code
+        });
+      } else if (rechargesData && rechargesData.length > 0) {
+        console.log("✅ DEBUG: Traitement de", rechargesData.length, "recharges");
+        rechargesData.forEach((recharge, index) => {
+          console.log(`💳 DEBUG: Recharge ${index + 1}:`, {
+            id: recharge.id,
+            amount: recharge.amount,
+            status: recharge.status,
+            created_at: recharge.created_at,
+            user_id: recharge.user_id,
+            payment_method: recharge.payment_method
+          });
+          
           allTransactions.push({
             id: `recharge_${recharge.id}`,
             type: 'recharge',
@@ -73,21 +96,47 @@ export const useAllTransactions = (userId?: string) => {
             reference_id: recharge.id?.toString()
           });
         });
+      } else {
+        console.log("⚠️ DEBUG: Aucune recharge trouvée pour l'utilisateur");
       }
 
-      // 2. Récupérer les retraits (DÉBIT)
-      console.log("🏧 Récupération des retraits...");
-      const { data: withdrawalsData, error: withdrawalsError } = await supabase
+      // 2. Récupérer les retraits (DÉBIT) - DEBUG DÉTAILLÉ
+      console.log("🏧 DEBUG: Début récupération des retraits...");
+      
+      const withdrawalsQuery = supabase
         .from('withdrawals')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
+        
+      console.log("🏧 DEBUG: Requête retraits construite pour user_id:", userId);
+      
+      const { data: withdrawalsData, error: withdrawalsError } = await withdrawalsQuery;
+
+      console.log("🏧 DEBUG: Résultat requête retraits:");
+      console.log("🏧 DEBUG: - Erreur:", withdrawalsError);
+      console.log("🏧 DEBUG: - Données brutes:", withdrawalsData);
+      console.log("🏧 DEBUG: - Nombre de retraits trouvés:", withdrawalsData?.length || 0);
 
       if (withdrawalsError) {
-        console.error('❌ Erreur retraits:', withdrawalsError);
-      } else if (withdrawalsData) {
-        console.log("✅ Retraits trouvés:", withdrawalsData.length);
-        withdrawalsData.forEach(withdrawal => {
+        console.error('❌ DEBUG: Erreur détaillée retraits:', {
+          message: withdrawalsError.message,
+          details: withdrawalsError.details,
+          hint: withdrawalsError.hint,
+          code: withdrawalsError.code
+        });
+      } else if (withdrawalsData && withdrawalsData.length > 0) {
+        console.log("✅ DEBUG: Traitement de", withdrawalsData.length, "retraits");
+        withdrawalsData.forEach((withdrawal, index) => {
+          console.log(`🏧 DEBUG: Retrait ${index + 1}:`, {
+            id: withdrawal.id,
+            amount: withdrawal.amount,
+            status: withdrawal.status,
+            created_at: withdrawal.created_at,
+            user_id: withdrawal.user_id,
+            withdrawal_phone: withdrawal.withdrawal_phone
+          });
+          
           allTransactions.push({
             id: withdrawal.id,
             type: 'withdrawal',
@@ -104,6 +153,8 @@ export const useAllTransactions = (userId?: string) => {
             reference_id: withdrawal.id
           });
         });
+      } else {
+        console.log("⚠️ DEBUG: Aucun retrait trouvé pour l'utilisateur");
       }
 
       // 3. Récupérer les transferts envoyés (DÉBIT)
@@ -242,19 +293,26 @@ export const useAllTransactions = (userId?: string) => {
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      console.log("📊 Total transactions récupérées:", sortedTransactions.length);
-      console.log("📋 Détail par type:", {
-        recharges: sortedTransactions.filter(t => t.type === 'recharge').length,
-        retraits: sortedTransactions.filter(t => t.type === 'withdrawal').length,
-        transferts_envoyés: sortedTransactions.filter(t => t.type === 'transfer_sent').length,
-        transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
-        transferts_en_attente: sortedTransactions.filter(t => t.type === 'transfer_pending').length,
-        paiements_factures: sortedTransactions.filter(t => t.type === 'bill_payment').length
-      });
+      console.log("📊 DEBUG: Résumé final des transactions:");
+      console.log("📊 DEBUG: - Total transactions:", sortedTransactions.length);
+      console.log("📊 DEBUG: - Recharges:", sortedTransactions.filter(t => t.type === 'recharge').length);
+      console.log("📊 DEBUG: - Retraits:", sortedTransactions.filter(t => t.type === 'withdrawal').length);
+      console.log("📊 DEBUG: - Transferts envoyés:", sortedTransactions.filter(t => t.type === 'transfer_sent').length);
+      console.log("📊 DEBUG: - Transferts reçus:", sortedTransactions.filter(t => t.type === 'transfer_received').length);
+      console.log("📊 DEBUG: - Paiements factures:", sortedTransactions.filter(t => t.type === 'bill_payment').length);
+      console.log("📊 DEBUG: - En attente:", sortedTransactions.filter(t => t.type === 'transfer_pending').length);
+
+      // Afficher les 5 premières transactions pour debug
+      console.log("📋 DEBUG: Les 5 premières transactions:", sortedTransactions.slice(0, 5).map(t => ({
+        type: t.type,
+        amount: t.amount,
+        description: t.description,
+        date: t.date
+      })));
 
       setTransactions(sortedTransactions);
     } catch (error) {
-      console.error("❌ Erreur générale lors de la récupération des transactions:", error);
+      console.error("❌ DEBUG: Erreur générale lors de la récupération des transactions:", error);
       setError("Erreur lors du chargement des transactions");
       setTransactions([]);
     } finally {
@@ -264,8 +322,10 @@ export const useAllTransactions = (userId?: string) => {
 
   useEffect(() => {
     if (userId) {
+      console.log("🚀 DEBUG: Démarrage fetchAllTransactions pour userId:", userId);
       fetchAllTransactions();
     } else {
+      console.log("⚠️ DEBUG: Pas de userId, arrêt du loading");
       setLoading(false);
       setTransactions([]);
     }
