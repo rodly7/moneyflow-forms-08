@@ -20,6 +20,8 @@ interface Transaction {
   showCode?: boolean;
   sender_name?: string;
   impact?: 'credit' | 'debit';
+  payment_method?: string;
+  payment_phone?: string;
 }
 
 interface Withdrawal {
@@ -46,7 +48,7 @@ export const useRealtimeTransactions = (userId?: string) => {
       
       const allTransactions: Transaction[] = [];
 
-      // 1. Récupérer les transferts envoyés récents (sans jointure profiles)
+      // 1. Récupérer les transferts envoyés récents
       const { data: sentTransfersData, error: sentTransfersError } = await supabase
         .from('transfers')
         .select(`
@@ -67,7 +69,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         console.error('Erreur transferts envoyés:', sentTransfersError);
       }
 
-      // 2. Récupérer les transferts reçus récents (recherche par phone au lieu de recipient_id)
+      // 2. Récupérer les transferts reçus récents
       const { data: userProfile } = await supabase
         .from('profiles')
         .select('phone')
@@ -97,7 +99,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         }
       }
 
-      // 3. Récupérer les retraits récents (sans jointure profiles)
+      // 3. Récupérer les retraits récents de l'utilisateur
       const { data: withdrawalsData, error: withdrawalsError } = await supabase
         .from('withdrawals')
         .select(`
@@ -117,7 +119,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         console.error('Erreur retraits:', withdrawalsError);
       }
 
-      // 4. Récupérer les dépôts/recharges récents
+      // 4. Récupérer les recharges récentes de l'utilisateur
       const { data: rechargesData, error: rechargesError } = await supabase
         .from('recharges')
         .select(`
@@ -161,7 +163,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         type: 'transfer_sent',
         amount: transfer.amount,
         date: new Date(transfer.created_at),
-        description: `Transfert envoyé à ${transfer.recipient_full_name || transfer.recipient_phone}`,
+        description: `💸 Transfert envoyé de ${transfer.amount?.toLocaleString() || '0'} XAF vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
         currency: 'XAF',
         status: transfer.status,
         userType: 'user' as const,
@@ -179,7 +181,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           type: 'transfer_received',
           amount: transfer.amount,
           date: new Date(transfer.created_at),
-          description: `Transfert reçu d'un expéditeur`,
+          description: `💰 Transfert reçu de ${transfer.amount?.toLocaleString() || '0'} XAF d'un expéditeur`,
           currency: 'XAF',
           status: transfer.status,
           userType: 'user' as const,
@@ -195,12 +197,14 @@ export const useRealtimeTransactions = (userId?: string) => {
         type: 'recharge',
         amount: recharge.amount,
         date: new Date(recharge.created_at),
-        description: `Recharge de ${recharge.amount?.toLocaleString() || '0'} XAF via ${recharge.payment_method || 'Mobile Money'}`,
+        description: `💳 Recharge de compte de ${recharge.amount?.toLocaleString() || '0'} XAF via ${recharge.payment_method || 'Mobile Money'}`,
         currency: 'XAF',
         status: recharge.status,
         userType: 'user' as const,
         created_at: recharge.created_at,
-        impact: 'credit'
+        impact: 'credit',
+        payment_method: recharge.payment_method,
+        payment_phone: recharge.payment_phone
       }));
 
       // Transformer les retraits (DÉBIT)
@@ -215,7 +219,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           type: 'withdrawal',
           amount: withdrawal.amount,
           date: new Date(withdrawal.created_at),
-          description: `Retrait de ${withdrawal.amount?.toLocaleString() || '0'} XAF vers ${withdrawal.withdrawal_phone || 'N/A'}`,
+          description: `🏧 Retrait d'argent de ${withdrawal.amount?.toLocaleString() || '0'} XAF vers le numéro ${withdrawal.withdrawal_phone || 'N/A'}`,
           currency: 'XAF',
           status: withdrawal.status,
           userType: 'user' as const,
@@ -233,7 +237,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         type: 'bill_payment',
         amount: payment.amount,
         date: new Date(payment.created_at),
-        description: `Paiement de facture de ${payment.amount?.toLocaleString() || '0'} XAF`,
+        description: `📄 Paiement de facture de ${payment.amount?.toLocaleString() || '0'} XAF effectué avec succès`,
         currency: 'XAF',
         status: payment.status,
         userType: 'user' as const,
