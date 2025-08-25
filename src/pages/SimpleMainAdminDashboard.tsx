@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMainAdmin } from '@/hooks/useMainAdmin';
 import { SimpleAdminDashboard } from '@/components/admin/SimpleAdminDashboard';
 import { SimpleUsersList } from '@/components/admin/SimpleUsersList';
-import { SimpleTransactionsList } from '@/components/admin/SimpleTransactionsList';
 import LogoutButton from '@/components/auth/LogoutButton';
 import { AdminUsersManagement } from '@/components/admin/AdminUsersManagement';
 import { AgentManagementPanel } from '@/components/admin/AgentManagementPanel';
@@ -49,7 +48,6 @@ export default function SimpleMainAdminDashboard() {
     { id: 'users', label: 'Gestion Utilisateurs', icon: '👥' },
     { id: 'agents', label: 'Gestion Agents', icon: '🔧' },
     { id: 'revenue', label: 'Revenus & Analytics', icon: '💰' },
-    { id: 'transactions', label: 'Transactions', icon: '💸' },
     { id: 'messages', label: 'Messages', icon: '📨' },
     { id: 'settings', label: 'Paramètres', icon: '⚙️' },
   ];
@@ -64,8 +62,6 @@ export default function SimpleMainAdminDashboard() {
         return <AgentManagementPanel />;
       case 'revenue':
         return <RevenueAnalytics />;
-      case 'transactions':
-        return <SimpleTransactionsList />;
       case 'messages':
         return <SimpleMessagesTab />;
       case 'settings':
