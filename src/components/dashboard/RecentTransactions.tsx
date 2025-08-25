@@ -158,43 +158,61 @@ const RecentTransactions = () => {
         ) : (
           <div className="space-y-3">
             {transactions.slice(0, 5).map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-white border">
-                    {getTransactionIcon(transaction.type, transaction.impact)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-medium text-sm">
-                        {transaction.description}
-                      </p>
-                      {getStatusIcon(transaction.status)}
+              <div key={transaction.id} className="flex flex-col p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-white border">
+                      {getTransactionIcon(transaction.type, transaction.impact)}
                     </div>
                     <div className="flex items-center gap-2">
+                      {getStatusIcon(transaction.status)}
                       <Badge 
                         variant="outline" 
                         className={`text-xs ${getStatusColor(transaction.status)}`}
                       >
                         {getStatusLabel(transaction.status)}
                       </Badge>
-                      <span className="text-xs text-gray-500">
-                        {transaction.date.toLocaleDateString('fr-FR')}
-                      </span>
-                      {transaction.verification_code && transaction.showCode && (
-                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                          Code: {transaction.verification_code}
-                        </Badge>
-                      )}
                     </div>
                   </div>
+                  <div className="text-right">
+                    <p className={`font-bold ${getAmountColor(transaction.impact)}`}>
+                      {getAmountPrefix(transaction.impact)}{transaction.amount.toLocaleString()} {transaction.currency}
+                    </p>
+                    {transaction.fees && transaction.fees > 0 && (
+                      <p className="text-xs text-gray-500">
+                        Frais: {transaction.fees.toLocaleString()} XAF
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className={`font-bold ${getAmountColor(transaction.impact)}`}>
-                    {getAmountPrefix(transaction.impact)}{transaction.amount.toLocaleString()} {transaction.currency}
+                
+                {/* Message complet de la transaction */}
+                <div className="bg-white p-3 rounded border-l-4 border-blue-500">
+                  <p className="text-sm font-medium text-gray-800 mb-1">
+                    {transaction.description}
                   </p>
-                  {transaction.fees && transaction.fees > 0 && (
-                    <p className="text-xs text-gray-500">
-                      Frais: {transaction.fees.toLocaleString()} XAF
+                  <div className="flex items-center gap-4 text-xs text-gray-600">
+                    <span>{transaction.date.toLocaleDateString('fr-FR')}</span>
+                    <span>{transaction.date.toLocaleTimeString('fr-FR')}</span>
+                    {transaction.verification_code && transaction.showCode && (
+                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                        Code: {transaction.verification_code}
+                      </Badge>
+                    )}
+                  </div>
+                  {transaction.sender_name && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      Expéditeur: {transaction.sender_name}
+                    </p>
+                  )}
+                  {transaction.recipient_full_name && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      Destinataire: {transaction.recipient_full_name}
+                    </p>
+                  )}
+                  {transaction.withdrawal_phone && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      Téléphone de retrait: {transaction.withdrawal_phone}
                     </p>
                   )}
                 </div>
