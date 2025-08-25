@@ -1,249 +1,220 @@
 
-import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import React, { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
-  User, 
-  Wallet, 
   ArrowUpRight, 
-  ArrowDownLeft, 
-  QrCode, 
-  History, 
-  CreditCard, 
-  FileText,
+  QrCode,
+  Scan,
   PiggyBank,
-  Settings,
   LogOut,
-  RefreshCw
-} from 'lucide-react';
-import { formatCurrency } from '@/lib/utils/currency';
-import UnifiedTransactionsCard from '@/components/dashboard/UnifiedTransactionsCard';
+  Eye,
+  EyeOff
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
+import EnhancedTransactionsCard from "@/components/dashboard/EnhancedTransactionsCard";
+import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
+import { UserSettingsModal } from "@/components/settings/UserSettingsModal";
+import { useAutoBalanceRefresh } from "@/hooks/useAutoBalanceRefresh";
+import { toast } from "sonner";
+import RechargeAccountButton from "@/components/dashboard/RechargeAccountButton";
 
-const MobileDashboard = () => {
-  const { user, signOut } = useAuth();
+const MobileDashboard: React.FC = () => {
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
 
-  // Récupérer le profil utilisateur
-  const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
-    queryKey: ['mobile-profile', user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
+  // Configuration du rafraîchissement automatique toutes les 5 secondes
+  const { currentBalance } = useAutoBalanceRefresh({
+    intervalMs: 5000,
+    enableRealtime: true
   });
 
-  // Récupérer le solde
-  const { data: balance, isLoading: balanceLoading, refetch: refetchBalance } = useQuery({
-    queryKey: ['mobile-balance', user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('balance')
-        .eq('id', user?.id)
-        .single();
-      
-      if (error) throw error;
-      return data?.balance || 0;
-    },
-    enabled: !!user?.id,
-  });
+  // Déterminer la devise basée sur le pays de l'utilisateur
+  const userCountry = profile?.country || 'Congo Brazzaville';
+  const userCurrency = getCurrencyForCountry(userCountry);
+  
+  // Convertir le solde de XAF vers la devise de l'utilisateur
+  const balanceInXAF = currentBalance || profile?.balance || 0;
+  const convertedBalance = convertCurrency(balanceInXAF, "XAF", userCurrency);
 
-  const handleRefresh = async () => {
-    try {
-      await Promise.all([refetchProfile(), refetchBalance()]);
-      toast({
-        title: "Données actualisées",
-        description: "Vos informations ont été mises à jour",
-      });
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible d'actualiser les données",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleSignOut = async () => {
+  const handleLogout = async () => {
     try {
       await signOut();
       navigate('/auth');
-      toast({
-        title: "Déconnexion réussie",
-        description: "À bientôt !",
-      });
+      toast.success('Déconnexion réussie');
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la déconnexion",
-        variant: "destructive"
-      });
+      console.error('Erreur lors de la déconnexion:', error);
+      toast.error('Erreur lors de la déconnexion');
     }
   };
 
+  const toggleBalanceVisibility = () => {
+    setIsBalanceVisible(!isBalanceVisible);
+  };
+
+  // Actions rapides avec le nouveau bouton de rechargement
   const quickActions = [
     {
-      title: "Transférer",
+      title: "Envoyer",
       icon: ArrowUpRight,
-      color: "bg-blue-500 hover:bg-blue-600 text-white",
+      color: "from-red-500 to-pink-500",
       onClick: () => navigate('/transfer')
     },
     {
-      title: "Recevoir",
-      icon: ArrowDownLeft,
-      color: "bg-green-500 hover:bg-green-600 text-white",
+      title: "QR Code",
+      icon: QrCode,
+      color: "from-purple-500 to-violet-500",
       onClick: () => navigate('/qr-code')
     },
     {
-      title: "Recharger",
-      icon: Wallet,
-      color: "bg-purple-500 hover:bg-purple-600 text-white",
-      onClick: () => navigate('/unified-deposit-withdrawal')
-    },
-    {
-      title: "Retirer",
-      icon: CreditCard,
-      color: "bg-orange-500 hover:bg-orange-600 text-white",
-      onClick: () => navigate('/withdraw')
-    },
-    {
-      title: "Factures",
-      icon: FileText,
-      color: "bg-red-500 hover:bg-red-600 text-white",
-      onClick: () => navigate('/bill-payments')
+      title: "Scanner",
+      icon: Scan,
+      color: "from-indigo-500 to-blue-500",
+      onClick: () => navigate('/qr-payment')
     },
     {
       title: "Épargne",
       icon: PiggyBank,
-      color: "bg-teal-500 hover:bg-teal-600 text-white",
+      color: "from-teal-500 to-green-500",
       onClick: () => navigate('/savings')
     }
   ];
 
-  if (profileLoading || balanceLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="animate-pulse space-y-4">
-          <div className="h-32 bg-gray-200 rounded-lg"></div>
-          <div className="grid grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-20 bg-gray-200 rounded-lg"></div>
-            ))}
-          </div>
-          <div className="h-64 bg-gray-200 rounded-lg"></div>
-        </div>
-      </div>
-    );
-  }
+  const formatBalanceDisplay = (balance: number) => {
+    if (!isBalanceVisible) {
+      return "••••••••";
+    }
+    return formatCurrency(balance, userCurrency);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 pb-20">
-      {/* Header avec profil et solde */}
-      <Card className="mb-6 bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="font-bold text-gray-900">
-                  Bonjour {profile?.full_name || 'Utilisateur'}
-                </h2>
-                <p className="text-sm text-gray-600">
-                  {profile?.phone || 'Numéro non renseigné'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={handleRefresh}
-                variant="outline"
-                size="sm"
-                className="border-blue-200 text-blue-700"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </Button>
-              <Button
-                onClick={handleSignOut}
-                variant="outline"
-                size="sm"
-                className="border-red-200 text-red-700"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
+    <div className="fixed inset-0 w-full h-full bg-gradient-to-br from-blue-50 via-white to-purple-50 overflow-y-auto">
+      {/* Header avec notification et déconnexion */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 pt-16 rounded-b-3xl shadow-lg">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <Avatar className="h-14 w-14 border-2 border-white/20">
+              <AvatarImage src={profile?.avatar_url} />
+              <AvatarFallback className="bg-white/10 text-white font-semibold text-lg">
+                {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-lg font-semibold leading-tight">
+                Bonjour {profile?.full_name || 'Utilisateur'} 👋
+              </h1>
+              <p className="text-blue-100 text-sm mt-1 leading-relaxed">
+                📍 {userCountry}
+              </p>
+              <p className="text-blue-100 text-sm mt-1 leading-relaxed">
+                {new Date().toLocaleDateString('fr-FR', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </p>
             </div>
           </div>
+          <div className="flex items-center space-x-3">
+            <UnifiedNotificationBell />
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              size="sm"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white text-sm p-2"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
 
-          {/* Solde principal */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-100 text-sm">Solde disponible</p>
-                <h3 className="text-3xl font-bold">
-                  {formatCurrency(balance || 0, 'XAF')}
-                </h3>
-              </div>
-              <Wallet className="w-8 h-8 text-blue-200" />
+        {/* Solde avec option de masquage */}
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-blue-100 text-lg font-medium leading-tight">Solde disponible</p>
+              <p className="text-blue-200 text-xs mt-1">
+                💱 Devise: {userCurrency}
+              </p>
             </div>
-            <div className="mt-4 flex items-center gap-2">
-              <Badge className="bg-white/20 text-white border-white/30">
-                Compte principal
-              </Badge>
-              <Badge className="bg-green-500/20 text-green-100 border-green-300/30">
-                ✓ Vérifié
-              </Badge>
-            </div>
+            <Button
+              onClick={toggleBalanceVisibility}
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/10 p-2"
+            >
+              {isBalanceVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+          <p className="text-4xl font-bold mb-2 text-yellow-200 leading-none">
+            {formatBalanceDisplay(convertedBalance)}
+          </p>
+          {userCurrency !== "XAF" && isBalanceVisible && (
+            <p className="text-blue-200 text-sm">
+              Équivalent : {formatCurrency(balanceInXAF, "XAF")}
+            </p>
+          )}
+          <div className="flex items-center space-x-2 text-sm text-blue-100 mt-2">
+            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+            <span>Mise à jour toutes les 5 secondes</span>
+          </div>
+        </div>
+      </div>
 
       {/* Actions rapides */}
-      <Card className="mb-6 bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-        <CardContent className="p-6">
-          <h3 className="font-semibold mb-4 text-gray-900">Actions rapides</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {quickActions.map((action, index) => (
-              <Button
-                key={index}
-                onClick={action.onClick}
-                className={`${action.color} h-16 flex flex-col items-center justify-center gap-2 rounded-xl transition-all duration-200 transform hover:scale-105`}
-              >
-                <action.icon className="w-5 h-5" />
-                <span className="text-xs font-medium">{action.title}</span>
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="px-6 -mt-8 relative z-10">
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
+          <CardContent className="p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-5">Actions rapides</h2>
+            <div className="grid grid-cols-2 gap-5">
+              {quickActions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="relative h-28 flex-col gap-3 bg-white border-0 hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-lg"
+                  onClick={action.onClick}
+                >
+                  <div className={`p-3 bg-gradient-to-r ${action.color} rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center`}>
+                    <action.icon className="w-6 h-6 text-white" />
+                  </div>
+                  <span className="text-base font-medium text-center">{action.title}</span>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Transactions récentes avec le nouveau composant unifié */}
-      <UnifiedTransactionsCard />
+      {/* Nouveau bouton Recharger mon compte */}
+      <div className="px-6 mt-6">
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
+          <CardContent className="p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-5">Gestion du compte</h2>
+            <RechargeAccountButton />
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Bouton pour voir toutes les transactions */}
-      <div className="mt-6 text-center">
-        <Button
-          onClick={() => navigate('/transactions')}
-          variant="outline"
-          className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
-        >
-          <History className="w-4 h-4 mr-2" />
-          Voir toutes les transactions
-        </Button>
+      {/* Transactions récentes */}
+      <div className="px-6 mt-6">
+        <EnhancedTransactionsCard />
+      </div>
+
+      {/* Section Paramètres - S'étend jusqu'en bas */}
+      <div className="px-6 mt-6 mb-0">
+        <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
+          <CardContent className="p-6 pb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-5">Support & Paramètres</h2>
+            <div className="grid grid-cols-1 gap-5">
+              <UserSettingsModal />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
