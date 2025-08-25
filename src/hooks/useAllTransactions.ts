@@ -27,6 +27,7 @@ interface UnifiedTransaction {
 export const useAllTransactions = (userId?: string) => {
   const [transactions, setTransactions] = useState<UnifiedTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchAllTransactions = async () => {
     if (!userId) {
@@ -39,6 +40,7 @@ export const useAllTransactions = (userId?: string) => {
     try {
       console.log("🔍 Récupération complète des transactions pour:", userId);
       setLoading(true);
+      setError(null);
 
       const allTransactions: UnifiedTransaction[] = [];
 
@@ -58,17 +60,17 @@ export const useAllTransactions = (userId?: string) => {
           allTransactions.push({
             id: `recharge_${recharge.id}`,
             type: 'recharge',
-            amount: recharge.amount,
+            amount: recharge.amount || 0,
             date: new Date(recharge.created_at),
-            description: `💳 Recharge de compte de ${recharge.amount?.toLocaleString() || '0'} XAF via ${recharge.payment_method || 'Mobile Money'}`,
+            description: `Recharge de compte via ${recharge.payment_method || 'Mobile Money'}`,
             currency: 'XAF',
-            status: recharge.status,
+            status: recharge.status || 'pending',
             created_at: recharge.created_at,
             userType: "user" as const,
             impact: "credit" as const,
             payment_method: recharge.payment_method,
             payment_phone: recharge.payment_phone,
-            reference_id: recharge.id
+            reference_id: recharge.id?.toString()
           });
         });
       }
@@ -86,19 +88,14 @@ export const useAllTransactions = (userId?: string) => {
       } else if (withdrawalsData) {
         console.log("✅ Retraits trouvés:", withdrawalsData.length);
         withdrawalsData.forEach(withdrawal => {
-          const createdAt = new Date(withdrawal.created_at);
-          const now = new Date();
-          const timeDiffMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
-          const showCode = timeDiffMinutes <= 5 && withdrawal.verification_code && withdrawal.status === 'pending';
-          
           allTransactions.push({
             id: withdrawal.id,
             type: 'withdrawal',
-            amount: withdrawal.amount,
+            amount: withdrawal.amount || 0,
             date: new Date(withdrawal.created_at),
-            description: `🏧 Retrait d'argent de ${withdrawal.amount?.toLocaleString() || '0'} XAF vers ${withdrawal.withdrawal_phone || 'N/A'}`,
+            description: `Retrait d'argent vers ${withdrawal.withdrawal_phone || 'N/A'}`,
             currency: 'XAF',
-            status: withdrawal.status,
+            status: withdrawal.status || 'pending',
             created_at: withdrawal.created_at,
             withdrawal_phone: withdrawal.withdrawal_phone,
             verification_code: withdrawal.verification_code,
@@ -109,7 +106,7 @@ export const useAllTransactions = (userId?: string) => {
         });
       }
 
-      // 3. Récupérer les transferts envoyés
+      // 3. Récupérer les transferts envoyés (DÉBIT)
       console.log("📤 Récupération des transferts envoyés...");
       const { data: sentTransfersData, error: sentTransfersError } = await supabase
         .from('transfers')
@@ -125,11 +122,11 @@ export const useAllTransactions = (userId?: string) => {
           allTransactions.push({
             id: transfer.id,
             type: 'transfer_sent',
-            amount: transfer.amount,
+            amount: transfer.amount || 0,
             date: new Date(transfer.created_at),
-            description: `💸 Transfert envoyé de ${transfer.amount?.toLocaleString() || '0'} XAF vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
+            description: `Transfert envoyé vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
             currency: 'XAF',
-            status: transfer.status,
+            status: transfer.status || 'pending',
             created_at: transfer.created_at,
             recipient_full_name: transfer.recipient_full_name,
             recipient_phone: transfer.recipient_phone,
@@ -141,7 +138,7 @@ export const useAllTransactions = (userId?: string) => {
         });
       }
 
-      // 4. Récupérer les transferts reçus
+      // 4. Récupérer les transferts reçus (CRÉDIT)
       console.log("📥 Récupération des transferts reçus...");
       const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
@@ -154,6 +151,7 @@ export const useAllTransactions = (userId?: string) => {
           .from('transfers')
           .select('*')
           .eq('recipient_phone', userProfile.phone)
+          .neq('sender_id', userId) // Éviter les doublons avec les transferts envoyés
           .order('created_at', { ascending: false });
 
         if (receivedTransfersError) {
@@ -164,11 +162,11 @@ export const useAllTransactions = (userId?: string) => {
             allTransactions.push({
               id: `received_${transfer.id}`,
               type: 'transfer_received',
-              amount: transfer.amount,
+              amount: transfer.amount || 0,
               date: new Date(transfer.created_at),
-              description: `💰 Transfert reçu de ${transfer.amount?.toLocaleString() || '0'} XAF d'un expéditeur`,
+              description: `Transfert reçu d'un expéditeur`,
               currency: 'XAF',
-              status: transfer.status,
+              status: transfer.status || 'pending',
               created_at: transfer.created_at,
               sender_name: 'Expéditeur',
               userType: "user" as const,
@@ -195,20 +193,20 @@ export const useAllTransactions = (userId?: string) => {
           allTransactions.push({
             id: `bill_${payment.id}`,
             type: 'bill_payment',
-            amount: payment.amount,
+            amount: payment.amount || 0,
             date: new Date(payment.created_at || payment.payment_date),
-            description: `📄 Paiement de facture de ${payment.amount?.toLocaleString() || '0'} XAF effectué avec succès`,
+            description: `Paiement de facture effectué`,
             currency: 'XAF',
-            status: payment.status,
+            status: payment.status || 'completed',
             created_at: payment.created_at || payment.payment_date,
             userType: "user" as const,
             impact: "debit" as const,
-            reference_id: payment.id
+            reference_id: payment.id?.toString()
           });
         });
       }
 
-      // 6. Récupérer les transferts en attente (pending_transfers)
+      // 6. Récupérer les transferts en attente (DÉBIT)
       console.log("⏳ Récupération des transferts en attente...");
       const { data: pendingTransfers, error: pendingError } = await supabase
         .from('pending_transfers')
@@ -224,9 +222,9 @@ export const useAllTransactions = (userId?: string) => {
           allTransactions.push({
             id: `pending_${pending.id}`,
             type: 'transfer_pending',
-            amount: pending.amount,
+            amount: pending.amount || 0,
             date: new Date(pending.created_at),
-            description: `⏳ Transfert en attente vers ${pending.recipient_phone} - Code: ${pending.claim_code}`,
+            description: `Transfert en attente vers ${pending.recipient_phone}`,
             currency: 'XAF',
             status: 'pending',
             created_at: pending.created_at,
@@ -234,12 +232,12 @@ export const useAllTransactions = (userId?: string) => {
             userType: "user" as const,
             impact: "debit" as const,
             fees: pending.fees || 0,
-            reference_id: pending.id
+            reference_id: pending.id?.toString()
           });
         });
       }
 
-      // Trier par date décroissante
+      // Trier par date décroissante (plus récentes en premier)
       const sortedTransactions = allTransactions.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
@@ -257,6 +255,7 @@ export const useAllTransactions = (userId?: string) => {
       setTransactions(sortedTransactions);
     } catch (error) {
       console.error("❌ Erreur générale lors de la récupération des transactions:", error);
+      setError("Erreur lors du chargement des transactions");
       setTransactions([]);
     } finally {
       setLoading(false);
@@ -275,6 +274,7 @@ export const useAllTransactions = (userId?: string) => {
   return {
     transactions,
     loading,
+    error,
     refetch: fetchAllTransactions
   };
 };

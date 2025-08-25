@@ -2,14 +2,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Activity, RefreshCw, ArrowUpRight, ArrowDownLeft, Plus, CreditCard, FileText } from "lucide-react";
+import { Activity, RefreshCw, ArrowUpRight, ArrowDownLeft, Plus, CreditCard, FileText, Minus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/currency";
-import { useRealtimeTransactions } from "@/hooks/useRealtimeTransactions";
+import { useAllTransactions } from "@/hooks/useAllTransactions";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ReliableTransactionsCard = () => {
   const { user } = useAuth();
-  const { transactions, isLoading, refetch } = useRealtimeTransactions(user?.id);
+  const { transactions, loading, error, refetch } = useAllTransactions(user?.id);
 
   console.log("🔍 TRANSACTIONS RÉCENTES - Total récupéré:", transactions.length);
   console.log("📊 TRANSACTIONS RÉCENTES - Détail par type:", {
@@ -17,11 +17,12 @@ const ReliableTransactionsCard = () => {
     retraits: transactions.filter(t => t.type === 'withdrawal').length,
     transferts_envoyés: transactions.filter(t => t.type === 'transfer_sent').length,
     transferts_reçus: transactions.filter(t => t.type === 'transfer_received').length,
-    paiements_factures: transactions.filter(t => t.type === 'bill_payment').length
+    paiements_factures: transactions.filter(t => t.type === 'bill_payment').length,
+    en_attente: transactions.filter(t => t.type === 'transfer_pending').length
   });
 
-  // Afficher les 8 transactions les plus récentes, toutes types confondus
-  const recentTransactions = transactions.slice(0, 8);
+  // Afficher les 5 transactions les plus récentes
+  const recentTransactions = transactions.slice(0, 5);
 
   // Statistiques par type pour les badges
   const stats = {
@@ -29,17 +30,17 @@ const ReliableTransactionsCard = () => {
     withdrawals: transactions.filter(t => t.type === 'withdrawal').length,
     transfers_sent: transactions.filter(t => t.type === 'transfer_sent').length,
     transfers_received: transactions.filter(t => t.type === 'transfer_received').length,
-    bills: transactions.filter(t => t.type === 'bill_payment').length
+    bills: transactions.filter(t => t.type === 'bill_payment').length,
+    pending: transactions.filter(t => t.type === 'transfer_pending').length
   };
-
-  console.log("📋 TRANSACTIONS RÉCENTES - Affichage des", recentTransactions.length, "plus récentes");
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'recharge': return <Plus className="w-4 h-4 text-green-600" />;
-      case 'withdrawal': return <ArrowUpRight className="w-4 h-4 text-red-600" />;
+      case 'withdrawal': return <Minus className="w-4 h-4 text-red-600" />;
       case 'transfer_sent': return <ArrowUpRight className="w-4 h-4 text-blue-600" />;
       case 'transfer_received': return <ArrowDownLeft className="w-4 h-4 text-green-600" />;
+      case 'transfer_pending': return <Activity className="w-4 h-4 text-orange-600" />;
       case 'bill_payment': return <FileText className="w-4 h-4 text-purple-600" />;
       default: return <Activity className="w-4 h-4" />;
     }
@@ -51,6 +52,7 @@ const ReliableTransactionsCard = () => {
       case 'withdrawal': return 'bg-red-100 text-red-800';
       case 'transfer_sent': return 'bg-blue-100 text-blue-800';
       case 'transfer_received': return 'bg-green-100 text-green-800';
+      case 'transfer_pending': return 'bg-orange-100 text-orange-800';
       case 'bill_payment': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -62,6 +64,7 @@ const ReliableTransactionsCard = () => {
       case 'withdrawal': return 'Retrait';
       case 'transfer_sent': return 'Envoi';
       case 'transfer_received': return 'Réception';
+      case 'transfer_pending': return 'En attente';
       case 'bill_payment': return 'Facture';
       default: return type;
     }
@@ -83,9 +86,9 @@ const ReliableTransactionsCard = () => {
               onClick={() => refetch()}
               variant="outline"
               size="sm"
-              disabled={isLoading}
+              disabled={loading}
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </CardTitle>
@@ -100,7 +103,7 @@ const ReliableTransactionsCard = () => {
           )}
           {stats.withdrawals > 0 && (
             <Badge variant="secondary" className="bg-red-50 text-red-700">
-              <ArrowUpRight className="w-3 h-3 mr-1" />
+              <Minus className="w-3 h-3 mr-1" />
               {stats.withdrawals} retrait{stats.withdrawals > 1 ? 's' : ''}
             </Badge>
           )}
@@ -122,13 +125,28 @@ const ReliableTransactionsCard = () => {
               {stats.bills} facture{stats.bills > 1 ? 's' : ''}
             </Badge>
           )}
+          {stats.pending > 0 && (
+            <Badge variant="secondary" className="bg-orange-50 text-orange-700">
+              <Activity className="w-3 h-3 mr-1" />
+              {stats.pending} en attente
+            </Badge>
+          )}
         </div>
       </CardHeader>
       
       <CardContent>
-        {isLoading ? (
+        {loading ? (
           <div className="flex items-center justify-center p-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : error ? (
+          <div className="text-center p-8 text-red-500">
+            <Activity className="w-16 h-16 mx-auto mb-4 text-red-300" />
+            <p className="text-lg font-medium">Erreur de chargement</p>
+            <p className="text-sm">{error}</p>
+            <Button onClick={() => refetch()} className="mt-4">
+              Réessayer
+            </Button>
           </div>
         ) : recentTransactions.length === 0 ? (
           <div className="text-center p-8 text-gray-500">
@@ -172,7 +190,12 @@ const ReliableTransactionsCard = () => {
                     {transaction.impact === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount, transaction.currency)}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {new Date(transaction.date).toLocaleDateString('fr-FR')}
+                    {new Date(transaction.date).toLocaleDateString('fr-FR', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
                   </p>
                 </div>
               </div>
