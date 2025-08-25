@@ -28,18 +28,18 @@ import BalancedTransactionsCard from "@/components/dashboard/BalancedTransaction
 import { useRealtimeTransactions } from "@/hooks/useRealtimeTransactions";
 
 const Dashboard = () => {
-  const { user, userProfile, userBalance, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const { transactions } = useRealtimeTransactions(user?.id);
   const navigate = useNavigate();
   const [balance, setBalance] = useState(0);
   const [isBalanceLoading, setIsBalanceLoading] = useState(true);
 
   useEffect(() => {
-    if (userBalance !== null) {
-      setBalance(userBalance);
+    if (profile?.balance !== null && profile?.balance !== undefined) {
+      setBalance(profile.balance);
       setIsBalanceLoading(false);
     }
-  }, [userBalance]);
+  }, [profile?.balance]);
 
   const handleViewProfile = () => {
     navigate('/profile');
@@ -84,14 +84,14 @@ const Dashboard = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
           <Avatar className="w-12 h-12">
-            <AvatarImage src={userProfile?.avatar_url} />
+            <AvatarImage src={profile?.avatar_url} />
             <AvatarFallback>
               <User className="w-6 h-6" />
             </AvatarFallback>
           </Avatar>
           <div>
             <h1 className="text-2xl font-bold">
-              Bonjour, {userProfile?.full_name || userProfile?.phone || 'Utilisateur'}
+              Bonjour, {profile?.full_name || profile?.phone || 'Utilisateur'}
             </h1>
             <p className="text-sm text-muted-foreground">
               Bienvenue sur votre dashboard SendFlow
@@ -123,7 +123,7 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-bold mb-2">
-            {balance.toLocaleString()} XAF
+            {balance?.toLocaleString() || '0'} XAF
           </div>
           <p className="text-blue-100 text-sm">
             Disponible immédiatement
