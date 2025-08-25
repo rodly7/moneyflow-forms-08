@@ -11,7 +11,7 @@ import CompactHeader from '@/components/dashboard/CompactHeader';
 import CompactInfoCard from '@/components/dashboard/CompactInfoCard';
 import CompactActionGrid from '@/components/dashboard/CompactActionGrid';
 import CompactStatsGrid from '@/components/dashboard/CompactStatsGrid';
-import TransactionsCard from '@/components/dashboard/TransactionsCard';
+import ReliableTransactionsCard from '@/components/dashboard/ReliableTransactionsCard';
 import MobileDashboard from '@/components/mobile/MobileDashboard';
 import { useState, useCallback, useMemo } from 'react';
 import { User, Wallet, Plus, Minus, QrCode, History, CreditCard, PiggyBank } from 'lucide-react';
@@ -128,11 +128,6 @@ const Dashboard = () => {
   const handleRefresh = async () => {
     await Promise.all([refetchProfile(), refetchBalance()]);
   };
-
-  const handleDeleteTransaction = useCallback((id: string, type: string) => {
-    // Placeholder function - implement transaction deletion logic if needed
-    console.log('Delete transaction:', id, type);
-  }, []);
 
   const isLoading = isProfileLoading || isBalanceLoading;
 
