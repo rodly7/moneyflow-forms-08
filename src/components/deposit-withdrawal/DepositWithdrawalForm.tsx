@@ -14,7 +14,7 @@ interface DepositWithdrawalFormProps {
   userBalance?: number;
 }
 
-export const DepositWithdrawalForm = ({ 
+const DepositWithdrawalForm = ({ 
   type, 
   onSubmit, 
   isProcessing = false, 
@@ -128,3 +128,5 @@ export const DepositWithdrawalForm = ({
     </Card>
   );
 };
+
+export default DepositWithdrawalForm;
