@@ -46,8 +46,8 @@ export const useRealtimeTransactions = (userId?: string) => {
       
       const allTransactions: Transaction[] = [];
 
-      // 1. Récupérer les transferts envoyés récents
-      const { data: sentTransfersData } = await supabase
+      // 1. Récupérer les transferts envoyés récents (sans jointure profiles)
+      const { data: sentTransfersData, error: sentTransfersError } = await supabase
         .from('transfers')
         .select(`
           id, 
@@ -57,32 +57,48 @@ export const useRealtimeTransactions = (userId?: string) => {
           recipient_phone,
           status,
           sender_id,
-          fees,
-          profiles!transfers_sender_id_fkey(role)
+          fees
         `)
         .eq('sender_id', currentUserId)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // 2. Récupérer les transferts reçus récents  
-      const { data: receivedTransfersData } = await supabase
-        .from('transfers')
-        .select(`
-          id, 
-          amount, 
-          created_at, 
-          recipient_full_name, 
-          status,
-          recipient_id,
-          sender_id,
-          profiles!transfers_sender_id_fkey(full_name)
-        `)
-        .eq('recipient_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      if (sentTransfersError) {
+        console.error('Erreur transferts envoyés:', sentTransfersError);
+      }
 
-      // 3. Récupérer les retraits récents
-      const { data: withdrawalsData } = await supabase
+      // 2. Récupérer les transferts reçus récents (recherche par phone au lieu de recipient_id)
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', currentUserId)
+        .single();
+
+      let receivedTransfersData = [];
+      if (userProfile?.phone) {
+        const { data, error: receivedTransfersError } = await supabase
+          .from('transfers')
+          .select(`
+            id, 
+            amount, 
+            created_at, 
+            recipient_full_name, 
+            status,
+            sender_id
+          `)
+          .eq('recipient_phone', userProfile.phone)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (receivedTransfersError) {
+          console.error('Erreur transferts reçus:', receivedTransfersError);
+        } else {
+          receivedTransfersData = data || [];
+        }
+      }
+
+      // 3. Récupérer les retraits récents (sans jointure profiles)
+      const { data: withdrawalsData, error: withdrawalsError } = await supabase
         .from('withdrawals')
         .select(`
           id, 
@@ -91,15 +107,18 @@ export const useRealtimeTransactions = (userId?: string) => {
           withdrawal_phone, 
           status, 
           verification_code,
-          user_id,
-          profiles!withdrawals_user_id_fkey(role)
+          user_id
         `)
         .eq('user_id', currentUserId)
         .order('created_at', { ascending: false })
         .limit(10);
 
+      if (withdrawalsError) {
+        console.error('Erreur retraits:', withdrawalsError);
+      }
+
       // 4. Récupérer les dépôts/recharges récents
-      const { data: rechargesData } = await supabase
+      const { data: rechargesData, error: rechargesError } = await supabase
         .from('recharges')
         .select(`
           id, 
@@ -114,8 +133,12 @@ export const useRealtimeTransactions = (userId?: string) => {
         .order('created_at', { ascending: false })
         .limit(10);
 
+      if (rechargesError) {
+        console.error('Erreur recharges:', rechargesError);
+      }
+
       // 5. Récupérer les paiements de factures récents
-      const { data: billPaymentsData } = await supabase
+      const { data: billPaymentsData, error: billPaymentsError } = await supabase
         .from('bill_payment_history')
         .select(`
           id, 
@@ -128,6 +151,10 @@ export const useRealtimeTransactions = (userId?: string) => {
         .order('created_at', { ascending: false })
         .limit(10);
 
+      if (billPaymentsError) {
+        console.error('Erreur paiements factures:', billPaymentsError);
+      }
+
       // Transformer les transferts envoyés
       const transformedSentTransfers: Transaction[] = (sentTransfersData || []).map(transfer => ({
         id: transfer.id,
@@ -137,7 +164,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         description: `Transfert envoyé à ${transfer.recipient_full_name || transfer.recipient_phone}`,
         currency: 'XAF',
         status: transfer.status,
-        userType: (transfer.profiles as any)?.role === 'agent' ? 'agent' : 'user',
+        userType: 'user' as const,
         recipient_full_name: transfer.recipient_full_name,
         recipient_phone: transfer.recipient_phone,
         fees: transfer.fees,
@@ -146,24 +173,23 @@ export const useRealtimeTransactions = (userId?: string) => {
       }));
 
       // Transformer les transferts reçus
-      const transformedReceivedTransfers: Transaction[] = (receivedTransfersData || []).map(transfer => {
-        const senderName = (transfer.profiles as any)?.full_name || 'Expéditeur inconnu';
+      const transformedReceivedTransfers: Transaction[] = receivedTransfersData.map(transfer => {
         return {
           id: `received_${transfer.id}`,
           type: 'transfer_received',
           amount: transfer.amount,
           date: new Date(transfer.created_at),
-          description: `Transfert reçu de ${senderName}`,
+          description: `Transfert reçu d'un expéditeur`,
           currency: 'XAF',
           status: transfer.status,
           userType: 'user' as const,
-          sender_name: senderName,
+          sender_name: 'Expéditeur',
           created_at: transfer.created_at,
           impact: 'credit'
         };
       });
 
-      // Transformer les recharges (CRÉDIT) - CORRECTION ICI
+      // Transformer les recharges (CRÉDIT)
       const transformedRecharges: Transaction[] = (rechargesData || []).map(recharge => ({
         id: `recharge_${recharge.id}`,
         type: 'recharge',
@@ -177,7 +203,7 @@ export const useRealtimeTransactions = (userId?: string) => {
         impact: 'credit'
       }));
 
-      // Transformer les retraits (DÉBIT) - CORRECTION ICI
+      // Transformer les retraits (DÉBIT)
       const transformedWithdrawals: Transaction[] = (withdrawalsData || []).map(withdrawal => {
         const createdAt = new Date(withdrawal.created_at);
         const now = new Date();
@@ -192,7 +218,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           description: `Retrait de ${withdrawal.amount?.toLocaleString() || '0'} XAF vers ${withdrawal.withdrawal_phone || 'N/A'}`,
           currency: 'XAF',
           status: withdrawal.status,
-          userType: (withdrawal.profiles as any)?.role === 'agent' ? 'agent' : 'user',
+          userType: 'user' as const,
           withdrawal_phone: withdrawal.withdrawal_phone,
           verification_code: withdrawal.verification_code,
           created_at: withdrawal.created_at,
@@ -229,7 +255,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           withdrawal_phone: withdrawal.withdrawal_phone,
           status: withdrawal.status,
           verification_code: withdrawal.verification_code,
-          userType: (withdrawal.profiles as any)?.role === 'agent' ? 'agent' : 'user',
+          userType: 'user' as const,
           showCode
         };
       });
@@ -238,7 +264,7 @@ export const useRealtimeTransactions = (userId?: string) => {
       const allCombined = [
         ...transformedSentTransfers, 
         ...transformedReceivedTransfers,
-        ...transformedRecharges,  // CORRECTION: Utiliser transformedRecharges au lieu de transformedDeposits
+        ...transformedRecharges,
         ...transformedWithdrawals,
         ...transformedBillPayments
       ].sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime());
@@ -279,6 +305,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           table: 'transfers'
         },
         () => {
+          console.log('🔄 Changement détecté dans transfers, rechargement...');
           if (userId) {
             fetchTransactions(userId);
           }
@@ -297,6 +324,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           table: 'withdrawals'
         },
         () => {
+          console.log('🔄 Changement détecté dans withdrawals, rechargement...');
           if (userId) {
             fetchTransactions(userId);
           }
@@ -315,6 +343,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           table: 'recharges'
         },
         () => {
+          console.log('🔄 Changement détecté dans recharges, rechargement...');
           if (userId) {
             fetchTransactions(userId);
           }
@@ -333,6 +362,7 @@ export const useRealtimeTransactions = (userId?: string) => {
           table: 'bill_payment_history'
         },
         () => {
+          console.log('🔄 Changement détecté dans bill_payment_history, rechargement...');
           if (userId) {
             fetchTransactions(userId);
           }
