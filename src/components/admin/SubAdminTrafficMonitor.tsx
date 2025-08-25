@@ -1,184 +1,392 @@
 
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { 
+  Users, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  User, 
+  Eye,
+  Filter,
+  CreditCard,
+  Wallet
+} from 'lucide-react';
+import { formatCurrency } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Users, Activity, Eye, Clock, TrendingUp, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMainAdmin } from '@/hooks/useMainAdmin';
 
-interface SubAdminActivity {
+type SubAdminRequest = {
+  id: string;
+  user_id: string;
+  operation_type: string;
+  amount: number;
+  payment_method: string;
+  payment_phone: string;
+  status: string;
+  created_at: string;
+  processed_by?: string | null;
+  processed_at?: string | null;
+  rejection_reason?: string | null;
+  profiles?: {
+    full_name: string;
+    phone: string;
+    country: string;
+  } | null;
+  processor_profile?: {
+    full_name: string;
+    phone: string;
+    role: string;
+  } | null;
+};
+
+type SubAdminStats = {
   id: string;
   full_name: string;
   phone: string;
   country: string;
-  last_activity: string;
-  daily_requests_count: number;
-  daily_limit: number;
-  total_users_managed: number;
-  agents_managed: number;
-  recent_actions: Array<{
-    action: string;
-    timestamp: string;
-    details: string;
-  }>;
-  status: 'active' | 'inactive' | 'limited';
-}
+  total_processed: number;
+  pending_requests: number;
+  approved_requests: number;
+  rejected_requests: number;
+};
 
 const SubAdminTrafficMonitor = () => {
-  const [timeFilter, setTimeFilter] = useState('today');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { isMainAdmin } = useMainAdmin();
+  const [subAdmins, setSubAdmins] = useState<SubAdminStats[]>([]);
+  const [subAdminRequests, setSubAdminRequests] = useState<SubAdminRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<SubAdminRequest | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  const { data: subAdminTraffic, isLoading } = useQuery({
-    queryKey: ['sub-admin-traffic', timeFilter, statusFilter],
-    queryFn: async () => {
-      console.log('🔍 Récupération du trafic des sous-administrateurs...');
-
-      // Récupérer tous les sous-administrateurs
-      const { data: subAdmins, error: subAdminError } = await supabase
+  // Fonction pour charger les sous-administrateurs
+  const fetchSubAdmins = async () => {
+    try {
+      const { data: profiles, error } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, country, created_at')
+        .select('id, full_name, phone, country')
         .eq('role', 'sub_admin');
 
-      if (subAdminError) {
-        console.error('Erreur récupération sous-admins:', subAdminError);
-        throw subAdminError;
-      }
+      if (error) throw error;
 
-      if (!subAdmins || subAdmins.length === 0) {
-        return [];
-      }
+      // Pour chaque sous-admin, calculer les statistiques
+      const subAdminStats = await Promise.all(
+        (profiles || []).map(async (profile) => {
+          const { data: requests } = await supabase
+            .from('user_requests')
+            .select('status, processed_by')
+            .eq('processed_by', profile.id);
 
-      const activities: SubAdminActivity[] = [];
+          const totalProcessed = requests?.length || 0;
+          const pendingRequests = requests?.filter(r => r.status === 'pending').length || 0;
+          const approvedRequests = requests?.filter(r => r.status === 'approved').length || 0;
+          const rejectedRequests = requests?.filter(r => r.status === 'rejected').length || 0;
 
-      // Pour chaque sous-admin, récupérer ses activités et statistiques
-      for (const subAdmin of subAdmins) {
-        try {
-          // Récupérer le quota journalier
-          const { data: quotaData } = await supabase
-            .from('sub_admin_quota_settings')
-            .select('daily_limit')
-            .eq('sub_admin_id', subAdmin.id)
-            .single();
+          return {
+            id: profile.id,
+            full_name: profile.full_name,
+            phone: profile.phone,
+            country: profile.country,
+            total_processed: totalProcessed,
+            pending_requests: pendingRequests,
+            approved_requests: approvedRequests,
+            rejected_requests: rejectedRequests,
+          };
+        })
+      );
 
-          const dailyLimit = quotaData?.daily_limit || 50;
-
-          // Compter les demandes du jour
-          const today = new Date().toISOString().split('T')[0];
-          const { count: dailyRequests } = await supabase
-            .from('sub_admin_daily_requests')
-            .select('*', { count: 'exact', head: true })
-            .eq('sub_admin_id', subAdmin.id)
-            .eq('date', today);
-
-          // Compter les utilisateurs gérés (même pays)
-          const { count: usersManaged } = await supabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .eq('country', subAdmin.country)
-            .neq('role', 'admin');
-
-          // Compter les agents gérés
-          const { count: agentsManaged } = await supabase
-            .from('agents')
-            .select('*', { count: 'exact', head: true })
-            .eq('country', subAdmin.country);
-
-          // Récupérer les actions récentes depuis les audit_logs
-          const { data: recentActions } = await supabase
-            .from('audit_logs')
-            .select('action, created_at, new_values')
-            .eq('user_id', subAdmin.id)
-            .order('created_at', { ascending: false })
-            .limit(5);
-
-          // Déterminer le statut
-          let status: 'active' | 'inactive' | 'limited' = 'inactive';
-          if (dailyRequests && dailyRequests > 0) {
-            status = dailyRequests >= dailyLimit ? 'limited' : 'active';
-          }
-
-          activities.push({
-            id: subAdmin.id,
-            full_name: subAdmin.full_name || 'Nom inconnu',
-            phone: subAdmin.phone || '',
-            country: subAdmin.country || '',
-            last_activity: recentActions?.[0]?.created_at || subAdmin.created_at,
-            daily_requests_count: dailyRequests || 0,
-            daily_limit: dailyLimit,
-            total_users_managed: usersManaged || 0,
-            agents_managed: agentsManaged || 0,
-            recent_actions: (recentActions || []).map(action => ({
-              action: action.action,
-              timestamp: action.created_at,
-              details: JSON.stringify(action.new_values || {})
-            })),
-            status
-          });
-        } catch (error) {
-          console.error(`Erreur pour sous-admin ${subAdmin.id}:`, error);
-          // Ajouter quand même avec des valeurs par défaut
-          activities.push({
-            id: subAdmin.id,
-            full_name: subAdmin.full_name || 'Nom inconnu',
-            phone: subAdmin.phone || '',
-            country: subAdmin.country || '',
-            last_activity: subAdmin.created_at,
-            daily_requests_count: 0,
-            daily_limit: 50,
-            total_users_managed: 0,
-            agents_managed: 0,
-            recent_actions: [],
-            status: 'inactive'
-          });
-        }
-      }
-
-      // Filtrer selon le statut si nécessaire
-      const filteredActivities = statusFilter === 'all' 
-        ? activities 
-        : activities.filter(activity => activity.status === statusFilter);
-
-      console.log('✅ Trafic sous-admins chargé:', filteredActivities.length);
-      return filteredActivities;
-    },
-    refetchInterval: 30000 // Actualiser toutes les 30 secondes
-  });
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Actif</Badge>;
-      case 'limited':
-        return <Badge className="bg-orange-100 text-orange-800"><AlertCircle className="w-3 h-3 mr-1" />Quota atteint</Badge>;
-      case 'inactive':
-        return <Badge className="bg-gray-100 text-gray-800"><XCircle className="w-3 h-3 mr-1" />Inactif</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
+      setSubAdmins(subAdminStats);
+    } catch (error) {
+      console.error('Erreur lors du chargement des sous-admins:', error);
     }
   };
 
-  const formatLastActivity = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffMinutes < 1) return 'À l\'instant';
-    if (diffMinutes < 60) return `Il y a ${diffMinutes}min`;
-    if (diffMinutes < 1440) return `Il y a ${Math.floor(diffMinutes / 60)}h`;
-    return `Il y a ${Math.floor(diffMinutes / 1440)}j`;
+  // Fonction pour charger toutes les demandes traitées par les sous-admins
+  const fetchSubAdminRequests = async () => {
+    try {
+      console.log('🔄 Chargement des demandes traitées par les sous-admins...');
+
+      // D'abord, récupérer tous les IDs des sous-admins
+      const { data: subAdminProfiles, error: subAdminError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'sub_admin');
+
+      if (subAdminError) throw subAdminError;
+
+      const subAdminIds = subAdminProfiles?.map(p => p.id) || [];
+
+      if (subAdminIds.length === 0) {
+        setSubAdminRequests([]);
+        return;
+      }
+
+      // Récupérer toutes les demandes traitées par des sous-admins
+      const { data: requests, error } = await supabase
+        .from('user_requests')
+        .select(`
+          id,
+          user_id,
+          operation_type,
+          amount,
+          payment_method,
+          payment_phone,
+          status,
+          created_at,
+          processed_by,
+          processed_at,
+          rejection_reason
+        `)
+        .in('processed_by', subAdminIds)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Récupérer les profils des demandeurs et des processeurs
+      const requestsWithProfiles = await Promise.all(
+        (requests || []).map(async (request) => {
+          // Profile du demandeur
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, phone, country')
+            .eq('id', request.user_id)
+            .single();
+          
+          // Profile du sous-admin qui a traité
+          let processorProfile = null;
+          if (request.processed_by) {
+            const { data: processor } = await supabase
+              .from('profiles')
+              .select('full_name, phone, role')
+              .eq('id', request.processed_by)
+              .single();
+            processorProfile = processor;
+          }
+          
+          return {
+            ...request,
+            profiles: profile,
+            processor_profile: processorProfile
+          };
+        })
+      );
+
+      console.log('✅ Demandes des sous-admins chargées:', requestsWithProfiles);
+      setSubAdminRequests(requestsWithProfiles);
+    } catch (error) {
+      console.error('Erreur critique:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors du chargement des demandes des sous-admins",
+        variant: "destructive"
+      });
+    }
   };
+
+  useEffect(() => {
+    if (isMainAdmin) {
+      fetchSubAdmins();
+      fetchSubAdminRequests();
+    }
+    setIsLoading(false);
+  }, [isMainAdmin]);
+
+  // Auto-refresh toutes les 10 secondes
+  useEffect(() => {
+    if (!isMainAdmin) return;
+    
+    const interval = setInterval(() => {
+      if (!isProcessing) {
+        fetchSubAdmins();
+        fetchSubAdminRequests();
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [isProcessing, isMainAdmin]);
+
+  const handleAdminOverride = async (requestId: string, action: 'approve' | 'reject') => {
+    try {
+      setIsProcessing(requestId);
+      console.log(`🔄 Début ${action} admin pour:`, requestId);
+      
+      const request = subAdminRequests.find(r => r.id === requestId);
+      if (!request) {
+        console.error('Demande non trouvée:', requestId);
+        return;
+      }
+
+      let updateData: any = {
+        processed_by: user?.id,
+        processed_at: new Date().toISOString()
+      };
+
+      if (action === 'approve') {
+        updateData.status = 'approved';
+        
+        // Traiter automatiquement le solde
+        if (request.operation_type === 'recharge') {
+          const { error: creditError } = await supabase.rpc('secure_increment_balance', {
+            target_user_id: request.user_id,
+            amount: request.amount,
+            operation_type: 'admin_override_recharge',
+            performed_by: user?.id
+          });
+
+          if (creditError) {
+            console.error('❌ Erreur lors du crédit admin:', creditError);
+            toast({
+              title: "Erreur",
+              description: "Erreur lors du crédit automatique: " + creditError.message,
+              variant: "destructive"
+            });
+            return;
+          }
+        } else if (request.operation_type === 'withdrawal') {
+          const { error: debitError } = await supabase.rpc('secure_increment_balance', {
+            target_user_id: request.user_id,
+            amount: -request.amount,
+            operation_type: 'admin_override_withdrawal',
+            performed_by: user?.id
+          });
+
+          if (debitError) {
+            console.error('❌ Erreur lors du débit admin:', debitError);
+            toast({
+              title: "Erreur",
+              description: "Erreur lors du débit automatique: " + debitError.message,
+              variant: "destructive"
+            });
+            return;
+          }
+        }
+      } else {
+        updateData.status = 'rejected';
+        updateData.rejection_reason = `[ADMIN OVERRIDE] ${rejectionReason}`;
+      }
+
+      // Mettre à jour le statut de la demande
+      const { error: updateError } = await supabase
+        .from('user_requests')
+        .update(updateData)
+        .eq('id', requestId);
+
+      if (updateError) {
+        console.error(`❌ Erreur lors du ${action} admin:`, updateError);
+        toast({
+          title: "Erreur",
+          description: `Impossible de ${action === 'approve' ? 'approuver' : 'rejeter'} la demande: ` + updateError.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log(`✅ ${action} admin réussi pour:`, requestId);
+
+      const operationText = request.operation_type === 'recharge' ? 'Recharge' : 'Retrait';
+      
+      toast({
+        title: `Demande ${action === 'approve' ? 'approuvée' : 'rejetée'} par l'admin`,
+        description: `${operationText} ${action === 'approve' ? 'approuvé' : 'rejeté'} par l'administrateur principal (override)`,
+      });
+
+      if (action === 'reject') {
+        setShowRejectDialog(false);
+        setSelectedRequest(null);
+        setRejectionReason('');
+      }
+      
+      fetchSubAdminRequests();
+    } catch (error) {
+      console.error(`💥 Erreur lors du ${action} admin:`, error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors du traitement de la demande",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1" />En attente</Badge>;
+      case 'approved':
+        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Approuvée</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Rejetée</Badge>;
+      default:
+        return <Badge variant="secondary">Inconnu</Badge>;
+    }
+  };
+
+  const getOperationTypeLabel = (type: string) => {
+    return type === 'recharge' ? 'Recharge' : 'Retrait';
+  };
+
+  const getOperationIcon = (type: string) => {
+    return type === 'recharge' ? 
+      <Wallet className="w-4 h-4 text-green-600" /> : 
+      <CreditCard className="w-4 h-4 text-red-600" />;
+  };
+
+  // Filtrer les demandes selon le statut
+  const filteredRequests = statusFilter === 'all' 
+    ? subAdminRequests 
+    : subAdminRequests.filter(req => req.status === statusFilter);
+
+  if (!isMainAdmin) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold">Accès refusé</h3>
+          <p className="text-muted-foreground">Seul l'administrateur principal peut accéder à cette section.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Chargement du trafic des sous-admins...
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="animate-pulse space-y-3">
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -186,128 +394,233 @@ const SubAdminTrafficMonitor = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Users className="w-6 h-6 text-blue-600" />
+          <Users className="w-6 h-6" />
           <h2 className="text-2xl font-bold">Trafic des Sous-Administrateurs</h2>
         </div>
-        <Badge variant="outline" className="text-lg px-4 py-2">
-          {subAdminTraffic?.length || 0} sous-admin(s)
-        </Badge>
       </div>
 
-      {/* Filtres */}
-      <div className="flex gap-4">
-        <Select value={timeFilter} onValueChange={setTimeFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Période" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Aujourd'hui</SelectItem>
-            <SelectItem value="week">Cette semaine</SelectItem>
-            <SelectItem value="month">Ce mois</SelectItem>
-          </SelectContent>
-        </Select>
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Vue d'ensemble
+          </TabsTrigger>
+          <TabsTrigger value="requests" className="flex items-center gap-2">
+            <Eye className="w-4 h-4" />
+            Historique des demandes
+          </TabsTrigger>
+        </TabsList>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Statut" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les statuts</SelectItem>
-            <SelectItem value="active">Actifs</SelectItem>
-            <SelectItem value="limited">Quota atteint</SelectItem>
-            <SelectItem value="inactive">Inactifs</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        {/* Onglet Vue d'ensemble */}
+        <TabsContent value="overview">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {subAdmins.map((subAdmin) => (
+              <Card key={subAdmin.id}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    {subAdmin.full_name}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {subAdmin.phone} • {subAdmin.country}
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Total traité:</span>
+                    <Badge variant="outline">{subAdmin.total_processed}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">En attente:</span>
+                    <Badge className="bg-yellow-100 text-yellow-800">{subAdmin.pending_requests}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Approuvées:</span>
+                    <Badge className="bg-green-100 text-green-800">{subAdmin.approved_requests}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Rejetées:</span>
+                    <Badge className="bg-red-100 text-red-800">{subAdmin.rejected_requests}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
 
-      {/* Liste des sous-administrateurs */}
-      <div className="grid gap-4">
-        {subAdminTraffic?.map((subAdmin) => (
-          <Card key={subAdmin.id} className="border-l-4 border-l-blue-500">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div>
-                    <CardTitle className="text-lg">{subAdmin.full_name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {subAdmin.phone} • {subAdmin.country}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {getStatusBadge(subAdmin.status)}
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Clock className="w-4 h-4" />
-                    {formatLastActivity(subAdmin.last_activity)}
-                  </div>
-                </div>
+        {/* Onglet Historique des demandes */}
+        <TabsContent value="requests">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Historique des demandes traitées par les sous-admins</h3>
+              <div className="flex gap-2">
+                <Button 
+                  variant={statusFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter('all')}
+                >
+                  <Filter className="w-4 h-4 mr-1" />
+                  Toutes
+                </Button>
+                <Button 
+                  variant={statusFilter === 'pending' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter('pending')}
+                >
+                  En attente
+                </Button>
+                <Button 
+                  variant={statusFilter === 'approved' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter('approved')}
+                >
+                  Approuvées
+                </Button>
+                <Button 
+                  variant={statusFilter === 'rejected' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter('rejected')}
+                >
+                  Rejetées
+                </Button>
               </div>
-            </CardHeader>
+            </div>
 
-            <CardContent className="space-y-4">
-              {/* Statistiques */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {subAdmin.daily_requests_count}/{subAdmin.daily_limit}
-                  </div>
-                  <div className="text-xs text-blue-600">Quota journalier</div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Demandes traitées par les sous-admins ({filteredRequests.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Utilisateur</TableHead>
+                        <TableHead>Montant</TableHead>
+                        <TableHead>Méthode</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Traité par</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Actions Admin</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredRequests.length > 0 ? (
+                        filteredRequests.map((request) => (
+                          <TableRow key={request.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {getOperationIcon(request.operation_type)}
+                                {getOperationTypeLabel(request.operation_type)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{request.profiles?.full_name || 'Inconnu'}</div>
+                                <div className="text-sm text-muted-foreground">{request.profiles?.phone}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono">{formatCurrency(request.amount, 'XAF')}</TableCell>
+                            <TableCell>
+                              <div>
+                                <div>{request.payment_method}</div>
+                                <div className="text-sm text-muted-foreground">{request.payment_phone}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>{getStatusBadge(request.status)}</TableCell>
+                            <TableCell>
+                              {request.processor_profile ? (
+                                <div>
+                                  <div className="font-medium">{request.processor_profile.full_name}</div>
+                                  <div className="text-sm text-muted-foreground">Sous-admin</div>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Non traité</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <div>Créé: {new Date(request.created_at).toLocaleDateString('fr-FR')}</div>
+                              {request.processed_at && (
+                                <div className="text-muted-foreground">
+                                  Traité: {new Date(request.processed_at).toLocaleDateString('fr-FR')}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                  onClick={() => handleAdminOverride(request.id, 'approve')}
+                                  disabled={isProcessing === request.id}
+                                >
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  {isProcessing === request.id ? 'Traitement...' : 'Override Approuver'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => {
+                                    setSelectedRequest(request);
+                                    setShowRejectDialog(true);
+                                  }}
+                                  disabled={isProcessing === request.id}
+                                >
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                  Override Rejeter
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                            Aucune demande trouvée
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">
-                    {subAdmin.total_users_managed}
-                  </div>
-                  <div className="text-xs text-green-600">Utilisateurs gérés</div>
-                </div>
-                <div className="text-center p-3 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {subAdmin.agents_managed}
-                  </div>
-                  <div className="text-xs text-purple-600">Agents gérés</div>
-                </div>
-                <div className="text-center p-3 bg-orange-50 rounded-lg">
-                  <div className="text-2xl font-bold text-orange-600">
-                    {Math.round((subAdmin.daily_requests_count / subAdmin.daily_limit) * 100)}%
-                  </div>
-                  <div className="text-xs text-orange-600">Utilisation quota</div>
-                </div>
-              </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
 
-              {/* Actions récentes */}
-              {subAdmin.recent_actions.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <Activity className="w-4 h-4" />
-                    Actions récentes
-                  </h4>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {subAdmin.recent_actions.slice(0, 3).map((action, index) => (
-                      <div key={index} className="text-xs p-2 bg-gray-50 rounded flex items-center justify-between">
-                        <span className="font-medium">{action.action}</span>
-                        <span className="text-muted-foreground">
-                          {formatLastActivity(action.timestamp)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-
-        {(!subAdminTraffic || subAdminTraffic.length === 0) && (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">Aucun sous-administrateur</h3>
-              <p className="text-muted-foreground">
-                Il n'y a pas de sous-administrateurs à afficher pour le moment.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* Dialog de rejet */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeter la demande (Override Administrateur)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Raison du rejet (Override)</label>
+              <Textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Expliquez pourquoi cette demande est rejetée par l'administrateur principal (override)..."
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+                Annuler
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => handleAdminOverride(selectedRequest?.id || '', 'reject')} 
+                disabled={!rejectionReason.trim()}
+              >
+                Rejeter (Override)
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
