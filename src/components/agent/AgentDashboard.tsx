@@ -30,7 +30,7 @@ import AgentTransactionHistory from './AgentTransactionHistory';
 import AgentYesterdaySummary from './AgentYesterdaySummary';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { useAgentTransactions } from '@/hooks/useAgentTransactions';
-import { AgentCommissionWithdrawal } from './AgentCommissionWithdrawal';
+import AgentCommissionWithdrawal from './AgentCommissionWithdrawal';
 
 const AgentDashboard: React.FC = () => {
   const { user, profile } = useAuth();
@@ -53,6 +53,11 @@ const AgentDashboard: React.FC = () => {
   } = useAgentEarnings();
 
   const { transactions, refreshTransactions } = useAgentTransactions();
+
+  const handleWithdrawalSuccess = () => {
+    // Refresh data after successful withdrawal
+    refreshTransactions();
+  };
 
   useEffect(() => {
     if (!user?.id) {
@@ -233,8 +238,7 @@ const AgentDashboard: React.FC = () => {
 
         {/* Commission Management Section */}
         <AgentCommissionWithdrawal 
-          totalCommission={totalCommissionEarned}
-          withdrawableCommission={withdrawableCommission}
+          onWithdrawalSuccess={handleWithdrawalSuccess}
         />
 
         {/* Recent Transactions Section */}
