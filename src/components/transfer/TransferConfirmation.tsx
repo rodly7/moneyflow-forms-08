@@ -1,290 +1,101 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Shield, Fingerprint, Lock, AlertCircle } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, calculateFee } from "@/integrations/supabase/client";
-import { AuthErrorHandler } from "@/services/authErrorHandler";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { CheckCircle, AlertTriangle, Wallet, Receipt } from "lucide-react";
+import { formatCurrency, calculateFee } from "@/lib/utils/currency";
 
 interface TransferConfirmationProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => Promise<void>;
-  transferData: {
-    amount: number;
-    recipientName: string;
-    recipientPhone: string;
-    recipientCountry: string;
-    senderCountry: string;
-  };
-  isProcessing: boolean;
+  amount: number;
+  senderCountry: string;
+  recipientCountry: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  userType?: 'user' | 'agent' | 'admin' | 'sub_admin';
 }
 
-const TransferConfirmation = ({
-  isOpen,
-  onClose,
+export const TransferConfirmation = ({
+  amount,
+  senderCountry,
+  recipientCountry,
   onConfirm,
-  transferData,
-  isProcessing
+  onCancel,
+  userType = 'user'
 }: TransferConfirmationProps) => {
-  const { user, userRole } = useAuth();
-  const { toast } = useToast();
-  const [password, setPassword] = useState("");
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [biometricSupported, setBiometricSupported] = useState(false);
-  const [biometricError, setBiometricError] = useState<string | null>(null);
+  const [isConfirmed, setIsConfirmed] = useState(false);
 
-  // Vérifier si l'authentification biométrique est supportée
-  useState(() => {
-    const checkBiometricSupport = async () => {
-      try {
-        if (window.PublicKeyCredential && 
-            await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()) {
-          setBiometricSupported(true);
-        }
-      } catch (error) {
-        console.log("Biométrie non supportée:", error);
-        setBiometricSupported(false);
-      }
-    };
-    
-    checkBiometricSupport();
-  });
-
-  const handlePasswordConfirmation = async () => {
-    if (!password.trim()) {
-      toast({
-        title: "Mot de passe requis",
-        description: "Veuillez entrer votre mot de passe pour confirmer",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsConfirming(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      await onConfirm();
-      setPassword("");
-      onClose();
-      AuthErrorHandler.clearRetries('transfer_confirmation');
-    } catch (error) {
-      const canRetry = await AuthErrorHandler.handleAuthError(error, 'transfer_confirmation');
-      if (!canRetry) {
-        toast({
-          title: "Erreur de confirmation",
-          description: "Impossible de confirmer le transfert après plusieurs tentatives",
-          variant: "destructive"
-        });
-      }
-    } finally {
-      setIsConfirming(false);
-    }
-  };
-
-  const handleBiometricConfirmation = async () => {
-    if (!biometricSupported) {
-      toast({
-        title: "Biométrie non supportée",
-        description: "Votre appareil ne supporte pas l'authentification biométrique",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsConfirming(true);
-    setBiometricError(null);
-    
-    try {
-      const publicKeyCredentialRequestOptions = {
-        challenge: crypto.getRandomValues(new Uint8Array(32)),
-        allowCredentials: [],
-        timeout: 30000,
-        userVerification: "required" as UserVerificationRequirement
-      };
-
-      const credential = await navigator.credentials.get({
-        publicKey: publicKeyCredentialRequestOptions
-      });
-
-      if (credential) {
-        await onConfirm();
-        onClose();
-        toast({
-          title: "Authentification réussie",
-          description: "Transfert confirmé avec succès",
-        });
-        AuthErrorHandler.clearRetries('biometric_confirmation');
-      }
-    } catch (error: any) {
-      console.log("Tentative d'authentification biométrique:", error);
-      
-      if (error.name === 'NotAllowedError') {
-        setBiometricError("Authentification annulée par l'utilisateur");
-      } else if (error.name === 'NotSupportedError') {
-        setBiometricError("Authentification biométrique non supportée");
-        setBiometricSupported(false);
-      } else {
-        setBiometricError("Erreur d'authentification biométrique");
-      }
-    } finally {
-      setIsConfirming(false);
-    }
-  };
-
-  // Calculer les frais
-  const { fee: fees, rate } = calculateFee(
-    transferData.amount, 
-    transferData.senderCountry, 
-    transferData.recipientCountry,
-    userRole === 'agent' ? 'agent' : 'user'
+  const { fee, rate, agentCommission, moneyFlowCommission } = calculateFee(
+    amount,
+    senderCountry,
+    recipientCountry,
+    userType
   );
-  const total = transferData.amount + fees;
+
+  const totalAmount = amount + fee;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-emerald-600" />
-            Confirmer le transfert
-          </DialogTitle>
-        </DialogHeader>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Détails du transfert</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between">
-              <span>Destinataire:</span>
-              <span className="font-medium">{transferData.recipientName}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Téléphone:</span>
-              <span className="font-medium">{transferData.recipientPhone}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Pays:</span>
-              <span className="font-medium">{transferData.recipientCountry}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Montant:</span>
-              <span className="font-bold text-emerald-600">
-                {formatCurrency(transferData.amount, 'XAF')}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Frais ({rate}%):</span>
-              <span className="font-medium text-orange-600">
-                {formatCurrency(fees, 'XAF')}
-              </span>
-            </div>
-            <div className="border-t pt-2">
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total:</span>
-                <span className="text-emerald-600">
-                  {formatCurrency(total, 'XAF')}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+    <Card>
+      <CardHeader>
+        <CardTitle>Confirmation du transfert</CardTitle>
+      </CardHeader>
+      <CardContent>
         <div className="space-y-4">
-          <div className="text-center">
-            <p className="text-sm text-gray-600 mb-4">
-              Confirmez votre identité pour effectuer ce transfert
-            </p>
+          <div className="flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-green-600" />
+            <span className="font-semibold text-green-700">Montant à envoyer:</span>
+            <span>{formatCurrency(amount, "XAF")}</span>
           </div>
 
-          <div className="space-y-3">
-            <Input
-              type="password"
-              placeholder="Entrez votre mot de passe"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-12"
-              disabled={isConfirming || isProcessing}
-              onKeyPress={(e) => e.key === 'Enter' && !isConfirming && handlePasswordConfirmation()}
-            />
-            
-            <Button
-              onClick={handlePasswordConfirmation}
-              disabled={isConfirming || isProcessing || !password.trim()}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 h-12"
-            >
-              {isConfirming ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  <span>Vérification...</span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center">
-                  <Lock className="mr-2 h-5 w-5" />
-                  <span>Confirmer avec mot de passe</span>
-                </div>
-              )}
-            </Button>
+          <div className="flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-yellow-600" />
+            <span className="font-semibold text-yellow-700">Frais ({rate}%):</span>
+            <span>{formatCurrency(fee, "XAF")}</span>
           </div>
 
-          {biometricSupported && (
+          {userType === 'agent' && (
             <>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Ou
-                  </span>
-                </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-purple-600 border-purple-600">
+                  Commission Agent
+                </Badge>
+                <span>{formatCurrency(agentCommission, "XAF")}</span>
               </div>
-
-              <Button
-                onClick={handleBiometricConfirmation}
-                disabled={isConfirming || isProcessing}
-                variant="outline"
-                className="w-full h-12"
-              >
-                {isConfirming ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-                    <span>Authentification...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center">
-                    <Fingerprint className="mr-2 h-5 w-5" />
-                    <span>Utiliser Face ID / Empreinte</span>
-                  </div>
-                )}
-              </Button>
-
-              {biometricError && (
-                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>{biometricError}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-blue-600 border-blue-600">
+                  Commission SendFlow
+                </Badge>
+                <span>{formatCurrency(moneyFlowCommission, "XAF")}</span>
+              </div>
             </>
           )}
 
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isConfirming || isProcessing}
-            className="w-full"
-          >
-            Annuler
-          </Button>
+          <Separator />
+
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-6 h-6 text-green-700" />
+            <span className="font-bold text-lg">Total à débiter:</span>
+            <span className="text-lg">{formatCurrency(totalAmount, "XAF")}</span>
+          </div>
+
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={onCancel}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                setIsConfirmed(true);
+                onConfirm();
+              }}
+              disabled={isConfirmed}
+            >
+              {isConfirmed ? "Transfert en cours..." : "Confirmer"}
+            </Button>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </CardContent>
+    </Card>
   );
 };
-
-export default TransferConfirmation;

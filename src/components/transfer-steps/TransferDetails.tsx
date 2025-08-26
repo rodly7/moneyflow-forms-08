@@ -1,103 +1,81 @@
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { calculateFee } from '@/lib/utils/currency';
 
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { TransferData } from "@/types/transfer";
-import { useAuth } from "@/contexts/AuthContext";
-import { calculateFee } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+interface TransferDetailsProps {
+  amount: number;
+  senderCountry: string;
+  recipientCountry: string;
+  userType?: 'user' | 'agent' | 'admin' | 'sub_admin';
+  fee?: number;
+  onAmountChange: (amount: number) => void;
+  onNoteChange: (note: string) => void;
+  note?: string;
+}
 
-type TransferDetailsProps = TransferData & {
-  updateFields: (fields: Partial<TransferData>) => void;
-};
+export const TransferDetails: React.FC<TransferDetailsProps> = ({
+  amount,
+  senderCountry,
+  recipientCountry,
+  userType = 'user',
+  fee,
+  onAmountChange,
+  onNoteChange,
+  note = '',
+}) => {
+  const calculatedFee = calculateFee(amount, senderCountry, recipientCountry, userType);
 
-const TransferDetails = ({ transfer, recipient, updateFields }: TransferDetailsProps) => {
-  const { user, userRole, profile } = useAuth();
-  
-  // Utiliser le pays du profil directement
-  const userCountry = profile?.country || "Cameroun";
-  
-  // Calculer les frais automatiquement
-  const { fee: fees, rate: feeRate } = calculateFee(
-    transfer.amount, 
-    userCountry,
-    recipient.country, 
-    userRole || 'user'
-  );
-  
-  const total = transfer.amount + fees;
-  
-  // Déterminer si c'est un transfert national ou international
-  const isNational = userCountry === recipient.country;
-  const transferType = isNational ? "national" : "international";
-  const feePercentageDisplay = `${feeRate}% (${transferType})`;
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newAmount = parseFloat(e.target.value);
+    if (!isNaN(newAmount)) {
+      onAmountChange(newAmount);
+    } else {
+      onAmountChange(0);
+    }
+  };
+
+  const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onNoteChange(e.target.value);
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="amount">Montant à Envoyer ({transfer.currency})</Label>
-        <Input
-          id="amount"
-          type="number"
-          required
-          min="0"
-          step="100"
-          placeholder={`Entrez le montant en ${transfer.currency}`}
-          value={transfer.amount || ""}
-          onChange={(e) =>
-            updateFields({
-              transfer: { ...transfer, amount: parseFloat(e.target.value) },
-            })
-          }
-          className="text-lg h-12"
-        />
-      </div>
-
-      {transfer.amount > 0 && recipient.country && (
-        <div className="mt-4 p-4 bg-primary/5 rounded-xl space-y-2 border border-primary/10">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Montant du transfert :</span>
-            <span className="font-medium">
-              {transfer.amount.toLocaleString('fr-FR')} {transfer.currency}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">
-              Frais ({feePercentageDisplay}) :
-            </span>
-            <span className="font-medium">
-              {fees.toLocaleString('fr-FR')} {transfer.currency}
-            </span>
-          </div>
-          <div className="flex justify-between font-semibold pt-2 border-t border-primary/10 text-lg">
-            <span>Total :</span>
-            <span>
-              {total.toLocaleString('fr-FR')} {transfer.currency}
-            </span>
-          </div>
-          
-          {/* Informations contextuelles */}
-          <div className="space-y-1 pt-2">
-            {isNational && (
-              <div className="text-sm text-emerald-600 bg-emerald-50 p-2 rounded">
-                💰 Transfert national - Taux préférentiel de {feeRate}%
-              </div>
-            )}
-            {!isNational && (
-              <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
-                🌍 Transfert international - Taux de {feeRate}%
-              </div>
-            )}
-            {userRole === 'agent' && (
-              <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                🏢 Mode Agent - Depuis {userCountry} vers {recipient.country}
-              </div>
-            )}
-          </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Détails du transfert</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="amount">Montant à envoyer</Label>
+          <Input
+            type="number"
+            id="amount"
+            placeholder="0"
+            value={amount > 0 ? amount.toString() : ''}
+            onChange={handleAmountChange}
+          />
         </div>
-      )}
-    </div>
+        <div className="grid gap-2">
+          <Label htmlFor="fee">Frais de transfert</Label>
+          <Input
+            type="text"
+            id="fee"
+            value={calculatedFee.fee.toString()}
+            readOnly
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="note">Note (optionnel)</Label>
+          <Textarea
+            id="note"
+            placeholder="Ajouter une note"
+            value={note}
+            onChange={handleNoteChange}
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 };
-
-export default TransferDetails;
