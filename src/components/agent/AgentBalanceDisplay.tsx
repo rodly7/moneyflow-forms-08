@@ -1,7 +1,8 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Wallet, RefreshCw, TrendingUp, DollarSign } from "lucide-react";
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatCurrency } from "@/integrations/supabase/client";
 
 interface AgentBalanceDisplayProps {
   agentBalance: number;

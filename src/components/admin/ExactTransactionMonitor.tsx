@@ -1,307 +1,442 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Activity, Search, Filter, Download, RefreshCw, Eye, Calendar, DollarSign } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils/currency";
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  RefreshCw, Search, Filter, Download, 
+  ArrowUpRight, ArrowDownLeft, CreditCard,
+  Clock, CheckCircle, XCircle, AlertCircle
+} from 'lucide-react';
+import { AdminReportService } from '@/services/adminReportService';
+import { formatCurrency } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Transaction {
   id: string;
-  created_at: string;
-  user_id: string;
+  type: 'transfer' | 'withdrawal' | 'deposit';
   amount: number;
-  transaction_type: string;
   status: string;
-  details: any;
+  timestamp: string;
+  sender?: { full_name: string; phone: string } | null;
+  user?: { full_name: string; phone: string } | null;
+  recipient_full_name?: string;
+  recipient_phone?: string;
+  fees?: number;
+  currency?: string;
 }
 
 const ExactTransactionMonitor = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState("all");
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [page, pageSize, selectedDate, filterType, searchTerm]);
-
-  const fetchTransactions = async () => {
-    setIsLoading(true);
+  const loadRecentTransactions = async () => {
+    setLoading(true);
     try {
-      let query = supabase
-        .from("transactions")
-        .select("*", { count: "exact" })
-        .order("created_at", { ascending: false })
-        .range((page - 1) * pageSize, page * pageSize - 1);
+      const recentTransactions = await AdminReportService.getRecentTransactions(100);
+      
+      // Transform the data to match our interface with proper type checking
+      const transformedTransactions: Transaction[] = recentTransactions.map(transaction => {
+        const baseTransaction = {
+          id: transaction.id,
+          type: transaction.type as 'transfer' | 'withdrawal' | 'deposit',
+          amount: transaction.amount,
+          status: transaction.status,
+          timestamp: transaction.timestamp,
+        };
 
-      if (searchTerm) {
-        query = query.ilike("user_id", `%${searchTerm}%`);
-      }
+        // Handle transfer type
+        if (transaction.type === 'transfer') {
+          const transferData = transaction as any;
+          return {
+            ...baseTransaction,
+            sender: transferData.sender || null,
+            recipient_full_name: transferData.recipient_full_name || '',
+            recipient_phone: transferData.recipient_phone || '',
+            fees: transferData.fees || 0,
+            currency: transferData.currency || 'XAF'
+          };
+        } 
+        
+        // Handle withdrawal type
+        if (transaction.type === 'withdrawal') {
+          const withdrawalData = transaction as any;
+          return {
+            ...baseTransaction,
+            user: withdrawalData.user || null,
+            recipient_phone: withdrawalData.withdrawal_phone || '',
+            fees: 0,
+            currency: 'XAF'
+          };
+        } 
+        
+        // Handle deposit type
+        if (transaction.type === 'deposit') {
+          const depositData = transaction as any;
+          return {
+            ...baseTransaction,
+            user: depositData.user || null,
+            fees: 0,
+            currency: depositData.currency || 'XAF'
+          };
+        }
 
-      if (filterType !== "all") {
-        query = query.eq("transaction_type", filterType);
-      }
-
-      if (selectedDate) {
-        const startOfDay = new Date(selectedDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
-
-        query = query.gte("created_at", startOfDay.toISOString());
-        query = query.lte("created_at", endOfDay.toISOString());
-      }
-
-      const { data, error, count } = await query;
-
-      if (error) {
-        console.error("Error fetching transactions:", error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les transactions",
-          variant: "destructive",
-        });
-      } else {
-        setTransactions(data || []);
-        setTotalCount(count || 0);
-      }
-    } catch (error) {
-      console.error("Unexpected error:", error);
+        // Fallback
+        return {
+          ...baseTransaction,
+          fees: 0,
+          currency: 'XAF'
+        };
+      });
+      
+      setTransactions(transformedTransactions);
+      
+      console.log('🔄 Transactions mises à jour:', transformedTransactions.length);
+    } catch (error: any) {
+      console.error('Erreur chargement transactions:', error);
       toast({
         title: "Erreur",
-        description: "Une erreur inattendue s'est produite",
-        variant: "destructive",
+        description: "Impossible de charger les transactions récentes",
+        variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setPage(1);
+  useEffect(() => {
+    loadRecentTransactions();
+    
+    // Auto-refresh toutes les 30 secondes
+    const interval = setInterval(() => {
+      loadRecentTransactions();
+    }, 30000);
+    
+    setRefreshInterval(interval);
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, []);
+
+  const filteredTransactions = transactions.filter(transaction => {
+    const senderName = transaction.sender?.full_name || transaction.user?.full_name || '';
+    const recipientName = transaction.recipient_full_name || '';
+    
+    const matchesSearch = searchTerm === '' || 
+      transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      senderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      recipientName.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter;
+    const matchesType = typeFilter === 'all' || transaction.type === typeFilter;
+    
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  const getTransactionIcon = (type: string) => {
+    switch (type) {
+      case 'transfer': return ArrowUpRight;
+      case 'withdrawal': return ArrowDownLeft;
+      case 'deposit': return CreditCard;
+      default: return Clock;
+    }
   };
 
-  const handleFilterChange = (value: string) => {
-    setFilterType(value);
-    setPage(1);
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      completed: { color: 'bg-green-500', label: 'Complété', icon: CheckCircle },
+      pending: { color: 'bg-yellow-500', label: 'En cours', icon: Clock },
+      failed: { color: 'bg-red-500', label: 'Échoué', icon: XCircle },
+      cancelled: { color: 'bg-gray-500', label: 'Annulé', icon: XCircle }
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const Icon = config.icon;
+
+    return (
+      <Badge className={`${config.color} text-white flex items-center gap-1`}>
+        <Icon className="w-3 h-3" />
+        {config.label}
+      </Badge>
+    );
   };
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedDate(new Date(e.target.value));
-    setPage(1);
+  const getTypeBadge = (type: string) => {
+    const typeConfig = {
+      transfer: { color: 'bg-blue-500', label: 'Transfert' },
+      withdrawal: { color: 'bg-orange-500', label: 'Retrait' },
+      deposit: { color: 'bg-green-500', label: 'Dépôt' }
+    };
+
+    const config = typeConfig[type as keyof typeof typeConfig] || { color: 'bg-gray-500', label: type };
+
+    return (
+      <Badge className={`${config.color} text-white`}>
+        {config.label}
+      </Badge>
+    );
   };
 
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-  };
+  const exportTransactions = () => {
+    const csvContent = [
+      ['ID', 'Type', 'Montant', 'Statut', 'Expéditeur', 'Destinataire', 'Date', 'Frais'].join(','),
+      ...filteredTransactions.map(t => [
+        t.id,
+        t.type,
+        t.amount,
+        t.status,
+        t.sender?.full_name || t.user?.full_name || 'N/A',
+        t.recipient_full_name || 'N/A',
+        new Date(t.timestamp).toLocaleString('fr-FR'),
+        t.fees || 0
+      ].join(','))
+    ].join('\n');
 
-  const handlePageSizeChange = (newSize: number) => {
-    setPageSize(newSize);
-    setPage(1);
-  };
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `transactions-${Date.now()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("fr-FR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
+    toast({
+      title: "Export réussi",
+      description: `${filteredTransactions.length} transactions exportées`
     });
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="w-5 h-5" />
-          Surveillance des Transactions
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList>
-            <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-            <TabsTrigger value="details">Détails</TabsTrigger>
-          </TabsList>
-          <TabsContent value="overview" className="space-y-4">
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Surveillance des Transactions</h2>
+          <p className="text-gray-600 mt-1">Monitoring en temps réel avec données exactes</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportTransactions}
+            disabled={filteredTransactions.length === 0}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Exporter ({filteredTransactions.length})
+          </Button>
+          
+          <Button
+            onClick={loadRecentTransactions}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Actualiser
+          </Button>
+        </div>
+      </div>
+
+      {/* Filtres */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="w-5 h-5" />
+            Filtres
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Rechercher par ID, nom..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="completed">Complété</SelectItem>
+                <SelectItem value="pending">En cours</SelectItem>
+                <SelectItem value="failed">Échoué</SelectItem>
+                <SelectItem value="cancelled">Annulé</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                <SelectItem value="transfer">Transferts</SelectItem>
+                <SelectItem value="withdrawal">Retraits</SelectItem>
+                <SelectItem value="deposit">Dépôts</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              Auto-refresh: 30s
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Statistiques rapides */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Input
-                  type="text"
-                  placeholder="Rechercher par ID utilisateur..."
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                />
-                <Button variant="outline" size="sm" onClick={() => fetchTransactions()}>
-                  <Search className="w-4 h-4 mr-2" />
-                  Rechercher
-                </Button>
+              <div>
+                <p className="text-sm text-gray-600">Total Transactions</p>
+                <p className="text-2xl font-bold text-blue-600">{filteredTransactions.length}</p>
               </div>
-
-              <div className="flex items-center space-x-4">
-                <Select onValueChange={handleFilterChange}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filtrer par type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les types</SelectItem>
-                    <SelectItem value="deposit">Dépôts</SelectItem>
-                    <SelectItem value="withdrawal">Retraits</SelectItem>
-                    <SelectItem value="transfer">Transferts</SelectItem>
-                    {/* Add more types as needed */}
-                  </SelectContent>
-                </Select>
-
-                <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <Input
-                    type="date"
-                    onChange={handleDateChange}
-                    className="max-w-[150px]"
-                  />
-                </div>
+              <AlertCircle className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Volume Total</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {formatCurrency(filteredTransactions.reduce((sum, t) => sum + t.amount, 0))}
+                </p>
               </div>
+              <ArrowUpRight className="w-8 h-8 text-green-500" />
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Utilisateur
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Montant
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Statut
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Détails
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-4">
-                        <div className="flex items-center justify-center">
-                          <RefreshCw className="w-6 h-6 animate-spin mr-2" />
-                          Chargement...
-                        </div>
-                      </td>
-                    </tr>
-                  ) : transactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-4">
-                        Aucune transaction trouvée.
-                      </td>
-                    </tr>
-                  ) : (
-                    transactions.map((transaction) => (
-                      <tr key={transaction.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {transaction.id}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {formatDate(transaction.created_at)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {transaction.user_id}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {formatCurrency(transaction.amount, "XAF")}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {transaction.transaction_type}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge>{transaction.status}</Badge>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Eye className="w-4 h-4 mr-2" />
-                          {/* Implement details view here */}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex items-center justify-between px-4 py-3 sm:px-6">
-              <div className="sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    Affichage de{" "}
-                    <span className="font-medium">
-                      {(page - 1) * pageSize + 1}
-                    </span>{" "}
-                    à{" "}
-                    <span className="font-medium">
-                      {Math.min(page * pageSize, totalCount)}
-                    </span>{" "}
-                    sur{" "}
-                    <span className="font-medium">{totalCount}</span> transactions
-                  </p>
-                </div>
-                <div className="mt-2 sm:mt-0">
-                  <nav
-                    className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
-                    aria-label="Pagination"
-                  >
-                    <Button
-                      onClick={() => handlePageChange(page - 1)}
-                      disabled={page === 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-                    >
-                      Précédent
-                    </Button>
-                    <Button
-                      onClick={() => handlePageChange(page + 1)}
-                      disabled={page * pageSize >= totalCount}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-                    >
-                      Suivant
-                    </Button>
-                  </nav>
-                </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">En Cours</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {filteredTransactions.filter(t => t.status === 'pending').length}
+                </p>
               </div>
+              <Clock className="w-8 h-8 text-yellow-500" />
             </div>
-          </TabsContent>
-          <TabsContent value="details">
-            <div>Detailed transaction info here</div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Frais Collectés</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {formatCurrency(filteredTransactions.reduce((sum, t) => sum + (t.fees || 0), 0))}
+                </p>
+              </div>
+              <CreditCard className="w-8 h-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Liste des transactions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Transactions Récentes (Temps Réel)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {loading && (
+              <div className="text-center py-8">
+                <RefreshCw className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-2" />
+                <p className="text-gray-600">Chargement des transactions...</p>
+              </div>
+            )}
+            
+            {!loading && filteredTransactions.length === 0 && (
+              <div className="text-center py-8">
+                <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">Aucune transaction trouvée</p>
+              </div>
+            )}
+            
+            {!loading && filteredTransactions.map((transaction, index) => {
+              const Icon = getTransactionIcon(transaction.type);
+              const senderName = transaction.sender?.full_name || transaction.user?.full_name || 'N/A';
+              const recipientName = transaction.recipient_full_name || transaction.recipient_phone || 'N/A';
+              
+              return (
+                <div
+                  key={transaction.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-white rounded-full">
+                      <Icon className="w-5 h-5 text-blue-600" />
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-gray-900">{senderName}</span>
+                        {transaction.type === 'transfer' && (
+                          <>
+                            <ArrowUpRight className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-600">{recipientName}</span>
+                          </>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {getTypeBadge(transaction.type)}
+                        {getStatusBadge(transaction.status)}
+                        <span className="text-xs text-gray-500">
+                          ID: {transaction.id.slice(0, 8)}...
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-right">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-lg font-bold text-gray-900">
+                        {formatCurrency(transaction.amount)}
+                      </span>
+                    </div>
+                    
+                    <div className="text-xs text-gray-500">
+                      {new Date(transaction.timestamp).toLocaleString('fr-FR')}
+                    </div>
+                    
+                    {transaction.fees && transaction.fees > 0 && (
+                      <div className="text-xs text-orange-600 font-medium">
+                        Frais: {formatCurrency(transaction.fees)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

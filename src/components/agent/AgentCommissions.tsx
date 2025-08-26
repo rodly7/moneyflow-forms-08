@@ -1,125 +1,238 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { TrendingUp, DollarSign, Calendar, RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingUp, DollarSign, Calendar, Percent } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatCurrency } from "@/integrations/supabase/client";
 
-interface AgentCommissionsProps {
-  userId?: string;
+interface CommissionData {
+  date: string;
+  withdrawals: number;
+  deposits: number;
+  totalCommission: number;
+  withdrawalCommission: number;
+  depositCommission: number;
 }
 
-export const AgentCommissions = ({ userId }: AgentCommissionsProps) => {
-  const [totalCommissions, setTotalCommissions] = useState(0);
-  const [dailyCommissions, setDailyCommissions] = useState(0);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+const AgentCommissions = () => {
+  const { user } = useAuth();
+  const [dailyCommissions, setDailyCommissions] = useState<CommissionData[]>([]);
+  const [weeklyCommissions, setWeeklyCommissions] = useState<CommissionData[]>([]);
+  const [monthlyCommissions, setMonthlyCommissions] = useState<CommissionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchCommissions = async () => {
-      if (!userId) return;
+  const calculateCommissions = async (period: 'daily' | 'weekly' | 'monthly') => {
+    if (!user?.id) return [];
 
-      setIsLoading(true);
+    try {
+      const now = new Date();
+      let periods: Date[] = [];
 
-      try {
-        // Total commissions
-        const { data: totalData, error: totalError } = await supabase
-          .from('agents')
-          .select('commission_balance')
-          .eq('user_id', userId)
-          .single();
-
-        if (totalError) {
-          console.error("Erreur total commissions:", totalError);
-        } else {
-          setTotalCommissions(totalData?.commission_balance || 0);
+      if (period === 'daily') {
+        // Derniers 7 jours
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now);
+          date.setDate(date.getDate() - i);
+          periods.push(date);
         }
-
-        // Daily commissions
-        const { data: dailyData, error: dailyError } = await supabase
-          .from('agent_commissions')
-          .select('commission_amount')
-          .eq('agent_id', userId)
-          .eq('date', selectedDate);
-
-        if (dailyError) {
-          console.error("Erreur daily commissions:", dailyError);
-        } else {
-          const dailySum = dailyData?.reduce((sum, item) => sum + item.commission_amount, 0) || 0;
-          setDailyCommissions(dailySum);
+      } else if (period === 'weekly') {
+        // Dernières 4 semaines
+        for (let i = 3; i >= 0; i--) {
+          const date = new Date(now);
+          date.setDate(date.getDate() - (i * 7));
+          periods.push(date);
         }
-      } catch (error) {
-        console.error("Erreur lors du chargement des commissions:", error);
-      } finally {
-        setIsLoading(false);
+      } else {
+        // Derniers 6 mois
+        for (let i = 5; i >= 0; i--) {
+          const date = new Date(now);
+          date.setMonth(date.getMonth() - i);
+          periods.push(date);
+        }
       }
-    };
 
-    fetchCommissions();
-  }, [userId, selectedDate]);
+      const commissions: CommissionData[] = [];
+
+      for (const periodStart of periods) {
+        const periodEnd = new Date(periodStart);
+        if (period === 'daily') {
+          periodEnd.setDate(periodEnd.getDate() + 1);
+        } else if (period === 'weekly') {
+          periodEnd.setDate(periodEnd.getDate() + 7);
+        } else {
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+        }
+
+        // Récupérer les retraits traités par l'agent
+        const { data: withdrawalRequests } = await supabase
+          .from('withdrawal_requests')
+          .select('amount')
+          .eq('agent_id', user.id)
+          .gte('created_at', periodStart.toISOString())
+          .lt('created_at', periodEnd.toISOString())
+          .eq('status', 'completed');
+
+        // Récupérer les dépôts traités par l'agent (via recharges où l'agent est le provider)
+        const { data: deposits } = await supabase
+          .from('recharges')
+          .select('amount')
+          .eq('provider_transaction_id', user.id)
+          .gte('created_at', periodStart.toISOString())
+          .lt('created_at', periodEnd.toISOString())
+          .eq('status', 'completed');
+
+        // Calculer les commissions selon les nouveaux taux
+        const withdrawalCommission = withdrawalRequests?.reduce((sum, w) => sum + (Number(w.amount) * 0.005), 0) || 0; // 0,5% sur les retraits
+        const depositCommission = deposits?.reduce((sum, d) => sum + (Number(d.amount) * 0.05), 0) || 0; // 5% sur les dépôts
+
+        console.log(`📊 Période ${periodStart.toLocaleDateString('fr-FR')}:`);
+        console.log(`- Retraits traités: ${withdrawalRequests?.length || 0}, Volume: ${withdrawalRequests?.reduce((sum, w) => sum + Number(w.amount), 0) || 0}, Commission: ${withdrawalCommission}`);
+        console.log(`- Dépôts traités: ${deposits?.length || 0}, Volume: ${deposits?.reduce((sum, d) => sum + Number(d.amount), 0) || 0}, Commission: ${depositCommission}`);
+
+        commissions.push({
+          date: periodStart.toLocaleDateString('fr-FR'),
+          withdrawals: withdrawalRequests?.length || 0,
+          deposits: deposits?.length || 0,
+          withdrawalCommission,
+          depositCommission,
+          totalCommission: withdrawalCommission + depositCommission
+        });
+      }
+
+      return commissions;
+    } catch (error) {
+      console.error('Erreur lors du calcul des commissions:', error);
+      return [];
+    }
+  };
+
+  const loadCommissions = async () => {
+    setIsLoading(true);
+    try {
+      console.log('🔄 Rechargement des commissions...');
+      // Forcer le recalcul des performances avant de charger les commissions
+      if (user) {
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        
+        console.log(`📅 Recalcul pour agent ${user.id}, mois ${currentMonth}/${currentYear}`);
+        const { data: recalcResult, error: recalcError } = await supabase.rpc('calculate_agent_monthly_performance', {
+          agent_id_param: user.id,
+          month_param: currentMonth,
+          year_param: currentYear
+        });
+        
+        if (recalcError) {
+          console.error('❌ Erreur recalcul:', recalcError);
+        } else {
+          console.log('✅ Recalcul terminé:', recalcResult);
+        }
+      }
+      
+      const [daily, weekly, monthly] = await Promise.all([
+        calculateCommissions('daily'),
+        calculateCommissions('weekly'),
+        calculateCommissions('monthly')
+      ]);
+
+      setDailyCommissions(daily);
+      setWeeklyCommissions(weekly);
+      setMonthlyCommissions(monthly);
+    } catch (error) {
+      console.error('Erreur lors du chargement des commissions:', error);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    if (user?.id) {
+      loadCommissions();
+    }
+  }, [user?.id]);
+
+  const CommissionCard = ({ data, title }: { data: CommissionData[], title: string }) => (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-gray-800 mb-4">{title}</h3>
+      {data.map((item, index) => (
+        <Card key={index} className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-medium text-gray-700">{item.date}</span>
+              <div className="flex items-center gap-2">
+                <Percent className="w-4 h-4 text-green-600" />
+                <span className="font-bold text-green-700">
+                  {formatCurrency(item.totalCommission, 'XAF')}
+                </span>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="text-center p-2 bg-red-100 rounded">
+                <div className="font-bold text-red-700">{item.withdrawals}</div>
+                <div className="text-red-600">Retraits traités</div>
+                <div className="text-xs text-red-500">
+                  Commission 0,5%: {formatCurrency(item.withdrawalCommission, 'XAF')}
+                </div>
+              </div>
+              
+              <div className="text-center p-2 bg-green-100 rounded">
+                <div className="font-bold text-green-700">{item.deposits}</div>
+                <div className="text-green-600">Dépôts traités</div>
+                <div className="text-xs text-green-500">
+                  Commission 5%: {formatCurrency(item.depositCommission, 'XAF')}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
+  if (isLoading) {
+    return (
+      <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+        <CardContent className="p-8">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl w-full">
+    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5" />
+          <TrendingUp className="w-5 h-5 text-green-600" />
           Mes Commissions
         </CardTitle>
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <Badge variant="outline" className="bg-blue-50 text-blue-700">
-              {formatCurrency(dailyCommissions, 'XAF')}
-            </Badge>
-          </div>
-          <Button
-            onClick={() => { }}
-            variant="outline"
-            size="sm"
-            disabled={isLoading}
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-blue-50 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-700">Commissions du jour</span>
-            </div>
-            <div className="text-2xl font-bold text-blue-800">
-              {isLoading ? (
-                <div className="animate-pulse bg-blue-200 h-8 w-32 rounded"></div>
-              ) : (
-                formatCurrency(dailyCommissions, 'XAF')
-              )}
-            </div>
-          </div>
+        <Tabs defaultValue="daily" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="daily">Quotidien</TabsTrigger>
+            <TabsTrigger value="weekly">Hebdomadaire</TabsTrigger>
+            <TabsTrigger value="monthly">Mensuel</TabsTrigger>
+          </TabsList>
 
-          <div className="bg-green-50 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-green-700">Commissions totales</span>
-            </div>
-            <div className="text-2xl font-bold text-green-800">
-              {isLoading ? (
-                <div className="animate-pulse bg-green-200 h-8 w-32 rounded"></div>
-              ) : (
-                formatCurrency(totalCommissions, 'XAF')
-              )}
-            </div>
-          </div>
-        </div>
+          <TabsContent value="daily">
+            <CommissionCard data={dailyCommissions} title="Commissions des 7 derniers jours" />
+          </TabsContent>
+
+          <TabsContent value="weekly">
+            <CommissionCard data={weeklyCommissions} title="Commissions des 4 dernières semaines" />
+          </TabsContent>
+
+          <TabsContent value="monthly">
+            <CommissionCard data={monthlyCommissions} title="Commissions des 6 derniers mois" />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
 };
+
+export default AgentCommissions;

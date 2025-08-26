@@ -1,120 +1,214 @@
-import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { calculateFee } from "@/lib/utils/currency";
+import { useAuth } from "@/contexts/AuthContext";
+import { calculateFee } from "@/integrations/supabase/client";
+import { useReceiptGeneration } from "./useReceiptGeneration";
+import { transactionLimitService } from "@/services/transactionLimitService";
 
-export const useTransferForm = () => {
-  const navigate = useNavigate();
-  const { user, profile } = useAuth();
+type PendingTransferInfo = {
+  recipientPhone: string;
+  claimCode: string;
+};
+
+interface FormData {
+  recipient: {
+    fullName: string;
+    phone: string;
+    country: string;
+  };
+  transfer: {
+    amount: number;
+    currency: string;
+  };
+}
+
+interface TransferStep {
+  title: string;
+}
+
+const FORM_STEPS: TransferStep[] = [
+  { title: "Informations Bénéficiaire" },
+  { title: "Détails du Transfert" },
+  { title: "Résumé" },
+];
+
+export function useTransferForm() {
+  const { user, profile, userRole } = useAuth();
   const { toast } = useToast();
+  const { generateReceipt } = useReceiptGeneration();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [pendingTransferInfo, setPendingTransferInfo] = useState<PendingTransferInfo | null>(null);
+  const [showTransferConfirmation, setShowTransferConfirmation] = useState(false);
+  const [showBiometricConfirmation, setShowBiometricConfirmation] = useState(false);
 
-  const [amount, setAmount] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [country, setCountry] = useState(profile?.country || "Cameroun");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [data, setData] = useState<FormData>({
+    recipient: {
+      fullName: "",
+      phone: "",
+      country: "",
+    },
+    transfer: {
+      amount: 0,
+      currency: "XAF",
+    },
+  });
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAmount(e.target.value);
+  function updateFields(fields: Partial<FormData>) {
+    setData(prev => ({ ...prev, ...fields }));
+  }
+
+  function back() {
+    setCurrentStep(i => (i <= 0 ? i : i - 1));
+  }
+
+  function next() {
+    setCurrentStep(i => (i >= FORM_STEPS.length - 1 ? i : i + 1));
+  }
+
+  const resetForm = () => {
+    setData({
+      recipient: { fullName: "", phone: "", country: "" },
+      transfer: { amount: 0, currency: "XAF" },
+    });
+    setCurrentStep(0);
+    setPendingTransferInfo(null);
+    setShowTransferConfirmation(false);
   };
 
-  const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPhoneNumber(e.target.value);
-  };
-
-  const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setCountry(e.target.value);
-  };
-
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (currentStep < FORM_STEPS.length - 1) {
+      return next();
+    }
+    
+    setShowTransferConfirmation(true);
+  };
 
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+  const handleConfirmedTransfer = async () => {
+    if (!user || !profile) {
       toast({
-        title: "Montant invalide",
-        description: "Veuillez entrer un montant valide",
+        title: "Erreur",
+        description: "Utilisateur non connecté",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Vérifier la limite mensuelle avant de procéder
+    const canTransfer = await transactionLimitService.canProcessTransfer(
+      user.id,
+      data.transfer.amount
+    );
+
+    if (!canTransfer) {
+      const remainingLimit = await transactionLimitService.getRemainingLimit(user.id);
+      toast({
+        title: "Limite mensuelle dépassée",
+        description: `Limite restante: ${remainingLimit.toLocaleString('fr-FR')} FCFA`,
         variant: "destructive",
       });
       return;
     }
 
-    if (!phoneNumber || phoneNumber.length < 6) {
-      toast({
-        title: "Numéro de téléphone invalide",
-        description: "Veuillez entrer un numéro de téléphone valide",
-        variant: "destructive",
-      });
-      return;
-    }
+    setShowTransferConfirmation(false);
+    setShowBiometricConfirmation(true);
+  };
 
-    setIsProcessing(true);
+  const processFinalTransfer = async () => {
+    if (!user || !profile) return;
+
+    setIsLoading(true);
+    setShowBiometricConfirmation(false);
 
     try {
-      if (!user?.id) throw new Error("Utilisateur non authentifié");
-
-      const transferAmount = Number(amount);
-
-      // Calculate fees
-      const { fee, agentCommission, moneyFlowCommission } = calculateFee(
-        transferAmount,
-        profile?.country || "Cameroun",
-        country,
-        profile?.role as 'user' | 'agent' | 'admin' | 'sub_admin'
+      const senderCountry = profile.country || "Cameroun";
+      const { fee } = calculateFee(
+        data.transfer.amount,
+        senderCountry,
+        data.recipient.country,
+        userRole || 'user'
       );
 
-      // Start transaction
-      const { data, error } = await supabase.rpc("transfer_funds", {
+      const { data: result, error } = await supabase.rpc('process_money_transfer', {
         sender_id: user.id,
-        recipient_phone: phoneNumber,
-        amount: transferAmount,
-        transfer_fee: fee,
-        sender_country: profile?.country,
-        recipient_country: country,
-        agent_commission: agentCommission,
-        money_flow_commission: moneyFlowCommission,
+        recipient_identifier: data.recipient.phone,
+        transfer_amount: data.transfer.amount,
+        transfer_fees: fee
       });
 
-      if (error) {
-        console.error("Erreur lors du transfert:", error);
-        toast({
-          title: "Erreur de transfert",
-          description:
-            error.message || "Une erreur est survenue lors du transfert.",
-          variant: "destructive",
+      if (error) throw error;
+
+      const { data: pendingTransfer, error: pendingError } = await supabase
+        .from('pending_transfers')
+        .select('claim_code, recipient_phone')
+        .eq('id', result)
+        .single();
+
+      if (!pendingError && pendingTransfer) {
+        setPendingTransferInfo({
+          recipientPhone: pendingTransfer.recipient_phone,
+          claimCode: pendingTransfer.claim_code
         });
-        return;
+        
+        toast({
+          title: "Transfert en attente",
+          description: "Le destinataire recevra un code pour réclamer l'argent",
+        });
+        
+        await generateReceipt(result, 'transfer');
+      } else {
+        toast({
+          title: "Transfert réussi",
+          description: `${data.transfer.amount.toLocaleString('fr-FR')} FCFA envoyé à ${data.recipient.fullName}`,
+        });
+        
+        await generateReceipt(result, 'transfer');
+        resetForm();
+      }
+
+    } catch (error: any) {
+      console.error('Erreur complète:', error);
+      
+      let errorMessage = "Une erreur est survenue lors du transfert";
+      
+      if (error.message?.includes('Insufficient funds')) {
+        errorMessage = "Solde insuffisant pour effectuer ce transfert";
+      } else if (error.message?.includes('User not found')) {
+        errorMessage = "Utilisateur non trouvé";
+      } else if (error.details) {
+        errorMessage = `Erreur: ${error.details}`;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
 
       toast({
-        title: "Transfert réussi!",
-        description: `Transfert de ${amount} XAF vers ${phoneNumber} effectué avec succès.`,
+        title: "Erreur de transfert",
+        description: errorMessage,
+        variant: "destructive"
       });
-
-      // Reset form
-      setAmount("");
-      setPhoneNumber("");
-      navigate("/transactions");
-    } catch (err: any) {
-      console.error("Erreur inattendue lors du transfert:", err);
-      toast({
-        title: "Erreur inattendue",
-        description: err.message || "Une erreur est survenue.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
     }
-  }, [amount, phoneNumber, country, user?.id, profile, toast, navigate]);
+
+    setIsLoading(false);
+  };
 
   return {
-    amount,
-    phoneNumber,
-    country,
-    isProcessing,
-    handleAmountChange,
-    handlePhoneNumberChange,
-    handleCountryChange,
+    currentStep,
+    data,
+    isLoading,
+    pendingTransferInfo,
+    showTransferConfirmation,
+    showBiometricConfirmation,
+    updateFields,
+    back,
     handleSubmit,
+    handleConfirmedTransfer,
+    processFinalTransfer,
+    resetForm,
+    setShowTransferConfirmation,
+    setShowBiometricConfirmation
   };
-};
+}

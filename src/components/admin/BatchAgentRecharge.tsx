@@ -1,227 +1,348 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, DollarSign, Zap } from "lucide-react";
-import { formatCurrency } from "@/lib/utils/currency";
+import { useQuery } from "@tanstack/react-query";
+import { Users, CreditCard, AlertCircle, CheckCircle, Loader } from "lucide-react";
+import { formatCurrency } from "@/integrations/supabase/client";
 
-interface AgentData {
+interface Agent {
   id: string;
   full_name: string;
   phone: string;
-  email: string;
   balance: number;
   country: string;
 }
 
-export const BatchAgentRecharge = () => {
-  const { user } = useAuth();
+const BatchAgentRecharge = () => {
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
-  const [agentList, setAgentList] = useState<AgentData[]>([]);
-  const [agentIds, setAgentIds] = useState<string[]>([]);
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-  const [selectAll, setSelectAll] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRecharging, setIsRecharging] = useState(false);
+  const { data: agents, isLoading } = useQuery({
+    queryKey: ['agents-for-batch-recharge'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, balance, country')
+        .eq('role', 'agent')
+        .order('full_name');
 
-  useEffect(() => {
-    const fetchAgents = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, email, balance, country')
-          .eq('role', 'agent');
+      if (error) throw error;
+      return data as Agent[];
+    },
+  });
 
-        if (error) {
-          console.error("Erreur lors de la récupération des agents:", error);
-          toast({
-            title: "Erreur",
-            description: "Impossible de récupérer la liste des agents",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        setAgentList(data as AgentData[]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAgents();
-  }, [toast]);
-
-  const handleAgentSelection = (agentId: string) => {
-    setAgentIds((prev) => {
-      if (prev.includes(agentId)) {
-        return prev.filter((id) => id !== agentId);
-      } else {
-        return [...prev, agentId];
-      }
-    });
+  const handleAgentToggle = (agentId: string) => {
+    setSelectedAgents(prev => 
+      prev.includes(agentId) 
+        ? prev.filter(id => id !== agentId)
+        : [...prev, agentId]
+    );
   };
 
   const handleSelectAll = () => {
-    setSelectAll(!selectAll);
-    if (!selectAll) {
-      setAgentIds(agentList.map((agent) => agent.id));
+    if (selectedAgents.length === agents?.length) {
+      setSelectedAgents([]);
     } else {
-      setAgentIds([]);
+      setSelectedAgents(agents?.map(agent => agent.id) || []);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (agentIds.length === 0) {
+  const handleBatchRecharge = async () => {
+    if (!amount || selectedAgents.length === 0) {
       toast({
-        title: "Sélection requise",
-        description: "Veuillez sélectionner au moins un agent",
+        title: "Données manquantes",
+        description: "Veuillez sélectionner des agents et saisir un montant",
         variant: "destructive"
       });
       return;
     }
 
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+    const rechargeAmount = Number(amount);
+    if (rechargeAmount <= 0) {
       toast({
         title: "Montant invalide",
-        description: "Veuillez entrer un montant valide",
+        description: "Le montant doit être supérieur à 0",
         variant: "destructive"
       });
       return;
     }
 
-    setIsRecharging(true);
+    setIsProcessing(true);
 
     try {
-      const rechargeAmount = Number(amount);
+      let successCount = 0;
+      let failCount = 0;
+      const results = [];
+      const successfulAgents: string[] = [];
 
-      // Recharge chaque agent sélectionné
-      for (const agentId of agentIds) {
-        const { error } = await supabase.rpc('increment_balance', {
-          user_id: agentId,
-          amount: rechargeAmount
+      // Processus de recharge des agents
+      for (const agentId of selectedAgents) {
+        try {
+          const { error } = await supabase.rpc('secure_increment_balance', {
+            target_user_id: agentId,
+            amount: rechargeAmount,
+            operation_type: 'batch_agent_recharge'
+          });
+
+          if (error) throw error;
+          successCount++;
+          successfulAgents.push(agentId);
+          results.push({ agentId, success: true });
+        } catch (error) {
+          console.error(`Erreur pour l'agent ${agentId}:`, error);
+          failCount++;
+          results.push({ agentId, success: false, error: error.message });
+        }
+      }
+
+      // Log de l'opération batch
+      await supabase
+        .from('audit_logs')
+        .insert({
+          action: 'batch_agent_recharge',
+          table_name: 'profiles',
+          old_values: { selected_agents: selectedAgents.length },
+          new_values: { 
+            amount: rechargeAmount, 
+            success_count: successCount,
+            fail_count: failCount,
+            reason: reason || 'Recharge groupée',
+            results 
+          }
         });
 
-        if (error) {
-          console.error(`Erreur lors du rechargement de l'agent ${agentId}:`, error);
-          toast({
-            title: "Erreur de rechargement",
-            description: `Impossible de recharger le compte de l'agent.`,
-            variant: "destructive"
-          });
-          continue; // Passer à l'agent suivant en cas d'erreur
+      // Génération automatique de notifications si des recharges ont réussi
+      if (successCount > 0) {
+        try {
+          const currentUser = await supabase.auth.getUser();
+          const adminId = currentUser.data.user?.id;
+
+          // Créer la notification principale
+          const { data: notification, error: notificationError } = await supabase
+            .from('notifications')
+            .insert({
+              title: 'Recharge de compte effectuée',
+              message: `Votre compte a été rechargé de ${rechargeAmount.toLocaleString()} FCFA par l'administrateur. ${reason ? `Motif: ${reason}` : ''}`,
+              priority: 'normal',
+              notification_type: 'individual',
+              target_users: successfulAgents,
+              sent_by: adminId,
+              total_recipients: successCount
+            })
+            .select()
+            .single();
+
+          if (notificationError) {
+            console.error('Erreur lors de la création de la notification:', notificationError);
+          } else {
+            // Créer les enregistrements pour les destinataires
+            const individualNotifications = successfulAgents.map(agentId => ({
+              notification_id: notification.id,
+              user_id: agentId,
+              status: 'sent'
+            }));
+
+            const { error: recipientError } = await supabase
+              .from('notification_recipients')
+              .insert(individualNotifications);
+
+            if (recipientError) {
+              console.error('Erreur lors de l\'envoi des notifications aux agents:', recipientError);
+            }
+          }
+        } catch (notificationError) {
+          console.error('Erreur lors du processus de notification:', notificationError);
         }
       }
 
       toast({
-        title: "Rechargement réussi",
-        description: `Les comptes des agents sélectionnés ont été rechargés avec succès.`,
+        title: "Recharge groupée terminée",
+        description: `${successCount} agents rechargés avec succès${successCount > 0 ? ' et notifiés' : ''}, ${failCount} échecs`,
+        variant: successCount > 0 ? "default" : "destructive"
       });
 
-      // Réinitialiser la sélection et les champs
-      setAgentIds([]);
+      // Reset form
+      setSelectedAgents([]);
       setAmount("");
-      setDescription("");
-      setSelectAll(false);
+      setReason("");
+
     } catch (error) {
-      console.error("Erreur lors du rechargement des agents:", error);
+      console.error('Erreur lors de la recharge groupée:', error);
       toast({
         title: "Erreur",
-        description: "Une erreur est survenue lors du rechargement des agents.",
+        description: "Erreur lors de la recharge groupée",
         variant: "destructive"
       });
     } finally {
-      setIsRecharging(false);
+      setIsProcessing(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <Card className="backdrop-blur-xl bg-white/90 shadow-2xl border border-white/50 rounded-2xl">
+        <CardContent className="p-8 text-center">
+          <Loader className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">Chargement des agents...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Zap className="w-5 h-5" />
-          Recharge en lot des agents
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Liste des agents avec checkboxes */}
-          <div>
-            <Label className="flex items-center space-x-2">
-              <Checkbox
-                checked={selectAll}
-                onCheckedChange={handleSelectAll}
-                disabled={isLoading}
+    <div className="space-y-6">
+      <Card className="backdrop-blur-xl bg-white/90 shadow-2xl border border-white/50 rounded-2xl">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-2xl">
+          <CardTitle className="flex items-center gap-3 text-blue-700">
+            <CreditCard className="w-6 h-6" />
+            Recharge Groupée des Agents
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 space-y-6">
+          {/* Configuration de la recharge */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="amount" className="text-gray-700 font-medium">
+                Montant à recharger (FCFA)
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="Montant en FCFA"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="h-12 bg-gray-50 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
               />
-              <span>Sélectionner tout</span>
-            </Label>
-            {isLoading ? (
-              <p>Chargement des agents...</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-                {agentList.map((agent) => (
-                  <Label
-                    key={agent.id}
-                    className="flex items-center space-x-2"
-                  >
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="reason" className="text-gray-700 font-medium">
+                Raison (optionnel)
+              </Label>
+              <Input
+                id="reason"
+                placeholder="Raison de la recharge"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="h-12 bg-gray-50 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Sélection des agents */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-gray-700 font-medium text-lg">
+                Sélectionner les agents ({selectedAgents.length} sélectionnés)
+              </Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                className="rounded-full"
+              >
+                {selectedAgents.length === agents?.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+              </Button>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto space-y-3 bg-gray-50 rounded-xl p-4">
+              {agents?.map((agent) => (
+                <div
+                  key={agent.id}
+                  className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center gap-3">
                     <Checkbox
-                      checked={agentIds.includes(agent.id)}
-                      onCheckedChange={() => handleAgentSelection(agent.id)}
-                      disabled={isLoading}
+                      checked={selectedAgents.includes(agent.id)}
+                      onCheckedChange={() => handleAgentToggle(agent.id)}
+                      className="w-5 h-5"
                     />
-                    <span>{agent.full_name}</span>
-                    <Badge variant="secondary">{formatCurrency(agent.balance, 'XAF')}</Badge>
-                  </Label>
-                ))}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <Users className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{agent.full_name}</p>
+                        <p className="text-sm text-gray-600">{agent.phone}</p>
+                        <p className="text-xs text-gray-500">{agent.country}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-blue-600">
+                      {formatCurrency(agent.balance, 'XAF')}
+                    </p>
+                    <p className="text-xs text-gray-500">Solde actuel</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Résumé et confirmation */}
+          {selectedAgents.length > 0 && amount && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-blue-900 mb-2">Résumé de l'opération</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• {selectedAgents.length} agents sélectionnés</li>
+                    <li>• Montant par agent: {formatCurrency(Number(amount), 'XAF')}</li>
+                    <li>• Montant total: {formatCurrency(Number(amount) * selectedAgents.length, 'XAF')}</li>
+                    {reason && <li>• Raison: {reason}</li>}
+                  </ul>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Montant à recharger */}
-          <div>
-            <Label htmlFor="amount">Montant à recharger (XAF)</Label>
-            <Input
-              id="amount"
-              type="number"
-              placeholder="Entrez le montant"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
+          {/* Actions */}
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedAgents([]);
+                setAmount("");
+                setReason("");
+              }}
+              disabled={isProcessing}
+              className="rounded-full px-6"
+            >
+              Réinitialiser
+            </Button>
+            <Button
+              onClick={handleBatchRecharge}
+              disabled={isProcessing || selectedAgents.length === 0 || !amount}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-full px-8"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader className="w-4 h-4 mr-2 animate-spin" />
+                  Traitement...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Recharger les agents
+                </>
+              )}
+            </Button>
           </div>
-
-          {/* Description (optionnel) */}
-          <div>
-            <Label htmlFor="description">Description (optionnel)</Label>
-            <Textarea
-              id="description"
-              placeholder="Ajouter une description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
-          {/* Bouton de soumission */}
-          <Button
-            type="submit"
-            disabled={isRecharging || isLoading}
-            className="w-full"
-          >
-            {isRecharging ? "Rechargement en cours..." : "Recharger les agents"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
+
+export default BatchAgentRecharge;

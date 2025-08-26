@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +14,7 @@ import {
   EyeOff
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/lib/utils/currency";
+import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
 import EnhancedTransactionsCard from "@/components/dashboard/EnhancedTransactionsCard";
 import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
 import { UserSettingsModal } from "@/components/settings/UserSettingsModal";
