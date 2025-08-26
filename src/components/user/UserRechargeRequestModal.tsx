@@ -17,7 +17,7 @@ type StepType = 'operation' | 'details' | 'confirmation';
 // Configuration des numéros de paiement par pays
 const PAYMENT_CONFIG = {
   'Congo Brazzaville': {
-    'Mobile Money': '066164686',
+    'Mobile Money': '+242066164686',
     'Airtel Money': '+242055524407'
   },
   'Sénégal': {
