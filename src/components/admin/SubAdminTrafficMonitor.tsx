@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,13 +22,16 @@ import {
   Eye,
   Filter,
   CreditCard,
-  Wallet
+  Wallet,
+  Download,
+  DollarSign
 } from 'lucide-react';
 import { formatCurrency } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMainAdmin } from '@/hooks/useMainAdmin';
+import jsPDF from 'jspdf';
 
 type SubAdminRequest = {
   id: string;
@@ -78,6 +80,10 @@ const SubAdminTrafficMonitor = () => {
   const [selectedRequest, setSelectedRequest] = useState<SubAdminRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  // Nouveaux états pour les totaux
+  const [totalApprovedRecharges, setTotalApprovedRecharges] = useState(0);
+  const [totalApprovedWithdrawals, setTotalApprovedWithdrawals] = useState(0);
 
   // Fonction pour charger les sous-administrateurs
   const fetchSubAdmins = async () => {
@@ -121,6 +127,102 @@ const SubAdminTrafficMonitor = () => {
     }
   };
 
+  // Fonction pour calculer les totaux des opérations approuvées
+  const calculateApprovedTotals = (requests: SubAdminRequest[]) => {
+    const approvedRequests = requests.filter(req => req.status === 'approved');
+    
+    const rechargesTotal = approvedRequests
+      .filter(req => req.operation_type === 'recharge')
+      .reduce((sum, req) => sum + req.amount, 0);
+    
+    const withdrawalsTotal = approvedRequests
+      .filter(req => req.operation_type === 'withdrawal')
+      .reduce((sum, req) => sum + req.amount, 0);
+    
+    setTotalApprovedRecharges(rechargesTotal);
+    setTotalApprovedWithdrawals(withdrawalsTotal);
+  };
+
+  // Fonction pour télécharger le rapport en PDF
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    const currentDate = new Date().toLocaleDateString('fr-FR');
+    
+    // Titre du document
+    doc.setFontSize(20);
+    doc.text('Rapport Trafic Sous-Administrateurs', 20, 20);
+    
+    doc.setFontSize(12);
+    doc.text(`Date de génération: ${currentDate}`, 20, 30);
+    
+    // Totaux
+    doc.setFontSize(16);
+    doc.text('Résumé des montants approuvés:', 20, 50);
+    
+    doc.setFontSize(12);
+    doc.text(`Total Recharges Approuvées: ${formatCurrency(totalApprovedRecharges, 'XAF')}`, 20, 60);
+    doc.text(`Total Retraits Approuvés: ${formatCurrency(totalApprovedWithdrawals, 'XAF')}`, 20, 70);
+    doc.text(`Total Général: ${formatCurrency(totalApprovedRecharges + totalApprovedWithdrawals, 'XAF')}`, 20, 80);
+    
+    // Statistiques par sous-admin
+    doc.setFontSize(16);
+    doc.text('Statistiques par Sous-Admin:', 20, 100);
+    
+    let yPos = 110;
+    subAdmins.forEach((subAdmin, index) => {
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.setFontSize(12);
+      doc.text(`${subAdmin.full_name} (${subAdmin.country})`, 20, yPos);
+      doc.text(`  - Total traité: ${subAdmin.total_processed}`, 20, yPos + 10);
+      doc.text(`  - Approuvées: ${subAdmin.approved_requests}`, 20, yPos + 20);
+      doc.text(`  - Rejetées: ${subAdmin.rejected_requests}`, 20, yPos + 30);
+      
+      yPos += 45;
+    });
+    
+    // Liste des demandes filtrées
+    const filteredRequests = statusFilter === 'all' 
+      ? subAdminRequests 
+      : subAdminRequests.filter(req => req.status === statusFilter);
+    
+    if (filteredRequests.length > 0) {
+      doc.addPage();
+      doc.setFontSize(16);
+      doc.text('Historique des Demandes:', 20, 20);
+      
+      yPos = 30;
+      filteredRequests.forEach((request, index) => {
+        if (yPos > 250) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        const operationType = request.operation_type === 'recharge' ? 'Recharge' : 'Retrait';
+        const status = request.status === 'approved' ? 'Approuvée' : 
+                      request.status === 'rejected' ? 'Rejetée' : 'En attente';
+        
+        doc.setFontSize(10);
+        doc.text(`${operationType} - ${formatCurrency(request.amount, 'XAF')} - ${status}`, 20, yPos);
+        doc.text(`Utilisateur: ${request.profiles?.full_name || 'Inconnu'}`, 20, yPos + 10);
+        doc.text(`Traité par: ${request.processor_profile?.full_name || 'Non traité'}`, 20, yPos + 20);
+        
+        yPos += 30;
+      });
+    }
+    
+    // Sauvegarde
+    doc.save(`rapport-sous-admins-${currentDate.replace(/\//g, '-')}.pdf`);
+    
+    toast({
+      title: "PDF généré",
+      description: "Le rapport a été téléchargé avec succès",
+    });
+  };
+
   // Fonction pour charger toutes les demandes traitées par les sous-admins
   const fetchSubAdminRequests = async () => {
     try {
@@ -138,6 +240,7 @@ const SubAdminTrafficMonitor = () => {
 
       if (subAdminIds.length === 0) {
         setSubAdminRequests([]);
+        calculateApprovedTotals([]);
         return;
       }
 
@@ -193,6 +296,7 @@ const SubAdminTrafficMonitor = () => {
 
       console.log('✅ Demandes des sous-admins chargées:', requestsWithProfiles);
       setSubAdminRequests(requestsWithProfiles);
+      calculateApprovedTotals(requestsWithProfiles);
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
@@ -451,9 +555,57 @@ const SubAdminTrafficMonitor = () => {
         {/* Onglet Historique des demandes */}
         <TabsContent value="requests">
           <div className="space-y-4">
+            {/* Cartes de résumé des totaux */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Recharges Approuvées</CardTitle>
+                  <Wallet className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {formatCurrency(totalApprovedRecharges, 'XAF')}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Retraits Approuvés</CardTitle>
+                  <CreditCard className="h-4 w-4 text-red-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-600">
+                    {formatCurrency(totalApprovedWithdrawals, 'XAF')}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Général</CardTitle>
+                  <DollarSign className="h-4 w-4 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {formatCurrency(totalApprovedRecharges + totalApprovedWithdrawals, 'XAF')}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Historique des demandes traitées par les sous-admins</h3>
               <div className="flex gap-2">
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadPDF}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Télécharger PDF
+                </Button>
                 <Button 
                   variant={statusFilter === 'all' ? 'default' : 'outline'}
                   size="sm"
