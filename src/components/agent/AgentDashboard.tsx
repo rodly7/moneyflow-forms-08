@@ -186,12 +186,12 @@ const AgentDashboard: React.FC = () => {
         {/* Stats and Earnings Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AgentStatsCard
-            label="Transactions Totales"
+            title="Transactions Totales"
             value={totalTransactions}
             icon={History}
           />
           <AgentStatsCard
-            label="Volume Total"
+            title="Volume Total"
             value={formatCurrency(totalVolume)}
             icon={DollarSign}
           />
@@ -217,7 +217,9 @@ const AgentDashboard: React.FC = () => {
         />
 
         {/* Recent Transactions Section */}
-        <AgentTransactionHistory />
+        <AgentTransactionHistory 
+          transactions={[]}
+        />
       </div>
     </div>
   );

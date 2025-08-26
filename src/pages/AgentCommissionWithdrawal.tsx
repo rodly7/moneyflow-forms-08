@@ -1,5 +1,6 @@
+
 import React, { useEffect } from "react";
-import { AgentCommissionWithdrawal } from "@/components/agent/AgentCommissionWithdrawal";
+import AgentCommissionWithdrawal from "@/components/agent/AgentCommissionWithdrawal";
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
 
 const AgentCommissionWithdrawalPage = () => {

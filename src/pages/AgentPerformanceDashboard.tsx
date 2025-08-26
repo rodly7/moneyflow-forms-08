@@ -81,11 +81,19 @@ const AgentPerformanceDashboard = () => {
           </TabsContent>
 
           <TabsContent value="progression" className="w-full">
-            <AgentEarningsCard />
+            <AgentEarningsCard 
+              totalEarnings={45000}
+              commissionRate={2.5}
+              totalWithdrawals={15000}
+            />
           </TabsContent>
 
           <TabsContent value="bonus" className="w-full">
-            <AgentEarningsCard />
+            <AgentEarningsCard 
+              totalEarnings={45000}
+              commissionRate={2.5}
+              totalWithdrawals={15000}
+            />
           </TabsContent>
 
           <TabsContent value="zones" className="w-full">

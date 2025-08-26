@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,10 +43,20 @@ export const useDepositOperations = () => {
         moneyFlowCommission: moneyFlowCommission
       };
 
+      // Use recharges table instead of non-existent deposits table
       const { data, error } = await supabase
-        .from('deposits')
-        .insert([depositWithFee])
-        .select()
+        .from('recharges')
+        .insert([{
+          user_id: user.id,
+          amount: depositWithFee.amount,
+          payment_method: 'mobile_money',
+          payment_phone: depositWithFee.phone_number,
+          payment_provider: depositWithFee.provider,
+          country: depositWithFee.country,
+          transaction_reference: `DEP_${Date.now()}`,
+          status: 'pending'
+        }])
+        .select();
 
       if (error) {
         console.error("Error creating deposit:", error);

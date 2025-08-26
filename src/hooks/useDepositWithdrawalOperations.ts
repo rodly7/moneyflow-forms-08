@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,35 +43,57 @@ const useDepositWithdrawalOperations = () => {
 
       const { fee } = calculateFee(amount, profile.country, country);
 
-      const operationData = {
-        user_id: user.id,
-        amount,
-        type,
-        status: 'pending',
-        payment_method,
-        phone_number,
-        fee,
-        country,
-        provider,
-        reason
-      };
+      if (type === 'withdrawal') {
+        // Use withdrawals table
+        const { data, error } = await supabase
+          .from('withdrawals')
+          .insert([{
+            user_id: user.id,
+            amount,
+            status: 'pending',
+            withdrawal_phone: phone_number,
+          }])
+          .select();
 
-      const { data, error } = await supabase
-        .from('operations')
-        .insert([operationData])
-        .select()
+        if (error) {
+          console.error("Error creating withdrawal:", error);
+          throw error;
+        }
 
-      if (error) {
-        console.error("Error creating operation:", error);
-        throw error;
+        toast({
+          title: "Retrait créé",
+          description: `Votre demande de retrait de ${formatCurrency(amount, 'XAF')} est en cours de traitement.`,
+        });
+
+        return data?.[0] as Operation;
+      } else {
+        // Use recharges table for deposits
+        const { data, error } = await supabase
+          .from('recharges')
+          .insert([{
+            user_id: user.id,
+            amount,
+            payment_method: 'mobile_money',
+            payment_phone: phone_number,
+            payment_provider: provider,
+            country: country,
+            transaction_reference: `DEP_${Date.now()}`,
+            status: 'pending'
+          }])
+          .select();
+
+        if (error) {
+          console.error("Error creating deposit:", error);
+          throw error;
+        }
+
+        toast({
+          title: "Dépôt créé",
+          description: `Votre demande de dépôt de ${formatCurrency(amount, 'XAF')} est en cours de traitement.`,
+        });
+
+        return data?.[0] as Operation;
       }
-
-      toast({
-        title: "Opération créée",
-        description: `Votre demande de ${type} de ${formatCurrency(amount, 'XAF')} est en cours de traitement.`,
-      });
-
-      return data ? data[0] as Operation : null;
 
     } catch (error: any) {
       console.error("Failed to create operation:", error);

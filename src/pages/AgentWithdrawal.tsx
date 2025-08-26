@@ -2,7 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { MobileAgentWithdrawalForm } from "@/components/agent/MobileAgentWithdrawalForm";
+import MobileAgentWithdrawalForm from "@/components/agent/MobileAgentWithdrawalForm";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 
 const AgentWithdrawal = () => {
