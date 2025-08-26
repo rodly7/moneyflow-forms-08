@@ -87,6 +87,7 @@ export const useUnifiedNotifications = () => {
 
     try {
       const readIds = getReadNotificationIds();
+      const allNotifications: UnifiedNotification[] = [];
 
       // Charger les notifications administratives récentes
       const { data: adminNotifications, error: adminError } = await supabase
@@ -116,6 +117,7 @@ export const useUnifiedNotifications = () => {
         .from('transfers')
         .select('*')
         .eq('recipient_phone', user.phone)
+        .eq('status', 'completed')
         .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false });
 
@@ -147,9 +149,6 @@ export const useUnifiedNotifications = () => {
         console.error('Erreur chargement retraits:', withdrawalError);
       }
 
-      // Combiner toutes les notifications
-      const allNotifications: UnifiedNotification[] = [];
-
       // Ajouter les notifications admin
       adminNotifications?.forEach(item => {
         if (item.notifications && !Array.isArray(item.notifications)) {
@@ -164,7 +163,7 @@ export const useUnifiedNotifications = () => {
               type: 'admin_message',
               priority: notification.priority as any,
               created_at: notification.created_at,
-              read: !!item.read_at || readIds.has(notificationId)
+              read: false
             });
           }
         }
@@ -172,21 +171,19 @@ export const useUnifiedNotifications = () => {
 
       // Ajouter les notifications de transferts reçus
       transfers?.forEach(transfer => {
-        if (transfer.status === 'completed') {
-          const notificationId = `transfer_${transfer.id}`;
-          
-          if (!readIds.has(notificationId)) {
-            allNotifications.push({
-              id: notificationId,
-              title: '💰 Argent reçu',
-              message: `Vous avez reçu ${transfer.amount?.toLocaleString('fr-FR') || 0} FCFA`,
-              type: 'transfer_received',
-              priority: 'high',
-              amount: transfer.amount,
-              created_at: transfer.created_at,
-              read: readIds.has(notificationId)
-            });
-          }
+        const notificationId = `transfer_${transfer.id}`;
+        
+        if (!readIds.has(notificationId)) {
+          allNotifications.push({
+            id: notificationId,
+            title: '💰 Argent reçu',
+            message: `Vous avez reçu ${transfer.amount?.toLocaleString('fr-FR') || 0} FCFA`,
+            type: 'transfer_received',
+            priority: 'high',
+            amount: transfer.amount,
+            created_at: transfer.created_at,
+            read: false
+          });
         }
       });
 
@@ -204,7 +201,7 @@ export const useUnifiedNotifications = () => {
               priority: 'high',
               amount: recharge.amount,
               created_at: recharge.created_at,
-              read: readIds.has(notificationId)
+              read: false
             });
           } else if (recharge.status === 'pending') {
             allNotifications.push({
@@ -215,7 +212,7 @@ export const useUnifiedNotifications = () => {
               priority: 'normal',
               amount: recharge.amount,
               created_at: recharge.created_at,
-              read: readIds.has(notificationId)
+              read: false
             });
           }
         }
@@ -235,9 +232,9 @@ export const useUnifiedNotifications = () => {
               priority: 'high',
               amount: withdrawal.amount,
               created_at: withdrawal.created_at,
-              read: readIds.has(notificationId)
+              read: false
             });
-          } else {
+          } else if (withdrawal.status === 'pending') {
             allNotifications.push({
               id: notificationId,
               title: '💸 Retrait initié',
@@ -246,16 +243,16 @@ export const useUnifiedNotifications = () => {
               priority: 'normal',
               amount: withdrawal.amount,
               created_at: withdrawal.created_at,
-              read: readIds.has(notificationId)
+              read: false
             });
           }
         }
       });
 
-      // Trier par date décroissante et filtrer les lues
+      // Trier par date décroissante et ne garder que les non lues
       const unreadNotifications = allNotifications
-        .filter(n => !n.read)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 10);
 
       setNotifications(unreadNotifications);
       console.log(`✅ ${unreadNotifications.length} notifications non lues chargées`);
@@ -294,8 +291,14 @@ export const useUnifiedNotifications = () => {
         if (transfer.recipient_phone === user.phone && transfer.status === 'completed') {
           console.log('✅ Transfert confirmé pour utilisateur actuel');
           
+          const readIds = getReadNotificationIds();
+          const notificationId = `transfer_${transfer.id}`;
+          
+          // Ne pas afficher si déjà lu
+          if (readIds.has(notificationId)) return;
+          
           const notification: UnifiedNotification = {
-            id: `transfer_${transfer.id}`,
+            id: notificationId,
             title: '💰 Argent reçu !',
             message: `Vous avez reçu ${transfer.amount?.toLocaleString('fr-FR') || 0} FCFA`,
             type: 'transfer_received',
@@ -326,9 +329,15 @@ export const useUnifiedNotifications = () => {
         const recharge = payload.new || payload.old;
         if (!recharge) return;
 
+        const readIds = getReadNotificationIds();
+
         if (payload.eventType === 'INSERT') {
+          const notificationId = `recharge_${recharge.id}`;
+          
+          if (readIds.has(notificationId)) return;
+          
           const notification: UnifiedNotification = {
-            id: `recharge_${recharge.id}`,
+            id: notificationId,
             title: '💳 Recharge initiée',
             message: `Recharge de ${recharge.amount?.toLocaleString('fr-FR') || 0} FCFA en cours de traitement`,
             type: 'recharge_completed',
@@ -341,8 +350,12 @@ export const useUnifiedNotifications = () => {
           setNotifications(prev => [notification, ...prev.slice(0, 9)]);
           showNotificationToast(notification);
         } else if (payload.eventType === 'UPDATE' && recharge.status === 'completed') {
+          const notificationId = `recharge_${recharge.id}_completed`;
+          
+          if (readIds.has(notificationId)) return;
+          
           const notification: UnifiedNotification = {
-            id: `recharge_${recharge.id}_completed`,
+            id: notificationId,
             title: '✅ Recharge confirmée !',
             message: `Votre recharge de ${recharge.amount?.toLocaleString('fr-FR') || 0} FCFA a été confirmée`,
             type: 'recharge_completed',
@@ -372,8 +385,13 @@ export const useUnifiedNotifications = () => {
         
         const withdrawal = payload.new;
         
+        const readIds = getReadNotificationIds();
+        const notificationId = `withdrawal_${withdrawal.id}`;
+        
+        if (readIds.has(notificationId)) return;
+        
         const notification: UnifiedNotification = {
-          id: `withdrawal_${withdrawal.id}`,
+          id: notificationId,
           title: '💸 Retrait initié',
           message: `Demande de retrait de ${withdrawal.amount?.toLocaleString('fr-FR') || 0} FCFA créée`,
           type: 'withdrawal_completed',
@@ -403,8 +421,13 @@ export const useUnifiedNotifications = () => {
         const withdrawal = payload.new;
         
         if (withdrawal.status === 'completed') {
+          const readIds = getReadNotificationIds();
+          const notificationId = `withdrawal_update_${withdrawal.id}`;
+          
+          if (readIds.has(notificationId)) return;
+          
           const notification: UnifiedNotification = {
-            id: `withdrawal_update_${withdrawal.id}`,
+            id: notificationId,
             title: '✅ Retrait confirmé',
             message: `Votre retrait de ${withdrawal.amount?.toLocaleString('fr-FR') || 0} FCFA a été traité avec succès`,
             type: 'withdrawal_completed',
@@ -444,8 +467,13 @@ export const useUnifiedNotifications = () => {
             return;
           }
 
+          const readIds = getReadNotificationIds();
+          const notificationId = `admin_${notification.id}`;
+          
+          if (readIds.has(notificationId)) return;
+
           const unifiedNotification: UnifiedNotification = {
-            id: `admin_${notification.id}`,
+            id: notificationId,
             title: notification.title,
             message: notification.message,
             type: 'admin_message',
