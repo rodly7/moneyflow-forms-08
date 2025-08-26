@@ -2,7 +2,6 @@
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import Layout from "@/components/Layout";
 import KYCCompletionModal from "@/components/kyc/KYCCompletionModal";
 
 const Dashboard = () => {
@@ -20,18 +19,20 @@ const Dashboard = () => {
   }
 
   return (
-    <Layout>
-      <h1>Tableau de bord</h1>
-      {profile && (
-        <div>
-          <p>Bienvenue, {profile.full_name} !</p>
-          <p>Votre rôle: {profile.role}</p>
-        </div>
-      )}
-      
-      {/* Modal KYC pour les utilisateurs existants */}
-      <KYCCompletionModal />
-    </Layout>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6">Tableau de bord</h1>
+        {profile && (
+          <div className="mb-6">
+            <p className="text-lg">Bienvenue, {profile.full_name} !</p>
+            <p className="text-muted-foreground">Votre rôle: {profile.role}</p>
+          </div>
+        )}
+        
+        {/* Modal KYC pour les utilisateurs existants */}
+        <KYCCompletionModal />
+      </div>
+    </div>
   );
 };
 
