@@ -40,9 +40,20 @@ export const UnifiedNotificationBell = () => {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'transfer_received': return '💰';
-      case 'withdrawal_completed': return '💳';
+      case 'recharge_completed': return '💳';
+      case 'withdrawal_completed': return '💸';
       case 'admin_message': return '📢';
       default: return '📩';
+    }
+  };
+
+  const getNotificationBgColor = (type: string) => {
+    switch (type) {
+      case 'transfer_received': return 'hover:bg-green-50';
+      case 'recharge_completed': return 'hover:bg-blue-50';
+      case 'withdrawal_completed': return 'hover:bg-purple-50';
+      case 'admin_message': return 'hover:bg-yellow-50';
+      default: return 'hover:bg-gray-50';
     }
   };
 
@@ -118,7 +129,7 @@ export const UnifiedNotificationBell = () => {
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className="flex items-start gap-3 p-3 hover:bg-gray-50 cursor-pointer relative group"
+                    className={`flex items-start gap-3 p-3 cursor-pointer relative group ${getNotificationBgColor(notification.type)}`}
                   >
                     <div className="text-lg flex-shrink-0 mt-0.5">
                       {getNotificationIcon(notification.type)}

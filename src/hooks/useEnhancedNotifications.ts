@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,7 +49,40 @@ export const useEnhancedNotifications = () => {
       })) || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 2000, // 2 secondes pour détecter rapidement
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
+  });
+
+  // Récupérer les recharges récentes
+  const { data: rechargeNotifications = [] } = useQuery({
+    queryKey: ['recharge-notifications', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('recharges')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erreur lors de la récupération des notifications de recharge:', error);
+        return [];
+      }
+
+      return data?.map(recharge => ({
+        id: `recharge-${recharge.id}`,
+        title: '💳 Recharge de compte',
+        message: `Recharge de ${recharge.amount.toLocaleString()} FCFA ${recharge.status === 'completed' ? 'confirmée' : 'en cours'}`,
+        type: 'recharge',
+        priority: recharge.status === 'completed' ? 'high' as const : 'medium' as const,
+        created_at: recharge.created_at,
+        read: false
+      })) || [];
+    },
+    enabled: !!user?.id,
+    refetchInterval: 2000,
     refetchIntervalInBackground: true,
   });
 
@@ -72,10 +106,10 @@ export const useEnhancedNotifications = () => {
 
       return data?.map(withdrawal => ({
         id: `withdrawal-${withdrawal.id}`,
-        title: '💳 Retrait effectué',
-        message: `Retrait de ${withdrawal.amount.toLocaleString()} FCFA ${withdrawal.status === 'completed' ? 'réussi' : 'en cours'}`,
+        title: '💸 Retrait d\'argent',
+        message: `Retrait de ${withdrawal.amount.toLocaleString()} FCFA ${withdrawal.status === 'completed' ? 'confirmé' : withdrawal.status === 'pending' ? 'en cours' : 'initié'}`,
         type: 'withdrawal',
-        priority: 'medium' as const,
+        priority: withdrawal.status === 'completed' ? 'high' as const : 'medium' as const,
         created_at: withdrawal.created_at,
         read: false
       })) || [];
@@ -88,6 +122,7 @@ export const useEnhancedNotifications = () => {
   // Combiner toutes les notifications
   const allNotifications = [
     ...transferNotifications,
+    ...rechargeNotifications,
     ...withdrawalNotifications
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -97,10 +132,19 @@ export const useEnhancedNotifications = () => {
       const newNotifications = allNotifications.slice(0, allNotifications.length - lastNotificationCount);
       
       newNotifications.forEach(notification => {
+        const bgColor = notification.type === 'transfer_received' 
+          ? 'bg-green-50 border-green-200 text-green-800'
+          : notification.type === 'recharge'
+          ? 'bg-blue-50 border-blue-200 text-blue-800'
+          : notification.type === 'withdrawal'
+          ? 'bg-purple-50 border-purple-200 text-purple-800'
+          : 'bg-gray-50 border-gray-200 text-gray-800';
+
         toast({
           title: notification.title,
           description: notification.message,
-          duration: 5000,
+          duration: notification.priority === 'high' ? 8000 : 5000,
+          className: bgColor
         });
       });
     }
@@ -124,7 +168,6 @@ export const useEnhancedNotifications = () => {
         (payload) => {
           const transfer = payload.new;
           
-          // Vérifier si c'est pour l'utilisateur actuel
           if (transfer.recipient_phone === user.phone || transfer.recipient_email === user.email) {
             console.log('🎉 Nouveau transfert reçu en temps réel:', transfer);
             
@@ -132,9 +175,9 @@ export const useEnhancedNotifications = () => {
               title: '🎉 Transfert reçu !',
               description: `Vous avez reçu ${transfer.amount.toLocaleString()} FCFA`,
               duration: 8000,
+              className: 'bg-green-50 border-green-200 text-green-800'
             });
 
-            // Forcer un refresh des notifications
             setTimeout(() => {
               setLastNotificationCount(prev => prev + 1);
             }, 1000);
@@ -143,13 +186,86 @@ export const useEnhancedNotifications = () => {
       )
       .subscribe();
 
+    // Écoute en temps réel pour les recharges
+    const rechargeChannel = supabase
+      .channel('new-recharges')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'recharges',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('💳 Changement recharge détecté:', payload);
+          
+          const recharge = payload.new || payload.old;
+          if (!recharge) return;
+
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: '💳 Recharge initiée',
+              description: `Recharge de ${recharge.amount.toLocaleString()} FCFA en cours de traitement`,
+              duration: 5000,
+              className: 'bg-blue-50 border-blue-200 text-blue-800'
+            });
+          } else if (payload.eventType === 'UPDATE' && recharge.status === 'completed') {
+            toast({
+              title: '✅ Recharge confirmée !',
+              description: `Votre recharge de ${recharge.amount.toLocaleString()} FCFA a été confirmée`,
+              duration: 8000,
+              className: 'bg-green-50 border-green-200 text-green-800'
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Écoute en temps réel pour les retraits
+    const withdrawalChannel = supabase
+      .channel('new-withdrawals')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'withdrawals',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('💸 Changement retrait détecté:', payload);
+          
+          const withdrawal = payload.new || payload.old;
+          if (!withdrawal) return;
+
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: '💸 Retrait initié',
+              description: `Demande de retrait de ${withdrawal.amount.toLocaleString()} FCFA créée`,
+              duration: 5000,
+              className: 'bg-purple-50 border-purple-200 text-purple-800'
+            });
+          } else if (payload.eventType === 'UPDATE' && withdrawal.status === 'completed') {
+            toast({
+              title: '✅ Retrait confirmé !',
+              description: `Votre retrait de ${withdrawal.amount.toLocaleString()} FCFA a été traité`,
+              duration: 8000,
+              className: 'bg-green-50 border-green-200 text-green-800'
+            });
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(transferChannel);
+      supabase.removeChannel(rechargeChannel);
+      supabase.removeChannel(withdrawalChannel);
     };
   }, [user?.id, user?.phone, user?.email, toast]);
 
   const markAsRead = useCallback((notificationId: string) => {
-    // Pour les notifications dynamiques, on pourrait maintenir un état local
     console.log('Notification marquée comme lue:', notificationId);
   }, []);
 
@@ -158,7 +274,7 @@ export const useEnhancedNotifications = () => {
   }, []);
 
   return {
-    notifications: allNotifications.slice(0, 10), // Limiter à 10 notifications récentes
+    notifications: allNotifications.slice(0, 10),
     unreadCount: allNotifications.length,
     markAsRead,
     markAllAsRead
