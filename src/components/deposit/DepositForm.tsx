@@ -1,247 +1,274 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Banknote } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import PhoneInput from "@/components/transfer-steps/PhoneInput";
+import { useRecipientVerification } from "@/hooks/useRecipientVerification";
+import { useDepositOperations } from "@/hooks/useDepositOperations";
+import { useUserSearch } from "@/hooks/useUserSearch";
+import RecipientVerificationDisplay from "./RecipientVerificationDisplay";
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { ArrowDownLeft, Phone, DollarSign, CreditCard } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { formatCurrency } from '@/lib/utils/currency';
-
-interface PaymentNumber {
-  id: string;
-  phone_number: string;
-  provider: string;
-  country: string;
-  service_type: string;
-  admin_name?: string;
-  description?: string;
-  is_active: boolean;
-}
-
-const DepositForm: React.FC = () => {
-  const { user, profile } = useAuth();
+const DepositForm = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [paymentNumbers, setPaymentNumbers] = useState<PaymentNumber[]>([]);
-  
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    amount: '',
-    provider: '',
-    phone_number: ''
+    recipientPhone: "",
+    amount: ""
   });
+  const [countryCode, setCountryCode] = useState("+237");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientId, setRecipientId] = useState("");
+  const [recipientBalance, setRecipientBalance] = useState<number | null>(null);
 
+  const {
+    isLoading: isVerifying,
+    recipientVerified: isVerified,
+    setRecipientVerified
+  } = useRecipientVerification();
+
+  const { isProcessing, processDeposit } = useDepositOperations();
+  const { searchUserByPhone, isSearching } = useUserSearch();
+
+  // Fetch agent profile to get their country
   useEffect(() => {
-    fetchPaymentNumbers();
-  }, []);
+    const fetchAgentProfile = async () => {
+      if (user?.id) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('country')
+          .eq('id', user.id)
+          .single();
+        
+        if (!error && data?.country) {
+          const countryToCodes: Record<string, string> = {
+            "Cameroun": "+237",
+            "Cameroon": "+237",
+            "Congo Brazzaville": "+242",
+            "Gabon": "+241",
+            "Tchad": "+235",
+            "Chad": "+235",
+            "République Centrafricaine": "+236",
+            "Central African Republic": "+236",
+            "Guinée Équatoriale": "+240",
+            "Equatorial Guinea": "+240",
+            "Sénégal": "+221",
+            "Nigeria": "+234",
+            "Ghana": "+233",
+          };
+          
+          const code = countryToCodes[data.country] || "+237";
+          setCountryCode(code);
+        }
+      }
+    };
+    
+    fetchAgentProfile();
+  }, [user]);
 
-  const fetchPaymentNumbers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('payment_numbers')
-        .select('*')
-        .eq('is_active', true)
-        .in('service_type', ['recharge', 'both']);
-
-      if (error) throw error;
-      setPaymentNumbers(data || []);
-    } catch (error: any) {
-      console.error('Error fetching payment numbers:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les numéros de paiement",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleInputChange = (field: string, value: string) => {
+  // Handle form input changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [name]: value
     }));
   };
 
+  // Handle phone number change
+  const handlePhoneChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      recipientPhone: value
+    }));
+    if (isVerified) {
+      setRecipientVerified(false);
+      setRecipientName("");
+      setRecipientId("");
+      setRecipientBalance(null);
+    }
+  };
+
+  // Verify recipient using the new search system
+  const handleVerifyRecipient = async () => {
+    if (!formData.recipientPhone || formData.recipientPhone.length < 6) return;
+    
+    // Format the full phone number with country code
+    const fullPhone = formData.recipientPhone.startsWith('+') 
+      ? formData.recipientPhone 
+      : `${countryCode}${formData.recipientPhone.startsWith('0') ? formData.recipientPhone.substring(1) : formData.recipientPhone}`;
+    
+    console.log("🔍 Vérification du destinataire pour:", fullPhone);
+    
+    try {
+      // Utiliser le nouveau système de recherche d'utilisateurs
+      const userData = await searchUserByPhone(fullPhone);
+      
+      if (userData) {
+        console.log("✅ Utilisateur trouvé:", userData);
+        setRecipientName(userData.full_name);
+        setRecipientId(userData.id);
+        setRecipientBalance(userData.balance);
+        setRecipientVerified(true);
+        
+        toast({
+          title: "Utilisateur trouvé",
+          description: `${userData.full_name} - Solde: ${userData.balance} FCFA`
+        });
+        return;
+      }
+      
+      // Utilisateur non trouvé
+      toast({
+        title: "Utilisateur non trouvé",
+        description: "Ce numéro n'existe pas dans notre base de données",
+        variant: "destructive"
+      });
+      setRecipientVerified(false);
+      setRecipientName("");
+      setRecipientId("");
+      setRecipientBalance(null);
+      
+    } catch (err) {
+      console.error("Error checking recipient:", err);
+      toast({
+        title: "Erreur de vérification",
+        description: "Une erreur s'est produite lors de la vérification de l'utilisateur",
+        variant: "destructive"
+      });
+      setRecipientVerified(false);
+      setRecipientName("");
+      setRecipientId("");
+      setRecipientBalance(null);
+    }
+  };
+
+  // Verify recipient automatically as they type
+  useEffect(() => {
+    if (formData.recipientPhone && formData.recipientPhone.length >= 8) {
+      const delayDebounceFn = setTimeout(() => {
+        handleVerifyRecipient();
+      }, 500);
+      
+      return () => clearTimeout(delayDebounceFn);
+    }
+  }, [formData.recipientPhone, countryCode]);
+
+  // Handle deposit submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.amount || !formData.provider || !formData.phone_number) {
+    if (!formData.recipientPhone || !formData.amount || !recipientId) {
       toast({
-        title: "Champs requis",
-        description: "Veuillez remplir tous les champs obligatoires",
+        title: "Formulaire incomplet",
+        description: "Veuillez remplir tous les champs et vérifier l'utilisateur",
         variant: "destructive"
       });
       return;
     }
 
     const amount = parseFloat(formData.amount);
-    if (amount <= 0) {
+    if (isNaN(amount) || amount <= 0) {
       toast({
         title: "Montant invalide",
-        description: "Le montant doit être supérieur à 0",
+        description: "Le montant doit être un nombre positif",
         variant: "destructive"
       });
       return;
     }
 
-    setLoading(true);
-    try {
-      // Create recharge record instead of deposit_requests
-      const { data, error } = await supabase
-        .from('recharges')
-        .insert({
-          user_id: user!.id,
-          amount: amount,
-          payment_method: 'mobile_money',
-          payment_phone: formData.phone_number,
-          payment_provider: formData.provider,
-          country: profile?.country || 'Unknown',
-          transaction_reference: `DEP_${Date.now()}`,
-          status: 'pending'
-        })
-        .select()
-        .single();
+    const fullPhone = formData.recipientPhone.startsWith('+') 
+      ? formData.recipientPhone 
+      : `${countryCode}${formData.recipientPhone.startsWith('0') ? formData.recipientPhone.substring(1) : formData.recipientPhone}`;
 
-      if (error) throw error;
-
-      toast({
-        title: "Dépôt initié",
-        description: `Votre demande de dépôt de ${formatCurrency(amount)} a été créée`,
-      });
-
-      // Reset form
+    const success = await processDeposit(amount, recipientId, recipientName, recipientBalance, fullPhone);
+    
+    if (success) {
       setFormData({
-        amount: '',
-        provider: '',
-        phone_number: ''
+        recipientPhone: "",
+        amount: ""
       });
-
-    } catch (error: any) {
-      console.error('Deposit error:', error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
+      setRecipientVerified(false);
+      setRecipientName("");
+      setRecipientId("");
+      setRecipientBalance(null);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <Card className="max-w-md mx-auto">
-        <CardHeader className="text-center">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ArrowDownLeft className="w-6 h-6 text-green-600" />
-          </div>
-          <CardTitle className="text-xl font-bold">Effectuer un dépôt</CardTitle>
-          <p className="text-gray-600 text-sm">Recharger votre compte SendFlow</p>
-        </CardHeader>
+    <div className="min-h-screen w-full bg-gradient-to-br from-emerald-500/20 to-blue-500/20 py-4 px-0 sm:py-8 sm:px-4">
+      <div className="container max-w-lg mx-auto space-y-6">
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="ghost" onClick={() => navigate('/')} className="text-gray-700">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Retour
+          </Button>
+          <h1 className="text-2xl font-bold">Dépôt</h1>
+          <div className="w-10"></div>
+        </div>
 
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="amount" className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />
-                Montant (XAF) *
-              </Label>
-              <Input
-                id="amount"
-                type="number"
-                placeholder="50000"
-                value={formData.amount}
-                onChange={(e) => handleInputChange('amount', e.target.value)}
-                className="h-12"
-                min="1000"
-                step="1000"
-                required
+        <Card>
+          <CardHeader>
+            <CardTitle>Effectuer un dépôt</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <PhoneInput
+                phoneInput={formData.recipientPhone}
+                countryCode={countryCode}
+                onPhoneChange={handlePhoneChange}
+                isLoading={isVerifying || isSearching}
+                isVerified={isVerified}
+                recipientName={recipientName}
+                label="Numéro de téléphone de l'utilisateur"
+                onBlurComplete={handleVerifyRecipient}
               />
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="provider" className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4" />
-                Fournisseur de paiement *
-              </Label>
-              <Select
-                value={formData.provider}
-                onValueChange={(value) => handleInputChange('provider', value)}
-                required
-              >
-                <SelectTrigger className="h-12">
-                  <SelectValue placeholder="Choisir le fournisseur" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="orange_money">Orange Money</SelectItem>
-                  <SelectItem value="free_money">Free Money</SelectItem>
-                  <SelectItem value="wave">Wave</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone_number" className="flex items-center gap-2">
-                <Phone className="w-4 h-4" />
-                Votre numéro de téléphone *
-              </Label>
-              <Input
-                id="phone_number"
-                type="tel"
-                placeholder="+221 XX XXX XX XX"
-                value={formData.phone_number}
-                onChange={(e) => handleInputChange('phone_number', e.target.value)}
-                className="h-12"
-                required
+              <RecipientVerificationDisplay
+                isVerified={isVerified}
+                recipientName={recipientName}
+                recipientBalance={recipientBalance}
               />
-            </div>
 
-            <Button
-              type="submit"
-              className="w-full h-12 bg-green-600 hover:bg-green-700"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Traitement...
-                </>
-              ) : (
-                <>
-                  <ArrowDownLeft className="w-4 h-4 mr-2" />
-                  Effectuer le dépôt
-                </>
-              )}
-            </Button>
-          </form>
-
-          {/* Payment Numbers Display */}
-          {paymentNumbers.length > 0 && (
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-sm mb-2">Numéros de paiement disponibles:</h4>
               <div className="space-y-2">
-                {paymentNumbers.map((pn) => (
-                  <div key={pn.id} className="flex items-center justify-between text-sm">
-                    <span>{pn.provider}</span>
-                    <Badge variant="outline">{pn.phone_number}</Badge>
-                  </div>
-                ))}
+                <Input
+                  id="amount"
+                  name="amount"
+                  type="number"
+                  placeholder="Montant du dépôt (FCFA)"
+                  value={formData.amount}
+                  onChange={handleChange}
+                  required
+                  className="h-12 text-lg"
+                />
               </div>
-            </div>
-          )}
 
-          <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
-            <p className="text-sm text-yellow-800">
-              <strong>Instructions:</strong> Composez le code USSD de votre fournisseur 
-              et suivez les instructions pour effectuer le paiement vers le numéro indiqué.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+              <Button
+                type="submit"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 mt-4 h-12 text-lg"
+                disabled={isProcessing || !recipientId}
+              >
+                {isProcessing ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <span>Traitement en cours...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    <Banknote className="mr-2 h-5 w-5" />
+                    <span>Effectuer le dépôt</span>
+                  </div>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

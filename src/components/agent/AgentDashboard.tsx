@@ -1,290 +1,271 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/utils/currency';
-import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
+
+import React, { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  ArrowUpRight, 
+  ArrowDownLeft,
+  LogOut,
+  Eye,
+  EyeOff,
+  Settings,
+  RefreshCw,
   Wallet,
-  TrendingUp,
-  DollarSign,
-  Users,
-  UserPlus,
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import AgentStatsCard from './AgentStatsCard';
+  History
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { formatCurrency } from "@/integrations/supabase/client";
+import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
+import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
+import { AgentRealTimePerformance } from "@/components/agent/AgentRealTimePerformance";
+import AgentTransactionHistory from "@/components/agent/AgentTransactionHistory";
+import { toast } from "sonner";
 
-interface AgentStats {
-  todayTransactions: number;
-  todayCommissions: number;
-  totalAgents: number;
-  pendingRequests: number;
-}
-
-const AgentDashboard = () => {
-  const { user, profile } = useAuth();
-  const { toast } = useToast();
+const AgentDashboard: React.FC = () => {
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState<AgentStats>({
-    todayTransactions: 0,
-    todayCommissions: 0,
-    totalAgents: 0,
-    pendingRequests: 0,
-  });
-  const [isCreatingAgent, setIsCreatingAgent] = useState(false);
-  const [newAgentData, setNewAgentData] = useState({
-    email: '',
-    password: '',
-    country: profile?.country || 'Cameroun',
-  });
+  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
+  const [showTransactionHistory, setShowTransactionHistory] = useState(false);
 
-  useEffect(() => {
-    if (!user || profile?.role !== 'agent') {
-      navigate('/login');
-    } else {
-      fetchAgentStats();
-    }
-  }, [user, profile, navigate]);
+  const {
+    agentBalance,
+    agentCommissionBalance,
+    isLoadingBalance,
+    fetchAgentBalances
+  } = useAgentWithdrawalEnhanced();
 
-  const fetchAgentStats = async () => {
+  const handleLogout = async () => {
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      
-      // Fetch today's withdrawals handled by this agent
-      const { data: withdrawalsData, error: withdrawalsError } = await supabase
-        .from('withdrawals')
-        .select('*')
-        .eq('user_id', user!.id)
-        .gte('created_at', today);
-
-      if (withdrawalsError) throw withdrawalsError;
-
-      // Fetch today's recharges handled by this agent
-      const { data: rechargesData, error: rechargesError } = await supabase
-        .from('recharges')
-        .select('*')
-        .eq('user_id', user!.id)
-        .gte('created_at', today);
-
-      if (rechargesError) throw rechargesError;
-
-      const todayTransactions = (withdrawalsData?.length || 0) + (rechargesData?.length || 0);
-      
-      // Calculate commissions based on agent commission balance
-      const { data: agentData, error: agentError } = await supabase
-        .from('agents')
-        .select('commission_balance')
-        .eq('user_id', user!.id)
-        .single();
-
-      if (agentError && agentError.code !== 'PGRST116') throw agentError;
-
-      const todayCommissions = agentData?.commission_balance || 0;
-
-      // Fetch total agents created by this agent (from profiles with created_by field)
-      const { data: agentsData, error: agentsError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'agent');
-
-      if (agentsError) throw agentsError;
-
-      const totalAgents = agentsData?.length || 0;
-
-      // For pending requests, we'll use the same data but filter for non-active agents
-      const pendingRequests = 0; // This would need a specific implementation based on your business logic
-
-      setStats({
-        todayTransactions,
-        todayCommissions,
-        totalAgents,
-        pendingRequests,
-      });
-
-    } catch (error: any) {
-      console.error("Error fetching agent stats:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les statistiques de l'agent",
-        variant: "destructive"
-      });
+      await signOut();
+      navigate('/auth');
+      toast.success('Déconnexion réussie');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      toast.error('Erreur lors de la déconnexion');
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setNewAgentData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const toggleBalanceVisibility = () => {
+    setIsBalanceVisible(!isBalanceVisible);
   };
 
-  const handleCreateAgent = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!newAgentData.email || !newAgentData.password) {
-      toast({
-        title: "Champs requis",
-        description: "Veuillez remplir tous les champs obligatoires",
-        variant: "destructive"
-      });
-      return;
+  const formatBalanceDisplay = (balance: number) => {
+    if (!isBalanceVisible) {
+      return "••••••••";
     }
-
-    setIsCreatingAgent(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('create-agent', {
-        body: {
-          email: newAgentData.email,
-          password: newAgentData.password,
-          country: newAgentData.country,
-          created_by: user!.id,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Agent créé",
-        description: `L'agent ${newAgentData.email} a été créé avec succès`,
-      });
-
-      // Reset form and refetch stats
-      setNewAgentData({
-        email: '',
-        password: '',
-        country: profile?.country || 'Cameroun',
-      });
-      fetchAgentStats();
-
-    } catch (error: any) {
-      console.error('Agent creation error:', error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue lors de la création de l'agent",
-        variant: "destructive"
-      });
-    } finally {
-      setIsCreatingAgent(false);
-    }
+    return formatCurrency(balance, 'XAF');
   };
+
+  if (showTransactionHistory) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between">
+              <Button
+                onClick={() => setShowTransactionHistory(false)}
+                variant="ghost"
+                size="sm"
+              >
+                ← Retour au tableau de bord
+              </Button>
+              <div className="flex items-center space-x-2">
+                <UnifiedNotificationBell />
+                <Button
+                  onClick={handleLogout}
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 py-6">
+          <AgentTransactionHistory />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      {/* Balance Card */}
-      <Card className="bg-gradient-to-r from-green-50 to-blue-50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-green-600" />
-            Votre solde
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-green-800">
-            {formatCurrency(profile?.balance || 0, 'XAF')}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={profile?.avatar_url} />
+                <AvatarFallback className="bg-blue-100 text-blue-600">
+                  {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'A'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  {profile?.full_name || 'Agent'}
+                </h1>
+                <p className="text-sm text-gray-500">Agent SendFlow</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <UnifiedNotificationBell />
+              <Button
+                onClick={fetchAgentBalances}
+                variant="ghost"
+                size="sm"
+                disabled={isLoadingBalance}
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="ghost"
+                size="sm"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-          <Badge variant="secondary" className="mt-2">
-            Agent vérifié
-          </Badge>
-        </CardContent>
-      </Card>
-
-      {/* Agent Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <AgentStatsCard
-          title="Transactions aujourd'hui"
-          value={stats.todayTransactions}
-          icon={TrendingUp}
-        />
-        <AgentStatsCard
-          title="Commissions du jour"
-          value={formatCurrency(stats.todayCommissions, 'XAF')}
-          icon={DollarSign}
-        />
-        <AgentStatsCard
-          title="Agents créés"
-          value={stats.totalAgents}
-          icon={Users}
-        />
-        <AgentStatsCard
-          title="Demandes en attente"
-          value={stats.pendingRequests}
-          icon={UserPlus}
-        />
+        </div>
       </div>
 
-      {/* Create Agent Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Créer un nouvel agent</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleCreateAgent} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email de l'agent *</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="agent@example.com"
-                value={newAgentData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe *</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Mot de passe"
-                value={newAgentData.password}
-                onChange={(e) => handleInputChange('password', e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="country">Pays *</Label>
-              <Select
-                value={newAgentData.country}
-                onValueChange={(value) => handleInputChange('country', value)}
-                required
+      <div className="px-4 py-6 space-y-6">
+        {/* Balance Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Solde Principal */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Solde Principal
+              </CardTitle>
+              <div className="flex items-center space-x-2">
+                <Button
+                  onClick={toggleBalanceVisibility}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+                <Wallet className="w-4 h-4 text-blue-600" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900 mb-3">
+                {formatBalanceDisplay(agentBalance || 0)}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Commissions - Total (Dépôt 1% + Retrait 0,5%) */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Commissions Totales
+              </CardTitle>
+              <Wallet className="w-4 h-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900 mb-3">
+                {formatBalanceDisplay(agentCommissionBalance || 0)}
+              </div>
+              <div className="text-xs text-gray-500 mb-3">
+                Dépôt: 1% | Retrait: 0,5%
+              </div>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate('/agent-commission-withdrawal')}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choisir le pays" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Cameroun">Cameroun</SelectItem>
-                  <SelectItem value="Sénégal">Sénégal</SelectItem>
-                  {/* Add other countries as needed */}
-                </SelectContent>
-              </Select>
+                Retirer Commissions
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions - Moved after commissions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Actions Rapides</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2 hover:bg-blue-50 border-blue-200"
+                onClick={() => navigate('/agent-withdrawal-advanced')}
+              >
+                <ArrowUpRight className="w-6 h-6 text-blue-600" />
+                <span className="text-sm">Retrait Client</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2 hover:bg-green-50 border-green-200"
+                onClick={() => navigate('/agent-deposit')}
+              >
+                <ArrowDownLeft className="w-6 h-6 text-green-600" />
+                <span className="text-sm">Dépôt Client</span>
+              </Button>
             </div>
-            <Button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700"
-              disabled={isCreatingAgent}
-            >
-              {isCreatingAgent ? (
-                <>
-                  <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Création...
-                </>
-              ) : (
-                "Créer l'agent"
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Performances Temps Réel */}
+        <AgentRealTimePerformance />
+
+        {/* Services */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Services Agent</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <Button
+                onClick={() => setShowTransactionHistory(true)}
+                variant="outline"
+                className="w-full h-12 justify-start"
+              >
+                <History className="w-5 h-5 mr-3 text-gray-600" />
+                Historique des Transactions
+              </Button>
+              
+              <Button
+                onClick={() => navigate('/agent-settings')}
+                variant="outline"
+                className="w-full h-12 justify-start"
+              >
+                <Settings className="w-5 h-5 mr-3 text-gray-600" />
+                Paramètres
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Statistics */}
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">0</div>
+            <div className="text-xs text-gray-500">Aujourd'hui</div>
+          </Card>
+          <Card className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">0</div>
+            <div className="text-xs text-gray-500">Cette semaine</div>
+          </Card>
+          <Card className="p-4 text-center">
+            <div className="text-2xl font-bold text-purple-600">0</div>
+            <div className="text-xs text-gray-500">Ce mois</div>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };

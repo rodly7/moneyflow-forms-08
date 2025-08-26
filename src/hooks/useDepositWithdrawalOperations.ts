@@ -1,154 +1,249 @@
 
-import { useState, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { formatCurrency, calculateFee } from '@/lib/utils/currency';
-import { useToast } from '@/hooks/use-toast';
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { calculateDepositFees, calculateWithdrawalFees } from "@/utils/depositWithdrawalCalculations";
+import { getUserBalance } from "@/services/withdrawalService";
+import { AuthErrorHandler } from "@/services/authErrorHandler";
+import { errorHandlingService } from "@/services/errorHandlingService";
+import { NotificationService } from "@/services/notificationService";
 
-interface Operation {
-  id: string;
-  created_at: string;
-  user_id: string;
-  amount: number;
-  type: 'deposit' | 'withdrawal';
-  status: 'pending' | 'completed' | 'failed';
-  payment_method: string;
-  phone_number: string;
-  transaction_id: string | null;
-  fee: number;
-  country: string;
-  provider: string;
-  reason?: string;
-}
-
-const useDepositWithdrawalOperations = () => {
+export const useDepositWithdrawalOperations = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const createOperation = useCallback(async (
+  const processDeposit = async (
     amount: number,
-    type: 'deposit' | 'withdrawal',
-    payment_method: string,
-    phone_number: string,
-    country: string,
-    provider: string,
-    reason?: string
+    recipientId: string,
+    recipientName: string,
+    recipientPhone: string
   ) => {
-    setLoading(true);
-    try {
-      if (!user?.id || !profile?.country) {
-        throw new Error("User not authenticated or country not found");
-      }
-
-      const { fee } = calculateFee(amount, profile.country, country);
-
-      if (type === 'withdrawal') {
-        // Use withdrawals table
-        const { data, error } = await supabase
-          .from('withdrawals')
-          .insert([{
-            user_id: user.id,
-            amount,
-            status: 'pending',
-            withdrawal_phone: phone_number,
-          }])
-          .select();
-
-        if (error) {
-          console.error("Error creating withdrawal:", error);
-          throw error;
-        }
-
-        toast({
-          title: "Retrait créé",
-          description: `Votre demande de retrait de ${formatCurrency(amount, 'XAF')} est en cours de traitement.`,
-        });
-
-        // Transform the withdrawal data to match Operation interface
-        const withdrawal = data?.[0];
-        if (withdrawal) {
-          const operation: Operation = {
-            id: withdrawal.id,
-            created_at: withdrawal.created_at,
-            user_id: withdrawal.user_id,
-            amount: withdrawal.amount,
-            type: 'withdrawal',
-            status: withdrawal.status as 'pending' | 'completed' | 'failed',
-            payment_method: 'mobile_money',
-            phone_number: withdrawal.withdrawal_phone,
-            transaction_id: null,
-            fee: fee,
-            country: country,
-            provider: provider,
-            reason: reason
-          };
-          return operation;
-        }
-      } else {
-        // Use recharges table for deposits
-        const { data, error } = await supabase
-          .from('recharges')
-          .insert([{
-            user_id: user.id,
-            amount,
-            payment_method: 'mobile_money',
-            payment_phone: phone_number,
-            payment_provider: provider,
-            country: country,
-            transaction_reference: `DEP_${Date.now()}`,
-            status: 'pending'
-          }])
-          .select();
-
-        if (error) {
-          console.error("Error creating deposit:", error);
-          throw error;
-        }
-
-        toast({
-          title: "Dépôt créé",
-          description: `Votre demande de dépôt de ${formatCurrency(amount, 'XAF')} est en cours de traitement.`,
-        });
-
-        // Transform the recharge data to match Operation interface
-        const recharge = data?.[0];
-        if (recharge) {
-          const operation: Operation = {
-            id: recharge.id,
-            created_at: recharge.created_at,
-            user_id: recharge.user_id,
-            amount: recharge.amount,
-            type: 'deposit',
-            status: recharge.status as 'pending' | 'completed' | 'failed',
-            payment_method: recharge.payment_method,
-            phone_number: recharge.payment_phone,
-            transaction_id: recharge.transaction_reference,
-            fee: fee,
-            country: recharge.country,
-            provider: recharge.payment_provider,
-            reason: reason
-          };
-          return operation;
-        }
-      }
-
-      return null;
-
-    } catch (error: any) {
-      console.error("Failed to create operation:", error);
-      toast({
-        title: "Erreur",
-        description: `Impossible de créer l'opération: ${error.message || error}`,
-        variant: "destructive",
-      });
-      return null;
-    } finally {
-      setLoading(false);
+    if (!user?.id) {
+      throw new Error("Agent non connecté");
     }
-  }, [user, profile, supabase, toast, calculateFee]);
 
-  return { createOperation, loading };
+    setIsProcessing(true);
+
+    try {
+      // Vérifier le pays du destinataire
+      const { data: recipientData, error: recipientError } = await supabase
+        .from('profiles')
+        .select('country')
+        .eq('id', recipientId)
+        .single();
+
+      if (recipientError || !recipientData) {
+        throw new Error("Impossible de vérifier les informations du destinataire");
+      }
+
+      // Vérifier que l'agent et le client sont dans le même pays
+      if (profile?.country && recipientData.country !== profile.country) {
+        throw new Error(`Vous ne pouvez effectuer des dépôts que pour des clients de ${profile.country}`);
+      }
+
+      // Calculer les frais (0 pour les dépôts)
+      const { agentCommission } = calculateDepositFees(amount);
+
+      // Vérifier le solde de l'agent
+      const agentBalanceData = await getUserBalance(user.id);
+      if (agentBalanceData.balance < amount) {
+        throw new Error("Solde agent insuffisant pour effectuer ce dépôt");
+      }
+
+      // Transaction avec gestion d'erreurs améliorée
+      const { error: debitError } = await supabase.rpc('increment_balance', {
+        user_id: user.id,
+        amount: -amount
+      });
+
+      if (debitError) {
+        throw new Error("Erreur lors du débit du compte agent");
+      }
+
+      const { error: creditError } = await supabase.rpc('increment_balance', {
+        user_id: recipientId,
+        amount: amount
+      });
+
+      if (creditError) {
+        // Rollback en cas d'erreur
+        await supabase.rpc('increment_balance', {
+          user_id: user.id,
+          amount: amount
+        });
+        throw new Error("Erreur lors du crédit du compte client");
+      }
+
+      // Enregistrer la transaction
+      const transactionReference = `DEP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      
+      const { error: transactionError } = await supabase
+        .from('recharges')
+        .insert({
+          user_id: recipientId,
+          amount: amount,
+          country: profile?.country || "Congo Brazzaville",
+          payment_method: 'agent_deposit',
+          payment_phone: recipientPhone,
+          payment_provider: 'agent',
+          transaction_reference: transactionReference,
+          status: 'completed',
+          provider_transaction_id: user.id
+        });
+
+      if (transactionError) {
+        console.error('Erreur transaction:', transactionError);
+      }
+
+      // Créer une notification pour le destinataire
+      await NotificationService.createAutoNotification(
+        "💰 Argent reçu",
+        `Vous avez reçu ${amount.toLocaleString()} FCFA par dépôt d'agent`,
+        'high',
+        [recipientId],
+        user.id
+      );
+
+      toast({
+        title: "✅ Dépôt effectué avec succès",
+        description: `Dépôt de ${amount.toLocaleString()} FCFA effectué pour ${recipientName}`,
+      });
+
+      AuthErrorHandler.clearRetries('deposit_operation');
+      return true;
+    } catch (error) {
+      console.error('Erreur lors du dépôt:', error);
+      const errorMessage = await errorHandlingService.handleAuthError(error);
+      toast({
+        title: "❌ Erreur",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const processWithdrawal = async (
+    amount: number,
+    clientId: string,
+    clientName: string,
+    clientPhone: string
+  ) => {
+    if (!user?.id) {
+      throw new Error("Agent non connecté");
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Vérifier le pays du client
+      const { data: clientData, error: clientError } = await supabase
+        .from('profiles')
+        .select('country')
+        .eq('id', clientId)
+        .single();
+
+      if (clientError || !clientData) {
+        throw new Error("Impossible de vérifier les informations du client");
+      }
+
+      // Vérifier que l'agent et le client sont dans le même pays
+      if (profile?.country && clientData.country !== profile.country) {
+        throw new Error(`Vous ne pouvez effectuer des retraits que pour des clients de ${profile.country}`);
+      }
+
+      // Calculer les frais (pas de frais pour les agents)
+      const { totalFee, agentCommission, platformCommission } = calculateWithdrawalFees(amount, profile?.role || 'user');
+      const totalAmount = amount + totalFee;
+
+      // Vérifier le solde du client
+      const clientBalanceData = await getUserBalance(clientId);
+      if (clientBalanceData.balance < totalAmount) {
+        throw new Error(`Solde client insuffisant. Solde: ${clientBalanceData.balance.toLocaleString()} FCFA, montant total requis: ${totalAmount.toLocaleString()} FCFA`);
+      }
+
+      // Transaction avec rollback en cas d'erreur
+      const { error: debitError } = await supabase.rpc('increment_balance', {
+        user_id: clientId,
+        amount: -totalAmount
+      });
+
+      if (debitError) {
+        throw new Error("Erreur lors du débit du compte client");
+      }
+
+      const { error: creditError } = await supabase.rpc('increment_balance', {
+        user_id: user.id,
+        amount: amount + agentCommission
+      });
+
+      if (creditError) {
+        // Rollback
+        await supabase.rpc('increment_balance', {
+          user_id: clientId,
+          amount: totalAmount
+        });
+        throw new Error("Erreur lors du crédit du compte agent");
+      }
+
+      // Commission plateforme
+      if (platformCommission > 0) {
+        const { data: adminData } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('phone', '+221773637752')
+          .maybeSingle();
+          
+        if (adminData) {
+          await supabase.rpc('increment_balance', {
+            user_id: adminData.id,
+            amount: platformCommission
+          });
+        }
+      }
+
+      // Enregistrer le retrait
+      const { error: withdrawalError } = await supabase
+        .from('withdrawals')
+        .insert({
+          user_id: clientId,
+          amount: amount,
+          withdrawal_phone: clientPhone,
+          status: 'completed'
+        });
+
+      if (withdrawalError) {
+        console.error("❌ Erreur lors de l'enregistrement du retrait:", withdrawalError);
+      }
+
+      toast({
+        title: "✅ Retrait effectué avec succès",
+        description: `Retrait de ${amount.toLocaleString()} FCFA pour ${clientName}. Votre commission: ${agentCommission.toLocaleString()} FCFA`,
+      });
+
+      AuthErrorHandler.clearRetries('withdrawal_operation');
+      return true;
+    } catch (error) {
+      console.error('Erreur lors du retrait:', error);
+      const errorMessage = await errorHandlingService.handleAuthError(error);
+      toast({
+        title: "❌ Erreur",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return {
+    processDeposit,
+    processWithdrawal,
+    isProcessing
+  };
 };
-
-export default useDepositWithdrawalOperations;

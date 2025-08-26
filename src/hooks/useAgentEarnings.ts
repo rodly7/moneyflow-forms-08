@@ -1,75 +1,195 @@
-
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
-interface EarningsData {
+interface AgentEarnings {
+  totalVolume: number;
+  totalTransactions: number;
+  complaintsCount: number;
+  commissionRate: number;
+  baseCommission: number;
+  volumeBonus: number;
+  transactionBonus: number;
+  noComplaintBonus: number;
   totalEarnings: number;
-  todayEarnings: number;
-  yesterdayEarnings: number;
-  thisWeekEarnings: number;
-  lastWeekEarnings: number;
-  thisMonthEarnings: number;
-  lastMonthEarnings: number;
+  tierName: string;
+}
+
+interface CommissionTier {
+  minVolume: number;
+  maxVolume: number | null;
+  commissionRate: number;
+  tierName: string;
+}
+
+interface MonthlyBonus {
+  bonusType: string;
+  requirementValue: number;
+  bonusAmount: number;
+  description: string;
 }
 
 export const useAgentEarnings = () => {
   const { user } = useAuth();
-  const [earnings, setEarnings] = useState<EarningsData>({
-    totalEarnings: 0,
-    todayEarnings: 0,
-    yesterdayEarnings: 0,
-    thisWeekEarnings: 0,
-    lastWeekEarnings: 0,
-    thisMonthEarnings: 0,
-    lastMonthEarnings: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [earnings, setEarnings] = useState<AgentEarnings | null>(null);
+  const [commissionTiers, setCommissionTiers] = useState<CommissionTier[]>([]);
+  const [monthlyBonuses, setMonthlyBonuses] = useState<MonthlyBonus[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchEarnings = async () => {
+    if (!user) return;
+
+    try {
+      setIsLoading(true);
+
+      // Récupérer les performances de l'agent pour le mois actuel
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+      
+      const { data: performanceData, error: performanceError } = await supabase
+        .from('agent_monthly_performance')
+        .select('*')
+        .eq('agent_id', user.id)
+        .eq('month', currentMonth)
+        .eq('year', currentYear)
+        .maybeSingle();
+
+      if (performanceError) {
+        throw performanceError;
+      }
+
+      if (performanceData) {
+        setEarnings({
+          totalVolume: Number(performanceData.total_volume) || 0,
+          totalTransactions: performanceData.total_transactions || 0,
+          complaintsCount: performanceData.complaints_count || 0,
+          commissionRate: Number(performanceData.commission_rate) || 0,
+          baseCommission: Number(performanceData.base_commission) || 0,
+          volumeBonus: Number(performanceData.volume_bonus) || 0,
+          transactionBonus: Number(performanceData.transaction_bonus) || 0,
+          noComplaintBonus: Number(performanceData.no_complaint_bonus) || 0,
+          totalEarnings: Number(performanceData.total_earnings) || 0,
+          tierName: 'Bronze'
+        });
+      } else {
+        // Si aucune donnée n'existe, créer un enregistrement vide
+        setEarnings({
+          totalVolume: 0,
+          totalTransactions: 0,
+          complaintsCount: 0,
+          commissionRate: 0.005,
+          baseCommission: 0,
+          volumeBonus: 0,
+          transactionBonus: 0,
+          noComplaintBonus: 0,
+          totalEarnings: 0,
+          tierName: 'Bronze'
+        });
+      }
+
+      // Récupérer les paliers de commission
+      const { data: tiersData, error: tiersError } = await supabase
+        .from('commission_tiers')
+        .select('*')
+        .order('min_volume', { ascending: true });
+
+      if (tiersError) {
+        throw tiersError;
+      }
+
+      setCommissionTiers(tiersData.map(tier => ({
+        minVolume: Number(tier.min_volume),
+        maxVolume: tier.max_volume ? Number(tier.max_volume) : null,
+        commissionRate: Number(tier.commission_rate),
+        tierName: tier.tier_name
+      })));
+
+      // Récupérer les bonus mensuels
+      const { data: bonusData, error: bonusError } = await supabase
+        .from('monthly_bonuses')
+        .select('*')
+        .order('requirement_value', { ascending: true });
+
+      if (bonusError) {
+        throw bonusError;
+      }
+
+      setMonthlyBonuses(bonusData.map(bonus => ({
+        bonusType: bonus.bonus_type,
+        requirementValue: Number(bonus.requirement_value),
+        bonusAmount: Number(bonus.bonus_amount),
+        description: bonus.description || ''
+      })));
+
+    } catch (error) {
+      console.error('Erreur lors du chargement des gains:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getNextTierInfo = () => {
+    if (!earnings || commissionTiers.length === 0) return null;
+
+    const nextTier = commissionTiers.find(tier => earnings.totalVolume < tier.minVolume);
+    if (!nextTier) return null;
+
+    return {
+      tierName: nextTier.tierName,
+      requiredVolume: nextTier.minVolume,
+      remainingVolume: nextTier.minVolume - earnings.totalVolume,
+      commissionRate: nextTier.commissionRate
+    };
+  };
+
+  const getBonusProgress = () => {
+    if (!earnings) return [];
+
+    return monthlyBonuses.map(bonus => {
+      let current = 0;
+      let achieved = false;
+
+      switch (bonus.bonusType) {
+        case 'volume':
+          current = earnings.totalVolume;
+          achieved = current >= bonus.requirementValue;
+          break;
+        case 'transactions':
+          current = earnings.totalTransactions;
+          achieved = current >= bonus.requirementValue;
+          break;
+        case 'no_complaints':
+          current = earnings.complaintsCount;
+          achieved = current <= bonus.requirementValue;
+          break;
+      }
+
+      const progress = bonus.bonusType === 'no_complaints' 
+        ? (current === 0 ? 100 : 0)
+        : Math.min((current / bonus.requirementValue) * 100, 100);
+
+      return {
+        ...bonus,
+        current,
+        achieved,
+        progress
+      };
+    });
+  };
 
   useEffect(() => {
-    const fetchAgentEarnings = async () => {
-      if (!user?.id) {
-        console.log("Pas d'id utilisateur");
-        return;
-      }
+    if (user) {
+      fetchEarnings();
+    }
+  }, [user]);
 
-      setLoading(true);
-      setError(null);
-
-      try {
-        // Mock data since the RPC function doesn't exist
-        const mockData = {
-          total_earnings: 45000,
-          today_earnings: 2500,
-          yesterday_earnings: 3200,
-          this_week_earnings: 15000,
-          last_week_earnings: 12000,
-          this_month_earnings: 35000,
-          last_month_earnings: 40000,
-        };
-
-        setEarnings({
-          totalEarnings: mockData.total_earnings || 0,
-          todayEarnings: mockData.today_earnings || 0,
-          yesterdayEarnings: mockData.yesterday_earnings || 0,
-          thisWeekEarnings: mockData.this_week_earnings || 0,
-          lastWeekEarnings: mockData.last_week_earnings || 0,
-          thisMonthEarnings: mockData.this_month_earnings || 0,
-          lastMonthEarnings: mockData.last_month_earnings || 0,
-        });
-      } catch (err: any) {
-        console.error("Erreur inattendue lors de la récupération des gains de l'agent:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAgentEarnings();
-  }, [user?.id]);
-
-  return { earnings, loading, error };
+  return {
+    earnings,
+    commissionTiers,
+    monthlyBonuses,
+    isLoading,
+    getNextTierInfo,
+    getBonusProgress,
+    refreshEarnings: fetchEarnings
+  };
 };
-
-export default useAgentEarnings;
