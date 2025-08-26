@@ -6,12 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { Plus, Edit, Trash2, Phone, CreditCard } from 'lucide-react';
 
 interface PaymentNumber {
-  id?: string;
+  id: string;
   phone_number: string;
   provider: string;
   country: string;
@@ -19,7 +19,14 @@ interface PaymentNumber {
   is_default: boolean;
   service_type: 'recharge' | 'withdrawal' | 'both';
   description?: string;
+  admin_type: 'main_admin' | 'sub_admin';
+  admin_name?: string;
 }
+
+const COUNTRIES_CONFIG = {
+  'Congo Brazzaville': ['Mobile Money', 'Airtel Money'],
+  'Sénégal': ['Wave', 'Orange Money']
+};
 
 const PaymentNumbersManager = () => {
   const { toast } = useToast();
@@ -28,30 +35,58 @@ const PaymentNumbersManager = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newNumber, setNewNumber] = useState<PaymentNumber>({
+    id: '',
     phone_number: '',
-    provider: 'Airtel Money',
+    provider: 'Mobile Money',
     country: 'Congo Brazzaville',
     is_active: true,
     is_default: false,
     service_type: 'both',
-    description: ''
+    description: '',
+    admin_type: 'main_admin',
+    admin_name: ''
   });
 
   useEffect(() => {
     fetchPaymentNumbers();
   }, []);
 
-  const fetchPaymentNumbers = async () => {
+  const fetchPaymentNumbers = () => {
     try {
-      const { data, error } = await supabase
-        .from('payment_numbers')
-        .select('*')
-        .order('is_default', { ascending: false });
-
-      if (error) throw error;
-      setPaymentNumbers(data || []);
+      const stored = localStorage.getItem('payment_numbers');
+      if (stored) {
+        setPaymentNumbers(JSON.parse(stored));
+      } else {
+        // Numéros par défaut avec le nouveau numéro
+        const defaultNumbers: PaymentNumber[] = [
+          {
+            id: '1',
+            phone_number: '066164686', // Nouveau numéro sans indicatif
+            provider: 'Mobile Money',
+            country: 'Congo Brazzaville',
+            is_active: true,
+            is_default: true,
+            service_type: 'both',
+            description: 'Numéro principal Congo',
+            admin_type: 'main_admin'
+          },
+          {
+            id: '2',
+            phone_number: '780192989',
+            provider: 'Wave',
+            country: 'Sénégal',
+            is_active: true,
+            is_default: true,
+            service_type: 'both',
+            description: 'Numéro principal Sénégal',
+            admin_type: 'main_admin'
+          }
+        ];
+        setPaymentNumbers(defaultNumbers);
+        localStorage.setItem('payment_numbers', JSON.stringify(defaultNumbers));
+      }
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('Erreur lors du chargement:', error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les numéros de paiement",
@@ -62,118 +97,100 @@ const PaymentNumbersManager = () => {
     }
   };
 
-  const handleAdd = async () => {
-    try {
-      if (!newNumber.phone_number) {
-        toast({
-          title: "Erreur",
-          description: "Le numéro de téléphone est requis",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Si c'est le nouveau numéro par défaut, désactiver les autres
-      if (newNumber.is_default) {
-        await supabase
-          .from('payment_numbers')
-          .update({ is_default: false })
-          .neq('id', '');
-      }
-
-      const { error } = await supabase
-        .from('payment_numbers')
-        .insert([newNumber]);
-
-      if (error) throw error;
-
-      await fetchPaymentNumbers();
-      setNewNumber({
-        phone_number: '',
-        provider: 'Airtel Money',
-        country: 'Congo Brazzaville',
-        is_active: true,
-        is_default: false,
-        service_type: 'both',
-        description: ''
-      });
-      setIsAdding(false);
-
-      toast({
-        title: "Succès",
-        description: "Numéro de paiement ajouté avec succès",
-      });
-    } catch (error) {
-      console.error('Erreur:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de l'ajout du numéro",
-        variant: "destructive"
-      });
-    }
+  const savePaymentNumbers = (numbers: PaymentNumber[]) => {
+    localStorage.setItem('payment_numbers', JSON.stringify(numbers));
+    setPaymentNumbers(numbers);
   };
 
-  const handleUpdate = async (id: string, updates: Partial<PaymentNumber>) => {
-    try {
-      // Si on définit comme défaut, désactiver les autres
-      if (updates.is_default) {
-        await supabase
-          .from('payment_numbers')
-          .update({ is_default: false })
-          .neq('id', id);
-      }
-
-      const { error } = await supabase
-        .from('payment_numbers')
-        .update(updates)
-        .eq('id', id);
-
-      if (error) throw error;
-
-      await fetchPaymentNumbers();
-      setEditingId(null);
-
-      toast({
-        title: "Succès",
-        description: "Numéro mis à jour avec succès",
-      });
-    } catch (error) {
-      console.error('Erreur:', error);
+  const handleAdd = () => {
+    if (!newNumber.phone_number) {
       toast({
         title: "Erreur",
-        description: "Erreur lors de la mise à jour",
+        description: "Le numéro de téléphone est requis",
         variant: "destructive"
       });
+      return;
     }
+
+    const newId = Date.now().toString();
+    const numberToAdd = { ...newNumber, id: newId };
+
+    let updatedNumbers = [...paymentNumbers, numberToAdd];
+
+    // Si c'est le nouveau numéro par défaut, désactiver les autres pour ce pays/provider
+    if (newNumber.is_default) {
+      updatedNumbers = updatedNumbers.map(num => 
+        num.country === newNumber.country && num.provider === newNumber.provider && num.id !== newId
+          ? { ...num, is_default: false }
+          : num
+      );
+    }
+
+    savePaymentNumbers(updatedNumbers);
+    setNewNumber({
+      id: '',
+      phone_number: '',
+      provider: 'Mobile Money',
+      country: 'Congo Brazzaville',
+      is_active: true,
+      is_default: false,
+      service_type: 'both',
+      description: '',
+      admin_type: 'main_admin',
+      admin_name: ''
+    });
+    setIsAdding(false);
+
+    toast({
+      title: "Succès",
+      description: "Numéro de paiement ajouté avec succès",
+    });
   };
 
-  const handleDelete = async (id: string) => {
+  const handleUpdate = (id: string, updates: Partial<PaymentNumber>) => {
+    let updatedNumbers = paymentNumbers.map(num => 
+      num.id === id ? { ...num, ...updates } : num
+    );
+
+    // Si on définit comme défaut, désactiver les autres pour ce pays/provider
+    if (updates.is_default) {
+      const targetNumber = updatedNumbers.find(num => num.id === id);
+      if (targetNumber) {
+        updatedNumbers = updatedNumbers.map(num => 
+          num.country === targetNumber.country && 
+          num.provider === targetNumber.provider && 
+          num.id !== id
+            ? { ...num, is_default: false }
+            : num
+        );
+      }
+    }
+
+    savePaymentNumbers(updatedNumbers);
+    setEditingId(null);
+
+    toast({
+      title: "Succès",
+      description: "Numéro mis à jour avec succès",
+    });
+  };
+
+  const handleDelete = (id: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce numéro ?')) {
       return;
     }
 
-    try {
-      const { error } = await supabase
-        .from('payment_numbers')
-        .delete()
-        .eq('id', id);
+    const updatedNumbers = paymentNumbers.filter(num => num.id !== id);
+    savePaymentNumbers(updatedNumbers);
 
-      if (error) throw error;
+    toast({
+      title: "Succès",
+      description: "Numéro supprimé avec succès",
+    });
+  };
 
-      await fetchPaymentNumbers();
-
-      toast({
-        title: "Succès",
-        description: "Numéro supprimé avec succès",
-      });
-    } catch (error) {
-      console.error('Erreur:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la suppression",
-        variant: "destructive"
-      });
-    }
+  const getAvailableProviders = (country: string) => {
+    return COUNTRIES_CONFIG[country as keyof typeof COUNTRIES_CONFIG] || [];
   };
 
   if (loading) {
@@ -190,7 +207,7 @@ const PaymentNumbersManager = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Numéros de Paiement</h2>
-          <p className="text-gray-600">Gérez les numéros Mobile Money disponibles</p>
+          <p className="text-gray-600">Gérez les numéros Mobile Money disponibles par pays et opérateur</p>
         </div>
         <Button 
           onClick={() => setIsAdding(true)}
@@ -210,14 +227,27 @@ const PaymentNumbersManager = () => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="phone">Numéro de téléphone</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="+242066164686"
-                  value={newNumber.phone_number}
-                  onChange={(e) => setNewNumber(prev => ({ ...prev, phone_number: e.target.value }))}
-                />
+                <Label htmlFor="country">Pays</Label>
+                <Select 
+                  value={newNumber.country}
+                  onValueChange={(value) => {
+                    const providers = getAvailableProviders(value);
+                    setNewNumber(prev => ({ 
+                      ...prev, 
+                      country: value,
+                      provider: providers[0] || ''
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(COUNTRIES_CONFIG).map((country) => (
+                      <SelectItem key={country} value={country}>{country}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="provider">Opérateur</Label>
@@ -229,9 +259,9 @@ const PaymentNumbersManager = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Airtel Money">Airtel Money</SelectItem>
-                    <SelectItem value="MTN Mobile Money">MTN Mobile Money</SelectItem>
-                    <SelectItem value="Orange Money">Orange Money</SelectItem>
+                    {getAvailableProviders(newNumber.country).map((provider) => (
+                      <SelectItem key={provider} value={provider}>{provider}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -239,20 +269,14 @@ const PaymentNumbersManager = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="country">Pays</Label>
-                <Select 
-                  value={newNumber.country}
-                  onValueChange={(value) => setNewNumber(prev => ({ ...prev, country: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Congo Brazzaville">Congo Brazzaville</SelectItem>
-                    <SelectItem value="Congo Kinshasa">Congo Kinshasa</SelectItem>
-                    <SelectItem value="Cameroun">Cameroun</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="phone">Numéro de téléphone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder={newNumber.country === 'Congo Brazzaville' ? '066164686' : '780192989'}
+                  value={newNumber.phone_number}
+                  onChange={(e) => setNewNumber(prev => ({ ...prev, phone_number: e.target.value }))}
+                />
               </div>
               <div>
                 <Label htmlFor="service">Type de service</Label>
@@ -271,6 +295,36 @@ const PaymentNumbersManager = () => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="admin-type">Type d'administrateur</Label>
+                <Select 
+                  value={newNumber.admin_type}
+                  onValueChange={(value: 'main_admin' | 'sub_admin') => 
+                    setNewNumber(prev => ({ ...prev, admin_type: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="main_admin">Administrateur Principal</SelectItem>
+                    <SelectItem value="sub_admin">Sous Administrateur</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {newNumber.admin_type === 'sub_admin' && (
+                <div>
+                  <Label htmlFor="admin-name">Nom du sous-admin</Label>
+                  <Input
+                    id="admin-name"
+                    placeholder="Nom du sous-administrateur"
+                    value={newNumber.admin_name}
+                    onChange={(e) => setNewNumber(prev => ({ ...prev, admin_name: e.target.value }))}
+                  />
+                </div>
+              )}
             </div>
 
             <div>
@@ -315,70 +369,78 @@ const PaymentNumbersManager = () => {
         </Card>
       )}
 
-      {/* Liste des numéros */}
-      <div className="grid gap-4">
-        {paymentNumbers.map((number) => (
-          <Card key={number.id} className={`${number.is_default ? 'border-green-300 bg-green-50' : ''}`}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className={`p-3 rounded-full ${number.is_active ? 'bg-green-100' : 'bg-gray-100'}`}>
-                    <Phone className={`w-5 h-5 ${number.is_active ? 'text-green-600' : 'text-gray-400'}`} />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">{number.phone_number}</h3>
-                    <div className="flex items-center space-x-4 text-sm text-gray-600">
-                      <span>{number.provider}</span>
-                      <span>•</span>
-                      <span>{number.country}</span>
-                      <span>•</span>
-                      <span className="capitalize">{number.service_type.replace('_', ' ')}</span>
+      {/* Liste des numéros groupés par pays */}
+      {Object.keys(COUNTRIES_CONFIG).map((country) => {
+        const countryNumbers = paymentNumbers.filter(num => num.country === country);
+        if (countryNumbers.length === 0) return null;
+
+        return (
+          <div key={country} className="space-y-4">
+            <h3 className="text-xl font-semibold text-gray-800 border-b pb-2">
+              {country}
+            </h3>
+            <div className="grid gap-4">
+              {countryNumbers.map((number) => (
+                <Card key={number.id} className={`${number.is_default ? 'border-green-300 bg-green-50' : ''}`}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className={`p-3 rounded-full ${number.is_active ? 'bg-green-100' : 'bg-gray-100'}`}>
+                          <Phone className={`w-5 h-5 ${number.is_active ? 'text-green-600' : 'text-gray-400'}`} />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-lg">{number.phone_number}</h4>
+                          <div className="flex items-center space-x-2 text-sm text-gray-600">
+                            <Badge variant="outline">{number.provider}</Badge>
+                            <Badge variant={number.admin_type === 'main_admin' ? 'default' : 'secondary'}>
+                              {number.admin_type === 'main_admin' ? 'Admin Principal' : 'Sous-Admin'}
+                            </Badge>
+                            <span className="capitalize">{number.service_type.replace('_', ' ')}</span>
+                          </div>
+                          {number.admin_name && (
+                            <p className="text-sm text-blue-600">Géré par: {number.admin_name}</p>
+                          )}
+                          {number.description && (
+                            <p className="text-sm text-gray-500">{number.description}</p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        {number.is_default && (
+                          <Badge className="bg-green-100 text-green-800">
+                            Par défaut
+                          </Badge>
+                        )}
+                        <Switch
+                          checked={number.is_active}
+                          onCheckedChange={(checked) => handleUpdate(number.id, { is_active: checked })}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleUpdate(number.id, { is_default: !number.is_default })}
+                          disabled={number.is_default}
+                        >
+                          <CreditCard className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(number.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                    {number.description && (
-                      <p className="text-sm text-gray-500 mt-1">{number.description}</p>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  {number.is_default && (
-                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                      Par défaut
-                    </span>
-                  )}
-                  <Switch
-                    checked={number.is_active}
-                    onCheckedChange={(checked) => handleUpdate(number.id!, { is_active: checked })}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleUpdate(number.id!, { is_default: !number.is_default })}
-                    disabled={number.is_default}
-                  >
-                    <CreditCard className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingId(number.id!)}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(number.id!)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        );
+      })}
 
       {paymentNumbers.length === 0 && (
         <Card>
@@ -393,6 +455,22 @@ const PaymentNumbersManager = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Info sur la migration */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <Phone className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-blue-800 mb-1">Information</h4>
+              <p className="text-sm text-blue-700">
+                Le numéro Mobile Money principal a été mis à jour vers 066164686. 
+                Les utilisateur doivent maintenant patienter 3 minutes entre chaque demande de transaction.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
