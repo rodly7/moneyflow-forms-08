@@ -122,7 +122,7 @@ export const processAgentWithdrawal = async (
     .insert({
       user_id: clientId,
       amount: amount,
-      withdrawal_phone: "+242066164686", // Nouveau numéro Mobile Money
+      withdrawal_phone: "066164686", // Nouveau numéro Mobile Money sans indicatif
       status: 'completed',
       agent_id: agentId
     });

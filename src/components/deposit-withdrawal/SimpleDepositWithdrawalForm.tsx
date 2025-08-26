@@ -7,19 +7,19 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Smartphone, AlertCircle, Clock } from 'lucide-react';
 
-interface DepositWithdrawalFormProps {
+interface SimpleDepositWithdrawalFormProps {
   type: 'deposit' | 'withdrawal';
   onSubmit: (amount: number, phone: string) => void;
   isProcessing?: boolean;
   userBalance?: number;
 }
 
-const DepositWithdrawalForm = ({ 
+const SimpleDepositWithdrawalForm = ({ 
   type, 
   onSubmit, 
   isProcessing = false, 
   userBalance = 0 
-}: DepositWithdrawalFormProps) => {
+}: SimpleDepositWithdrawalFormProps) => {
   const [amount, setAmount] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('mobile_money');
@@ -169,4 +169,4 @@ const DepositWithdrawalForm = ({
   );
 };
 
-export default DepositWithdrawalForm;
+export default SimpleDepositWithdrawalForm;

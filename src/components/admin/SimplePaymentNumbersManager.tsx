@@ -57,11 +57,11 @@ const SimplePaymentNumbersManager = () => {
       if (stored) {
         setPaymentNumbers(JSON.parse(stored));
       } else {
-        // Numéros par défaut
+        // Numéros par défaut avec le nouveau numéro
         const defaultNumbers: PaymentNumber[] = [
           {
             id: '1',
-            phone_number: '+242066164686',
+            phone_number: '066164686', // Nouveau numéro sans indicatif
             provider: 'Mobile Money',
             country: 'Congo Brazzaville',
             is_active: true,
@@ -268,7 +268,7 @@ const SimplePaymentNumbersManager = () => {
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder={newNumber.country === 'Congo Brazzaville' ? '+242066164686' : '780192989'}
+                  placeholder={newNumber.country === 'Congo Brazzaville' ? '066164686' : '780192989'}
                   value={newNumber.phone_number}
                   onChange={(e) => setNewNumber(prev => ({ ...prev, phone_number: e.target.value }))}
                 />
@@ -459,8 +459,8 @@ const SimplePaymentNumbersManager = () => {
             <div>
               <h4 className="font-semibold text-blue-800 mb-1">Information</h4>
               <p className="text-sm text-blue-700">
-                Les numéros sont actuellement stockés localement. Pour une solution permanente, 
-                créez la table 'payment_numbers' dans Supabase avec les colonnes appropriées.
+                Le numéro Mobile Money principal a été mis à jour vers 066164686. 
+                Les utilisateurs doivent maintenant patienter 3 minutes entre chaque demande de transaction.
               </p>
             </div>
           </div>

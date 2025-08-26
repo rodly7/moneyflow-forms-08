@@ -46,7 +46,7 @@ export const rechargeUserBalance = async (
         amount: amount,
         country: country,
         payment_method: paymentMethod,
-        payment_phone: "+242066164686", // Nouveau numéro Mobile Money
+        payment_phone: "066164686", // Nouveau numéro Mobile Money sans indicatif
         payment_provider: 'mobile_money',
         transaction_reference: transactionReference,
         status: 'completed'
