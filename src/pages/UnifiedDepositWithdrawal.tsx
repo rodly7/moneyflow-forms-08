@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import DepositWithdrawalForm from '@/components/deposit-withdrawal/DepositWithdrawalForm';
+import SimpleDepositWithdrawalForm from '@/components/deposit-withdrawal/SimpleDepositWithdrawalForm';
 import { formatCurrency } from '@/lib/utils/currency';
 import { ArrowDownToLine, ArrowUpFromLine, Wallet } from 'lucide-react';
 
@@ -67,7 +66,7 @@ const UnifiedDepositWithdrawal = () => {
         </TabsList>
 
         <TabsContent value="deposit">
-          <DepositWithdrawalForm 
+          <SimpleDepositWithdrawalForm 
             type="deposit"
             onSubmit={handleDeposit}
             isProcessing={isProcessing}
@@ -76,7 +75,7 @@ const UnifiedDepositWithdrawal = () => {
         </TabsContent>
 
         <TabsContent value="withdrawal">
-          <DepositWithdrawalForm 
+          <SimpleDepositWithdrawalForm 
             type="withdrawal"
             onSubmit={handleWithdrawal}
             isProcessing={isProcessing}

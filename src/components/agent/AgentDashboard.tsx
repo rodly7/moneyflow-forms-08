@@ -1,226 +1,279 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  QrCode, 
-  History, 
-  DollarSign, 
-  TrendingUp,
-  Users,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Wallet,
-  Eye,
-  EyeOff,
-  RefreshCw
-} from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '@/lib/utils/currency';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Wallet,
+  TrendingUp,
+  DollarSign,
+  Users,
+  UserPlus,
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import AgentStatsCard from './AgentStatsCard';
-import AgentEarningsCard from './AgentEarningsCard';
-import AgentTransactionHistory from './AgentTransactionHistory';
-import AgentYesterdaySummary from './AgentYesterdaySummary';
-import useAgentEarnings from '@/hooks/useAgentEarnings';
-import AgentCommissionWithdrawal from './AgentCommissionWithdrawal';
 
-const AgentDashboard: React.FC = () => {
+interface AgentStats {
+  todayTransactions: number;
+  todayCommissions: number;
+  totalAgents: number;
+  pendingRequests: number;
+}
+
+const AgentDashboard = () => {
   const { user, profile } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [balance, setBalance] = useState<number | null>(null);
-  const [totalTransactions, setTotalTransactions] = useState<number>(0);
-  const [totalVolume, setTotalVolume] = useState<number>(0);
-  const [totalEarnings, setTotalEarnings] = useState<number>(0);
-  const [commissionBalance, setCommissionBalance] = useState<number>(0);
-  const [yesterdaySummary, setYesterdaySummary] = useState<{
-    totalVolume: number;
-    totalTransactions: number;
-  } | null>(null);
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<AgentStats>({
+    todayTransactions: 0,
+    todayCommissions: 0,
+    totalAgents: 0,
+    pendingRequests: 0,
+  });
+  const [isCreatingAgent, setIsCreatingAgent] = useState(false);
+  const [newAgentData, setNewAgentData] = useState({
+    email: '',
+    password: '',
+    country: profile?.country || 'Cameroun',
+  });
 
-  const { earnings } = useAgentEarnings();
+  useEffect(() => {
+    if (!user || profile?.role !== 'agent') {
+      navigate('/login');
+    } else {
+      fetchAgentStats();
+    }
+  }, [user, profile, navigate]);
 
-  const handleWithdrawalSuccess = () => {
-    // Refresh data after successful withdrawal
-    fetchAgentData();
+  const fetchAgentStats = async () => {
+    try {
+      // Fetch today's transactions and commissions
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('operations')
+        .select('*')
+        .eq('agent_id', user!.id)
+        .gte('created_at', new Date().toISOString().slice(0, 10));
+
+      if (transactionsError) throw transactionsError;
+
+      const todayTransactions = transactionsData?.length || 0;
+      const todayCommissions = transactionsData?.reduce((sum, op) => sum + (op.agent_commission || 0), 0) || 0;
+
+      // Fetch total agents created by this agent
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('created_by', user!.id)
+        .eq('role', 'agent');
+
+      if (agentsError) throw agentsError;
+
+      const totalAgents = agentsData?.length || 0;
+
+      // Fetch pending agent requests
+      const { data: pendingData, error: pendingError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('created_by', user!.id)
+        .eq('role', 'agent')
+        .eq('is_active', false);
+
+      if (pendingError) throw pendingError;
+
+      const pendingRequests = pendingData?.length || 0;
+
+      setStats({
+        todayTransactions,
+        todayCommissions,
+        totalAgents,
+        pendingRequests,
+      });
+
+    } catch (error: any) {
+      console.error("Error fetching agent stats:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les statistiques de l'agent",
+        variant: "destructive"
+      });
+    }
   };
 
-  const fetchAgentData = async () => {
-    if (!user?.id) {
-      navigate('/auth');
+  const handleInputChange = (field: string, value: string) => {
+    setNewAgentData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleCreateAgent = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newAgentData.email || !newAgentData.password) {
+      toast({
+        title: "Champs requis",
+        description: "Veuillez remplir tous les champs obligatoires",
+        variant: "destructive"
+      });
       return;
     }
 
-    setLoading(true);
+    setIsCreatingAgent(true);
     try {
-      // Fetch profile data
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('balance, full_name, phone, country, is_verified')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) {
-        throw profileError;
-      }
-
-      setBalance(profileData?.balance || 0);
-
-      // Fetch agent commission balance
-      const { data: agentData, error: agentError } = await supabase
-        .from('agents')
-        .select('commission_balance')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!agentError && agentData) {
-        setCommissionBalance(agentData.commission_balance || 0);
-      }
-
-      // Set mock data for demonstration - using existing data from useAgentEarnings
-      setYesterdaySummary({
-        totalVolume: 150000,
-        totalTransactions: 25,
+      const { data, error } = await supabase.functions.invoke('create-agent', {
+        body: {
+          email: newAgentData.email,
+          password: newAgentData.password,
+          country: newAgentData.country,
+          created_by: user!.id,
+        },
       });
 
-      setTotalTransactions(120);
-      setTotalVolume(2500000);
-      setTotalEarnings(earnings.totalEarnings || 45000);
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Agent créé",
+        description: `L'agent ${newAgentData.email} a été créé avec succès`,
+      });
+
+      // Reset form and refetch stats
+      setNewAgentData({
+        email: '',
+        password: '',
+        country: profile?.country || 'Cameroun',
+      });
+      fetchAgentStats();
 
     } catch (error: any) {
-      console.error('Error fetching agent data:', error);
+      console.error('Agent creation error:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de charger les données de l'agent",
+        description: error.message || "Une erreur est survenue lors de la création de l'agent",
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsCreatingAgent(false);
     }
   };
-
-  useEffect(() => {
-    fetchAgentData();
-  }, [user?.id, navigate, toast, earnings.totalEarnings]);
-
-  const toggleBalanceVisibility = () => {
-    setIsBalanceVisible(!isBalanceVisible);
-  };
-
-  const formatBalanceDisplay = () => {
-    if (!isBalanceVisible) {
-      return "••••••••";
-    }
-    return formatCurrency(balance || 0);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6">
-      <div className="container mx-auto px-4 space-y-6">
-        {/* Header Section */}
-        <Card className="bg-white shadow-md rounded-lg">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-4">
-                <Avatar>
-                  <AvatarImage src={profile?.avatar_url} alt={profile?.full_name || 'Agent'} />
-                  <AvatarFallback className="bg-gray-200 text-gray-600 font-semibold">
-                    {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'A'}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <CardTitle className="text-lg font-semibold">
-                    Bonjour, {profile?.full_name || 'Agent'} 👋
-                  </CardTitle>
-                  <p className="text-gray-500">
-                    {new Date().toLocaleDateString('fr-FR', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </p>
-                </div>
-              </div>
-              <Button variant="outline" onClick={() => navigate('/transfer')}>
-                Nouveau Transfert
-              </Button>
-            </div>
+    <div className="container mx-auto p-4 space-y-6">
+      {/* Balance Card */}
+      <Card className="bg-gradient-to-r from-green-50 to-blue-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-green-600" />
+            Votre solde
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold text-green-800">
+            {formatCurrency(profile?.balance || 0, 'XAF')}
+          </div>
+          <Badge variant="secondary" className="mt-2">
+            Agent vérifié
+          </Badge>
+        </CardContent>
+      </Card>
 
-            {/* Balance Display */}
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="text-gray-600 text-sm font-medium">Solde actuel</div>
-                <div className="text-2xl font-bold">{formatBalanceDisplay()}</div>
-                <Button variant="ghost" size="sm" onClick={toggleBalanceVisibility}>
-                  {isBalanceVisible ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-                  {isBalanceVisible ? 'Masquer' : 'Afficher'}
-                </Button>
-              </div>
-              <Button variant="secondary" onClick={() => fetchAgentData()}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Rafraîchir
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stats and Earnings Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AgentStatsCard
-            title="Transactions Totales"
-            value={totalTransactions}
-            icon={History}
-          />
-          <AgentStatsCard
-            title="Volume Total"
-            value={formatCurrency(totalVolume)}
-            icon={DollarSign}
-          />
-          <AgentEarningsCard
-            totalEarnings={totalEarnings}
-            commissionRate={2.5}
-            totalWithdrawals={15000}
-          />
-        </div>
-
-        {/* Yesterday's Summary */}
-        {yesterdaySummary && (
-          <AgentYesterdaySummary
-            totalVolume={yesterdaySummary.totalVolume}
-            totalTransactions={yesterdaySummary.totalTransactions}
-          />
-        )}
-
-        {/* Commission Management Section */}
-        <AgentCommissionWithdrawal 
-          commissionBalance={commissionBalance}
-          onRefresh={handleWithdrawalSuccess}
+      {/* Agent Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <AgentStatsCard
+          title="Transactions aujourd'hui"
+          value={stats.todayTransactions}
+          icon={TrendingUp}
         />
-
-        {/* Recent Transactions Section */}
-        <AgentTransactionHistory 
-          transactions={[]}
+        <AgentStatsCard
+          title="Commissions du jour"
+          value={formatCurrency(stats.todayCommissions, 'XAF')}
+          icon={DollarSign}
+        />
+        <AgentStatsCard
+          title="Agents créés"
+          value={stats.totalAgents}
+          icon={Users}
+        />
+        <AgentStatsCard
+          title="Demandes en attente"
+          value={stats.pendingRequests}
+          icon={UserPlus}
         />
       </div>
+
+      {/* Create Agent Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Créer un nouvel agent</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCreateAgent} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email de l'agent *</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="agent@example.com"
+                value={newAgentData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Mot de passe *</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Mot de passe"
+                value={newAgentData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="country">Pays *</Label>
+              <Select
+                value={newAgentData.country}
+                onValueChange={(value) => handleInputChange('country', value)}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir le pays" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cameroun">Cameroun</SelectItem>
+                  <SelectItem value="Sénégal">Sénégal</SelectItem>
+                  {/* Add other countries as needed */}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700"
+              disabled={isCreatingAgent}
+            >
+              {isCreatingAgent ? (
+                <>
+                  <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Création...
+                </>
+              ) : (
+                "Créer l'agent"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };
