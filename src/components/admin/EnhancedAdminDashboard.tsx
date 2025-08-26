@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -40,7 +41,12 @@ const EnhancedAdminDashboard = () => {
   const { stats, loading } = useSubAdminStats();
   const [generating, setGenerating] = useState(false);
   
+  console.log('🔍 EnhancedAdminDashboard - Profile:', profile);
+  console.log('🔍 EnhancedAdminDashboard - isMainAdmin:', isMainAdmin);
+  console.log('🔍 EnhancedAdminDashboard - Stats:', stats);
+  
   if (!isMainAdmin) {
+    console.log('❌ Accès refusé - pas admin principal');
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -73,8 +79,10 @@ const EnhancedAdminDashboard = () => {
     }).format(amount);
   };
 
+  console.log('✅ Rendu du dashboard admin amélioré');
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* En-tête amélioré */}
       <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-lg p-6 text-white">
         <div className="flex justify-between items-center">
