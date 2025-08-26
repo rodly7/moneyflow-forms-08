@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { supabase, formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
+import { supabase, formatCurrency } from "@/integrations/supabase/client";
+import { getCurrencyForCountry, convertCurrency } from "@/lib/utils/currency";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Star, Receipt, TrendingUp, Building2 } from "lucide-react";
 
