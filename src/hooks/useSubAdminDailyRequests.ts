@@ -12,6 +12,8 @@ interface DailyRequestsStatus {
   remainingRequests: number;
 }
 
+const MAX_APPROVAL_AMOUNT = 500000; // Limite maximale d'approbation
+
 export const useSubAdminDailyRequests = () => {
   const { user, profile } = useAuth();
   const [status, setStatus] = useState<DailyRequestsStatus>({
@@ -162,6 +164,14 @@ export const useSubAdminDailyRequests = () => {
     }
   }, [user?.id, fetchDailyStatus, status.canMakeRequest, status.dailyLimit, status.remainingRequests]);
 
+  const validateAmount = useCallback((amount: number) => {
+    if (amount > MAX_APPROVAL_AMOUNT) {
+      toast.error(`Montant trop élevé. Limite maximale: ${MAX_APPROVAL_AMOUNT.toLocaleString()} XAF`);
+      return false;
+    }
+    return true;
+  }, []);
+
   useEffect(() => {
     fetchDailyStatus();
   }, [fetchDailyStatus]);
@@ -170,6 +180,8 @@ export const useSubAdminDailyRequests = () => {
     status,
     loading,
     recordRequest,
-    refreshStatus: fetchDailyStatus
+    refreshStatus: fetchDailyStatus,
+    validateAmount,
+    maxApprovalAmount: MAX_APPROVAL_AMOUNT
   };
 };
