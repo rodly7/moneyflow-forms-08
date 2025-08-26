@@ -1,35 +1,41 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
+import { ArrowUpRight, ArrowDownLeft, Phone, DollarSign, CreditCard } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { formatCurrency, calculateFee } from '@/lib/utils/currency';
-import { ArrowUpRight, ArrowDownLeft, Wallet, AlertCircle, CheckCircle } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils/currency';
 
 interface PaymentNumber {
   id: string;
   phone_number: string;
   provider: string;
   country: string;
-  is_active: boolean;
-  is_default: boolean;
   service_type: 'recharge' | 'withdrawal' | 'both';
+  admin_name?: string;
   description?: string;
+  is_active: boolean;
 }
 
-const DepositWithdrawalForm = ({ type }: { type: 'deposit' | 'withdrawal' }) => {
+const DepositWithdrawalForm: React.FC = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
-  const [amount, setAmount] = useState('');
+  const [loading, setLoading] = useState(false);
   const [paymentNumbers, setPaymentNumbers] = useState<PaymentNumber[]>([]);
-  const [selectedNumber, setSelectedNumber] = useState<string | undefined>(undefined);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [transferFee, setTransferFee] = useState(0);
-  const [isFeeCalculated, setIsFeeCalculated] = useState(false);
+  const [activeTab, setActiveTab] = useState<'deposit' | 'withdrawal'>('deposit');
+  
+  const [formData, setFormData] = useState({
+    amount: '',
+    provider: '',
+    phone_number: '',
+    withdrawal_phone: ''
+  });
 
   useEffect(() => {
     fetchPaymentNumbers();
@@ -40,20 +46,19 @@ const DepositWithdrawalForm = ({ type }: { type: 'deposit' | 'withdrawal' }) => 
       const { data, error } = await supabase
         .from('payment_numbers')
         .select('*')
-        .eq('country', profile?.country)
-        .eq('is_active', true)
-        .in('service_type', type === 'deposit' ? ['recharge', 'both'] : ['withdrawal', 'both']);
+        .eq('is_active', true);
 
       if (error) throw error;
-      setPaymentNumbers(data || []);
 
-      // Set default payment number if available
-      const defaultNumber = data?.find(number => number.is_default);
-      if (defaultNumber) {
-        setSelectedNumber(defaultNumber.id);
-      }
-    } catch (error) {
-      console.error('Erreur:', error);
+      // Type casting to ensure proper typing
+      const typedData: PaymentNumber[] = (data || []).map(item => ({
+        ...item,
+        service_type: item.service_type as 'recharge' | 'withdrawal' | 'both'
+      }));
+
+      setPaymentNumbers(typedData);
+    } catch (error: any) {
+      console.error('Error fetching payment numbers:', error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les numéros de paiement",
@@ -62,209 +67,333 @@ const DepositWithdrawalForm = ({ type }: { type: 'deposit' | 'withdrawal' }) => 
     }
   };
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setAmount(value);
-    setIsFeeCalculated(false); // Reset fee calculation when amount changes
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
-  const calculateTransferFee = () => {
-    if (!amount) {
+  const handleDeposit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.amount || !formData.provider || !formData.phone_number) {
       toast({
-        title: "Erreur",
-        description: "Veuillez saisir un montant",
+        title: "Champs requis",
+        description: "Veuillez remplir tous les champs obligatoires",
         variant: "destructive"
       });
       return;
     }
 
-    const amountValue = Number(amount);
-    if (isNaN(amountValue) || amountValue <= 0) {
+    const amount = parseFloat(formData.amount);
+    if (amount <= 0) {
       toast({
-        title: "Erreur",
-        description: "Montant invalide",
+        title: "Montant invalide",
+        description: "Le montant doit être supérieur à 0",
         variant: "destructive"
       });
       return;
     }
 
-    const feeDetails = calculateFee(amountValue, profile?.country || 'Congo Brazzaville', profile?.country || 'Congo Brazzaville');
-    setTransferFee(feeDetails.fee);
-    setIsFeeCalculated(true);
-  };
-
-  const handleSubmit = async () => {
-    if (!amount || !selectedNumber) {
-      toast({
-        title: "Données manquantes",
-        description: "Veuillez saisir un montant et sélectionner un numéro",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const amountValue = Number(amount);
-    if (isNaN(amountValue) || amountValue <= 0) {
-      toast({
-        title: "Erreur",
-        description: "Montant invalide",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsProcessing(true);
-
+    setLoading(true);
     try {
-      // Find selected payment number details
-      const selectedPaymentNumber = paymentNumbers.find(number => number.id === selectedNumber);
-
-      if (!selectedPaymentNumber) {
-        throw new Error("Numéro de paiement introuvable");
-      }
-
-      // Perform the deposit or withdrawal operation
-      const { data, error } = await supabase.from('operations').insert([
-        {
-          user_id: user?.id,
-          type: type,
-          amount: amountValue,
-          status: 'pending',
-          payment_number_id: selectedNumber,
-          payment_provider: selectedPaymentNumber.provider,
-          transfer_fee: transferFee,
-          country: profile?.country,
-          currency: 'XAF',
-          operation_date: new Date().toISOString(),
-        }
-      ]).select().single();
+      // Create recharge record instead of operations
+      const { data, error } = await supabase
+        .from('recharges')
+        .insert({
+          user_id: user!.id,
+          amount: amount,
+          payment_method: 'mobile_money',
+          payment_phone: formData.phone_number,
+          payment_provider: formData.provider,
+          country: profile?.country || 'Unknown',
+          transaction_reference: `DEP_${Date.now()}`,
+          status: 'pending'
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
       toast({
-        title: "Succès",
-        description: `Votre demande de ${type === 'deposit' ? 'recharge' : 'retrait'} de ${formatCurrency(amountValue, 'XAF')} a été soumise avec succès.`,
+        title: "Dépôt initié",
+        description: `Votre demande de dépôt de ${formatCurrency(amount)} a été créée`,
       });
 
       // Reset form
-      setAmount('');
-      setSelectedNumber(undefined);
-      setIsFeeCalculated(false);
+      setFormData({
+        amount: '',
+        provider: '',
+        phone_number: '',
+        withdrawal_phone: ''
+      });
 
     } catch (error: any) {
-      console.error('Erreur lors de la soumission:', error);
+      console.error('Deposit error:', error);
       toast({
         title: "Erreur",
-        description: `Erreur lors de la soumission de la demande: ${error.message}`,
+        description: error.message || "Une erreur est survenue",
         variant: "destructive"
       });
     } finally {
-      setIsProcessing(false);
+      setLoading(false);
     }
   };
 
+  const handleWithdrawal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.amount || !formData.provider || !formData.withdrawal_phone) {
+      toast({
+        title: "Champs requis",
+        description: "Veuillez remplir tous les champs obligatoires",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const amount = parseFloat(formData.amount);
+    if (amount <= 0) {
+      toast({
+        title: "Montant invalide",
+        description: "Le montant doit être supérieur à 0",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!profile?.balance || profile.balance < amount) {
+      toast({
+        title: "Solde insuffisant",
+        description: "Votre solde est insuffisant pour cette transaction",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Create withdrawal record
+      const { data, error } = await supabase
+        .from('withdrawals')
+        .insert({
+          user_id: user!.id,
+          amount: amount,
+          withdrawal_phone: formData.withdrawal_phone,
+          withdrawal_method: 'mobile_money',
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Retrait initié",
+        description: `Votre demande de retrait de ${formatCurrency(amount)} a été créée`,
+      });
+
+      // Reset form
+      setFormData({
+        amount: '',
+        provider: '',
+        phone_number: '',
+        withdrawal_phone: ''
+      });
+
+    } catch (error: any) {
+      console.error('Withdrawal error:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Une erreur est survenue",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredPaymentNumbers = paymentNumbers.filter(pn => 
+    pn.service_type === activeTab || pn.service_type === 'both'
+  );
+
   return (
-    <Card className="backdrop-blur-xl bg-white/90 shadow-2xl border border-white/50 rounded-2xl">
-      <CardHeader className={`bg-gradient-to-r ${type === 'deposit' ? 'from-green-50 to-emerald-50' : 'from-red-50 to-orange-50'} rounded-t-2xl`}>
-        <CardTitle className={`flex items-center gap-3 text-${type === 'deposit' ? 'green' : 'red'}-700`}>
-          {type === 'deposit' ? <ArrowUpRight className="w-6 h-6" /> : <ArrowDownLeft className="w-6 h-6" />}
-          {type === 'deposit' ? 'Recharger votre compte' : 'Effectuer un retrait'}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-6 space-y-6">
-        {/* Solde actuel */}
-        <div className={`bg-gradient-to-r ${type === 'deposit' ? 'from-green-100 to-emerald-100' : 'from-red-100 to-orange-100'} rounded-xl p-4`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm text-${type === 'deposit' ? 'green' : 'red'}-600 font-medium`}>Solde actuel</p>
-              <p className={`text-2xl font-bold text-${type === 'deposit' ? 'green' : 'red'}-800`}>
-                {formatCurrency(profile?.balance || 0, 'XAF')}
-              </p>
-            </div>
-            <Wallet className={`w-8 h-8 text-${type === 'deposit' ? 'green' : 'red'}-600`} />
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50 p-4">
+      <Card className="max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle className="text-center">Dépôt & Retrait</CardTitle>
+        </CardHeader>
 
-        {/* Formulaire de dépôt/retrait */}
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="amount" className="text-gray-700 font-medium">
-              Montant à {type === 'deposit' ? 'recharger' : 'retirer'} (FCFA)
-            </Label>
-            <Input
-              id="amount"
-              type="number"
-              placeholder="Ex: 50000"
-              value={amount}
-              onChange={handleAmountChange}
-              className="h-12 bg-gray-50 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-            />
-          </div>
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'deposit' | 'withdrawal')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="deposit" className="flex items-center gap-2">
+                <ArrowDownLeft className="w-4 h-4" />
+                Dépôt
+              </TabsTrigger>
+              <TabsTrigger value="withdrawal" className="flex items-center gap-2">
+                <ArrowUpRight className="w-4 h-4" />
+                Retrait
+              </TabsTrigger>
+            </TabsList>
 
-          <div className="space-y-2">
-            <Label htmlFor="payment-number" className="text-gray-700 font-medium">
-              Numéro de paiement
-            </Label>
-            <Select value={selectedNumber} onValueChange={setSelectedNumber}>
-              <SelectTrigger className="bg-gray-50 border-gray-200 focus:border-blue-500 focus:ring-blue-500">
-                <SelectValue placeholder="Sélectionner un numéro" />
-              </SelectTrigger>
-              <SelectContent>
-                {paymentNumbers.map((number) => (
-                  <SelectItem key={number.id} value={number.id}>
-                    {number.phone_number} ({number.provider})
-                  </SelectItem>
+            <TabsContent value="deposit">
+              <form onSubmit={handleDeposit} className="space-y-4">
+                
+                <div className="space-y-2">
+                  <Label htmlFor="deposit-amount">Montant (XAF) *</Label>
+                  <Input
+                    id="deposit-amount"
+                    type="number"
+                    placeholder="50000"
+                    value={formData.amount}
+                    onChange={(e) => handleInputChange('amount', e.target.value)}
+                    className="h-12"
+                    min="1000"
+                    step="1000"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="provider">Fournisseur *</Label>
+                  <Select
+                    value={formData.provider}
+                    onValueChange={(value) => handleInputChange('provider', value)}
+                    required
+                  >
+                    <SelectTrigger className="h-12">
+                      <SelectValue placeholder="Choisir le fournisseur" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="orange_money">Orange Money</SelectItem>
+                      <SelectItem value="free_money">Free Money</SelectItem>
+                      <SelectItem value="wave">Wave</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Votre numéro de téléphone *</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+221 XX XXX XX XX"
+                    value={formData.phone_number}
+                    onChange={(e) => handleInputChange('phone_number', e.target.value)}
+                    className="h-12"
+                    required
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-12 bg-green-600 hover:bg-green-700"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Traitement...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDownLeft className="w-4 h-4 mr-2" />
+                      Effectuer le dépôt
+                    </>
+                  )}
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="withdrawal">
+              <form onSubmit={handleWithdrawal} className="space-y-4">
+                
+                <div className="space-y-2">
+                  <Label htmlFor="withdrawal-amount">Montant (XAF) *</Label>
+                  <Input
+                    id="withdrawal-amount"
+                    type="number"
+                    placeholder="50000"
+                    value={formData.amount}
+                    onChange={(e) => handleInputChange('amount', e.target.value)}
+                    className="h-12"
+                    min="1000"
+                    step="1000"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="provider">Fournisseur *</Label>
+                  <Select
+                    value={formData.provider}
+                    onValueChange={(value) => handleInputChange('provider', value)}
+                    required
+                  >
+                    <SelectTrigger className="h-12">
+                      <SelectValue placeholder="Choisir le fournisseur" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="orange_money">Orange Money</SelectItem>
+                      <SelectItem value="free_money">Free Money</SelectItem>
+                      <SelectItem value="wave">Wave</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="withdrawal-phone">Numéro de retrait *</Label>
+                  <Input
+                    id="withdrawal-phone"
+                    type="tel"
+                    placeholder="+221 XX XXX XX XX"
+                    value={formData.withdrawal_phone}
+                    onChange={(e) => handleInputChange('withdrawal_phone', e.target.value)}
+                    className="h-12"
+                    required
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-12 bg-red-600 hover:bg-red-700"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Traitement...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowUpRight className="w-4 h-4 mr-2" />
+                      Effectuer le retrait
+                    </>
+                  )}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+
+          {/* Payment Numbers Display */}
+          {filteredPaymentNumbers.length > 0 && (
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <h4 className="font-medium text-sm mb-2">Numéros de paiement disponibles:</h4>
+              <div className="space-y-2">
+                {filteredPaymentNumbers.map((pn) => (
+                  <div key={pn.id} className="flex items-center justify-between text-sm">
+                    <span>{pn.provider}</span>
+                    <Badge variant="outline">{pn.phone_number}</Badge>
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Frais de transfert */}
-        {amount && !isFeeCalculated && (
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={calculateTransferFee}>
-              Calculer les frais
-            </Button>
-          </div>
-        )}
-
-        {isFeeCalculated && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-blue-900 mb-2">Frais de transfert</h4>
-                <p className="text-sm text-blue-700">
-                  Frais: {formatCurrency(transferFee, 'XAF')}
-                </p>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Action */}
-        <div className="flex justify-end">
-          <Button
-            onClick={handleSubmit}
-            disabled={isProcessing || !amount || !selectedNumber}
-            className={`bg-gradient-to-r ${type === 'deposit' ? 'from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700' : 'from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700'} rounded-full px-8 h-12`}
-          >
-            {isProcessing ? (
-              <>
-                <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Traitement...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                {type === 'deposit' ? 'Recharger mon compte' : 'Confirmer le retrait'}
-              </>
-            )}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

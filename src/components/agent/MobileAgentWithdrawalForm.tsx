@@ -14,7 +14,7 @@ import useDepositWithdrawalOperations from '@/hooks/useDepositWithdrawalOperatio
 const MobileAgentWithdrawalForm: React.FC = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
-  const { createDepositOperation, loading } = useDepositWithdrawalOperations();
+  const { createOperation, loading } = useDepositWithdrawalOperations();
   
   const [formData, setFormData] = useState({
     clientPhone: '',
@@ -53,12 +53,14 @@ const MobileAgentWithdrawalForm: React.FC = () => {
     }
 
     try {
-      const result = await createDepositOperation({
-        amount: amount,
-        phone_number: formData.clientPhone,
-        provider: formData.provider,
-        country: profile?.country || 'Unknown'
-      });
+      const result = await createOperation(
+        amount,
+        'withdrawal',
+        'mobile_money',
+        formData.clientPhone,
+        profile?.country || 'Unknown',
+        formData.provider
+      );
 
       if (result) {
         toast({

@@ -217,7 +217,7 @@ const AgentDashboard: React.FC = () => {
         />
 
         {/* Recent Transactions Section */}
-        <AgentTransactionHistory transactions={[]} />
+        <AgentTransactionHistory />
       </div>
     </div>
   );

@@ -1,17 +1,28 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Wallet } from 'lucide-react';
-import UserRechargeRequestModal from '@/components/user/UserRechargeRequestModal';
+import { Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const RechargeAccountButton = () => {
+interface RechargeAccountButtonProps {
+  children?: React.ReactNode;
+}
+
+const RechargeAccountButton: React.FC<RechargeAccountButtonProps> = ({ children }) => {
+  const navigate = useNavigate();
+
+  const handleRecharge = () => {
+    navigate('/unified-deposit-withdrawal');
+  };
+
   return (
-    <UserRechargeRequestModal>
-      <Button className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800">
-        <Wallet className="mr-2 h-4 w-4" />
-        Recharger mon compte
-      </Button>
-    </UserRechargeRequestModal>
+    <Button 
+      onClick={handleRecharge}
+      className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center gap-2"
+    >
+      <Plus className="w-5 h-5" />
+      {children || 'Recharger le compte'}
+    </Button>
   );
 };
 
