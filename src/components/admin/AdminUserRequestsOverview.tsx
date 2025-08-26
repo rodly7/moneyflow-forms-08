@@ -1,600 +1,414 @@
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  CreditCard, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  User, 
-  Phone, 
-  Wallet,
+  Users, 
+  UserPlus, 
+  UserCheck, 
+  UserX, 
+  DollarSign, 
+  TrendingUp, 
+  Calendar,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Filter,
+  RefreshCw,
+  Download,
   Eye,
-  Filter
-} from 'lucide-react';
-import { formatCurrency } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useMainAdmin } from '@/hooks/useMainAdmin';
+  MessageSquare,
+  Phone,
+  Mail,
+  MapPin
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils/currency";
 
-type UserRequest = {
+interface Request {
   id: string;
-  user_id: string;
-  operation_type: string;
-  amount: number;
-  payment_method: string;
-  payment_phone: string;
-  status: string;
   created_at: string;
-  processed_by?: string | null;
-  processed_at?: string | null;
-  rejection_reason?: string | null;
-  profiles?: {
-    full_name: string;
-    phone: string;
-    country: string;
-  } | null;
-  processor_profile?: {
-    full_name: string;
-    phone: string;
-    role: string;
-  } | null;
-};
+  user_id: string;
+  agent_id: string;
+  agent_name: string;
+  agent_phone: string;
+  withdrawal_phone: string;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+interface UserProfile {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  country: string;
+  balance: number;
+  role: string;
+  created_at: string;
+}
 
 const AdminUserRequestsOverview = () => {
-  const { toast } = useToast();
   const { user } = useAuth();
-  const { isMainAdmin } = useMainAdmin();
-  const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
+  const { toast } = useToast();
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [selectedTab, setSelectedTab] = useState("pending");
   const [isLoading, setIsLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState<string | null>(null);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<UserRequest | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
-  // Fonction pour charger toutes les demandes utilisateurs
-  const fetchAllUserRequests = async () => {
+  useEffect(() => {
+    fetchData();
+  }, [selectedTab, filterDate]);
+
+  const fetchData = async () => {
+    setIsLoading(true);
     try {
-      console.log('🔄 Chargement de toutes les demandes utilisateurs...');
-
-      const { data: requests, error } = await supabase
-        .from('user_requests')
-        .select(`
-          id,
-          user_id,
-          operation_type,
-          amount,
-          payment_method,
-          payment_phone,
-          status,
-          created_at,
-          processed_by,
-          processed_at,
-          rejection_reason
-        `)
+      const { data: requestsData, error: requestsError } = await supabase
+        .from('withdrawal_requests')
+        .select('*')
+        .eq('status', selectedTab)
+        .gte('created_at', `${filterDate}T00:00:00+00:00`)
+        .lt('created_at', `${filterDate}T23:59:59+00:00`)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Erreur lors du chargement des demandes:', error);
-        throw error;
+      if (requestsError) {
+        console.error("Error fetching requests:", requestsError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch withdrawal requests",
+          variant: "destructive",
+        });
+        return;
       }
 
-      // Fetch profile data for each request and processor
-      const requestsWithProfiles = await Promise.all(
-        (requests || []).map(async (request) => {
-          // Profile du demandeur
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, phone, country')
-            .eq('id', request.user_id)
-            .single();
-          
-          // Profile du processeur (sous-admin qui a traité)
-          let processorProfile = null;
-          if (request.processed_by) {
-            const { data: processor } = await supabase
-              .from('profiles')
-              .select('full_name, phone, role')
-              .eq('id', request.processed_by)
-              .single();
-            processorProfile = processor;
-          }
-          
-          return {
-            ...request,
-            profiles: profile,
-            processor_profile: processorProfile
-          };
-        })
-      );
+      setRequests(requestsData || []);
 
-      console.log('✅ Toutes les demandes chargées:', requestsWithProfiles);
-      setUserRequests(requestsWithProfiles);
-    } catch (error) {
-      console.error('Erreur critique:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors du chargement des demandes",
-        variant: "destructive"
-      });
+      const userIds = [...new Set(requestsData?.map(req => req.user_id))];
+
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', userIds as string[]);
+
+      if (usersError) {
+        console.error("Error fetching users:", usersError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch user profiles",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setUsers(usersData || []);
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (isMainAdmin) {
-      fetchAllUserRequests();
-    }
-  }, [isMainAdmin]);
-
-  // Auto-refresh toutes les 10 secondes
-  useEffect(() => {
-    if (!isMainAdmin) return;
-    
-    const interval = setInterval(() => {
-      if (!isProcessing) {
-        fetchAllUserRequests();
-      }
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [isProcessing, isMainAdmin]);
-
-  const handleAdminApprove = async (requestId: string) => {
+  const approveRequest = async (requestId: string, userId: string, amount: number) => {
+    setIsApproving(true);
+    setSelectedRequestId(requestId);
     try {
-      setIsProcessing(requestId);
-      console.log('🔄 Début approbation admin pour:', requestId);
-      
-      const request = userRequests.find(r => r.id === requestId);
-      if (!request) {
-        console.error('Demande non trouvée:', requestId);
+      const { error: transferError } = await supabase.rpc('transfer_funds_admin', {
+        sender_id: user?.id,
+        recipient_id: userId,
+        transfer_amount: amount,
+        request_id: requestId
+      });
+
+      if (transferError) {
+        console.error("Error during transfer:", transferError);
+        toast({
+          title: "Error",
+          description: "Failed to approve withdrawal request",
+          variant: "destructive",
+        });
         return;
       }
 
-      // Mettre à jour le statut de la demande avec l'admin principal
-      const { error: updateError } = await supabase
-        .from('user_requests')
-        .update({
-          status: 'approved',
-          processed_by: user?.id,
-          processed_at: new Date().toISOString()
-        })
+      toast({
+        title: "Success",
+        description: "Withdrawal request approved successfully",
+      });
+
+      fetchData();
+    } finally {
+      setIsApproving(false);
+      setSelectedRequestId(null);
+    }
+  };
+
+  const rejectRequest = async (requestId: string) => {
+    setIsRejecting(true);
+    setSelectedRequestId(requestId);
+    try {
+      const { error: rejectError } = await supabase
+        .from('withdrawal_requests')
+        .update({ status: 'rejected' })
         .eq('id', requestId);
 
-      if (updateError) {
-        console.error('❌ Erreur lors de l\'approbation admin:', updateError);
+      if (rejectError) {
+        console.error("Error rejecting request:", rejectError);
         toast({
-          title: "Erreur",
-          description: "Impossible d'approuver la demande: " + updateError.message,
-          variant: "destructive"
+          title: "Error",
+          description: "Failed to reject withdrawal request",
+          variant: "destructive",
         });
         return;
       }
 
-      // Traiter automatiquement le solde
-      if (request.operation_type === 'recharge') {
-        const { error: creditError } = await supabase.rpc('secure_increment_balance', {
-          target_user_id: request.user_id,
-          amount: request.amount,
-          operation_type: 'admin_approved_recharge',
-          performed_by: user?.id
-        });
-
-        if (creditError) {
-          console.error('❌ Erreur lors du crédit admin:', creditError);
-          toast({
-            title: "Erreur",
-            description: "Erreur lors du crédit automatique: " + creditError.message,
-            variant: "destructive"
-          });
-          return;
-        }
-      } else if (request.operation_type === 'withdrawal') {
-        const { error: debitError } = await supabase.rpc('secure_increment_balance', {
-          target_user_id: request.user_id,
-          amount: -request.amount,
-          operation_type: 'admin_approved_withdrawal',
-          performed_by: user?.id
-        });
-
-        if (debitError) {
-          console.error('❌ Erreur lors du débit admin:', debitError);
-          toast({
-            title: "Erreur",
-            description: "Erreur lors du débit automatique: " + debitError.message,
-            variant: "destructive"
-          });
-          return;
-        }
-      }
-
-      console.log('✅ Approbation admin réussie pour:', requestId);
-
-      const operationText = request.operation_type === 'recharge' ? 'Recharge' : 'Retrait';
-      const balanceAction = request.operation_type === 'recharge' ? 'crédité' : 'débité';
-      
       toast({
-        title: "Demande approuvée par l'admin",
-        description: `${operationText} approuvé par l'administrateur principal. Le compte a été ${balanceAction} automatiquement de ${request.amount.toLocaleString()} FCFA`,
+        title: "Success",
+        description: "Withdrawal request rejected successfully",
       });
 
-      fetchAllUserRequests();
-    } catch (error) {
-      console.error('💥 Erreur lors de l\'approbation admin:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors du traitement de la demande",
-        variant: "destructive"
-      });
+      fetchData();
     } finally {
-      setIsProcessing(null);
+      setIsRejecting(false);
+      setSelectedRequestId(null);
     }
   };
 
-  const handleAdminReject = async () => {
-    if (!selectedRequest || !rejectionReason.trim()) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez fournir une raison pour le rejet",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setIsProcessing(selectedRequest.id);
-      console.log('🔄 Début rejet admin pour:', selectedRequest.id);
-
-      const { error } = await supabase
-        .from('user_requests')
-        .update({
-          status: 'rejected',
-          processed_by: user?.id,
-          processed_at: new Date().toISOString(),
-          rejection_reason: `[ADMIN] ${rejectionReason}`
-        })
-        .eq('id', selectedRequest.id);
-
-      if (error) {
-        console.error('❌ Erreur lors du rejet admin:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de rejeter la demande: " + error.message,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log('✅ Rejet admin réussi pour:', selectedRequest.id);
-
-      toast({
-        title: "Demande rejetée par l'admin",
-        description: `${selectedRequest.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} rejeté par l'administrateur principal`,
-      });
-
-      setShowRejectDialog(false);
-      setSelectedRequest(null);
-      setRejectionReason('');
-      
-      fetchAllUserRequests();
-    } catch (error) {
-      console.error('💥 Erreur lors du rejet admin:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors du traitement de la demande",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(null);
-    }
+  const getUserById = (userId: string) => {
+    return users.find(user => user.id === userId);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1" />En attente</Badge>;
-      case 'approved':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Approuvée</Badge>;
-      case 'rejected':
-        return <Badge className="bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Rejetée</Badge>;
-      default:
-        return <Badge variant="secondary">Inconnu</Badge>;
-    }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
-
-  const getOperationTypeLabel = (type: string) => {
-    return type === 'recharge' ? 'Recharge' : 'Retrait';
-  };
-
-  const getOperationIcon = (type: string) => {
-    return type === 'recharge' ? 
-      <Wallet className="w-4 h-4 text-green-600" /> : 
-      <CreditCard className="w-4 h-4 text-red-600" />;
-  };
-
-  // Filtrer les demandes selon le statut
-  const filteredRequests = statusFilter === 'all' 
-    ? userRequests 
-    : userRequests.filter(req => req.status === statusFilter);
-
-  if (!isMainAdmin) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold">Accès refusé</h3>
-          <p className="text-muted-foreground">Seul l'administrateur principal peut accéder à cette section.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Eye className="w-5 h-5" />
-              Chargement de l'historique...
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="animate-pulse space-y-3">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const pendingRequests = filteredRequests.filter(req => req.status === 'pending');
-  const approvedRequests = filteredRequests.filter(req => req.status === 'approved');
-  const rejectedRequests = filteredRequests.filter(req => req.status === 'rejected');
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Eye className="w-6 h-6" />
-          <h2 className="text-2xl font-bold">Historique de toutes les demandes</h2>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            variant={statusFilter === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setStatusFilter('all')}
-          >
-            <Filter className="w-4 h-4 mr-1" />
-            Toutes
-          </Button>
-          <Button 
-            variant={statusFilter === 'pending' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setStatusFilter('pending')}
-          >
-            En attente
-          </Button>
-          <Button 
-            variant={statusFilter === 'approved' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setStatusFilter('approved')}
-          >
-            Approuvées
-          </Button>
-          <Button 
-            variant={statusFilter === 'rejected' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setStatusFilter('rejected')}
-          >
-            Rejetées
-          </Button>
-        </div>
-      </div>
-
-      {/* Statistiques globales */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total demandes</CardTitle>
-            <Eye className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{userRequests.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">En attente</CardTitle>
-            <Clock className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{pendingRequests.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approuvées</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{approvedRequests.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rejetées</CardTitle>
-            <XCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{rejectedRequests.length}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tableau des demandes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Toutes les demandes ({filteredRequests.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Utilisateur</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Méthode</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead>Traité par</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRequests.length > 0 ? (
-                  filteredRequests.map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getOperationIcon(request.operation_type)}
-                          {getOperationTypeLabel(request.operation_type)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{request.profiles?.full_name || 'Inconnu'}</div>
-                          <div className="text-sm text-muted-foreground">{request.profiles?.phone}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono">{formatCurrency(request.amount, 'XAF')}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div>{request.payment_method}</div>
-                          <div className="text-sm text-muted-foreground">{request.payment_phone}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(request.status)}</TableCell>
-                      <TableCell>
-                        {request.processor_profile ? (
-                          <div>
-                            <div className="font-medium">{request.processor_profile.full_name}</div>
-                            <div className="text-sm text-muted-foreground capitalize">
-                              {request.processor_profile.role?.replace('_', ' ')}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Non traité</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        <div>Créé: {new Date(request.created_at).toLocaleDateString('fr-FR')}</div>
-                        {request.processed_at && (
-                          <div className="text-muted-foreground">
-                            Traité: {new Date(request.processed_at).toLocaleDateString('fr-FR')}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {request.status === 'pending' && (
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                              onClick={() => handleAdminApprove(request.id)}
-                              disabled={isProcessing === request.id}
-                            >
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              {isProcessing === request.id ? 'Traitement...' : 'Approuver'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setShowRejectDialog(true);
-                              }}
-                              disabled={isProcessing === request.id}
-                            >
-                              <XCircle className="w-3 h-3 mr-1" />
-                              Rejeter
-                            </Button>
-                          </div>
-                        )}
-                        {request.status !== 'pending' && (
-                          <span className="text-sm text-muted-foreground">
-                            {request.status === 'approved' ? 'Approuvée' : 'Rejetée'}
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      Aucune demande trouvée
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Dialog de rejet */}
-      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rejeter la demande (Administrateur)</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Raison du rejet</label>
-              <Textarea
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Expliquez pourquoi cette demande est rejetée par l'administrateur principal..."
-                rows={3}
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Users className="w-5 h-5" />
+          User Requests Management
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue={selectedTab} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="pending" onClick={() => setSelectedTab("pending")}>
+              <Clock className="w-4 h-4 mr-2" />
+              Pending
+            </TabsTrigger>
+            <TabsTrigger value="approved" onClick={() => setSelectedTab("approved")}>
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Approved
+            </TabsTrigger>
+            <TabsTrigger value="rejected" onClick={() => setSelectedTab("rejected")}>
+              <XCircle className="w-4 h-4 mr-2" />
+              Rejected
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Calendar className="w-4 h-4 mr-2" />
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="border rounded px-2 py-1"
               />
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
-                Annuler
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={handleAdminReject} 
-                disabled={!rejectionReason.trim()}
-              >
-                Rejeter définitivement
-              </Button>
-            </div>
+            <Badge variant="secondary">
+              {requests.length} requests
+            </Badge>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          <TabsContent value="pending">
+            <ScrollArea className="h-[450px] w-full">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <RefreshCw className="w-6 h-6 animate-spin" />
+                </div>
+              ) : requests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <AlertCircle className="w-12 h-12 text-gray-400" />
+                  <p className="text-lg font-semibold text-gray-500 mt-2">No pending requests</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {requests.map((request) => {
+                    const user = getUserById(request.user_id);
+                    return (
+                      <Card key={request.id} className="bg-white/95 backdrop-blur-sm">
+                        <CardHeader>
+                          <CardTitle>
+                            Withdrawal Request
+                            <Badge className="ml-2">{request.status}</Badge>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <p>
+                              <strong>Date:</strong> {formatDate(request.created_at)}
+                            </p>
+                            <p>
+                              <strong>User:</strong> {user?.full_name} ({user?.email})
+                            </p>
+                            <p>
+                              <strong>Phone:</strong> {user?.phone}
+                            </p>
+                            <p>
+                              <strong>Amount:</strong> {formatCurrency(request.amount, "XAF")}
+                            </p>
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                onClick={() => approveRequest(request.id, request.user_id, request.amount)}
+                                disabled={isApproving && selectedRequestId === request.id}
+                              >
+                                {isApproving && selectedRequestId === request.id ? (
+                                  <>
+                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                    Approving...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    Approve
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => rejectRequest(request.id)}
+                                disabled={isRejecting && selectedRequestId === request.id}
+                              >
+                                {isRejecting && selectedRequestId === request.id ? (
+                                  <>
+                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                    Rejecting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle className="mr-2 h-4 w-4" />
+                                    Reject
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
+          <TabsContent value="approved">
+            <ScrollArea className="h-[450px] w-full">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <RefreshCw className="w-6 h-6 animate-spin" />
+                </div>
+              ) : requests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <AlertCircle className="w-12 h-12 text-gray-400" />
+                  <p className="text-lg font-semibold text-gray-500 mt-2">No approved requests</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {requests.map((request) => {
+                    const user = getUserById(request.user_id);
+                    return (
+                      <Card key={request.id} className="bg-white/95 backdrop-blur-sm">
+                        <CardHeader>
+                          <CardTitle>
+                            Withdrawal Request
+                            <Badge className="ml-2">{request.status}</Badge>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <p>
+                              <strong>Date:</strong> {formatDate(request.created_at)}
+                            </p>
+                            <p>
+                              <strong>User:</strong> {user?.full_name} ({user?.email})
+                            </p>
+                            <p>
+                              <strong>Phone:</strong> {user?.phone}
+                            </p>
+                            <p>
+                              <strong>Amount:</strong> {formatCurrency(request.amount, "XAF")}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
+          <TabsContent value="rejected">
+            <ScrollArea className="h-[450px] w-full">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <RefreshCw className="w-6 h-6 animate-spin" />
+                </div>
+              ) : requests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <AlertCircle className="w-12 h-12 text-gray-400" />
+                  <p className="text-lg font-semibold text-gray-500 mt-2">No rejected requests</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {requests.map((request) => {
+                    const user = getUserById(request.user_id);
+                    return (
+                      <Card key={request.id} className="bg-white/95 backdrop-blur-sm">
+                        <CardHeader>
+                          <CardTitle>
+                            Withdrawal Request
+                            <Badge className="ml-2">{request.status}</Badge>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <p>
+                              <strong>Date:</strong> {formatDate(request.created_at)}
+                            </p>
+                            <p>
+                              <strong>User:</strong> {user?.full_name} ({user?.email})
+                            </p>
+                            <p>
+                              <strong>Phone:</strong> {user?.phone}
+                            </p>
+                            <p>
+                              <strong>Amount:</strong> {formatCurrency(request.amount, "XAF")}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 };
 
