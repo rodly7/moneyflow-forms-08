@@ -1,12 +1,10 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/integrations/supabase/client';
-import { getCurrencyForCountry, convertCurrency } from '@/lib/utils/currency';
+import { formatCurrency, getCurrencyForCountry, convertCurrency } from '@/lib/utils/currency';
 import { ScrollableContainer } from '@/components/shared/ScrollableContainer';
 import CompactHeader from '@/components/dashboard/CompactHeader';
 import CompactInfoCard from '@/components/dashboard/CompactInfoCard';
