@@ -65,7 +65,26 @@ const useDepositWithdrawalOperations = () => {
           description: `Votre demande de retrait de ${formatCurrency(amount, 'XAF')} est en cours de traitement.`,
         });
 
-        return data?.[0] as Operation;
+        // Transform the withdrawal data to match Operation interface
+        const withdrawal = data?.[0];
+        if (withdrawal) {
+          const operation: Operation = {
+            id: withdrawal.id,
+            created_at: withdrawal.created_at,
+            user_id: withdrawal.user_id,
+            amount: withdrawal.amount,
+            type: 'withdrawal',
+            status: withdrawal.status as 'pending' | 'completed' | 'failed',
+            payment_method: 'mobile_money',
+            phone_number: withdrawal.withdrawal_phone,
+            transaction_id: null,
+            fee: fee,
+            country: country,
+            provider: provider,
+            reason: reason
+          };
+          return operation;
+        }
       } else {
         // Use recharges table for deposits
         const { data, error } = await supabase
@@ -92,8 +111,29 @@ const useDepositWithdrawalOperations = () => {
           description: `Votre demande de dépôt de ${formatCurrency(amount, 'XAF')} est en cours de traitement.`,
         });
 
-        return data?.[0] as Operation;
+        // Transform the recharge data to match Operation interface
+        const recharge = data?.[0];
+        if (recharge) {
+          const operation: Operation = {
+            id: recharge.id,
+            created_at: recharge.created_at,
+            user_id: recharge.user_id,
+            amount: recharge.amount,
+            type: 'deposit',
+            status: recharge.status as 'pending' | 'completed' | 'failed',
+            payment_method: recharge.payment_method,
+            phone_number: recharge.payment_phone,
+            transaction_id: recharge.transaction_reference,
+            fee: fee,
+            country: recharge.country,
+            provider: recharge.payment_provider,
+            reason: reason
+          };
+          return operation;
+        }
       }
+
+      return null;
 
     } catch (error: any) {
       console.error("Failed to create operation:", error);
