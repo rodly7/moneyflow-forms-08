@@ -166,14 +166,14 @@ export const useEnhancedNotifications = () => {
           table: 'transfers',
         },
         (payload) => {
-          const transfer = payload.new;
+          const transfer = payload.new as any;
           
-          if (transfer.recipient_phone === user.phone || transfer.recipient_email === user.email) {
+          if (transfer && (transfer.recipient_phone === user.phone || transfer.recipient_email === user.email)) {
             console.log('🎉 Nouveau transfert reçu en temps réel:', transfer);
             
             toast({
               title: '🎉 Transfert reçu !',
-              description: `Vous avez reçu ${transfer.amount.toLocaleString()} FCFA`,
+              description: `Vous avez reçu ${transfer.amount?.toLocaleString() || 0} FCFA`,
               duration: 8000,
               className: 'bg-green-50 border-green-200 text-green-800'
             });
@@ -200,20 +200,20 @@ export const useEnhancedNotifications = () => {
         (payload) => {
           console.log('💳 Changement recharge détecté:', payload);
           
-          const recharge = payload.new || payload.old;
+          const recharge = (payload.new || payload.old) as any;
           if (!recharge) return;
 
           if (payload.eventType === 'INSERT') {
             toast({
               title: '💳 Recharge initiée',
-              description: `Recharge de ${recharge.amount.toLocaleString()} FCFA en cours de traitement`,
+              description: `Recharge de ${recharge.amount?.toLocaleString() || 0} FCFA en cours de traitement`,
               duration: 5000,
               className: 'bg-blue-50 border-blue-200 text-blue-800'
             });
           } else if (payload.eventType === 'UPDATE' && recharge.status === 'completed') {
             toast({
               title: '✅ Recharge confirmée !',
-              description: `Votre recharge de ${recharge.amount.toLocaleString()} FCFA a été confirmée`,
+              description: `Votre recharge de ${recharge.amount?.toLocaleString() || 0} FCFA a été confirmée`,
               duration: 8000,
               className: 'bg-green-50 border-green-200 text-green-800'
             });
@@ -236,20 +236,20 @@ export const useEnhancedNotifications = () => {
         (payload) => {
           console.log('💸 Changement retrait détecté:', payload);
           
-          const withdrawal = payload.new || payload.old;
+          const withdrawal = (payload.new || payload.old) as any;
           if (!withdrawal) return;
 
           if (payload.eventType === 'INSERT') {
             toast({
               title: '💸 Retrait initié',
-              description: `Demande de retrait de ${withdrawal.amount.toLocaleString()} FCFA créée`,
+              description: `Demande de retrait de ${withdrawal.amount?.toLocaleString() || 0} FCFA créée`,
               duration: 5000,
               className: 'bg-purple-50 border-purple-200 text-purple-800'
             });
           } else if (payload.eventType === 'UPDATE' && withdrawal.status === 'completed') {
             toast({
               title: '✅ Retrait confirmé !',
-              description: `Votre retrait de ${withdrawal.amount.toLocaleString()} FCFA a été traité`,
+              description: `Votre retrait de ${withdrawal.amount?.toLocaleString() || 0} FCFA a été traité`,
               duration: 8000,
               className: 'bg-green-50 border-green-200 text-green-800'
             });
