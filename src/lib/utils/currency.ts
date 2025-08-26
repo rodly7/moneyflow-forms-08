@@ -1,3 +1,4 @@
+
 // Helper functions for currency formatting and calculations
 
 // Calculate transfer fees with current business rules

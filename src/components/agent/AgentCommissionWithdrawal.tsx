@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Wallet, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
+import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/lib/utils/currency";
 
 interface AgentCommissionWithdrawalProps {
   commissionBalance: number;

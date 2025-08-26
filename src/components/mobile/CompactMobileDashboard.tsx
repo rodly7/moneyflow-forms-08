@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowUpRight, QrCode, History, PiggyBank, RefreshCw, LogOut, Crown, Star, Eye, EyeOff, Scan, Zap, User, Phone, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
+import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/lib/utils/currency";
 import { CustomerServiceButton } from "@/components/notifications/CustomerServiceButton";
 import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 import { OptimizedScrollContainer } from "./OptimizedScrollContainer";

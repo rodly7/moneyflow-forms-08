@@ -1,7 +1,6 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface AgentStatsCardProps {
   title: string;
