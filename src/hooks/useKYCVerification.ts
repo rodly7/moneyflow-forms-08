@@ -22,11 +22,10 @@ export const useKYCVerification = () => {
       const { error } = await supabase
         .from('profiles')
         .update({
-          kyc_id_card_url: kycData.idCardUrl,
-          kyc_selfie_url: kycData.selfieUrl,
-          kyc_verification_score: kycData.verificationScore,
-          kyc_verified: kycData.isVerified || false,
-          kyc_verified_at: kycData.verifiedAt || null,
+          id_card_url: kycData.idCardUrl,
+          selfie_url: kycData.selfieUrl,
+          is_verified: kycData.isVerified || false,
+          verified_at: kycData.verifiedAt || null,
         })
         .eq('id', userId);
 
@@ -55,17 +54,17 @@ export const useKYCVerification = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('kyc_verified, kyc_verification_score, kyc_verified_at, kyc_id_card_url, kyc_selfie_url')
+        .select('is_verified, verified_at, id_card_url, selfie_url')
         .eq('id', userId)
         .single();
 
       if (error) throw error;
 
       return {
-        isVerified: data?.kyc_verified || false,
-        verificationScore: data?.kyc_verification_score || 0,
-        verifiedAt: data?.kyc_verified_at,
-        hasDocuments: !!(data?.kyc_id_card_url && data?.kyc_selfie_url)
+        isVerified: data?.is_verified || false,
+        verificationScore: data?.is_verified ? 85 : 0, // Score simulé basé sur le statut
+        verifiedAt: data?.verified_at,
+        hasDocuments: !!(data?.id_card_url && data?.selfie_url)
       };
     } catch (error) {
       console.error('Erreur récupération statut KYC:', error);
