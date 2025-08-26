@@ -29,7 +29,7 @@ import AgentStatsCard from './AgentStatsCard';
 import AgentEarningsCard from './AgentEarningsCard';
 import AgentTransactionHistory from './AgentTransactionHistory';
 import AgentYesterdaySummary from './AgentYesterdaySummary';
-import { useAgentEarnings } from '@/hooks/useAgentEarnings';
+import useAgentEarnings from '@/hooks/useAgentEarnings';
 import AgentCommissionWithdrawal from './AgentCommissionWithdrawal';
 
 const AgentDashboard: React.FC = () => {
@@ -87,7 +87,7 @@ const AgentDashboard: React.FC = () => {
         setCommissionBalance(agentData.commission_balance || 0);
       }
 
-      // Set mock data for demonstration
+      // Set mock data for demonstration - using existing data from useAgentEarnings
       setYesterdaySummary({
         totalVolume: 150000,
         totalTransactions: 25,

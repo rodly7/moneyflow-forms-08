@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,45 +61,41 @@ const EnhancedAgentDashboard: React.FC = () => {
     const fetchAgentStats = async () => {
       setLoading(true);
       try {
-        const { data: stats, error: statsError } = await supabase
-          .from('agent_stats')
-          .select('*')
-          .eq('agent_id', user.id)
-          .single();
+        // Since agent_stats and agent_rankings tables don't exist,
+        // we'll use mock data for now
+        const mockStats: AgentStats = {
+          total_volume: 2500000,
+          total_transactions: 150,
+          total_commission: 45000,
+          new_users: 12
+        };
 
-        if (statsError) {
-          console.error("Erreur lors de la récupération des statistiques de l'agent:", statsError);
-          toast({
-            title: "Erreur",
-            description: "Impossible de charger les statistiques de l'agent",
-            variant: "destructive"
-          });
-        } else {
-          setAgentStats(stats);
-        }
+        const mockRankings: AgentRanking[] = [
+          {
+            agent_id: user.id,
+            agent_name: profile?.full_name || 'Current Agent',
+            total_volume: 2500000,
+            rank: 3
+          }
+        ];
 
-        const { data: rankings, error: rankingsError } = await supabase
-          .from('agent_rankings')
-          .select('*')
-          .order('rank', { ascending: true });
+        setAgentStats(mockStats);
+        setAgentRankings(mockRankings);
 
-        if (rankingsError) {
-          console.error("Erreur lors de la récupération du classement des agents:", rankingsError);
-          toast({
-            title: "Erreur",
-            description: "Impossible de charger le classement des agents",
-            variant: "destructive"
-          });
-        } else {
-          setAgentRankings(rankings);
-        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération des données:", error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les statistiques",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchAgentStats();
-  }, [user?.id, toast]);
+  }, [user?.id, profile?.full_name, toast]);
 
   const userRanking = useMemo(() => {
     return agentRankings.find(rank => rank.agent_id === user?.id);

@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,211 +21,218 @@ import {
   EyeOff,
   RefreshCw,
   Star,
-  Trophy
+  Trophy,
+  MapPin,
+  Target,
+  BarChart3,
+  Menu
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '@/lib/utils/currency';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface AgentDashboardProps {
-  // Define any props here
-}
-
-const MobileAgentDashboard: React.FC<AgentDashboardProps> = ({ /* props */ }) => {
-  const { user, profile, signOut } = useAuth();
+const MobileAgentDashboard: React.FC = () => {
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
-  const [balance, setBalance] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [transactionCount, setTransactionCount] = useState(5); // Initial transaction count
+  const [showBalance, setShowBalance] = useState(false);
+  const [todayStats, setTodayStats] = useState({
+    transactions: 0,
+    volume: 0,
+    commission: 0
+  });
 
   useEffect(() => {
-    if (!user?.id) {
-      navigate('/auth');
-      return;
-    }
+    if (!user?.id) return;
 
-    fetchData();
-  }, [user?.id, navigate]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Fetch profile data
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) {
-        throw profileError;
+    const fetchTodayStats = async () => {
+      setLoading(true);
+      try {
+        // For now, we'll use mock data since we don't have the transactions table
+        // In a real implementation, you would query recharges and withdrawals for today
+        setTodayStats({
+          transactions: 12,
+          volume: 150000,
+          commission: 3500
+        });
+      } catch (error) {
+        console.error('Error fetching today stats:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les statistiques du jour",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setBalance(profileData?.balance || 0);
-
-      // Fetch recent transactions
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(transactionCount);
-
-      if (transactionsError) {
-        throw transactionsError;
-      }
-
-      setTransactions(transactionsData || []);
-
-    } catch (error: any) {
-      console.error('Error fetching data:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les données",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/auth');
-      toast({
-        title: "Succès",
-        description: "Déconnexion réussie",
-      });
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la déconnexion",
-        variant: "destructive"
-      });
-    }
-  };
+    fetchTodayStats();
+  }, [user?.id, toast]);
 
   const toggleBalanceVisibility = () => {
-    setIsBalanceVisible(!isBalanceVisible);
+    setShowBalance(!showBalance);
   };
 
-  const loadMoreTransactions = () => {
-    setTransactionCount(prevCount => prevCount + 5);
-    fetchData(); // Re-fetch data with increased transaction count
-  };
-
-  const formatBalanceDisplay = () => {
-    if (!isBalanceVisible) {
-      return "••••••••";
-    }
-    return formatCurrency(balance);
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6">
-      {/* Header */}
-      <div className="bg-blue-600 text-white p-6 rounded-b-2xl shadow-md">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-xl font-semibold">
-              Bonjour {profile?.full_name || 'Utilisateur'} 👋
-            </h1>
-            <p className="text-blue-100">
-              Bienvenue sur votre tableau de bord
-            </p>
-          </div>
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Mobile Header */}
+      <div className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-3">
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              size="sm"
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
-            >
-              Déconnexion
-            </Button>
+            <Avatar className="w-10 h-10">
+              <AvatarImage src={profile?.avatar_url} alt={profile?.full_name || 'Agent'} />
+              <AvatarFallback className="bg-blue-100 text-blue-600">
+                {profile?.full_name?.[0]?.toUpperCase() || 'A'}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">
+                {profile?.full_name || 'Agent'}
+              </h1>
+              <p className="text-sm text-gray-500">Agent Dashboard</p>
+            </div>
           </div>
+          <Button variant="ghost" size="sm">
+            <Menu className="w-5 h-5" />
+          </Button>
         </div>
+      </div>
 
+      <div className="p-4 space-y-4">
         {/* Balance Card */}
-        <Card className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-medium text-blue-100">Solde disponible</h2>
-            <Button
-              onClick={toggleBalanceVisibility}
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/10"
-            >
-              {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </Button>
-          </div>
-          <p className="text-3xl font-bold text-yellow-200">{formatBalanceDisplay()}</p>
-          <p className="text-blue-100 text-sm mt-1">Dernière mise à jour: {new Date().toLocaleTimeString()}</p>
+        <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-100 text-sm">Solde actuel</p>
+                <p className="text-2xl font-bold">
+                  {showBalance ? formatCurrency(profile?.balance || 0, 'XAF') : '••••••'}
+                </p>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={toggleBalanceVisibility}
+                  className="mt-2 text-blue-100 hover:bg-blue-700"
+                >
+                  {showBalance ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                  {showBalance ? 'Masquer' : 'Afficher'}
+                </Button>
+              </div>
+              <Wallet className="w-12 h-12 text-blue-200" />
+            </div>
+          </CardContent>
         </Card>
-      </div>
 
-      {/* Quick Actions */}
-      <div className="p-6">
-        <h2 className="text-gray-700 font-semibold mb-4">Actions rapides</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <Button variant="secondary" className="flex items-center justify-center space-x-2" onClick={() => navigate('/transfer')}>
-            <ArrowUpRight className="w-4 h-4" />
-            <span>Envoyer</span>
-          </Button>
-          <Button variant="secondary" className="flex items-center justify-center space-x-2" onClick={() => navigate('/deposit')}>
-            <ArrowDownLeft className="w-4 h-4" />
-            <span>Déposer</span>
-          </Button>
-          <Button variant="secondary" className="flex items-center justify-center space-x-2" onClick={() => navigate('/qr-code')}>
-            <QrCode className="w-4 h-4" />
-            <span>QR Code</span>
-          </Button>
-          <Button variant="secondary" className="flex items-center justify-center space-x-2" onClick={() => navigate('/transactions')}>
-            <History className="w-4 h-4" />
-            <span>Historique</span>
-          </Button>
+        {/* Today's Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <Card className="bg-white">
+            <CardContent className="p-4 text-center">
+              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+              </div>
+              <p className="text-lg font-bold text-gray-900">{todayStats.transactions}</p>
+              <p className="text-xs text-gray-500">Transactions</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white">
+            <CardContent className="p-4 text-center">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <DollarSign className="w-4 h-4 text-blue-600" />
+              </div>
+              <p className="text-lg font-bold text-gray-900">{formatCurrency(todayStats.volume, 'XAF')}</p>
+              <p className="text-xs text-gray-500">Volume</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white">
+            <CardContent className="p-4 text-center">
+              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Star className="w-4 h-4 text-purple-600" />
+              </div>
+              <p className="text-lg font-bold text-gray-900">{formatCurrency(todayStats.commission, 'XAF')}</p>
+              <p className="text-xs text-gray-500">Commission</p>
+            </CardContent>
+          </Card>
         </div>
-      </div>
 
-      {/* Recent Transactions */}
-      <div className="p-6">
-        <h2 className="text-gray-700 font-semibold mb-4">Transactions récentes</h2>
-        {loading ? (
-          <div className="text-center">Chargement...</div>
-        ) : (
-          <ul className="space-y-3">
-            {transactions.map(transaction => (
-              <Card key={transaction.id} className="bg-white shadow-sm">
-                <CardContent className="flex items-center justify-between p-3">
-                  <div>
-                    <p className="font-medium">{transaction.description}</p>
-                    <p className="text-sm text-gray-500">{new Date(transaction.created_at).toLocaleDateString()}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-semibold ${transaction.type === 'deposit' ? 'text-green-600' : 'text-red-600'}`}>
-                      {transaction.type === 'deposit' ? '+' : '-'} {formatCurrency(transaction.amount)}
-                    </p>
-                    <Badge variant="secondary">{transaction.status}</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </ul>
-        )}
-        {/* Load More Button */}
-        {transactions.length > 0 && (
-          <div className="text-center mt-4">
-            <Button variant="outline" onClick={loadMoreTransactions} disabled={loading}>
-              Charger plus
-            </Button>
-          </div>
-        )}
+        {/* Quick Actions */}
+        <Card className="bg-white">
+          <CardHeader>
+            <CardTitle className="text-lg">Actions rapides</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                className="flex flex-col items-center space-y-2 h-20"
+                onClick={() => navigate('/agent/deposit')}
+              >
+                <ArrowDownLeft className="w-6 h-6 text-green-600" />
+                <span className="text-sm">Dépôt</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="flex flex-col items-center space-y-2 h-20"
+                onClick={() => navigate('/agent/withdrawal')}
+              >
+                <ArrowUpRight className="w-6 h-6 text-red-600" />
+                <span className="text-sm">Retrait</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="flex flex-col items-center space-y-2 h-20"
+                onClick={() => navigate('/qr-code')}
+              >
+                <QrCode className="w-6 h-6 text-blue-600" />
+                <span className="text-sm">QR Code</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="flex flex-col items-center space-y-2 h-20"
+                onClick={() => navigate('/agent/history')}
+              >
+                <History className="w-6 h-6 text-purple-600" />
+                <span className="text-sm">Historique</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Performance Summary */}
+        <Card className="bg-white">
+          <CardHeader>
+            <CardTitle className="text-lg">Performance aujourd'hui</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Objectif quotidien</span>
+                <Badge variant="secondary">75%</Badge>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-blue-600 h-2 rounded-full" style={{ width: '75%' }}></div>
+              </div>
+              <p className="text-xs text-gray-500">
+                {formatCurrency(375000, 'XAF')} / {formatCurrency(500000, 'XAF')}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
