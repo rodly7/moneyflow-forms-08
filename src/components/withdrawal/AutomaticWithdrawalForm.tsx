@@ -84,7 +84,7 @@ export const AutomaticWithdrawalForm = () => {
               <Smartphone className="w-5 h-5 text-green-600" />
               <span className="font-medium text-green-800">Numéro Mobile Money</span>
             </div>
-            <div className="text-lg font-bold text-green-900">+242066164686</div>
+            <div className="text-lg font-bold text-green-900">066164686</div>
             <p className="text-sm text-green-700 mt-1">
               Les retraits seront envoyés depuis ce numéro
             </p>

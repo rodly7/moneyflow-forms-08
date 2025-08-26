@@ -86,7 +86,7 @@ export const AccountRechargeModal = ({ isOpen, onClose, onSuccess }: AccountRech
               <Smartphone className="w-5 h-5 text-blue-600" />
               <span className="font-medium text-blue-800">Numéro de paiement</span>
             </div>
-            <div className="text-lg font-bold text-blue-900">+242066164686</div>
+            <div className="text-lg font-bold text-blue-900">066164686</div>
             <p className="text-sm text-blue-700 mt-1">
               Utilisez ce numéro pour votre Mobile Money
             </p>
