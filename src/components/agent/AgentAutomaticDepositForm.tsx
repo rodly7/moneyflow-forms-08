@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,9 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/utils/currency';
 import { Wallet, DollarSign, CreditCard, Phone } from 'lucide-react';
-import { useAgentAutomaticDeposit } from '@/hooks/useAgentAutomaticDeposit';
-import { useUserSearch } from '@/hooks/useUserSearch';
-import AgentBalanceCard from '@/components/agent/AgentBalanceCard';
 
 interface Props {
   onDepositSuccess: () => void;
@@ -86,9 +84,11 @@ const AgentAutomaticDepositForm: React.FC<Props> = ({ onDepositSuccess }) => {
         user_id: user.id,
         amount: depositAmount,
         payment_provider: paymentMethod,
-        payment_number: phoneNumber,
+        payment_phone: phoneNumber,
+        payment_method: paymentMethod,
+        country: profile?.country || 'CM',
+        transaction_reference: `DEP_${Date.now()}`,
         status: 'pending',
-        recharge_phone: profile?.phone || '',
       });
 
       if (error) {

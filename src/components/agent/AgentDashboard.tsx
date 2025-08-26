@@ -29,8 +29,7 @@ import AgentStatsCard from './AgentStatsCard';
 import AgentEarningsCard from './AgentEarningsCard';
 import AgentTransactionHistory from './AgentTransactionHistory';
 import AgentYesterdaySummary from './AgentYesterdaySummary';
-import useAgentEarnings from '@/hooks/useAgentEarnings';
-import useAgentTransactions from '@/hooks/useAgentTransactions';
+import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import AgentCommissionWithdrawal from './AgentCommissionWithdrawal';
 
 const AgentDashboard: React.FC = () => {
@@ -50,7 +49,6 @@ const AgentDashboard: React.FC = () => {
   } | null>(null);
 
   const { earnings } = useAgentEarnings();
-  const { transactions, loading: transactionsLoading } = useAgentTransactions();
 
   const handleWithdrawalSuccess = () => {
     // Refresh data after successful withdrawal
@@ -89,7 +87,7 @@ const AgentDashboard: React.FC = () => {
         setCommissionBalance(agentData.commission_balance || 0);
       }
 
-      // Set some mock data for demonstration
+      // Set mock data for demonstration
       setYesterdaySummary({
         totalVolume: 150000,
         totalTransactions: 25,

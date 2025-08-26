@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/utils/currency';
 import { TrendingUp, Target, Award, Clock } from 'lucide-react';
-import useAgentEarnings from '@/hooks/useAgentEarnings';
+import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 
 interface PerformanceMetric {
   label: string;
@@ -17,7 +17,7 @@ interface PerformanceMetric {
   color: string;
 }
 
-const AgentRealTimePerformance: React.FC = () => {
+export const AgentRealTimePerformance: React.FC = () => {
   const { user } = useAuth();
   const { earnings } = useAgentEarnings();
   const [metrics, setMetrics] = useState<PerformanceMetric[]>([]);
