@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +11,14 @@ import { formatCurrency } from '@/lib/utils/currency';
 import { Wallet, ArrowDownLeft, TrendingDown } from 'lucide-react';
 
 interface Props {
-  onWithdrawalSuccess: () => void;
+  commissionBalance?: number;
+  onRefresh?: () => void;
 }
 
-const AgentCommissionWithdrawal: React.FC<Props> = ({ onWithdrawalSuccess }) => {
+const AgentCommissionWithdrawal: React.FC<Props> = ({ 
+  commissionBalance = 0, 
+  onRefresh 
+}) => {
   const { user, profile } = useAuth();
   const [amount, setAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -39,7 +44,7 @@ const AgentCommissionWithdrawal: React.FC<Props> = ({ onWithdrawalSuccess }) => 
       return;
     }
 
-    if (withdrawalAmount > (profile?.commission_balance || 0)) {
+    if (withdrawalAmount > commissionBalance) {
       toast({
         title: "Solde insuffisant",
         description: "Le montant demandé est supérieur à votre solde de commission disponible",
@@ -51,11 +56,16 @@ const AgentCommissionWithdrawal: React.FC<Props> = ({ onWithdrawalSuccess }) => 
     setIsProcessing(true);
 
     try {
-      // Call the Supabase function to handle the withdrawal
-      const { error } = await supabase.rpc('handle_agent_commission_withdrawal', {
-        agent_id: user.id,
-        amount: withdrawalAmount
-      });
+      // Pour l'instant, on simule le retrait en créant une demande de retrait
+      const { error } = await supabase
+        .from('withdrawals')
+        .insert({
+          user_id: user.id,
+          amount: withdrawalAmount,
+          status: 'pending',
+          withdrawal_phone: profile?.phone || '',
+          withdrawal_method: 'commission_withdrawal'
+        });
 
       if (error) {
         console.error('Erreur lors du retrait de commission:', error);
@@ -71,7 +81,9 @@ const AgentCommissionWithdrawal: React.FC<Props> = ({ onWithdrawalSuccess }) => 
       setAmount("");
 
       // Notify parent component about the successful withdrawal
-      onWithdrawalSuccess();
+      if (onRefresh) {
+        onRefresh();
+      }
 
     } catch (error: any) {
       console.error('Erreur lors du retrait:', error);
@@ -100,7 +112,7 @@ const AgentCommissionWithdrawal: React.FC<Props> = ({ onWithdrawalSuccess }) => 
             <div>
               <p className="text-sm text-red-600 font-medium">Solde de commission</p>
               <p className="text-2xl font-bold text-red-800">
-                {formatCurrency(profile?.commission_balance || 0, 'XAF')}
+                {formatCurrency(commissionBalance || 0, 'XAF')}
               </p>
             </div>
             <TrendingDown className="w-8 h-8 text-red-600" />
@@ -128,7 +140,7 @@ const AgentCommissionWithdrawal: React.FC<Props> = ({ onWithdrawalSuccess }) => 
         <div className="flex justify-end">
           <Button
             onClick={handleWithdrawal}
-            disabled={isProcessing || !amount || Number(amount) <= 0 || Number(amount) > (profile?.commission_balance || 0)}
+            disabled={isProcessing || !amount || Number(amount) <= 0 || Number(amount) > commissionBalance}
             className="bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 rounded-full px-8 h-12"
           >
             {isProcessing ? (

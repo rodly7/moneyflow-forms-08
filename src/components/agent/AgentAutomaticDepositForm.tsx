@@ -1,325 +1,223 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/utils/currency';
+import { Wallet, DollarSign, CreditCard, Phone } from 'lucide-react';
+import { useAgentAutomaticDeposit } from '@/hooks/useAgentAutomaticDeposit';
+import { useUserSearch } from '@/hooks/useUserSearch';
+import AgentBalanceCard from '@/components/agent/AgentBalanceCard';
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Download, AlertCircle, Loader2, User, Wallet, QrCode } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import { findUserByPhone } from "@/services/withdrawalService";
-import { formatCurrency } from "@/integrations/supabase/client";
-import { useAgentAutomaticDeposit } from "@/hooks/useAgentAutomaticDeposit";
-import QRScanner from "@/components/agent/QRScanner";
-import { ClientSearchForm } from "@/components/agent/ClientSearchForm";
-import { AgentBalanceCard } from "@/components/agent/AgentBalanceCard";
-
-interface ClientData {
-  id: string;
-  full_name: string;
-  phone: string;
-  balance: number;
-  country?: string;
+interface Props {
+  onDepositSuccess: () => void;
 }
 
-export const AgentAutomaticDepositForm = () => {
-  const { user, profile, refreshProfile } = useAuth();
+const AgentAutomaticDepositForm: React.FC<Props> = ({ onDepositSuccess }) => {
+  const { user, profile } = useAuth();
   const { toast } = useToast();
-  const { processAgentAutomaticDeposit, isProcessing } = useAgentAutomaticDeposit();
+  const [amount, setAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [availablePaymentNumbers, setAvailablePaymentNumbers] = useState<{ id: string; phone_number: string; provider: string; }[]>([]);
 
-  const [amount, setAmount] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [clientData, setClientData] = useState<ClientData | null>(null);
-  const [isSearchingClient, setIsSearchingClient] = useState(false);
-  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
-  const [qrVerified, setQrVerified] = useState(false);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-
-  // Utiliser le solde du profil directement
-  const agentBalance = profile?.balance || 0;
-
-  // Rafraîchir le profil au chargement pour s'assurer d'avoir le bon solde
   useEffect(() => {
-    if (user?.id && profile) {
-      refreshProfile();
-    }
-  }, [user?.id, refreshProfile]);
+    const fetchPaymentNumbers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('payment_numbers')
+          .select('id, phone_number, provider')
+          .eq('is_active', true)
+          .eq('service_type', 'recharge');
 
-  const handleRefreshBalance = async () => {
-    setIsLoadingBalance(true);
-    try {
-      await refreshProfile();
-      toast({
-        title: "Solde actualisé",
-        description: "Votre solde agent a été mis à jour",
-      });
-    } catch (error) {
-      console.error("Erreur lors du rafraîchissement:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible d'actualiser le solde",
-        variant: "destructive"
-      });
-    }
-    setIsLoadingBalance(false);
-  };
-
-  const searchClient = async () => {
-    if (!phoneNumber || phoneNumber.length < 6) {
-      toast({
-        title: "Numéro invalide",
-        description: "Veuillez entrer un numéro de téléphone valide",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsSearchingClient(true);
-    try {
-      const client = await findUserByPhone(phoneNumber);
-      
-      if (client) {
-        // Vérifier si le client est dans le même pays que l'agent
-        if (profile?.country && client.country !== profile.country) {
+        if (error) {
+          console.error('Error fetching payment numbers:', error);
           toast({
-            title: "Client non autorisé",
-            description: `Vous ne pouvez effectuer des opérations que pour des clients de ${profile.country}`,
+            title: "Erreur",
+            description: "Impossible de charger les numéros de paiement",
             variant: "destructive"
           });
-          setClientData(null);
-          return;
+        } else {
+          setAvailablePaymentNumbers(data || []);
         }
-
-        setClientData(client);
-        setQrVerified(false);
+      } catch (error) {
+        console.error('Erreur:', error);
         toast({
-          title: "Client trouvé",
-          description: `${client.full_name || 'Utilisateur'} - Solde masqué pour la sécurité`,
-        });
-      } else {
-        setClientData(null);
-        toast({
-          title: "Client non trouvé",
-          description: "Ce numéro n'existe pas dans notre base de données",
+          title: "Erreur",
+          description: "Erreur lors du chargement des numéros de paiement",
           variant: "destructive"
         });
       }
-    } catch (error) {
-      console.error("❌ Erreur lors de la recherche:", error);
-      toast({
-        title: "Erreur de recherche",
-        description: "Impossible de rechercher le client",
-        variant: "destructive"
-      });
-      setClientData(null);
-    }
-    setIsSearchingClient(false);
-  };
+    };
 
-  const handlePhoneChange = (value: string) => {
-    setPhoneNumber(value);
-    if (clientData) {
-      setClientData(null);
-      setQrVerified(false);
-    }
-  };
+    fetchPaymentNumbers();
+  }, [toast]);
 
-  const handleQRScanSuccess = (userData: { userId: string; fullName: string; phone: string }) => {
-    if (clientData && clientData.id === userData.userId) {
-      setQrVerified(true);
-      setIsQRScannerOpen(false);
+  const handleDeposit = async () => {
+    if (!amount || !user?.id || !phoneNumber) {
       toast({
-        title: "QR Code vérifié",
-        description: "Identité du client confirmée. Vous pouvez maintenant effectuer le dépôt.",
-      });
-    } else {
-      toast({
-        title: "QR Code incorrect",
-        description: "Le QR code scanné ne correspond pas au client sélectionné",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!user?.id) {
-      toast({
-        title: "Erreur d'authentification",
-        description: "Vous devez être connecté",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!clientData) {
-      toast({
-        title: "Client requis",
-        description: "Veuillez d'abord rechercher et sélectionner un client",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!qrVerified) {
-      toast({
-        title: "Scan QR requis",
-        description: "Vous devez scanner le QR code du client avant d'effectuer le dépôt",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      toast({
-        title: "Montant invalide",
-        description: "Veuillez entrer un montant valide",
+        title: "Données manquantes",
+        description: "Veuillez saisir un montant et un numéro de téléphone",
         variant: "destructive"
       });
       return;
     }
 
     const depositAmount = Number(amount);
-    
-    const result = await processAgentAutomaticDeposit(
-      clientData.id,
-      depositAmount,
-      clientData.phone,
-      clientData.full_name,
-      agentBalance
-    );
+    if (depositAmount <= 0) {
+      toast({
+        title: "Montant invalide",
+        description: "Le montant doit être supérieur à 0",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    if (result.success) {
-      // Réinitialiser le formulaire
-      setPhoneNumber("");
+    setIsProcessing(true);
+
+    try {
+      // Call the Supabase function to handle the deposit
+      const { error } = await supabase.from('recharges').insert({
+        user_id: user.id,
+        amount: depositAmount,
+        payment_provider: paymentMethod,
+        payment_number: phoneNumber,
+        status: 'pending',
+        recharge_phone: profile?.phone || '',
+      });
+
+      if (error) {
+        console.error('Erreur lors du dépôt automatique:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Dépôt effectué avec succès",
+        description: `Votre demande de dépôt de ${formatCurrency(depositAmount, 'XAF')} a été soumise.`,
+      });
+
+      // Reset form
       setAmount("");
-      setClientData(null);
-      setQrVerified(false);
-      // Rafraîchir le solde agent
-      await refreshProfile();
+      setPhoneNumber("");
+
+      // Notify parent component about the successful deposit
+      onDepositSuccess();
+
+    } catch (error: any) {
+      console.error('Erreur lors du dépôt:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors du dépôt automatique",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const isAmountExceedsBalance = amount && Number(amount) > agentBalance;
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Download className="w-5 h-5 text-emerald-500" />
-          Dépôt Client
+    <Card className="backdrop-blur-xl bg-white/90 shadow-2xl border border-white/50 rounded-2xl">
+      <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 rounded-t-2xl">
+        <CardTitle className="flex items-center gap-3 text-green-700">
+          <Wallet className="w-6 h-6" />
+          Dépôt Automatique
         </CardTitle>
-        <p className="text-sm text-gray-600">
-          Effectuez un dépôt pour un client avec commission de 0,5%
-        </p>
-        <p className="text-sm text-orange-600 font-medium">
-          Uniquement pour les clients de {profile?.country || 'votre pays'}
-        </p>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Affichage du solde agent */}
-          <AgentBalanceCard
-            balance={agentBalance}
-            isLoading={isLoadingBalance}
-            onRefresh={handleRefreshBalance}
-            userCountry={profile?.country}
-          />
+      <CardContent className="p-6 space-y-6">
+        {/* Formulaire de dépôt */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="deposit-amount" className="text-gray-700 font-medium">
+              Montant à déposer (FCFA)
+            </Label>
+            <Input
+              id="deposit-amount"
+              type="number"
+              placeholder="Ex: 10000"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="h-12 bg-gray-50 border-gray-200 focus:border-green-500 focus:ring-green-500"
+            />
+          </div>
 
-          {/* Recherche du client */}
-          <ClientSearchForm
-            phoneNumber={phoneNumber}
-            clientData={clientData}
-            isSearching={isSearchingClient}
-            onPhoneChange={handlePhoneChange}
-            onSearch={searchClient}
-            onQRScan={() => setIsQRScannerOpen(true)}
-          />
+          <div className="space-y-2">
+            <Label htmlFor="payment-method" className="text-gray-700 font-medium">
+              Méthode de paiement
+            </Label>
+            <Select onValueChange={setPaymentMethod} defaultValue={paymentMethod}>
+              <SelectTrigger className="h-12 bg-gray-50 border-gray-200 focus:border-green-500 focus:ring-green-500">
+                <SelectValue placeholder="Sélectionner une méthode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                {/* <SelectItem value="credit_card">Carte de Crédit</SelectItem> */}
+              </SelectContent>
+            </Select>
+          </div>
 
-          {/* Section QR Code */}
-          {clientData && (
-            <div className="mt-4 pt-4 border-t border-green-200">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-green-800">
-                  Vérification QR Code
-                </span>
-                {qrVerified ? (
-                  <span className="text-green-600 text-sm">✅ Vérifié</span>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsQRScannerOpen(true)}
-                    className="border-green-300 text-green-700 hover:bg-green-50"
-                  >
-                    <QrCode className="w-4 h-4 mr-2" />
-                    Scanner QR
-                  </Button>
-                )}
-              </div>
-              {!qrVerified && (
-                <p className="text-xs text-red-600 mt-1">
-                  ⚠️ Vous devez scanner le QR code du client pour continuer
-                </p>
-              )}
+          {paymentMethod === 'mobile_money' && (
+            <div className="space-y-2">
+              <Label htmlFor="phone-number" className="text-gray-700 font-medium">
+                Numéro de téléphone Mobile Money
+              </Label>
+              <Select onValueChange={setPhoneNumber} value={phoneNumber}>
+                <SelectTrigger className="h-12 bg-gray-50 border-gray-200 focus:border-green-500 focus:ring-green-500">
+                  <SelectValue placeholder="Sélectionner un numéro" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availablePaymentNumbers.map(number => (
+                    <SelectItem key={number.id} value={number.phone_number}>
+                      {number.phone_number} ({number.provider})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
-          {/* Montant */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">Montant du dépôt (XAF)</Label>
-            <Input
-              id="amount"
-              type="number"
-              placeholder="Entrez le montant"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-              className="h-12 text-lg"
-              disabled={!clientData}
-            />
-            {isAmountExceedsBalance && (
-              <p className="text-red-600 text-sm">
-                Le montant dépasse votre solde disponible ({formatCurrency(agentBalance, 'XAF')})
-              </p>
-            )}
-            {amount && clientData && !isAmountExceedsBalance && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <p className="text-green-700 text-sm">
-                  💰 Commission: {formatCurrency(Number(amount) * 0.005, 'XAF')} (0,5%)
-                </p>
-              </div>
-            )}
-          </div>
+          {paymentMethod === 'credit_card' && (
+            <div className="space-y-2">
+              <Label htmlFor="card-number" className="text-gray-700 font-medium">
+                Numéro de carte de crédit
+              </Label>
+              <Input
+                id="card-number"
+                type="text"
+                placeholder="XXXX-XXXX-XXXX-XXXX"
+                className="h-12 bg-gray-50 border-gray-200 focus:border-green-500 focus:ring-green-500"
+              />
+            </div>
+          )}
+        </div>
 
-          <Button 
-            type="submit" 
-            className="w-full bg-emerald-600 hover:bg-emerald-700 mt-4 h-12 text-lg"
-            disabled={isProcessing || isAmountExceedsBalance || !clientData || !amount || !qrVerified}
+        {/* Action */}
+        <div className="flex justify-end">
+          <Button
+            onClick={handleDeposit}
+            disabled={isProcessing || !amount || Number(amount) <= 0}
+            className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 rounded-full px-8 h-12"
           >
             {isProcessing ? (
-              <div className="flex items-center">
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                <span>Traitement en cours...</span>
-              </div>
+              <>
+                <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Traitement...
+              </>
             ) : (
-              <div className="flex items-center justify-center">
-                <Download className="mr-2 h-5 w-5" />
-                <span>Effectuer le dépôt</span>
-              </div>
+              <>
+                <DollarSign className="w-4 h-4 mr-2" />
+                Déposer
+              </>
             )}
           </Button>
-        </form>
-
-        {/* QR Scanner Modal */}
-        <QRScanner 
-          isOpen={isQRScannerOpen}
-          onClose={() => setIsQRScannerOpen(false)}
-          onScanSuccess={handleQRScanSuccess}
-        />
+        </div>
       </CardContent>
     </Card>
   );
 };
+
+export default AgentAutomaticDepositForm;

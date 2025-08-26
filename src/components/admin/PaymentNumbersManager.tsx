@@ -37,9 +37,9 @@ const PaymentNumbersManager = () => {
     country: 'Congo Brazzaville',
     is_active: true,
     is_default: false,
-    service_type: 'both',
+    service_type: 'both' as const,
     description: '',
-    admin_type: 'main_admin',
+    admin_type: 'main_admin' as const,
     admin_name: ''
   });
 
@@ -59,7 +59,14 @@ const PaymentNumbersManager = () => {
         throw error;
       }
       
-      setPaymentNumbers(data || []);
+      // Cast the data to proper types
+      const typedData = (data || []).map(item => ({
+        ...item,
+        service_type: item.service_type as 'recharge' | 'withdrawal' | 'both',
+        admin_type: item.admin_type as 'main_admin' | 'sub_admin'
+      }));
+      
+      setPaymentNumbers(typedData);
     } catch (error) {
       console.error('Erreur:', error);
       toast({
@@ -114,9 +121,9 @@ const PaymentNumbersManager = () => {
         country: 'Congo Brazzaville',
         is_active: true,
         is_default: false,
-        service_type: 'both',
+        service_type: 'both' as const,
         description: '',
-        admin_type: 'main_admin',
+        admin_type: 'main_admin' as const,
         admin_name: ''
       });
       setIsAdding(false);
