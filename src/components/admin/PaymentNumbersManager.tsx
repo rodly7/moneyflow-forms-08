@@ -19,6 +19,10 @@ interface PaymentNumber {
   is_default: boolean;
   service_type: 'recharge' | 'withdrawal' | 'both';
   description?: string;
+  admin_type: 'main_admin' | 'sub_admin';
+  admin_name?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const PaymentNumbersManager = () => {
@@ -34,7 +38,9 @@ const PaymentNumbersManager = () => {
     is_active: true,
     is_default: false,
     service_type: 'both',
-    description: ''
+    description: '',
+    admin_type: 'main_admin',
+    admin_name: ''
   });
 
   useEffect(() => {
@@ -48,7 +54,11 @@ const PaymentNumbersManager = () => {
         .select('*')
         .order('is_default', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
       setPaymentNumbers(data || []);
     } catch (error) {
       console.error('Erreur:', error);
@@ -75,17 +85,27 @@ const PaymentNumbersManager = () => {
 
       // Si c'est le nouveau numéro par défaut, désactiver les autres
       if (newNumber.is_default) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('payment_numbers')
           .update({ is_default: false })
           .neq('id', '');
+
+        if (updateError) {
+          console.error('Error updating default flags:', updateError);
+        }
       }
 
+      // Préparer les données sans l'ID
+      const { id, created_at, updated_at, ...insertData } = newNumber;
+      
       const { error } = await supabase
         .from('payment_numbers')
-        .insert([newNumber]);
+        .insert([insertData]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Insert error:', error);
+        throw error;
+      }
 
       await fetchPaymentNumbers();
       setNewNumber({
@@ -95,7 +115,9 @@ const PaymentNumbersManager = () => {
         is_active: true,
         is_default: false,
         service_type: 'both',
-        description: ''
+        description: '',
+        admin_type: 'main_admin',
+        admin_name: ''
       });
       setIsAdding(false);
 
@@ -117,10 +139,14 @@ const PaymentNumbersManager = () => {
     try {
       // Si on définit comme défaut, désactiver les autres
       if (updates.is_default) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('payment_numbers')
           .update({ is_default: false })
           .neq('id', id);
+
+        if (updateError) {
+          console.error('Error updating default flags:', updateError);
+        }
       }
 
       const { error } = await supabase
@@ -128,7 +154,10 @@ const PaymentNumbersManager = () => {
         .update(updates)
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Update error:', error);
+        throw error;
+      }
 
       await fetchPaymentNumbers();
       setEditingId(null);
@@ -158,7 +187,10 @@ const PaymentNumbersManager = () => {
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Delete error:', error);
+        throw error;
+      }
 
       await fetchPaymentNumbers();
 
@@ -232,6 +264,8 @@ const PaymentNumbersManager = () => {
                     <SelectItem value="Airtel Money">Airtel Money</SelectItem>
                     <SelectItem value="MTN Mobile Money">MTN Mobile Money</SelectItem>
                     <SelectItem value="Orange Money">Orange Money</SelectItem>
+                    <SelectItem value="Mobile Money">Mobile Money</SelectItem>
+                    <SelectItem value="Wave">Wave</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -251,6 +285,7 @@ const PaymentNumbersManager = () => {
                     <SelectItem value="Congo Brazzaville">Congo Brazzaville</SelectItem>
                     <SelectItem value="Congo Kinshasa">Congo Kinshasa</SelectItem>
                     <SelectItem value="Cameroun">Cameroun</SelectItem>
+                    <SelectItem value="Sénégal">Sénégal</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -273,12 +308,42 @@ const PaymentNumbersManager = () => {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="admin-type">Type d'administrateur</Label>
+                <Select 
+                  value={newNumber.admin_type}
+                  onValueChange={(value: 'main_admin' | 'sub_admin') => 
+                    setNewNumber(prev => ({ ...prev, admin_type: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="main_admin">Administrateur Principal</SelectItem>
+                    <SelectItem value="sub_admin">Sous Administrateur</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {newNumber.admin_type === 'sub_admin' && (
+                <div>
+                  <Label htmlFor="admin-name">Nom du sous-admin</Label>
+                  <Input
+                    id="admin-name"
+                    placeholder="Nom du sous-administrateur"
+                    value={newNumber.admin_name || ''}
+                    onChange={(e) => setNewNumber(prev => ({ ...prev, admin_name: e.target.value }))}
+                  />
+                </div>
+              )}
+            </div>
+
             <div>
               <Label htmlFor="description">Description (optionnel)</Label>
               <Input
                 id="description"
                 placeholder="Ex: Numéro principal pour les recharges"
-                value={newNumber.description}
+                value={newNumber.description || ''}
                 onChange={(e) => setNewNumber(prev => ({ ...prev, description: e.target.value }))}
               />
             </div>
@@ -333,6 +398,12 @@ const PaymentNumbersManager = () => {
                       <span>{number.country}</span>
                       <span>•</span>
                       <span className="capitalize">{number.service_type.replace('_', ' ')}</span>
+                      {number.admin_type === 'sub_admin' && (
+                        <>
+                          <span>•</span>
+                          <span>Sous-Admin: {number.admin_name}</span>
+                        </>
+                      )}
                     </div>
                     {number.description && (
                       <p className="text-sm text-gray-500 mt-1">{number.description}</p>
