@@ -1,67 +1,142 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/utils/currency';
+import { useToast } from '@/hooks/use-toast';
+import { History, ArrowUpRight, ArrowDownLeft, RefreshCw } from 'lucide-react';
 
-import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Activity, RefreshCw } from "lucide-react";
-import { AgentTransactionItem } from "./AgentTransactionItem";
-import { useAgentTransactions } from "@/hooks/useAgentTransactions";
+interface Transaction {
+  id: string;
+  created_at: string;
+  amount: number;
+  type: string;
+  status: string;
+  description: string;
+  sender_id: string;
+  receiver_id: string;
+}
 
 const AgentTransactionHistory = () => {
   const { user } = useAuth();
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  
-  const { transactions, isLoading, refetch } = useAgentTransactions(user?.id, selectedDate);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [user?.id]);
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    try {
+      if (!user?.id) {
+        console.warn("User ID is missing.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching transactions:", error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger l'historique des transactions",
+          variant: "destructive",
+        });
+      } else {
+        setTransactions(data || []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshTransactions = async () => {
+    await fetchTransactions();
+    toast({
+      title: "Succès",
+      description: "Historique des transactions mis à jour.",
+    });
+  };
 
   return (
-    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="w-5 h-5" />
+    <Card className="min-h-[600px]">
+      <CardHeader className="flex items-center justify-between">
+        <CardTitle className="text-xl font-bold">
+          <History className="w-5 h-5 mr-2 inline-block" />
           Historique des Transactions
         </CardTitle>
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <Badge variant="outline" className="bg-blue-50 text-blue-700">
-              {transactions.length} transaction{transactions.length > 1 ? 's' : ''}
-            </Badge>
-          </div>
-          <Button
-            onClick={() => refetch()}
-            variant="outline"
-            size="sm"
-            disabled={isLoading}
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
+        <Button onClick={refreshTransactions} disabled={loading} variant="outline">
+          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Rafraîchir
+        </Button>
       </CardHeader>
-      <CardContent className="w-full">
-        {isLoading ? (
-          <div className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <CardContent>
+        {loading ? (
+          <div className="flex items-center justify-center h-48">
+            <p>Chargement des transactions...</p>
           </div>
-        ) : transactions.length === 0 ? (
-          <div className="text-center p-8 text-gray-500">
-            <Activity className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">Aucune transaction ce jour</p>
-            <p className="text-sm">Sélectionnez une autre date pour voir l'historique</p>
+        ) : transactions.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Description
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Montant
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Statut
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {transactions.map((transaction) => (
+                  <tr key={transaction.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {new Date(transaction.created_at).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{transaction.type}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900">{transaction.description}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className={`text-sm font-medium ${transaction.type === 'deposit' ? 'text-green-500' : 'text-red-500'}`}>
+                        {transaction.type === 'deposit' ? '+' : '-'} {formatCurrency(transaction.amount)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <Badge variant={transaction.status === 'completed' ? 'success' : transaction.status === 'pending' ? 'secondary' : 'destructive'}>
+                        {transaction.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
-          <div className="space-y-4 w-full">
-            {transactions.map((transaction) => (
-              <AgentTransactionItem
-                key={`${transaction.type}-${transaction.id}`}
-                transaction={transaction}
-              />
-            ))}
+          <div className="flex items-center justify-center h-48">
+            <p>Aucune transaction disponible.</p>
           </div>
         )}
       </CardContent>

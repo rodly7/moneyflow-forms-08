@@ -1,8 +1,8 @@
-
-import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/utils/currency';
+import { useToast } from '@/hooks/use-toast';
 
 export const useWithdrawalOperations = (onClose: () => void) => {
   const [isProcessing, setIsProcessing] = useState(false);

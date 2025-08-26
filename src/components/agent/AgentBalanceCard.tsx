@@ -1,50 +1,54 @@
-
-import { Button } from "@/components/ui/button";
-import { Wallet, RefreshCw } from "lucide-react";
-import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Wallet, TrendingUp, TrendingDown } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils/currency';
 
 interface AgentBalanceCardProps {
   balance: number;
-  isLoading: boolean;
-  onRefresh: () => void;
-  userCountry?: string;
+  totalEarnings: number;
+  totalWithdrawals: number;
 }
 
-export const AgentBalanceCard = ({ balance, isLoading, onRefresh, userCountry = "Cameroun" }: AgentBalanceCardProps) => {
-  // Déterminer la devise basée sur le pays de l'agent
-  const agentCurrency = getCurrencyForCountry(userCountry);
-  
-  // Convertir le solde de XAF vers la devise de l'agent
-  const convertedBalance = convertCurrency(balance, "XAF", agentCurrency);
-  
+const AgentBalanceCard: React.FC<AgentBalanceCardProps> = ({ balance, totalEarnings, totalWithdrawals }) => {
+  const earningsDifference = totalEarnings - totalWithdrawals;
+  const isPositiveDifference = earningsDifference >= 0;
+
   return (
-    <div className="px-3 py-2 bg-emerald-50 rounded-md text-sm border border-emerald-200">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center">
-          <Wallet className="w-4 h-4 mr-2 text-emerald-600" />
-          <span className="font-medium">Votre solde agent:</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`font-bold ${convertedBalance > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-            {formatCurrency(convertedBalance, agentCurrency)}
-          </span>
-          {agentCurrency !== "XAF" && (
-            <span className="text-xs text-gray-500">
-              ({formatCurrency(balance, "XAF")})
+    <Card className="bg-gradient-to-br from-white to-gray-50">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Wallet className="w-4 h-4" />
+          Solde du compte
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-1">
+          <div className="text-2xl font-bold">{formatCurrency(balance, 'XAF')}</div>
+          <div className="flex items-center text-sm text-gray-500">
+            <span className="mr-1">Gains</span>
+            <TrendingUp className="w-4 h-4 text-green-500" />
+            <span className="text-green-600">{formatCurrency(totalEarnings, 'XAF')}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-500">
+            <span className="mr-1">Retraits</span>
+            <TrendingDown className="w-4 h-4 text-red-500" />
+            <span className="text-red-600">{formatCurrency(totalWithdrawals, 'XAF')}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-500">
+            <span className="mr-1">Différence</span>
+            {isPositiveDifference ? (
+              <TrendingUp className="w-4 h-4 text-green-500" />
+            ) : (
+              <TrendingDown className="w-4 h-4 text-red-500" />
+            )}
+            <span className={isPositiveDifference ? "text-green-600" : "text-red-600"}>
+              {formatCurrency(earningsDifference, 'XAF')}
             </span>
-          )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onRefresh}
-            disabled={isLoading}
-            className="h-6 w-6 p-0"
-          >
-            <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
+
+export default AgentBalanceCard;

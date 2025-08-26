@@ -1,40 +1,64 @@
-
-import { Card, CardContent } from "@/components/ui/card";
-import { LucideIcon } from "lucide-react";
-import { formatCurrency } from "@/integrations/supabase/client";
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TrendingUp, Users, DollarSign, Clock } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils/currency';
 
 interface AgentStatsCardProps {
-  title: string;
-  amount: number;
-  icon: LucideIcon;
-  color: string;
-  isLoading?: boolean;
+  totalEarnings: number;
+  totalCustomers: number;
+  averageTransactionTime: number;
 }
 
-export const AgentStatsCard = ({
-  title,
-  amount,
-  icon: Icon,
-  color,
-  isLoading = false
-}: AgentStatsCardProps) => {
+const AgentStatsCard: React.FC<AgentStatsCardProps> = ({
+  totalEarnings,
+  totalCustomers,
+  averageTransactionTime,
+}) => {
   return (
-    <Card className={`bg-gradient-to-br ${color} border-opacity-50`}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium opacity-80">{title}</p>
-            {isLoading ? (
-              <div className="animate-pulse bg-white/30 h-8 w-32 rounded mt-1"></div>
-            ) : (
-              <p className="text-2xl font-bold mt-1">
-                {formatCurrency(amount, 'XAF')}
-              </p>
-            )}
-          </div>
-          <Icon className="w-8 h-8 opacity-70" />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Total Earnings */}
+      <Card className="bg-gradient-to-br from-green-50 to-green-100 border-0 shadow-md">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between font-semibold">
+            <span>Gains Totaux</span>
+            <TrendingUp className="w-5 h-5 text-green-600" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-green-700">{formatCurrency(totalEarnings, 'XAF')}</div>
+          <p className="text-sm text-gray-500">Revenus générés</p>
+        </CardContent>
+      </Card>
+
+      {/* Total Customers */}
+      <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-0 shadow-md">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between font-semibold">
+            <span>Clients Totaux</span>
+            <Users className="w-5 h-5 text-blue-600" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-blue-700">{totalCustomers}</div>
+          <p className="text-sm text-gray-500">Nombre de clients servis</p>
+        </CardContent>
+      </Card>
+
+      {/* Average Transaction Time */}
+      <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-0 shadow-md">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between font-semibold">
+            <span>Temps Moyen/Transaction</span>
+            <Clock className="w-5 h-5 text-yellow-600" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-yellow-700">{averageTransactionTime} sec</div>
+          <p className="text-sm text-gray-500">Délai moyen par transaction</p>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
+
+export default AgentStatsCard;
