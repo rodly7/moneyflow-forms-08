@@ -12,6 +12,7 @@ interface ProfileEditFormProps {
     id: string;
     full_name: string;
     phone: string;
+    birth_date?: string;
     avatar_url?: string;
     id_card_photo_url?: string;
   };
