@@ -937,6 +937,93 @@ export type Database = {
           },
         ]
       }
+      kyc_verifications: {
+        Row: {
+          created_at: string
+          document_birth_date: string | null
+          document_expiry_date: string | null
+          document_name: string | null
+          document_number: string | null
+          document_verification_passed: boolean | null
+          face_match_score: number | null
+          face_verification_passed: boolean | null
+          id: string
+          id_document_type: string | null
+          id_document_url: string | null
+          selfie_url: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          verification_notes: string | null
+          verification_provider: string | null
+          verification_score: number | null
+          verified_at: string | null
+          verified_by: string | null
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_birth_date?: string | null
+          document_expiry_date?: string | null
+          document_name?: string | null
+          document_number?: string | null
+          document_verification_passed?: boolean | null
+          face_match_score?: number | null
+          face_verification_passed?: boolean | null
+          id?: string
+          id_document_type?: string | null
+          id_document_url?: string | null
+          selfie_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          verification_notes?: string | null
+          verification_provider?: string | null
+          verification_score?: number | null
+          verified_at?: string | null
+          verified_by?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_birth_date?: string | null
+          document_expiry_date?: string | null
+          document_name?: string | null
+          document_number?: string | null
+          document_verification_passed?: boolean | null
+          face_match_score?: number | null
+          face_verification_passed?: boolean | null
+          id?: string
+          id_document_type?: string | null
+          id_document_url?: string | null
+          selfie_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          verification_notes?: string | null
+          verification_provider?: string | null
+          verification_score?: number | null
+          verified_at?: string | null
+          verified_by?: string | null
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_verifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_agents_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kyc_verifications_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "auth_users_agents_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_bonuses: {
         Row: {
           bonus_amount: number

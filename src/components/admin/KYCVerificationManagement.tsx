@@ -27,7 +27,7 @@ const KYCVerificationManagement = () => {
   const { data: pendingVerifications, refetch: refetchPending } = useQuery({
     queryKey: ['kyc-verifications', 'pending'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('kyc_verifications')
         .select(`
           *,
@@ -49,7 +49,7 @@ const KYCVerificationManagement = () => {
   const { data: allVerifications, refetch: refetchAll } = useQuery({
     queryKey: ['kyc-verifications', 'all'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('kyc_verifications')
         .select(`
           *,
@@ -73,7 +73,7 @@ const KYCVerificationManagement = () => {
       if (!user) throw new Error('Non authentifié');
 
       // Update KYC verification
-      const { error: kycError } = await supabase
+      const { error: kycError } = await (supabase as any)
         .from('kyc_verifications')
         .update({
           status,
