@@ -29,7 +29,17 @@ export const useKYCVerification = () => {
         return null;
       }
       
-      return data || { status: 'not_started' };
+      if (data) {
+        return {
+          status: data.status as 'not_started' | 'pending' | 'approved' | 'rejected',
+          selfie_url: data.selfie_url,
+          id_card_url: data.id_card_url,
+          verification_notes: data.verification_notes,
+          verified_at: data.verified_at
+        };
+      }
+      
+      return { status: 'not_started' };
     } catch (error) {
       console.error('Error checking KYC status:', error);
       return null;
