@@ -883,6 +883,60 @@ export type Database = {
           },
         ]
       }
+      identity_verifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          id_card_url: string | null
+          selfie_url: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+          verification_notes: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          id_card_url?: string | null
+          selfie_url?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+          verification_notes?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          id_card_url?: string | null
+          selfie_url?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+          verification_notes?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_verifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_agents_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identity_verifications_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "auth_users_agents_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_bonuses: {
         Row: {
           bonus_amount: number
@@ -1085,6 +1139,51 @@ export type Database = {
           },
         ]
       }
+      payment_numbers: {
+        Row: {
+          admin_name: string | null
+          admin_type: string
+          country: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          phone_number: string
+          provider: string
+          service_type: string
+          updated_at: string
+        }
+        Insert: {
+          admin_name?: string | null
+          admin_type?: string
+          country: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          phone_number: string
+          provider: string
+          service_type?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_name?: string | null
+          admin_type?: string
+          country?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          phone_number?: string
+          provider?: string
+          service_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_sessions: {
         Row: {
           amount: number
@@ -1213,7 +1312,10 @@ export type Database = {
           id_card_url: string | null
           is_banned: boolean | null
           is_verified: boolean | null
+          kyc_completed_at: string | null
+          kyc_status: string | null
           phone: string
+          requires_kyc: boolean | null
           role: Database["public"]["Enums"]["user_role"]
           selfie_url: string | null
           verified_at: string | null
@@ -1233,7 +1335,10 @@ export type Database = {
           id_card_url?: string | null
           is_banned?: boolean | null
           is_verified?: boolean | null
+          kyc_completed_at?: string | null
+          kyc_status?: string | null
           phone: string
+          requires_kyc?: boolean | null
           role?: Database["public"]["Enums"]["user_role"]
           selfie_url?: string | null
           verified_at?: string | null
@@ -1253,7 +1358,10 @@ export type Database = {
           id_card_url?: string | null
           is_banned?: boolean | null
           is_verified?: boolean | null
+          kyc_completed_at?: string | null
+          kyc_status?: string | null
           phone?: string
+          requires_kyc?: boolean | null
           role?: Database["public"]["Enums"]["user_role"]
           selfie_url?: string | null
           verified_at?: string | null
