@@ -1,10 +1,12 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
-import { CheckCircle, Upload, Camera, AlertCircle, Clock } from 'lucide-react';
+import { useKYCVerification } from '@/hooks/useKYCVerification';
+import { CheckCircle, Upload, Camera, AlertCircle, Clock, Zap } from 'lucide-react';
 import DocumentUploadStep from './DocumentUploadStep';
 import SelfieStep from './SelfieStep';
 import VerificationReviewStep from './VerificationReviewStep';
@@ -24,7 +26,8 @@ const KYCVerificationModal = ({
   onComplete,
   mandatory = false 
 }: KYCVerificationModalProps) => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+  const { submitKYCVerification } = useKYCVerification();
   const [currentStep, setCurrentStep] = useState<KYCStep>('document');
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState<string>('');
@@ -70,6 +73,41 @@ const KYCVerificationModal = ({
     }
   };
 
+  const handleSubmit = async () => {
+    if (!documentFile || !selfieFile || !documentType) return;
+
+    setIsSubmitting(true);
+    try {
+      const verificationData = {
+        id_document_type: documentType,
+        document_name: `${profile?.full_name || 'User'} ID`,
+        document_number: `ID-${Date.now()}`,
+        document_birth_date: profile?.birth_date || '1990-01-01',
+        document_expiry_date: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 10 ans
+      };
+
+      await submitKYCVerification(
+        verificationData,
+        documentFile,
+        selfieFile
+      );
+
+      // Actualiser le profil immédiatement
+      await refreshProfile();
+      
+      // Fermer le modal automatiquement après l'approbation
+      setTimeout(() => {
+        onComplete?.();
+        onClose();
+      }, 1500); // Petit délai pour montrer le succès
+
+    } catch (error) {
+      console.error('Erreur lors de la soumission KYC:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Si l'utilisateur a déjà un KYC en cours, afficher le statut
   if (hasKYCInProgress) {
     return (
@@ -77,7 +115,11 @@ const KYCVerificationModal = ({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-500" />
+              {profile?.kyc_status === 'approved' ? (
+                <CheckCircle className="h-5 w-5 text-green-500" />
+              ) : (
+                <Clock className="h-5 w-5 text-blue-500" />
+              )}
               Vérification d'identité
             </DialogTitle>
           </DialogHeader>
@@ -106,16 +148,21 @@ const KYCVerificationModal = ({
               )}
               {profile?.kyc_status === 'approved' && (
                 <>
-                  <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Vérification approuvée</h3>
+                  <div className="relative">
+                    <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
+                    <Zap className="absolute top-0 right-1/3 h-6 w-6 text-yellow-500 animate-pulse" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2 text-green-600">Vérification approuvée !</h3>
                   <p className="text-gray-600 mb-4">
-                    Votre identité a été vérifiée avec succès. 
-                    Vous avez accès à toutes les fonctionnalités.
+                    Votre identité a été vérifiée avec succès instantanément ! 
+                    Vous avez maintenant accès à toutes les fonctionnalités.
                   </p>
                 </>
               )}
             </div>
-            <Button onClick={onClose}>Continuer</Button>
+            <Button onClick={onClose} className="bg-green-600 hover:bg-green-700">
+              Continuer vers l'application
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -152,33 +199,9 @@ const KYCVerificationModal = ({
             documentType={documentType}
             selfieFile={selfieFile}
             onPrevious={handlePreviousStep}
-            onSubmit={async () => {
-              setIsSubmitting(true);
-              try {
-                // Soumission sera implémentée dans le hook
-                setCurrentStep('completed');
-                onComplete?.();
-              } catch (error) {
-                console.error('Erreur lors de la soumission KYC:', error);
-              } finally {
-                setIsSubmitting(false);
-              }
-            }}
+            onSubmit={handleSubmit}
             isSubmitting={isSubmitting}
           />
-        );
-      case 'completed':
-        return (
-          <div className="text-center py-8">
-            <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Vérification soumise</h3>
-            <p className="text-gray-600 mb-4">
-              Votre dossier de vérification d'identité a été soumis avec succès. 
-              Nous examinerons vos documents dans les plus brefs délais.
-              Vous pouvez continuer à utiliser l'application normalement.
-            </p>
-            <Button onClick={onClose}>Continuer</Button>
-          </div>
         );
       default:
         return null;
@@ -198,8 +221,8 @@ const KYCVerificationModal = ({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-orange-500" />
-            Vérification d'identité (KYC)
+            <Zap className="h-5 w-5 text-yellow-500" />
+            Vérification d'identité instantanée (KYC)
           </DialogTitle>
           {mandatory && !hasKYCInProgress && (
             <p className="text-sm text-orange-600">

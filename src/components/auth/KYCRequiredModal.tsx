@@ -2,7 +2,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Shield } from 'lucide-react';
+import { AlertTriangle, Shield, Zap } from 'lucide-react';
 import KYCVerificationModal from '@/components/kyc/KYCVerificationModal';
 
 interface KYCRequiredModalProps {
@@ -15,6 +15,12 @@ const KYCRequiredModal = ({ isOpen, onStartKYC }: KYCRequiredModalProps) => {
 
   const handleStartKYC = () => {
     setShowKYCModal(true);
+  };
+
+  const handleKYCComplete = () => {
+    setShowKYCModal(false);
+    // Fermer également le modal parent et actualiser
+    onStartKYC();
   };
 
   return (
@@ -33,22 +39,29 @@ const KYCRequiredModal = ({ isOpen, onStartKYC }: KYCRequiredModalProps) => {
           
           <div className="space-y-4">
             <div className="text-center">
-              <Shield className="mx-auto h-16 w-16 text-orange-500 mb-4" />
+              <div className="relative">
+                <Shield className="mx-auto h-16 w-16 text-orange-500 mb-4" />
+                <Zap className="absolute top-0 right-1/3 h-6 w-6 text-yellow-500 animate-pulse" />
+              </div>
               <h3 className="text-lg font-semibold mb-2">
-                Sécurisez votre compte
+                Vérification Instantanée
               </h3>
               <p className="text-gray-600 text-sm">
-                Pour continuer à utiliser SendFlow en toute sécurité, 
-                nous devons vérifier votre identité.
+                Vérifiez votre identité en moins de 2 minutes et obtenez 
+                une approbation automatique immédiate !
               </p>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-800 mb-2">Ce dont vous aurez besoin :</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Zap className="h-4 w-4 text-green-600" />
+                <h4 className="font-medium text-green-800">Processus rapide :</h4>
+              </div>
+              <ul className="text-sm text-green-700 space-y-1">
                 <li>• Une pièce d'identité valide (carte, passeport)</li>
-                <li>• Votre smartphone ou caméra pour un selfie</li>
-                <li>• 2-3 minutes de votre temps</li>
+                <li>• Un selfie pour vérification</li>
+                <li>• Approbation automatique instantanée</li>
+                <li>• Accès immédiat à toutes les fonctionnalités</li>
               </ul>
             </div>
 
@@ -61,10 +74,13 @@ const KYCRequiredModal = ({ isOpen, onStartKYC }: KYCRequiredModalProps) => {
 
             <Button 
               onClick={handleStartKYC}
-              className="w-full"
+              className="w-full bg-green-600 hover:bg-green-700"
               size="lg"
             >
-              Commencer la vérification
+              <span className="flex items-center gap-2">
+                <Zap className="h-4 w-4" />
+                Commencer la vérification rapide
+              </span>
             </Button>
           </div>
         </DialogContent>
@@ -73,7 +89,7 @@ const KYCRequiredModal = ({ isOpen, onStartKYC }: KYCRequiredModalProps) => {
       <KYCVerificationModal
         isOpen={showKYCModal}
         onClose={() => setShowKYCModal(false)}
-        onComplete={onStartKYC}
+        onComplete={handleKYCComplete}
         mandatory={true}
       />
     </>
