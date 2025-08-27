@@ -119,30 +119,19 @@ export const useKYCVerification = () => {
 
       console.log('Inserting KYC data:', kycData);
 
-      // Use direct database query to avoid TypeScript issues
-      const { data, error } = await supabase
-        .rpc('insert_kyc_verification', {
-          kyc_data: kycData
-        });
+      // Direct insert into kyc_verifications table
+      const { data: kycRecord, error: kycError } = await (supabase as any)
+        .from('kyc_verifications')
+        .insert(kycData)
+        .select('*')
+        .single();
 
-      if (error) {
-        console.error('KYC insertion error:', error);
-        // Fallback to direct insert if RPC doesn't exist
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('kyc_verifications' as any)
-          .insert(kycData)
-          .select()
-          .single();
-
-        if (fallbackError) {
-          console.error('Fallback KYC insertion error:', fallbackError);
-          throw new Error(`Erreur lors de l'insertion KYC: ${fallbackError.message}`);
-        }
-
-        console.log('KYC record inserted successfully (fallback):', fallbackData);
-      } else {
-        console.log('KYC record inserted successfully:', data);
+      if (kycError) {
+        console.error('KYC insertion error:', kycError);
+        throw new Error(`Erreur lors de l'insertion KYC: ${kycError.message}`);
       }
+
+      console.log('KYC record inserted successfully:', kycRecord);
 
       // Update profile
       console.log('Waiting before profile update...');
@@ -198,7 +187,7 @@ export const useKYCVerification = () => {
       setUploadProgress(100);
       toast.success('Vérification d\'identité approuvée instantanément !');
       
-      return data;
+      return kycRecord;
     } catch (error: any) {
       console.error('Error submitting KYC verification:', error);
       toast.error(`Erreur lors de la soumission de la vérification: ${error.message}`);
@@ -214,28 +203,21 @@ export const useKYCVerification = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Use RPC function first, then fallback to direct query
-      const { data: rpcData, error: rpcError } = await supabase
-        .rpc('get_user_kyc_status', { user_id_param: user.id });
-
-      if (!rpcError && rpcData) {
-        return rpcData;
-      }
-
-      // Fallback to direct query
-      const { data, error } = await supabase
-        .from('kyc_verifications' as any)
+      // Direct query to kyc_verifications table
+      const { data, error } = await (supabase as any)
+        .from('kyc_verifications')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+      if (error) {
+        console.error('Error getting KYC status:', error);
+        return null;
       }
 
-      return data;
+      return data as KYCVerificationRecord | null;
     } catch (error) {
       console.error('Error getting KYC status:', error);
       return null;
@@ -247,8 +229,8 @@ export const useKYCVerification = () => {
     updates: Partial<KYCVerificationData>
   ) => {
     try {
-      const { data, error } = await supabase
-        .from('kyc_verifications' as any)
+      const { data, error } = await (supabase as any)
+        .from('kyc_verifications')
         .update(updates)
         .eq('id', verificationId)
         .select()
