@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types/auth';
 
@@ -18,7 +17,14 @@ export const profileService = {
       }
 
       console.log('✅ Profil récupéré:', data);
-      return data;
+      
+      // Normaliser le profil pour s'assurer que birth_date est présent
+      const normalizedProfile: Profile = {
+        ...data,
+        birth_date: data.birth_date || null
+      };
+      
+      return normalizedProfile;
     } catch (error) {
       console.error('❌ Erreur dans fetchProfile:', error);
       return null;

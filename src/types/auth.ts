@@ -9,7 +9,7 @@ export interface Profile {
   role: 'user' | 'agent' | 'admin' | 'sub_admin';
   avatar_url: string | null;
   is_verified: boolean | null;
-  birth_date: string | null;
+  birth_date?: string | null;
   id_card_photo_url: string | null;
 }
 

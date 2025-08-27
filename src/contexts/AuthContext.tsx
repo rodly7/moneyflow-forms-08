@@ -33,7 +33,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      setProfile(profileData);
+      // Assurer que birth_date est présent même s'il est null
+      const normalizedProfile: Profile = {
+        ...profileData,
+        birth_date: profileData.birth_date || null
+      };
+      setProfile(normalizedProfile);
     } catch (error) {
       console.error('Erreur lors du rafraîchissement du profil:', error);
     }
@@ -49,7 +54,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (!error && profileData) {
-        setProfile(profileData);
+        // Assurer que birth_date est présent même s'il est null
+        const normalizedProfile: Profile = {
+          ...profileData,
+          birth_date: profileData.birth_date || null
+        };
+        setProfile(normalizedProfile);
         return true;
       } else {
         console.error('Erreur profil:', error);
