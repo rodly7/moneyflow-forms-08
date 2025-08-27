@@ -25,6 +25,7 @@ import { SimpleMessagesTab } from './SimpleMessagesTab';
 import { SimpleSettingsTab } from './SimpleSettingsTab';
 import { SimpleTreasuryTab } from './SimpleTreasuryTab';
 import SimpleAdvancedTab from './SimpleAdvancedTab';
+import { FraudDetectionInterface } from './FraudDetectionInterface';
 
 const SimpleMainAdminDashboard = () => {
   const { profile } = useAuth();
@@ -56,8 +57,12 @@ const SimpleMainAdminDashboard = () => {
       <AdminGlobalStats />
 
       {/* Onglets principaux */}
-      <Tabs defaultValue="requests-overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+      <Tabs defaultValue="fraud-detection" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-7">
+          <TabsTrigger value="fraud-detection" className="flex items-center gap-2">
+            <Eye className="w-4 h-4" />
+            🔍 Fraude
+          </TabsTrigger>
           <TabsTrigger value="requests-overview" className="flex items-center gap-2">
             <Eye className="w-4 h-4" />
             Historique
@@ -91,6 +96,11 @@ const SimpleMainAdminDashboard = () => {
             Paramètres
           </TabsTrigger>
         </TabsList>
+
+        {/* Onglet Détection de Fraude */}
+        <TabsContent value="fraud-detection">
+          <FraudDetectionInterface />
+        </TabsContent>
 
         {/* Onglet Historique */}
         <TabsContent value="requests-overview">
