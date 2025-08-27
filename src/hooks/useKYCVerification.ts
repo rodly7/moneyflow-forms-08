@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -48,6 +47,64 @@ export const useKYCVerification = () => {
     }
   };
 
+  const notifyAdminsOfNewKYC = async (userName: string, userPhone: string) => {
+    try {
+      console.log('Notifying admins of new KYC submission...');
+      
+      // Get all admin and sub-admin users
+      const { data: admins, error: adminsError } = await supabase
+        .from('profiles')
+        .select('id')
+        .in('role', ['admin', 'sub_admin']);
+
+      if (adminsError || !admins?.length) {
+        console.error('Error getting admins:', adminsError);
+        return;
+      }
+
+      const adminIds = admins.map(admin => admin.id);
+
+      // Create notification for admins
+      const { data: notification, error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          title: '🆔 Nouvelle vérification KYC',
+          message: `${userName} (${userPhone}) a soumis une demande de vérification d'identité qui nécessite votre approbation.`,
+          notification_type: 'kyc_submission',
+          priority: 'high',
+          sent_by: 'system',
+          target_users: adminIds,
+          total_recipients: adminIds.length
+        })
+        .select()
+        .single();
+
+      if (notificationError) {
+        console.error('Error creating notification:', notificationError);
+        return;
+      }
+
+      // Create notification recipients
+      const recipients = adminIds.map(adminId => ({
+        notification_id: notification.id,
+        user_id: adminId,
+        status: 'sent'
+      }));
+
+      const { error: recipientsError } = await supabase
+        .from('notification_recipients')
+        .insert(recipients);
+
+      if (recipientsError) {
+        console.error('Error creating notification recipients:', recipientsError);
+      } else {
+        console.log('Admins notified successfully');
+      }
+    } catch (error) {
+      console.error('Error notifying admins:', error);
+    }
+  };
+
   const submitKYCVerification = async (
     verificationData: KYCVerificationData,
     idDocumentFile?: File,
@@ -67,6 +124,13 @@ export const useKYCVerification = () => {
 
       const userId = user.id;
       console.log('User ID:', userId);
+
+      // Get user profile for notification
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', userId)
+        .single();
       
       let id_document_url = verificationData.id_document_url;
       let selfie_url = verificationData.selfie_url;
@@ -153,6 +217,12 @@ export const useKYCVerification = () => {
         throw new Error(`Erreur mise à jour profil: ${profileError.message}`);
       }
 
+      // Notify admins of new KYC submission
+      await notifyAdminsOfNewKYC(
+        userProfile?.full_name || 'Utilisateur', 
+        userProfile?.phone || 'N/A'
+      );
+
       // Verify profile update
       let profileUpdated = false;
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -181,7 +251,7 @@ export const useKYCVerification = () => {
       }
 
       setUploadProgress(100);
-      toast.success('Vérification d\'identité soumise avec succès ! En attente d\'approbation par un administrateur.');
+      toast.success('Vérification d\'identité soumise avec succès ! Les administrateurs ont été notifiés et examineront votre dossier.');
       
       return kycRecord;
     } catch (error: any) {

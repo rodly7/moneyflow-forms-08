@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,8 @@ import {
   Eye, 
   User, 
   FileText,
-  Calendar
+  Calendar,
+  Bell
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,11 +66,58 @@ const KYCVerificationManagement = () => {
     }
   });
 
+  const notifyUserOfDecision = async (userId: string, status: 'approved' | 'rejected', userName: string, notes?: string) => {
+    try {
+      const title = status === 'approved' 
+        ? '✅ Vérification d\'identité approuvée' 
+        : '❌ Vérification d\'identité rejetée';
+      
+      const message = status === 'approved'
+        ? `Félicitations ${userName} ! Votre vérification d'identité a été approuvée. Vous avez maintenant accès à toutes les fonctionnalités de Sendflow.`
+        : `Votre demande de vérification d'identité a été rejetée. ${notes ? `Motif: ${notes}` : 'Veuillez soumettre une nouvelle demande avec des documents valides.'}`;
+
+      const { data: notification, error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          title,
+          message,
+          notification_type: status === 'approved' ? 'kyc_approved' : 'kyc_rejected',
+          priority: 'high',
+          sent_by: 'system',
+          target_users: [userId],
+          total_recipients: 1
+        })
+        .select()
+        .single();
+
+      if (notificationError) {
+        console.error('Error creating user notification:', notificationError);
+        return;
+      }
+
+      await supabase
+        .from('notification_recipients')
+        .insert({
+          notification_id: notification.id,
+          user_id: userId,
+          status: 'sent'
+        });
+
+      console.log('User notified of KYC decision');
+    } catch (error) {
+      console.error('Error notifying user:', error);
+    }
+  };
+
   const handleApproval = async (verificationId: string, status: 'approved' | 'rejected', notes?: string) => {
     setIsProcessing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Non authentifié');
+
+      // Get verification details for notification
+      const verification = pendingVerifications?.find(v => v.id === verificationId);
+      if (!verification) throw new Error('Vérification non trouvée');
 
       // Update KYC verification
       const { error: kycError } = await (supabase as any)
@@ -86,23 +133,28 @@ const KYCVerificationManagement = () => {
       if (kycError) throw kycError;
 
       // Update user profile
-      const verification = pendingVerifications?.find(v => v.id === verificationId);
-      if (verification) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            kyc_status: status,
-            is_verified: status === 'approved',
-            verified_at: status === 'approved' ? new Date().toISOString() : null
-          })
-          .eq('id', verification.user_id);
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          kyc_status: status,
+          is_verified: status === 'approved',
+          verified_at: status === 'approved' ? new Date().toISOString() : null
+        })
+        .eq('id', verification.user_id);
 
-        if (profileError) throw profileError;
-      }
+      if (profileError) throw profileError;
+
+      // Notify user of the decision
+      await notifyUserOfDecision(
+        verification.user_id, 
+        status, 
+        verification.profiles?.full_name || 'Utilisateur',
+        notes
+      );
 
       toast({
         title: status === 'approved' ? "Vérification approuvée" : "Vérification rejetée",
-        description: `La vérification d'identité a été ${status === 'approved' ? 'approuvée' : 'rejetée'} avec succès.`,
+        description: `La vérification d'identité a été ${status === 'approved' ? 'approuvée' : 'rejetée'} avec succès. L'utilisateur a été notifié.`,
       });
 
       refetchPending();
@@ -146,10 +198,20 @@ const KYCVerificationManagement = () => {
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">Gestion des Vérifications KYC</h1>
-        <p className="opacity-90">
-          Approuvez ou rejetez les vérifications d'identité soumises par les utilisateurs.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold mb-2">Gestion des Vérifications KYC</h1>
+            <p className="opacity-90">
+              Approuvez ou rejetez les vérifications d'identité soumises par les utilisateurs.
+            </p>
+          </div>
+          {pendingVerifications && pendingVerifications.length > 0 && (
+            <div className="flex items-center gap-2 bg-white/20 px-3 py-2 rounded-lg">
+              <Bell className="w-5 h-5 animate-pulse" />
+              <span className="font-semibold">{pendingVerifications.length} nouvelle{pendingVerifications.length > 1 ? 's' : ''}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="pending" className="space-y-4">
@@ -252,7 +314,7 @@ const KYCVerificationManagement = () => {
                         Approuver
                       </Button>
                       <Button
-                        onClick={() => handleApproval(verification.id, 'rejected', 'Rejeté par l\'administrateur')}
+                        onClick={() => handleApproval(verification.id, 'rejected', 'Documents non conformes ou illisibles')}
                         disabled={isProcessing}
                         variant="destructive"
                       >
