@@ -77,6 +77,7 @@ export const useKYCVerification = () => {
         setUploadProgress(25);
         const fileName = `${userId}/id-document-${Date.now()}.${idDocumentFile.name.split('.').pop()}`;
         id_document_url = await uploadFile(idDocumentFile, 'kyc-documents', fileName);
+        console.log('ID document uploaded:', id_document_url);
       }
 
       // Upload selfie if provided
@@ -85,6 +86,7 @@ export const useKYCVerification = () => {
         setUploadProgress(50);
         const fileName = `${userId}/selfie-${Date.now()}.${selfieFile.name.split('.').pop()}`;
         selfie_url = await uploadFile(selfieFile, 'kyc-selfies', fileName);
+        console.log('Selfie uploaded:', selfie_url);
       }
 
       // Upload video if provided
@@ -93,6 +95,7 @@ export const useKYCVerification = () => {
         setUploadProgress(75);
         const fileName = `${userId}/video-${Date.now()}.${videoFile.name.split('.').pop()}`;
         video_url = await uploadFile(videoFile, 'kyc-selfies', fileName);
+        console.log('Video uploaded:', video_url);
       }
 
       setUploadProgress(90);
@@ -115,6 +118,7 @@ export const useKYCVerification = () => {
 
       console.log('Inserting KYC data:', kycData);
 
+      // Use the typed client without casting
       const { data, error } = await supabase
         .from('kyc_verifications')
         .insert(kycData)
@@ -123,13 +127,14 @@ export const useKYCVerification = () => {
 
       if (error) {
         console.error('KYC insertion error:', error);
-        throw error;
+        throw new Error(`Erreur lors de l'insertion KYC: ${error.message}`);
       }
 
       console.log('KYC record inserted successfully:', data);
 
-      // Mettre à jour immédiatement le profil utilisateur avec un délai pour s'assurer que la transaction est terminée
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Mettre à jour immédiatement le profil utilisateur avec un délai
+      console.log('Waiting before profile update...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       console.log('Updating user profile...');
       const profileUpdateData = {
@@ -148,27 +153,41 @@ export const useKYCVerification = () => {
 
       if (profileError) {
         console.error('Erreur mise à jour profil:', profileError);
-        throw profileError;
+        throw new Error(`Erreur mise à jour profil: ${profileError.message}`);
       }
 
-      // Vérifier que la mise à jour a bien été effectuée
-      const { data: updatedProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('kyc_status, is_verified')
-        .eq('id', userId)
-        .single();
+      // Vérifier que la mise à jour a bien été effectuée avec plusieurs tentatives
+      let profileUpdated = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        console.log(`Vérification profil - tentative ${attempt}/3`);
+        await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+        
+        const { data: updatedProfile, error: checkError } = await supabase
+          .from('profiles')
+          .select('kyc_status, is_verified')
+          .eq('id', userId)
+          .single();
 
-      if (checkError) {
-        console.error('Erreur vérification profil:', checkError);
-      } else {
-        console.log('Profil mis à jour:', updatedProfile);
+        if (checkError) {
+          console.error(`Erreur vérification profil (tentative ${attempt}):`, checkError);
+        } else {
+          console.log(`Profil vérifié (tentative ${attempt}):`, updatedProfile);
+          if (updatedProfile.kyc_status === 'approved' && updatedProfile.is_verified) {
+            profileUpdated = true;
+            break;
+          }
+        }
+      }
+
+      if (!profileUpdated) {
+        console.warn('Le profil n\'a pas été mis à jour correctement après 3 tentatives');
       }
 
       setUploadProgress(100);
       toast.success('Vérification d\'identité approuvée instantanément !');
       
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting KYC verification:', error);
       toast.error(`Erreur lors de la soumission de la vérification: ${error.message}`);
       throw error;
@@ -183,7 +202,7 @@ export const useKYCVerification = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('kyc_verifications')
         .select('*')
         .eq('user_id', user.id)
@@ -207,7 +226,7 @@ export const useKYCVerification = () => {
     updates: Partial<KYCVerificationData>
   ) => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('kyc_verifications')
         .update(updates)
         .eq('id', verificationId)
