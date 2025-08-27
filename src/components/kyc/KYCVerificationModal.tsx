@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
-import { CheckCircle, Upload, Camera, AlertCircle } from 'lucide-react';
+import { CheckCircle, Upload, Camera, AlertCircle, Clock } from 'lucide-react';
 import DocumentUploadStep from './DocumentUploadStep';
 import SelfieStep from './SelfieStep';
 import VerificationReviewStep from './VerificationReviewStep';
@@ -25,12 +24,16 @@ const KYCVerificationModal = ({
   onComplete,
   mandatory = false 
 }: KYCVerificationModalProps) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [currentStep, setCurrentStep] = useState<KYCStep>('document');
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState<string>('');
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Vérifier si l'utilisateur a déjà un KYC en cours ou approuvé
+  const hasKYCInProgress = profile?.kyc_status && 
+    ['pending', 'requires_review', 'approved'].includes(profile.kyc_status);
 
   const steps = [
     { id: 'document', title: 'Pièce d\'identité', icon: Upload },
@@ -61,10 +64,63 @@ const KYCVerificationModal = ({
   };
 
   const handleClose = () => {
-    if (!mandatory) {
+    // Permettre la fermeture si KYC n'est pas obligatoire ou déjà en cours
+    if (!mandatory || hasKYCInProgress) {
       onClose();
     }
   };
+
+  // Si l'utilisateur a déjà un KYC en cours, afficher le statut
+  if (hasKYCInProgress) {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-blue-500" />
+              Vérification d'identité
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="text-center py-8">
+            <div className="mb-4">
+              {profile?.kyc_status === 'pending' && (
+                <>
+                  <Clock className="mx-auto h-16 w-16 text-blue-500 mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">Vérification en cours</h3>
+                  <p className="text-gray-600 mb-4">
+                    Votre dossier de vérification d'identité est en cours d'examen. 
+                    Vous pouvez continuer à utiliser l'application normalement.
+                  </p>
+                </>
+              )}
+              {profile?.kyc_status === 'requires_review' && (
+                <>
+                  <AlertCircle className="mx-auto h-16 w-16 text-orange-500 mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">Révision nécessaire</h3>
+                  <p className="text-gray-600 mb-4">
+                    Votre dossier nécessite une révision supplémentaire. 
+                    Vous pouvez continuer à utiliser l'application en attendant.
+                  </p>
+                </>
+              )}
+              {profile?.kyc_status === 'approved' && (
+                <>
+                  <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">Vérification approuvée</h3>
+                  <p className="text-gray-600 mb-4">
+                    Votre identité a été vérifiée avec succès. 
+                    Vous avez accès à toutes les fonctionnalités.
+                  </p>
+                </>
+              )}
+            </div>
+            <Button onClick={onClose}>Continuer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const renderStep = () => {
     switch (currentStep) {
@@ -119,6 +175,7 @@ const KYCVerificationModal = ({
             <p className="text-gray-600 mb-4">
               Votre dossier de vérification d'identité a été soumis avec succès. 
               Nous examinerons vos documents dans les plus brefs délais.
+              Vous pouvez continuer à utiliser l'application normalement.
             </p>
             <Button onClick={onClose}>Continuer</Button>
           </div>
@@ -132,14 +189,19 @@ const KYCVerificationModal = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent 
         className="sm:max-w-2xl max-h-[90vh] overflow-y-auto"
-        onInteractOutside={(e) => mandatory && e.preventDefault()}
+        onInteractOutside={(e) => {
+          // Empêcher la fermeture uniquement si KYC est obligatoire ET pas encore soumis
+          if (mandatory && !hasKYCInProgress) {
+            e.preventDefault();
+          }
+        }}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-orange-500" />
             Vérification d'identité (KYC)
           </DialogTitle>
-          {mandatory && (
+          {mandatory && !hasKYCInProgress && (
             <p className="text-sm text-orange-600">
               Cette vérification est obligatoire pour continuer à utiliser l'application.
             </p>

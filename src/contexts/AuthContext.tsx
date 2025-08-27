@@ -24,10 +24,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return !!(profile.birth_date && profile.id_card_url);
   }, []);
 
-  // Vérifier si KYC est requis avec des vérifications plus sûres
+  // Vérifier si KYC est requis - modifié pour permettre l'utilisation après soumission
   const requiresKYC = useCallback((profile: Profile | null) => {
     if (!profile) return false;
-    return profile.requires_kyc && (!profile.kyc_status || profile.kyc_status === 'not_started');
+    // L'utilisateur peut utiliser l'app si:
+    // - KYC n'est pas requis, OU
+    // - KYC est approuvé, OU 
+    // - KYC est en attente (pending) - nouveau comportement
+    // - KYC nécessite une révision (requires_review) - nouveau comportement
+    // Seuls les statuts 'not_started', 'rejected' ou null empêchent l'utilisation
+    return profile.requires_kyc && 
+           (!profile.kyc_status || 
+            profile.kyc_status === 'not_started' || 
+            profile.kyc_status === 'rejected');
   }, []);
 
   // Mémoriser la fonction de rafraîchissement pour éviter les re-renders inutiles
