@@ -1,6 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Eye, X } from 'lucide-react';
 
 interface User {
   id: string;
@@ -21,6 +24,7 @@ export const SimpleUsersList = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUserPhoto, setSelectedUserPhoto] = useState<{ url: string; name: string; type: string } | null>(null);
 
   const loadUsers = async () => {
     try {
@@ -131,12 +135,35 @@ export const SimpleUsersList = () => {
               </td>
               <td style={{ padding: '12px' }}>
                 {user.id_card_photo_url ? (
-                  <img 
-                    src={user.id_card_photo_url} 
-                    alt="Pièce d'identité" 
-                    style={{ width: '40px', height: '30px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
-                    onClick={() => window.open(user.id_card_photo_url, '_blank')}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <img 
+                      src={user.id_card_photo_url} 
+                      alt="Pièce d'identité" 
+                      style={{ width: '40px', height: '30px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
+                      onClick={() => setSelectedUserPhoto({
+                        url: user.id_card_photo_url,
+                        name: user.full_name || 'Utilisateur',
+                        type: 'Pièce d\'identité'
+                      })}
+                    />
+                    <button
+                      onClick={() => setSelectedUserPhoto({
+                        url: user.id_card_photo_url,
+                        name: user.full_name || 'Utilisateur',
+                        type: 'Pièce d\'identité'
+                      })}
+                      style={{
+                        padding: '4px 8px',
+                        backgroundColor: '#f0f0f0',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '11px'
+                      }}
+                    >
+                      👁️ Voir
+                    </button>
+                  </div>
                 ) : (
                   <span style={{ fontSize: '11px', color: '#999' }}>Non fournie</span>
                 )}
@@ -261,6 +288,96 @@ export const SimpleUsersList = () => {
                 }}
               >
                 Mettre à jour
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal pour voir les photos d'identité */}
+      {selectedUserPhoto && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '20px',
+            borderRadius: '8px',
+            maxWidth: '90vw',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '15px'
+            }}>
+              <h3 style={{ margin: 0 }}>
+                {selectedUserPhoto.type} - {selectedUserPhoto.name}
+              </h3>
+              <button
+                onClick={() => setSelectedUserPhoto(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '5px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+              <img 
+                src={selectedUserPhoto.url} 
+                alt={selectedUserPhoto.type}
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '70vh', 
+                  objectFit: 'contain',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                onClick={() => window.open(selectedUserPhoto.url, '_blank')}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#0066cc',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Ouvrir dans un nouvel onglet
+              </button>
+              <button
+                onClick={() => setSelectedUserPhoto(null)}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#ccc',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Fermer
               </button>
             </div>
           </div>

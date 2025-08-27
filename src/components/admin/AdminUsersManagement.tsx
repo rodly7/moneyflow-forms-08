@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Eye, X } from 'lucide-react';
 
 interface User {
   id: string;
@@ -23,6 +26,7 @@ export const AdminUsersManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUserPhoto, setSelectedUserPhoto] = useState<{ url: string; name: string; type: string } | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -173,19 +177,36 @@ export const AdminUsersManagement = () => {
                 </td>
                 <td style={{ padding: '15px' }}>
                   {user.id_card_photo_url ? (
-                    <img 
-                      src={user.id_card_photo_url} 
-                      alt="Pièce d'identité" 
-                      style={{ 
-                        width: '40px', 
-                        height: '30px', 
-                        objectFit: 'cover', 
-                        borderRadius: '4px', 
-                        cursor: 'pointer',
-                        border: '1px solid #ddd'
-                      }}
-                      onClick={() => window.open(user.id_card_photo_url, '_blank')}
-                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <img 
+                        src={user.id_card_photo_url} 
+                        alt="Pièce d'identité" 
+                        style={{ 
+                          width: '40px', 
+                          height: '30px', 
+                          objectFit: 'cover', 
+                          borderRadius: '4px', 
+                          cursor: 'pointer',
+                          border: '1px solid #ddd'
+                        }}
+                        onClick={() => setSelectedUserPhoto({
+                          url: user.id_card_photo_url,
+                          name: user.full_name || 'Utilisateur',
+                          type: 'Pièce d\'identité'
+                        })}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedUserPhoto({
+                          url: user.id_card_photo_url,
+                          name: user.full_name || 'Utilisateur',
+                          type: 'Pièce d\'identité'
+                        })}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </div>
                   ) : (
                     <span style={{ fontSize: '11px', color: '#999' }}>Non fournie</span>
                   )}
@@ -256,6 +277,45 @@ export const AdminUsersManagement = () => {
           </div>
         )}
       </div>
+
+      {/* Modal pour voir les photos d'identité */}
+      <Dialog open={!!selectedUserPhoto} onOpenChange={() => setSelectedUserPhoto(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>{selectedUserPhoto?.type} - {selectedUserPhoto?.name}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedUserPhoto(null)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          {selectedUserPhoto && (
+            <div className="flex justify-center p-4">
+              <img 
+                src={selectedUserPhoto.url} 
+                alt={selectedUserPhoto.type}
+                className="max-w-full max-h-[70vh] object-contain rounded-lg border"
+                style={{ maxWidth: '100%', height: 'auto' }}
+              />
+            </div>
+          )}
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => window.open(selectedUserPhoto?.url, '_blank')}
+            >
+              Ouvrir dans un nouvel onglet
+            </Button>
+            <Button onClick={() => setSelectedUserPhoto(null)}>
+              Fermer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
