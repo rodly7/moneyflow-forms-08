@@ -162,6 +162,8 @@ const TransferForm = () => {
           isOpen={showBiometricConfirmation}
           onClose={() => setShowBiometricConfirmation(false)}
           onConfirm={processFinalTransfer}
+          amount={data.transfer.amount}
+          operationType="transfer"
         />
       </div>
     </div>

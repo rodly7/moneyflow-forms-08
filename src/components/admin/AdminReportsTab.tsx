@@ -19,33 +19,36 @@ interface ReportData {
 }
 
 const AdminReportsTab = () => {
-  const [dateRange, setDateRange] = useState<Date[]>([new Date(), new Date()]);
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: new Date(),
+    to: new Date()
+  });
   const [reportType, setReportType] = useState("daily");
 
   const { data: reports, isLoading, error } = useQuery({
     queryKey: ["admin-reports", dateRange, reportType],
     queryFn: async () => {
-      if (!dateRange || dateRange.length !== 2) return [];
+      if (!dateRange?.from || !dateRange?.to) return [];
 
-      const startDate = dateRange[0]?.toISOString().split('T')[0];
-      const endDate = dateRange[1]?.toISOString().split('T')[0];
+      const startDate = dateRange.from.toISOString().split('T')[0];
+      const endDate = dateRange.to.toISOString().split('T')[0];
 
-      // Use a simpler query to get transaction data
-      const { data, error } = await supabase
-        .from('money_transfers')
+      // Get transfers data from pending_transfers table
+      const { data: transfers, error: transfersError } = await supabase
+        .from('pending_transfers')
         .select('*')
         .gte('created_at', startDate)
         .lte('created_at', endDate);
 
-      if (error) {
-        console.error("Erreur lors de la récupération des rapports:", error);
+      if (transfersError) {
+        console.error("Erreur lors de la récupération des transferts:", transfersError);
         throw new Error("Impossible de charger les rapports");
       }
 
       // Process the data to match ReportData format
       const mockData: ReportData[] = [{
-        total_transfers: data?.length || 0,
-        total_volume: data?.reduce((sum, transfer) => sum + (transfer.amount || 0), 0) || 0,
+        total_transfers: transfers?.length || 0,
+        total_volume: transfers?.reduce((sum, transfer) => sum + (transfer.amount || 0), 0) || 0,
         new_users: 0,
         active_users: 0,
         date: new Date().toISOString().split('T')[0]

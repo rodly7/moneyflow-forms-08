@@ -1,152 +1,252 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Upload, UserPlus, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/lib/utils/currency";
-import { Users, DollarSign, FileText } from "lucide-react";
+
+interface AgentDeposit {
+  agentId: string;
+  agentName: string;
+  amount: number;
+  status: 'pending' | 'success' | 'error';
+  error?: string;
+}
 
 const BatchAgentDeposit = () => {
-  const [agentIds, setAgentIds] = useState("");
-  const [amount, setAmount] = useState("");
-  const [reason, setReason] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const [deposits, setDeposits] = useState<AgentDeposit[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [bulkAmount, setBulkAmount] = useState("");
+  const [notes, setNotes] = useState("");
 
-  const handleBatchDeposit = async () => {
-    if (!user || !agentIds.trim() || !amount) {
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      const newDeposits: AgentDeposit[] = [];
+
+      lines.forEach((line, index) => {
+        if (index === 0) return; // Skip header
+        const [agentId, agentName, amount] = line.split(',');
+        if (agentId && agentName && amount) {
+          newDeposits.push({
+            agentId: agentId.trim(),
+            agentName: agentName.trim(),
+            amount: parseFloat(amount.trim()),
+            status: 'pending'
+          });
+        }
+      });
+
+      setDeposits(newDeposits);
       toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs requis",
+        title: "Fichier chargé",
+        description: `${newDeposits.length} dépôts détectés`,
+      });
+    };
+    reader.readAsText(file);
+  };
+
+  const processBatchDeposits = async () => {
+    setIsProcessing(true);
+    const updatedDeposits = [...deposits];
+
+    for (let i = 0; i < updatedDeposits.length; i++) {
+      const deposit = updatedDeposits[i];
+      try {
+        const { data, error } = await supabase
+          .from('admin_deposits')
+          .insert({
+            admin_id: (await supabase.auth.getUser()).data.user?.id || '',
+            target_user_id: deposit.agentId,
+            amount: deposit.amount,
+            currency: 'XAF',
+            target_currency: 'XAF',
+            notes: notes || `Dépôt groupé pour ${deposit.agentName}`
+          });
+
+        if (error) throw error;
+
+        updatedDeposits[i].status = 'success';
+      } catch (error) {
+        console.error('Erreur dépôt:', error);
+        updatedDeposits[i].status = 'error';
+        updatedDeposits[i].error = error instanceof Error ? error.message : 'Erreur inconnue';
+      }
+
+      setDeposits([...updatedDeposits]);
+    }
+
+    setIsProcessing(false);
+    toast({
+      title: "Traitement terminé",
+      description: "Vérifiez le statut de chaque dépôt",
+    });
+  };
+
+  const addBulkDepositToAllAgents = async () => {
+    if (!bulkAmount || deposits.length === 0) return;
+
+    const amount = parseFloat(bulkAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Montant invalide",
+        description: "Veuillez saisir un montant valide",
         variant: "destructive"
       });
       return;
     }
 
-    setIsLoading(true);
+    const updatedDeposits = deposits.map(deposit => ({
+      ...deposit,
+      amount: amount,
+      status: 'pending' as const
+    }));
 
-    try {
-      const agentIdList = agentIds.split(',').map(id => id.trim()).filter(id => id);
-      const depositAmount = parseFloat(amount);
-
-      if (agentIdList.length === 0 || isNaN(depositAmount) || depositAmount <= 0) {
-        throw new Error("Données invalides");
-      }
-
-      // Process each agent deposit
-      for (const agentId of agentIdList) {
-        const { error } = await supabase
-          .from('admin_deposits')
-          .insert({
-            admin_id: user.id,
-            agent_id: agentId,
-            amount: depositAmount,
-            reason: reason || 'Dépôt groupé',
-            created_at: new Date().toISOString()
-          });
-
-        if (error) {
-          console.error(`Erreur pour l'agent ${agentId}:`, error);
-        }
-      }
-
-      toast({
-        title: "Succès",
-        description: `Dépôts effectués pour ${agentIdList.length} agent(s)`,
-      });
-
-      // Reset form
-      setAgentIds("");
-      setAmount("");
-      setReason("");
-    } catch (error: any) {
-      console.error('Erreur lors du dépôt groupé:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible d'effectuer les dépôts groupés",
-        variant: "destructive"
-      });
-    }
-
-    setIsLoading(false);
+    setDeposits(updatedDeposits);
+    toast({
+      title: "Montants mis à jour",
+      description: `Montant de ${formatCurrency(amount)} appliqué à tous les agents`,
+    });
   };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Users className="w-5 h-5" />
-          Dépôt Groupé pour Agents
+          <UserPlus className="w-5 h-5" />
+          Dépôt Groupé d'Agents
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="agentIds">IDs des Agents (séparés par des virgules)</Label>
-          <Textarea
-            id="agentIds"
-            placeholder="agent-id-1, agent-id-2, agent-id-3..."
-            value={agentIds}
-            onChange={(e) => setAgentIds(e.target.value)}
-            className="min-h-[100px]"
-          />
-        </div>
+      <CardContent className="space-y-6">
+        {/* Upload section */}
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="csv-upload">Importer fichier CSV</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                id="csv-upload"
+                type="file"
+                accept=".csv,.txt"
+                onChange={handleFileUpload}
+                className="flex-1"
+              />
+              <Button variant="outline" size="icon">
+                <Upload className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Format: agent_id,agent_name,amount
+            </p>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="amount">Montant par Agent (FCFA)</Label>
-          <div className="relative">
-            <DollarSign className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <Input
-              id="amount"
-              type="number"
-              placeholder="100000"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="pl-10"
-              min="1"
+          {/* Bulk amount */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="bulk-amount">Montant pour tous (FCFA)</Label>
+              <Input
+                id="bulk-amount"
+                type="number"
+                value={bulkAmount}
+                onChange={(e) => setBulkAmount(e.target.value)}
+                placeholder="50000"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button 
+                onClick={addBulkDepositToAllAgents}
+                disabled={!bulkAmount || deposits.length === 0}
+              >
+                Appliquer à tous
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="notes">Notes (optionnel)</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Dépôt mensuel agents..."
+              rows={3}
             />
           </div>
-          {amount && (
-            <p className="text-sm text-gray-600">
-              Montant formaté: {formatCurrency(parseFloat(amount) || 0)}
-            </p>
-          )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="reason">Raison du dépôt (optionnel)</Label>
-          <div className="relative">
-            <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <Input
-              id="reason"
-              placeholder="Recharge mensuelle, bonus performance..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
+        {/* Deposits list */}
+        {deposits.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">
+                Dépôts à traiter ({deposits.length})
+              </h3>
+              <Button 
+                onClick={processBatchDeposits}
+                disabled={isProcessing || deposits.every(d => d.status !== 'pending')}
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {isProcessing ? "Traitement..." : "Traiter tous"}
+              </Button>
+            </div>
 
-        <div className="pt-4">
-          <Button
-            onClick={handleBatchDeposit}
-            disabled={isLoading || !agentIds.trim() || !amount}
-            className="w-full"
-          >
-            {isLoading ? "Traitement en cours..." : "Effectuer les Dépôts Groupés"}
-          </Button>
-        </div>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {deposits.map((deposit, index) => (
+                <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex-1">
+                    <p className="font-medium">{deposit.agentName}</p>
+                    <p className="text-sm text-muted-foreground">ID: {deposit.agentId}</p>
+                  </div>
+                  <div className="text-right mr-4">
+                    <p className="font-bold">{formatCurrency(deposit.amount)}</p>
+                  </div>
+                  <Badge 
+                    variant={
+                      deposit.status === 'success' ? 'default' :
+                      deposit.status === 'error' ? 'destructive' : 'secondary'
+                    }
+                  >
+                    {deposit.status === 'success' ? 'Réussi' :
+                     deposit.status === 'error' ? 'Erreur' : 'En attente'}
+                  </Badge>
+                </div>
+              ))}
+            </div>
 
-        {agentIds.trim() && amount && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-700">
-              <strong>Aperçu:</strong> {agentIds.split(',').filter(id => id.trim()).length} agent(s) × {formatCurrency(parseFloat(amount) || 0)} = {formatCurrency((agentIds.split(',').filter(id => id.trim()).length) * (parseFloat(amount) || 0))}
-            </p>
+            <div className="bg-muted p-4 rounded-lg">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {deposits.filter(d => d.status === 'pending').length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">En attente</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-green-600">
+                    {deposits.filter(d => d.status === 'success').length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Réussis</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-red-600">
+                    {deposits.filter(d => d.status === 'error').length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Erreurs</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>
