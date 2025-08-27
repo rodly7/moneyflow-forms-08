@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -5,6 +6,7 @@ import { Profile, AuthContextType, SignUpMetadata } from '@/types/auth';
 import { authService } from '@/services/authService';
 import { useUserSession } from '@/hooks/useUserSession';
 import SessionManager from '@/components/SessionManager';
+import RequiredFieldsModal from '@/components/auth/RequiredFieldsModal';
 import { toast } from 'sonner';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -13,9 +15,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showRequiredFieldsModal, setShowRequiredFieldsModal] = useState(false);
 
-  // Gérer automatiquement les sessions utilisateur
-  // Note: useUserSession sera appelé de façon conditionnelle dans un composant enfant
+  // Vérifier si les champs obligatoires sont manquants
+  const hasRequiredFields = useCallback((profile: Profile | null) => {
+    if (!profile) return true;
+    return !!(profile.birth_date && profile.id_card_url);
+  }, []);
 
   // Mémoriser la fonction de rafraîchissement pour éviter les re-renders inutiles
   const refreshProfile = useCallback(async () => {
@@ -34,10 +40,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       setProfile(profileData);
+      
+      // Vérifier si les champs obligatoires sont manquants
+      if (!hasRequiredFields(profileData)) {
+        setShowRequiredFieldsModal(true);
+      }
     } catch (error) {
       console.error('Erreur lors du rafraîchissement du profil:', error);
     }
-  }, [user?.id]);
+  }, [user?.id, hasRequiredFields]);
 
   // Fonction utilitaire pour charger le profil avec optimisation
   const loadProfile = useCallback(async (userId: string) => {
@@ -50,6 +61,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (!error && profileData) {
         setProfile(profileData);
+        
+        // Vérifier si les champs obligatoires sont manquants
+        if (!hasRequiredFields(profileData)) {
+          setShowRequiredFieldsModal(true);
+        }
+        
         return true;
       } else {
         console.error('Erreur profil:', error);
@@ -59,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Erreur lors de la récupération du profil:', error);
       return false;
     }
-  }, []);
+  }, [hasRequiredFields]);
 
   useEffect(() => {
     let mounted = true;
@@ -103,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (event === 'SIGNED_OUT' || !session) {
           setUser(null);
           setProfile(null);
+          setShowRequiredFieldsModal(false);
           setLoading(false);
           return;
         }
@@ -150,6 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Nettoyer d'abord l'état local
       setUser(null);
       setProfile(null);
+      setShowRequiredFieldsModal(false);
       
       // Puis appeler Supabase pour la déconnexion
       await authService.signOut();
@@ -163,6 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Même en cas d'erreur, nettoyer l'état local
       setUser(null);
       setProfile(null);
+      setShowRequiredFieldsModal(false);
       setLoading(false);
       
       // Ne pas relancer l'erreur pour éviter de bloquer la déconnexion
@@ -178,6 +198,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   , [profile?.role]);
   
   const userRole = profile?.role || null;
+
+  const handleRequiredFieldsComplete = useCallback(() => {
+    setShowRequiredFieldsModal(false);
+    refreshProfile();
+  }, [refreshProfile]);
 
   // Mémoriser la valeur du contexte pour éviter les re-renders inutiles
   const contextValue = useMemo(() => ({
@@ -210,6 +235,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={contextValue}>
       <SessionManager />
       {children}
+      <RequiredFieldsModal 
+        isOpen={showRequiredFieldsModal}
+        profile={profile}
+        onComplete={handleRequiredFieldsComplete}
+      />
     </AuthContext.Provider>
   );
 };

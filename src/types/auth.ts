@@ -9,6 +9,8 @@ export interface Profile {
   role: 'user' | 'agent' | 'admin' | 'sub_admin';
   avatar_url: string | null;
   is_verified: boolean | null;
+  birth_date: string | null;
+  id_card_url: string | null;
 }
 
 export interface AuthContextType {
@@ -31,4 +33,5 @@ export interface SignUpMetadata {
   address: string;
   phone: string;
   role: 'user' | 'agent';
+  birth_date: string;
 }

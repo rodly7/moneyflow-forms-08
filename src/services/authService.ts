@@ -37,7 +37,7 @@ export const authService = {
     return data;
   },
 
-  async signUp(phone: string, password: string, metadata: SignUpMetadata) {
+  async signUp(phone: string, password: string, metadata: SignUpMetadata & { id_card_file?: File }) {
     console.log('📝 Tentative d\'inscription avec le numéro:', phone);
     console.log('🎯 Rôle demandé:', metadata.role);
     
@@ -48,16 +48,22 @@ export const authService = {
     
     const userRole = metadata.role === 'agent' ? 'agent' : 'user';
     console.log('👥 Rôle final assigné:', userRole);
+
+    // Préparer les métadonnées pour l'inscription
+    const signUpMetadata = {
+      ...metadata,
+      phone: normalizedPhone,
+      role: userRole,
+    };
+
+    // Supprimer le fichier des métadonnées car il ne peut pas être sérialisé
+    const { id_card_file, ...metadataWithoutFile } = signUpMetadata as any;
     
     const { data, error } = await supabase.auth.signUp({
       email: email,
       password,
       options: {
-        data: {
-          ...metadata,
-          phone: normalizedPhone,
-          role: userRole,
-        },
+        data: metadataWithoutFile,
       },
     });
 
@@ -67,6 +73,34 @@ export const authService = {
         throw new Error('Un compte existe déjà avec ce numéro de téléphone. Veuillez vous connecter avec votre mot de passe.');
       }
       throw error;
+    }
+
+    // Si l'inscription réussit et qu'il y a un fichier de pièce d'identité, l'uploader
+    if (data.user && metadata.id_card_file) {
+      try {
+        const fileExt = metadata.id_card_file.name.split('.').pop();
+        const fileName = `${data.user.id}-id-card-${Date.now()}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('id-cards')
+          .upload(fileName, metadata.id_card_file);
+
+        if (uploadError) {
+          console.error('❌ Erreur upload pièce d\'identité:', uploadError);
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('id-cards')
+            .getPublicUrl(uploadData.path);
+
+          // Mettre à jour le profil avec l'URL de la pièce d'identité
+          await supabase
+            .from('profiles')
+            .update({ id_card_url: publicUrl })
+            .eq('id', data.user.id);
+        }
+      } catch (uploadError) {
+        console.error('❌ Erreur lors de l\'upload de la pièce d\'identité:', uploadError);
+      }
     }
     
     console.log('✅ Inscription réussie:', data.user?.id);
