@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import type { KYCVerificationRecord, KYCVerificationInsert } from '@/types/kyc';
 
 export interface KYCVerificationData {
   id_document_type: string;
@@ -101,38 +102,49 @@ export const useKYCVerification = () => {
       setUploadProgress(90);
       console.log('Files uploaded successfully, inserting KYC record...');
 
-      // Insert KYC verification record avec approbation automatique
-      const kycData = {
+      // Prepare KYC data for insertion
+      const kycData: KYCVerificationInsert = {
         user_id: userId,
         id_document_type: verificationData.id_document_type,
         document_name: verificationData.document_name,
         document_number: verificationData.document_number,
         document_birth_date: verificationData.document_birth_date,
-        document_expiry_date: verificationData.document_expiry_date || null,
+        document_expiry_date: verificationData.document_expiry_date || undefined,
         id_document_url,
         selfie_url,
         video_url,
-        status: 'approved', // Approbation automatique pour une vérification rapide
+        status: 'approved',
         verified_at: new Date().toISOString()
       };
 
       console.log('Inserting KYC data:', kycData);
 
-      // Use type assertion to bypass TypeScript errors temporarily
-      const { data, error } = await (supabase as any)
-        .from('kyc_verifications')
-        .insert(kycData)
-        .select()
-        .single();
+      // Use direct database query to avoid TypeScript issues
+      const { data, error } = await supabase
+        .rpc('insert_kyc_verification', {
+          kyc_data: kycData
+        });
 
       if (error) {
         console.error('KYC insertion error:', error);
-        throw new Error(`Erreur lors de l'insertion KYC: ${error.message}`);
+        // Fallback to direct insert if RPC doesn't exist
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('kyc_verifications' as any)
+          .insert(kycData)
+          .select()
+          .single();
+
+        if (fallbackError) {
+          console.error('Fallback KYC insertion error:', fallbackError);
+          throw new Error(`Erreur lors de l'insertion KYC: ${fallbackError.message}`);
+        }
+
+        console.log('KYC record inserted successfully (fallback):', fallbackData);
+      } else {
+        console.log('KYC record inserted successfully:', data);
       }
 
-      console.log('KYC record inserted successfully:', data);
-
-      // Mettre à jour immédiatement le profil utilisateur avec un délai
+      // Update profile
       console.log('Waiting before profile update...');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -156,7 +168,7 @@ export const useKYCVerification = () => {
         throw new Error(`Erreur mise à jour profil: ${profileError.message}`);
       }
 
-      // Vérifier que la mise à jour a bien été effectuée avec plusieurs tentatives
+      // Verify profile update
       let profileUpdated = false;
       for (let attempt = 1; attempt <= 3; attempt++) {
         console.log(`Vérification profil - tentative ${attempt}/3`);
@@ -197,21 +209,29 @@ export const useKYCVerification = () => {
     }
   };
 
-  const getKYCStatus = async () => {
+  const getKYCStatus = async (): Promise<KYCVerificationRecord | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Use type assertion to bypass TypeScript errors temporarily
-      const { data, error } = await (supabase as any)
-        .from('kyc_verifications')
+      // Use RPC function first, then fallback to direct query
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('get_user_kyc_status', { user_id_param: user.id });
+
+      if (!rpcError && rpcData) {
+        return rpcData;
+      }
+
+      // Fallback to direct query
+      const { data, error } = await supabase
+        .from('kyc_verifications' as any)
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
@@ -227,9 +247,8 @@ export const useKYCVerification = () => {
     updates: Partial<KYCVerificationData>
   ) => {
     try {
-      // Use type assertion to bypass TypeScript errors temporarily
-      const { data, error } = await (supabase as any)
-        .from('kyc_verifications')
+      const { data, error } = await supabase
+        .from('kyc_verifications' as any)
         .update(updates)
         .eq('id', verificationId)
         .select()
