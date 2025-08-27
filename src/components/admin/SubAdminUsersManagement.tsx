@@ -144,7 +144,7 @@ const SubAdminUsersManagement = () => {
                       <strong>Adresse:</strong> {user.address || 'Non définie'}
                     </div>
                     <div>
-                      <strong>Né en:</strong> {user.birth_date ? new Date(user.birth_date).getFullYear() : 'Non défini'}
+                      <strong>Date de naissance:</strong> {user.birth_date ? new Date(user.birth_date).toLocaleDateString('fr-FR') : 'Non définie'}
                     </div>
                   </div>
 

@@ -110,7 +110,7 @@ export const SimpleUsersList = () => {
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Nom Complet</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Téléphone</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Pays/Ville</th>
-            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Né en</th>
+            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Date de naissance</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Pièce ID</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Solde</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Rôle</th>
@@ -127,7 +127,7 @@ export const SimpleUsersList = () => {
                 <div style={{ fontSize: '11px', color: '#666' }}>{user.address || 'Adresse non définie'}</div>
               </td>
               <td style={{ padding: '12px' }}>
-                {user.birth_date ? new Date(user.birth_date).getFullYear() : 'N/A'}
+                {user.birth_date ? new Date(user.birth_date).toLocaleDateString('fr-FR') : 'N/A'}
               </td>
               <td style={{ padding: '12px' }}>
                 {user.id_card_photo_url ? (
@@ -200,7 +200,7 @@ export const SimpleUsersList = () => {
               <p><strong>Téléphone:</strong> {selectedUser.phone}</p>
               <p><strong>Pays:</strong> {selectedUser.country || 'Non défini'}</p>
               <p><strong>Adresse:</strong> {selectedUser.address || 'Non définie'}</p>
-              <p><strong>Année de naissance:</strong> {selectedUser.birth_date ? new Date(selectedUser.birth_date).getFullYear() : 'Non définie'}</p>
+              <p><strong>Date de naissance:</strong> {selectedUser.birth_date ? new Date(selectedUser.birth_date).toLocaleDateString('fr-FR') : 'Non définie'}</p>
               {selectedUser.id_card_photo_url && (
                 <p>
                   <strong>Pièce d'identité:</strong>

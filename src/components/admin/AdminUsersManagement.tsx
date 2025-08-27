@@ -140,7 +140,7 @@ export const AdminUsersManagement = () => {
               <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Utilisateur</th>
               <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Contact</th>
               <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Localisation</th>
-              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Né en</th>
+              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Date de naissance</th>
               <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Pièce ID</th>
               <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Rôle</th>
               <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Solde</th>
@@ -169,7 +169,7 @@ export const AdminUsersManagement = () => {
                   </div>
                 </td>
                 <td style={{ padding: '15px' }}>
-                  {user.birth_date ? new Date(user.birth_date).getFullYear() : 'N/A'}
+                  {user.birth_date ? new Date(user.birth_date).toLocaleDateString('fr-FR') : 'Non définie'}
                 </td>
                 <td style={{ padding: '15px' }}>
                   {user.id_card_photo_url ? (
