@@ -15,6 +15,7 @@ interface User {
   address: string;
   birth_date: string;
   id_card_photo_url: string;
+  id_card_url: string;
   role: 'user' | 'agent' | 'admin' | 'sub_admin';
   balance: number;
   created_at: string;
@@ -176,10 +177,10 @@ export const AdminUsersManagement = () => {
                   {user.birth_date ? new Date(user.birth_date).toLocaleDateString('fr-FR') : 'Non définie'}
                 </td>
                 <td style={{ padding: '15px' }}>
-                  {user.id_card_photo_url ? (
+                  {(user.id_card_photo_url || user.id_card_url) ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <img 
-                        src={user.id_card_photo_url} 
+                        src={user.id_card_photo_url || user.id_card_url} 
                         alt="Pièce d'identité" 
                         style={{ 
                           width: '40px', 
@@ -190,7 +191,7 @@ export const AdminUsersManagement = () => {
                           border: '1px solid #ddd'
                         }}
                         onClick={() => setSelectedUserPhoto({
-                          url: user.id_card_photo_url,
+                          url: user.id_card_photo_url || user.id_card_url,
                           name: user.full_name || 'Utilisateur',
                           type: 'Pièce d\'identité'
                         })}
@@ -199,7 +200,7 @@ export const AdminUsersManagement = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => setSelectedUserPhoto({
-                          url: user.id_card_photo_url,
+                          url: user.id_card_photo_url || user.id_card_url,
                           name: user.full_name || 'Utilisateur',
                           type: 'Pièce d\'identité'
                         })}
