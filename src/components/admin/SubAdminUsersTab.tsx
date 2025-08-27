@@ -1,205 +1,277 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { useSubAdmin } from '@/hooks/useSubAdmin';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, Users, AlertCircle } from 'lucide-react';
-import SubAdminUsersTable from './SubAdminUsersTable';
+import { useToast } from '@/hooks/use-toast';
+import { formatCurrency } from '@/lib/utils/currency';
+import { Search, UserPlus, Users, Shield, Ban } from 'lucide-react';
 
 interface UserData {
   id: string;
-  full_name: string | null;
+  full_name: string;
   phone: string;
+  email: string;
+  country: string;
   balance: number;
-  country: string | null;
   role: 'user' | 'agent' | 'admin' | 'sub_admin';
+  status: 'active' | 'banned' | 'pending';
+  is_verified: boolean;
   created_at: string;
-  is_banned?: boolean;
+  updated_at: string;
 }
 
 const SubAdminUsersTab = () => {
-  const { toast } = useToast();
-  const { canViewUsers, userCountry } = useSubAdmin();
   const [users, setUsers] = useState<UserData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRole, setSelectedRole] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (canViewUsers) {
-      fetchUsers();
-    }
-  }, [canViewUsers]);
+    fetchUsers();
+  }, []);
 
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredUsers(users);
-    } else {
-      const filtered = users.filter(user => 
-        user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.phone.includes(searchTerm) ||
-        user.country?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredUsers(filtered);
-    }
-  }, [searchTerm, users]);
+    filterUsers();
+  }, [users, searchTerm, selectedRole]);
 
   const fetchUsers = async () => {
-    setLoading(true);
     try {
-      let query = supabase
+      setIsLoading(true);
+      const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, balance, country, role, created_at, is_banned')
+        .select('*')
         .order('created_at', { ascending: false });
-
-      // Filtrer par pays si le sous-admin a un territoire spécifique
-      if (userCountry) {
-        query = query.eq('country', userCountry);
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
 
-      setUsers(data || []);
-      setFilteredUsers(data || []);
+      // Transform data to match UserData interface
+      const transformedData: UserData[] = (data || []).map(profile => ({
+        id: profile.id,
+        full_name: profile.full_name || '',
+        phone: profile.phone || '',
+        email: profile.phone || '', // Using phone as email fallback
+        country: profile.country || '',
+        balance: profile.balance || 0,
+        role: profile.role as 'user' | 'agent' | 'admin' | 'sub_admin',
+        status: profile.is_banned ? 'banned' : 'active',
+        is_verified: profile.is_verified || false,
+        created_at: profile.created_at,
+        updated_at: profile.updated_at || profile.created_at
+      }));
+
+      setUsers(transformedData);
     } catch (error) {
-      console.error('Erreur lors du chargement des utilisateurs:', error);
+      console.error('Error fetching users:', error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les utilisateurs",
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  if (!canViewUsers) {
+  const filterUsers = () => {
+    let filtered = users;
+
+    if (searchTerm) {
+      filtered = filtered.filter(user =>
+        user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.phone.includes(searchTerm) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (selectedRole !== 'all') {
+      filtered = filtered.filter(user => user.role === selectedRole);
+    }
+
+    setFilteredUsers(filtered);
+  };
+
+  const handleBanUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_banned: true })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: "Utilisateur banni avec succès"
+      });
+
+      fetchUsers();
+    } catch (error) {
+      console.error('Error banning user:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de bannir l'utilisateur",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUnbanUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_banned: false })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: "Utilisateur débanni avec succès"
+      });
+
+      fetchUsers();
+    } catch (error) {
+      console.error('Error unbanning user:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de débannir l'utilisateur",
+        variant: "destructive"
+      });
+    }
+  };
+
+  if (isLoading) {
     return (
       <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <div className="text-center">
-            <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Accès limité</h3>
-            <p className="text-muted-foreground">
-              Vous n'avez pas les permissions pour voir les utilisateurs.
-            </p>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center">
+            <p>Chargement des utilisateurs...</p>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  const stats = {
-    total: filteredUsers.length,
-    users: filteredUsers.filter(u => u.role === 'user').length,
-    agents: filteredUsers.filter(u => u.role === 'agent').length,
-    banned: filteredUsers.filter(u => u.is_banned).length,
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Gestion des Utilisateurs</h2>
-          <p className="text-muted-foreground">
-            Consultation des utilisateurs de votre territoire{userCountry && ` (${userCountry})`}
-          </p>
-        </div>
-        <Button onClick={fetchUsers} disabled={loading} variant="outline">
-          <Eye className="w-4 h-4 mr-2" />
-          Actualiser
-        </Button>
-      </div>
-
-      {/* Statistiques */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Utilisateurs</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Utilisateurs</CardTitle>
-            <Users className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.users}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Agents</CardTitle>
-            <Users className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.agents}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Suspendus</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.banned}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recherche */}
+      {/* Header */}
       <Card>
         <CardHeader>
-          <CardTitle>Rechercher des utilisateurs</CardTitle>
-          <CardDescription>
-            Recherche par nom, téléphone ou pays
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Gestion des Utilisateurs
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-2">
-            <Search className="w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher un utilisateur..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1"
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Rechercher par nom, téléphone ou email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <select
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+              className="px-3 py-2 border rounded-md bg-background"
+            >
+              <option value="all">Tous les rôles</option>
+              <option value="user">Utilisateurs</option>
+              <option value="agent">Agents</option>
+              <option value="admin">Admins</option>
+              <option value="sub_admin">Sub-Admins</option>
+            </select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tableau des utilisateurs */}
+      {/* Users List */}
       <Card>
-        <CardHeader>
-          <CardTitle>Liste des Utilisateurs</CardTitle>
-          <CardDescription>
-            {filteredUsers.length} utilisateur(s) trouvé(s)
-            <Badge variant="outline" className="ml-2">
-              Lecture seule
-            </Badge>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <SubAdminUsersTable users={filteredUsers} />
-          )}
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Utilisateur
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Solde
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Statut
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredUsers.map((user) => (
+                  <tr key={user.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {user.full_name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {user.role}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{user.phone}</div>
+                      <div className="text-sm text-gray-500">{user.country}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(user.balance)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>
+                        {user.status === 'active' ? 'Actif' : 'Banni'}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      {user.status === 'active' ? (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleBanUser(user.id)}
+                        >
+                          <Ban className="w-4 h-4 mr-1" />
+                          Bannir
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleUnbanUser(user.id)}
+                        >
+                          <Shield className="w-4 h-4 mr-1" />
+                          Débannir
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>

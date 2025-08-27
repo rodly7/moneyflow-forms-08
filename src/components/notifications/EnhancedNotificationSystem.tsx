@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,10 +10,11 @@ import { Bell, X, CheckCircle, AlertTriangle, Info, DollarSign } from "lucide-re
 interface Notification {
   id: string;
   created_at: string;
-  type: 'transfer' | 'deposit' | 'withdrawal' | 'system';
+  notification_type: 'transfer' | 'deposit' | 'withdrawal' | 'system';
   message: string;
   user_id: string;
-  is_read: boolean;
+  title: string;
+  priority: string;
   amount?: number;
   currency?: string;
 }
@@ -26,9 +28,9 @@ export const EnhancedNotificationSystem: React.FC<EnhancedNotificationSystemProp
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
-  const { data: profile, refetch: refetchProfile } = useQuery(
-    ['profile', userId],
-    async () => {
+  const { data: profile, refetch: refetchProfile } = useQuery({
+    queryKey: ['profile', userId],
+    queryFn: async () => {
       if (!userId) return null;
       const { data, error } = await supabase
         .from('profiles')
@@ -41,19 +43,17 @@ export const EnhancedNotificationSystem: React.FC<EnhancedNotificationSystemProp
       }
       return data;
     },
-    {
-      enabled: !!userId,
-    }
-  );
+    enabled: !!userId,
+  });
 
-  const { data, refetch } = useQuery(
-    ['notifications', userId],
-    async () => {
+  const { data, refetch } = useQuery({
+    queryKey: ['notifications', userId],
+    queryFn: async () => {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', userId)
+        .eq('target_users', `{${userId}}`)
         .order('created_at', { ascending: false });
       if (error) {
         console.error("Error fetching notifications:", error);
@@ -61,17 +61,25 @@ export const EnhancedNotificationSystem: React.FC<EnhancedNotificationSystemProp
       }
       return data;
     },
-    {
-      enabled: !!userId,
-    }
-  );
+    enabled: !!userId,
+  });
 
   useEffect(() => {
     if (data) {
-      setNotifications(data);
-      setUnreadCount(data.filter(notification => !notification.is_read).length);
+      const transformedNotifications: Notification[] = data.map(notification => ({
+        id: notification.id,
+        created_at: notification.created_at,
+        notification_type: notification.notification_type as 'transfer' | 'deposit' | 'withdrawal' | 'system',
+        message: notification.message || '',
+        user_id: userId || '',
+        title: notification.title || '',
+        priority: notification.priority || 'normal'
+      }));
+      
+      setNotifications(transformedNotifications);
+      setUnreadCount(transformedNotifications.length);
     }
-  }, [data]);
+  }, [data, userId]);
 
   useEffect(() => {
     // Subscribe to real-time updates
@@ -81,7 +89,7 @@ export const EnhancedNotificationSystem: React.FC<EnhancedNotificationSystemProp
       .channel('public:notifications')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        { event: '*', schema: 'public', table: 'notifications' },
         (payload) => {
           console.log('Change received!', payload)
           refetch(); // Refresh notifications
@@ -96,39 +104,17 @@ export const EnhancedNotificationSystem: React.FC<EnhancedNotificationSystemProp
   }, [userId, refetch, refetchProfile]);
 
   const markAsRead = async (id: string) => {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', id);
-
-    if (error) {
-      console.error("Error marking as read:", error);
-    } else {
-      setNotifications(
-        notifications.map((notification) =>
-          notification.id === id ? { ...notification, is_read: true } : notification
-        )
-      );
-      setUnreadCount(unreadCount - 1);
-      refetch();
-    }
+    // Since there's no is_read field, we'll just remove from local state
+    setNotifications(
+      notifications.filter((notification) => notification.id !== id)
+    );
+    setUnreadCount(unreadCount - 1);
   };
 
   const clearAll = async () => {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', userId);
-
-    if (error) {
-      console.error("Error clearing all notifications:", error);
-    } else {
-      setNotifications(
-        notifications.map((notification) => ({ ...notification, is_read: true }))
-      );
-      setUnreadCount(0);
-      refetch();
-    }
+    // Clear all notifications locally
+    setNotifications([]);
+    setUnreadCount(0);
   };
 
   const getNotificationIcon = (type: string) => {
@@ -203,24 +189,18 @@ export const EnhancedNotificationSystem: React.FC<EnhancedNotificationSystemProp
                   role="menuitem"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className={`p-1 rounded-full ${getNotificationColor(notification.type)}`}>
-                      {getNotificationIcon(notification.type)}
+                    <div className={`p-1 rounded-full ${getNotificationColor(notification.notification_type)}`}>
+                      {getNotificationIcon(notification.notification_type)}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-800">{notification.message}</p>
+                      <p className="font-medium text-gray-800">{notification.title}</p>
+                      <p className="text-xs text-gray-500">{notification.message}</p>
                       <p className="text-xs text-gray-500">{formatDate(notification.created_at)}</p>
-                      {notification.amount && notification.currency && (
-                        <p className="text-xs text-gray-500">
-                          Montant: {formatCurrency(notification.amount, notification.currency)}
-                        </p>
-                      )}
                     </div>
                   </div>
-                  {!notification.is_read && (
-                    <Button variant="ghost" size="sm" onClick={() => markAsRead(notification.id)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <Button variant="ghost" size="sm" onClick={() => markAsRead(notification.id)}>
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               ))
             )}

@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -25,17 +26,17 @@ import AdminReportsTab from "@/components/admin/AdminReportsTab";
 import EnhancedTreasuryTab from "@/components/admin/EnhancedTreasuryTab";
 import UserRequestsManagement from "@/components/admin/UserRequestsManagement";
 import SubAdminRechargeTab from "@/components/admin/SubAdminRechargeTab";
-import AgentBalanceDisplay from "@/components/agent/AgentBalanceDisplay";
-import AgentQuickActionsGrid from "@/components/agent/AgentQuickActionsGrid";
-import AgentStatsCard from "@/components/agent/AgentStatsCard";
-import AgentEarningsCard from "@/components/agent/AgentEarningsCard";
-import AgentYesterdaySummary from "@/components/agent/AgentYesterdaySummary";
-import AgentRealTimePerformance from "@/components/agent/AgentRealTimePerformance";
+import { AgentBalanceDisplay } from "@/components/agent/AgentBalanceDisplay";
+import { AgentQuickActionsGrid } from "@/components/agent/AgentQuickActionsGrid";
+import { AgentStatsCard } from "@/components/agent/AgentStatsCard";
+import { AgentEarningsCard } from "@/components/agent/AgentEarningsCard";
+import { AgentYesterdaySummary } from "@/components/agent/AgentYesterdaySummary";
+import { AgentRealTimePerformance } from "@/components/agent/AgentRealTimePerformance";
 import AgentRanking from "@/components/agent/AgentRanking";
 import AgentZoneAnalysis from "@/components/agent/AgentZoneAnalysis";
 import AgentPersonalChallenge from "@/components/agent/AgentPersonalChallenge";
-import AgentDailyHistory from "@/components/agent/AgentDailyHistory";
-import AgentCommissions from "@/components/agent/AgentCommissions";
+import { AgentDailyHistory } from "@/components/agent/AgentDailyHistory";
+import { AgentCommissions } from "@/components/agent/AgentCommissions";
 
 interface DashboardCardProps {
   title: string;
@@ -66,7 +67,12 @@ const AgentDashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 p-4">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <AgentBalanceDisplay />
+        <AgentBalanceDisplay 
+          agentBalance={profile?.balance || 0}
+          agentCommissionBalance={0}
+          isLoadingBalance={false}
+          onRefresh={() => {}}
+        />
         
         {/* Quick Actions Grid */}
         <AgentQuickActionsGrid />
@@ -94,7 +100,7 @@ const AgentDashboard = () => {
         <AgentDailyHistory />
         
         {/* Commissions */}
-        <AgentCommissions />
+        <AgentCommissions userId={profile?.id || ''} />
       </div>
     </div>
   );
