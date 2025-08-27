@@ -1,10 +1,11 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, PiggyBank, TrendingUp, Wallet } from "lucide-react";
+import { Plus, PiggyBank, TrendingUp, Wallet, ArrowLeft } from "lucide-react";
 import SavingsAccountCard from "@/components/savings/SavingsAccountCard";
 import CreateSavingsAccountModal from "@/components/savings/CreateSavingsAccountModal";
 import SavingsDepositModal from "@/components/savings/SavingsDepositModal";
@@ -30,6 +31,7 @@ interface SavingsAccount {
 const Savings = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<SavingsAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -154,6 +156,14 @@ const Savings = () => {
           <div className="bg-white rounded-2xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate(-1)}
+                  className="mr-2 hover:bg-gray-100"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
                 <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full">
                   <PiggyBank className="w-6 h-6 text-white" />
                 </div>
