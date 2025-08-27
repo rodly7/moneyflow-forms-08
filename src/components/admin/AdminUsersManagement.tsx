@@ -179,43 +179,62 @@ export const AdminUsersManagement = () => {
                 <td style={{ padding: '15px' }}>
                   {(() => {
                     const photoUrl = user.id_card_photo_url || user.id_card_url;
-                    console.log('Photo URL pour', user.full_name, ':', photoUrl);
                     
                     if (photoUrl) {
                       return (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <img 
-                            src={photoUrl} 
-                            alt="Pièce d'identité" 
-                            style={{ 
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: 'column' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ 
                               width: '40px', 
                               height: '30px', 
-                              objectFit: 'cover', 
-                              borderRadius: '4px', 
-                              cursor: 'pointer',
-                              border: '1px solid #ddd'
-                            }}
-                            onClick={() => setSelectedUserPhoto({
-                              url: photoUrl,
-                              name: user.full_name || 'Utilisateur',
-                              type: 'Pièce d\'identité'
-                            })}
-                            onError={(e) => {
-                              console.error('Erreur de chargement image pour', user.full_name, ':', photoUrl);
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelectedUserPhoto({
-                              url: photoUrl,
-                              name: user.full_name || 'Utilisateur',
-                              type: 'Pièce d\'identité'
-                            })}
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              overflow: 'hidden',
+                              backgroundColor: '#f5f5f5',
+                              position: 'relative'
+                            }}>
+                              <img 
+                                src={photoUrl} 
+                                alt="Pièce d'identité" 
+                                style={{ 
+                                  width: '100%', 
+                                  height: '100%', 
+                                  objectFit: 'cover',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={() => setSelectedUserPhoto({
+                                  url: photoUrl,
+                                  name: user.full_name || 'Utilisateur',
+                                  type: 'Pièce d\'identité'
+                                })}
+                                onLoad={() => console.log('✅ Image chargée avec succès pour', user.full_name)}
+                                onError={(e) => {
+                                  console.error('❌ Erreur de chargement image pour', user.full_name, ':', photoUrl);
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.parentElement.innerHTML = '<span style="font-size: 10px; color: red;">Erreur</span>';
+                                }}
+                              />
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedUserPhoto({
+                                url: photoUrl,
+                                name: user.full_name || 'Utilisateur',
+                                type: 'Pièce d\'identité'
+                              })}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <a 
+                            href={photoUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style={{ fontSize: '10px', color: '#0066cc' }}
                           >
-                            <Eye className="w-4 h-4" />
-                          </Button>
+                            Lien direct
+                          </a>
                         </div>
                       );
                     } else {
