@@ -10,6 +10,10 @@ interface User {
   role: string;
   is_verified: boolean;
   created_at: string;
+  country: string;
+  address: string;
+  birth_date: string;
+  id_card_photo_url: string;
 }
 
 export const SimpleUsersList = () => {
@@ -22,7 +26,7 @@ export const SimpleUsersList = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, balance, role, is_verified, created_at')
+        .select('id, full_name, phone, balance, role, is_verified, created_at, country, address, birth_date, id_card_photo_url')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -103,11 +107,13 @@ export const SimpleUsersList = () => {
       }}>
         <thead>
           <tr style={{ backgroundColor: '#f5f5f5' }}>
-            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Nom</th>
+            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Nom Complet</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Téléphone</th>
+            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Pays/Ville</th>
+            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Né en</th>
+            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Pièce ID</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Solde</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Rôle</th>
-            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Vérifié</th>
             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Actions</th>
           </tr>
         </thead>
@@ -116,6 +122,25 @@ export const SimpleUsersList = () => {
             <tr key={user.id} style={{ borderBottom: '1px solid #eee' }}>
               <td style={{ padding: '12px' }}>{user.full_name || 'N/A'}</td>
               <td style={{ padding: '12px' }}>{user.phone}</td>
+              <td style={{ padding: '12px' }}>
+                <div>{user.country || 'N/A'}</div>
+                <div style={{ fontSize: '11px', color: '#666' }}>{user.address || 'Adresse non définie'}</div>
+              </td>
+              <td style={{ padding: '12px' }}>
+                {user.birth_date ? new Date(user.birth_date).getFullYear() : 'N/A'}
+              </td>
+              <td style={{ padding: '12px' }}>
+                {user.id_card_photo_url ? (
+                  <img 
+                    src={user.id_card_photo_url} 
+                    alt="Pièce d'identité" 
+                    style={{ width: '40px', height: '30px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
+                    onClick={() => window.open(user.id_card_photo_url, '_blank')}
+                  />
+                ) : (
+                  <span style={{ fontSize: '11px', color: '#999' }}>Non fournie</span>
+                )}
+              </td>
               <td style={{ padding: '12px', fontWeight: 'bold' }}>
                 {new Intl.NumberFormat('fr-FR').format(user.balance)} FCFA
               </td>
@@ -131,9 +156,6 @@ export const SimpleUsersList = () => {
                 </span>
               </td>
               <td style={{ padding: '12px' }}>
-                {user.is_verified ? '✅' : '❌'}
-              </td>
-              <td style={{ padding: '12px' }}>
                 <button
                   onClick={() => setSelectedUser(user)}
                   style={{
@@ -146,7 +168,7 @@ export const SimpleUsersList = () => {
                     fontSize: '12px'
                   }}
                 >
-                  Modifier
+                  Voir détails
                 </button>
               </td>
             </tr>
@@ -172,9 +194,25 @@ export const SimpleUsersList = () => {
             borderRadius: '8px',
             minWidth: '400px'
           }}>
-            <h3 style={{ marginTop: 0 }}>Modifier l'utilisateur</h3>
-            <p><strong>Nom:</strong> {selectedUser.full_name}</p>
-            <p><strong>Téléphone:</strong> {selectedUser.phone}</p>
+            <h3 style={{ marginTop: 0 }}>Détails de l'utilisateur</h3>
+            <div style={{ marginBottom: '20px' }}>
+              <p><strong>Nom complet:</strong> {selectedUser.full_name}</p>
+              <p><strong>Téléphone:</strong> {selectedUser.phone}</p>
+              <p><strong>Pays:</strong> {selectedUser.country || 'Non défini'}</p>
+              <p><strong>Adresse:</strong> {selectedUser.address || 'Non définie'}</p>
+              <p><strong>Année de naissance:</strong> {selectedUser.birth_date ? new Date(selectedUser.birth_date).getFullYear() : 'Non définie'}</p>
+              {selectedUser.id_card_photo_url && (
+                <p>
+                  <strong>Pièce d'identité:</strong>
+                  <br />
+                  <img 
+                    src={selectedUser.id_card_photo_url} 
+                    alt="Pièce d'identité" 
+                    style={{ maxWidth: '200px', maxHeight: '150px', marginTop: '5px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  />
+                </p>
+              )}
+            </div>
             
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', marginBottom: '5px' }}>

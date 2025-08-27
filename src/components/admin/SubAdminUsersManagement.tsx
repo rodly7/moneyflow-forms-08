@@ -14,6 +14,9 @@ interface User {
   full_name: string;
   phone: string;
   country: string;
+  address: string;
+  birth_date: string;
+  id_card_photo_url: string;
   role: 'user' | 'agent' | 'admin' | 'sub_admin';
   balance: number;
   created_at: string;
@@ -136,7 +139,28 @@ const SubAdminUsersManagement = () => {
                     </div>
                   </div>
 
-                  <div className="text-sm text-muted-foreground">
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mt-2">
+                    <div>
+                      <strong>Adresse:</strong> {user.address || 'Non définie'}
+                    </div>
+                    <div>
+                      <strong>Né en:</strong> {user.birth_date ? new Date(user.birth_date).getFullYear() : 'Non défini'}
+                    </div>
+                  </div>
+
+                  {user.id_card_photo_url && (
+                    <div className="mt-2">
+                      <div className="text-sm text-muted-foreground mb-1">Pièce d'identité:</div>
+                      <img 
+                        src={user.id_card_photo_url} 
+                        alt="Pièce d'identité" 
+                        className="w-20 h-16 object-cover rounded border cursor-pointer hover:opacity-80"
+                        onClick={() => window.open(user.id_card_photo_url, '_blank')}
+                      />
+                    </div>
+                  )}
+
+                  <div className="text-sm text-muted-foreground mt-2">
                     Membre depuis : {new Date(user.created_at).toLocaleDateString('fr-FR')}
                   </div>
                 </div>

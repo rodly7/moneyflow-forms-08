@@ -9,6 +9,9 @@ interface User {
   full_name: string;
   phone: string;
   country: string;
+  address: string;
+  birth_date: string;
+  id_card_photo_url: string;
   role: 'user' | 'agent' | 'admin' | 'sub_admin';
   balance: number;
   created_at: string;
@@ -135,8 +138,10 @@ export const AdminUsersManagement = () => {
           <thead>
             <tr style={{ backgroundColor: '#f8f9fa' }}>
               <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Utilisateur</th>
-              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Téléphone</th>
-              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Pays</th>
+              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Contact</th>
+              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Localisation</th>
+              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Né en</th>
+              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Pièce ID</th>
               <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Rôle</th>
               <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Solde</th>
               <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Statut</th>
@@ -155,7 +160,36 @@ export const AdminUsersManagement = () => {
                   </div>
                 </td>
                 <td style={{ padding: '15px' }}>{user.phone}</td>
-                <td style={{ padding: '15px' }}>{user.country || 'Non défini'}</td>
+                <td style={{ padding: '15px' }}>
+                  <div>
+                    <strong>{user.country || 'Non défini'}</strong>
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      {user.address || 'Adresse non définie'}
+                    </div>
+                  </div>
+                </td>
+                <td style={{ padding: '15px' }}>
+                  {user.birth_date ? new Date(user.birth_date).getFullYear() : 'N/A'}
+                </td>
+                <td style={{ padding: '15px' }}>
+                  {user.id_card_photo_url ? (
+                    <img 
+                      src={user.id_card_photo_url} 
+                      alt="Pièce d'identité" 
+                      style={{ 
+                        width: '40px', 
+                        height: '30px', 
+                        objectFit: 'cover', 
+                        borderRadius: '4px', 
+                        cursor: 'pointer',
+                        border: '1px solid #ddd'
+                      }}
+                      onClick={() => window.open(user.id_card_photo_url, '_blank')}
+                    />
+                  ) : (
+                    <span style={{ fontSize: '11px', color: '#999' }}>Non fournie</span>
+                  )}
+                </td>
                 <td style={{ padding: '15px' }}>
                   <select
                     value={user.role}
