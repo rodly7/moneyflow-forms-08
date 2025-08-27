@@ -103,7 +103,9 @@ export const useKYCVerification = () => {
 
       if (error) throw error;
 
-      // Mettre à jour immédiatement le profil utilisateur
+      // Mettre à jour immédiatement le profil utilisateur avec un délai pour s'assurer que la transaction est terminée
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -116,6 +118,20 @@ export const useKYCVerification = () => {
 
       if (profileError) {
         console.error('Erreur mise à jour profil:', profileError);
+        throw profileError;
+      }
+
+      // Vérifier que la mise à jour a bien été effectuée
+      const { data: updatedProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('kyc_status, is_verified')
+        .eq('id', userId)
+        .single();
+
+      if (checkError) {
+        console.error('Erreur vérification profil:', checkError);
+      } else {
+        console.log('Profil mis à jour:', updatedProfile);
       }
 
       setUploadProgress(100);

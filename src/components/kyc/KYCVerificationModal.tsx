@@ -92,14 +92,22 @@ const KYCVerificationModal = ({
         selfieFile
       );
 
-      // Actualiser le profil immédiatement
+      // Attendre un peu plus longtemps et faire plusieurs tentatives de rafraîchissement
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await refreshProfile();
       
+      // Deuxième tentative après un délai supplémentaire
+      setTimeout(async () => {
+        await refreshProfile();
+      }, 2000);
+
       // Fermer le modal automatiquement après l'approbation
       setTimeout(() => {
         onComplete?.();
         onClose();
-      }, 1500); // Petit délai pour montrer le succès
+        // Forcer un rechargement de la page si nécessaire
+        window.location.reload();
+      }, 3000);
 
     } catch (error) {
       console.error('Erreur lors de la soumission KYC:', error);
