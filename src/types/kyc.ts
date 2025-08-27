@@ -34,5 +34,5 @@ export interface KYCVerificationInsert {
   selfie_url?: string;
   video_url?: string;
   status: string;
-  verified_at: string;
+  verified_at?: string;
 }

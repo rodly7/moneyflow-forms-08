@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
 import { useKYCVerification } from '@/hooks/useKYCVerification';
@@ -138,7 +138,7 @@ const KYCVerificationModal = ({
                   <h3 className="text-xl font-semibold mb-2">Vérification en cours</h3>
                   <p className="text-gray-600 mb-4">
                     Votre dossier de vérification d'identité est en cours d'examen par un administrateur Sendflow. 
-                    Vous pouvez continuer à utiliser l'application normalement.
+                    Vous recevrez une notification une fois la vérification terminée.
                   </p>
                 </>
               )}
@@ -148,7 +148,7 @@ const KYCVerificationModal = ({
                   <h3 className="text-xl font-semibold mb-2">Révision nécessaire</h3>
                   <p className="text-gray-600 mb-4">
                     Votre dossier nécessite une révision supplémentaire par un administrateur. 
-                    Vous pouvez continuer à utiliser l'application en attendant.
+                    Vous recevrez une notification avec les détails.
                   </p>
                 </>
               )}

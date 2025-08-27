@@ -102,7 +102,7 @@ export const useKYCVerification = () => {
       setUploadProgress(90);
       console.log('Files uploaded successfully, inserting KYC record...');
 
-      // Prepare KYC data for insertion - statut pending au lieu d'approved
+      // Prepare KYC data for insertion - statut pending pour vérification manuelle
       const kycData: KYCVerificationInsert = {
         user_id: userId,
         id_document_type: verificationData.id_document_type,
@@ -113,8 +113,7 @@ export const useKYCVerification = () => {
         id_document_url,
         selfie_url,
         video_url,
-        status: 'pending', // Changé de 'approved' à 'pending'
-        verified_at: undefined // Supprimé car non approuvé automatiquement
+        status: 'pending' // Toujours en attente pour vérification manuelle par admin
       };
 
       console.log('Inserting KYC data:', kycData);
@@ -133,15 +132,12 @@ export const useKYCVerification = () => {
 
       console.log('KYC record inserted successfully:', kycRecord);
 
-      // Update profile - mettre le statut KYC en pending
-      console.log('Waiting before profile update...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      // Update profile - mettre le statut KYC en pending pour attendre l'approbation
       console.log('Updating user profile...');
       const profileUpdateData = {
-        kyc_status: 'pending', // Changé de 'approved' à 'pending'
+        kyc_status: 'pending', // En attente d'approbation par l'administrateur
         kyc_completed_at: new Date().toISOString(),
-        is_verified: false, // Changé de true à false
+        is_verified: false, // Pas encore vérifié
         verified_at: null // Pas de vérification automatique
       };
 
