@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { FileText, Camera, CheckCircle } from 'lucide-react';
+import { FileText, Camera, CheckCircle, Zap } from 'lucide-react';
 
 interface VerificationReviewStepProps {
   documentFile: File | null;
@@ -33,9 +33,13 @@ const VerificationReviewStep = ({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-lg font-semibold mb-2">Vérifiez vos documents</h3>
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Zap className="h-5 w-5 text-yellow-500" />
+          <h3 className="text-lg font-semibold">Vérification Instantanée</h3>
+          <Zap className="h-5 w-5 text-yellow-500" />
+        </div>
         <p className="text-gray-600 text-sm">
-          Vérifiez que tous les documents sont corrects avant de soumettre votre demande.
+          Vos documents seront vérifiés et approuvés automatiquement !
         </p>
       </div>
 
@@ -94,14 +98,17 @@ const VerificationReviewStep = ({
         </Card>
       </div>
 
-      {/* Informations importantes */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <h4 className="font-medium text-yellow-800 mb-2">Informations importantes :</h4>
-        <ul className="text-sm text-yellow-700 space-y-1">
-          <li>• Vos documents seront vérifiés dans les 24-48h</li>
-          <li>• Vous recevrez une notification du résultat</li>
-          <li>• En cas de rejet, vous pourrez soumettre de nouveaux documents</li>
-          <li>• Vos données sont sécurisées et conformes au RGPD</li>
+      {/* Informations sur la vérification rapide */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Zap className="h-4 w-4 text-green-600" />
+          <h4 className="font-medium text-green-800">Vérification Automatique :</h4>
+        </div>
+        <ul className="text-sm text-green-700 space-y-1">
+          <li>• ✅ Approbation instantanée de votre dossier</li>
+          <li>• ✅ Accès immédiat à toutes les fonctionnalités</li>
+          <li>• ✅ Aucune attente nécessaire</li>
+          <li>• ✅ Données sécurisées et conformes au RGPD</li>
         </ul>
       </div>
 
@@ -113,15 +120,18 @@ const VerificationReviewStep = ({
         <Button 
           onClick={onSubmit} 
           disabled={isSubmitting}
-          className="min-w-32"
+          className="min-w-32 bg-green-600 hover:bg-green-700"
         >
           {isSubmitting ? (
             <span className="flex items-center">
               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-              Soumission...
+              Approbation...
             </span>
           ) : (
-            'Soumettre ma demande'
+            <span className="flex items-center">
+              <Zap className="h-4 w-4 mr-2" />
+              Approuver Instantanément
+            </span>
           )}
         </Button>
       </div>

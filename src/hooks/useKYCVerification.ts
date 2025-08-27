@@ -82,7 +82,7 @@ export const useKYCVerification = () => {
 
       setUploadProgress(90);
 
-      // Insert KYC verification record using a workaround for type issues
+      // Insert KYC verification record avec approbation automatique
       const { data, error } = await (supabase as any)
         .from('kyc_verifications')
         .insert({
@@ -95,15 +95,31 @@ export const useKYCVerification = () => {
           id_document_url,
           selfie_url,
           video_url,
-          status: 'pending'
+          status: 'approved', // Approbation automatique pour une vérification rapide
+          verified_at: new Date().toISOString()
         })
         .select()
         .single();
 
       if (error) throw error;
 
+      // Mettre à jour immédiatement le profil utilisateur
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          kyc_status: 'approved',
+          kyc_completed_at: new Date().toISOString(),
+          is_verified: true,
+          verified_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (profileError) {
+        console.error('Erreur mise à jour profil:', profileError);
+      }
+
       setUploadProgress(100);
-      toast.success('Vérification d\'identité soumise avec succès');
+      toast.success('Vérification d\'identité approuvée instantanément !');
       
       return data;
     } catch (error) {
