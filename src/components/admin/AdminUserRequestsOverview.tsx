@@ -37,7 +37,7 @@ interface UserRequest {
   phone: string;
   country: string;
   address: string;
-  role: 'user' | 'agent';
+  role: 'user' | 'agent' | 'admin' | 'sub_admin';
   balance: number;
   is_verified?: boolean;
   avatar_url?: string;
@@ -50,7 +50,7 @@ const AdminUserRequestsOverview = () => {
   const [requests, setRequests] = useState<UserRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRole, setSelectedRole] = useState("user");
+  const [selectedRole, setSelectedRole] = useState<'user' | 'agent' | 'all'>('user');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<UserRequest | null>(null);
@@ -245,7 +245,7 @@ const AdminUserRequestsOverview = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <Label htmlFor="role">Rôle</Label>
-              <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value)}>
+              <Select value={selectedRole} onValueChange={(value: 'user' | 'agent' | 'all') => setSelectedRole(value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Tous les rôles" />
                 </SelectTrigger>

@@ -40,6 +40,11 @@ const EnhancedTreasuryTab = () => {
     },
   });
 
+  const handleRefresh = () => {
+    // Placeholder refresh function
+    window.location.reload();
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -109,7 +114,7 @@ const EnhancedTreasuryTab = () => {
         </div>
       )}
       
-      <TreasuryDashboard />
+      <TreasuryDashboard onRefresh={handleRefresh} />
     </div>
   );
 };

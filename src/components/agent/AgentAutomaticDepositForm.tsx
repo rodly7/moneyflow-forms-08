@@ -1,171 +1,170 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle, ArrowDownLeft, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency } from "@/lib/utils/currency";
 import { useToast } from "@/hooks/use-toast";
+import { CheckCircle, User, DollarSign, AlertCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency } from "@/lib/utils/currency";
 
-interface AgentProfile {
+interface ClientData {
   id: string;
   full_name: string;
   phone: string;
-  country: string;
-  balance: number;
+  country?: string;
 }
 
+const calculateCommission = (amount: number): number => {
+  const rate = 0.02;
+  return amount * rate;
+};
+
 const AgentAutomaticDepositForm = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
+  const { profile } = useAuth();
+  const [phone, setPhone] = useState("");
+  const [amount, setAmount] = useState("");
+  const [client, setClient] = useState<ClientData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isClientLoading, setIsClientLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  const [agentPhone, setAgentPhone] = useState("");
-  const [depositAmount, setDepositAmount] = useState("");
-  const [depositFrequency, setDepositFrequency] = useState("daily");
-  const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [depositSuccess, setDepositSuccess] = useState(false);
-
-  const handleSearchAgent = async () => {
-    if (!agentPhone) {
-      toast({
-        title: "Téléphone requis",
-        description: "Veuillez entrer le numéro de téléphone de l'agent",
-        variant: "destructive",
-      });
-      return;
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess(false);
+      }, 3000);
+      return () => clearTimeout(timer);
     }
+  }, [success]);
 
-    setIsProcessing(true);
+  const validateForm = (): boolean => {
+    if (!client) {
+      setErrorMessage("Veuillez rechercher un client.");
+      return false;
+    }
+    if (!amount || parseFloat(amount) <= 0) {
+      setErrorMessage("Montant invalide.");
+      return false;
+    }
+    setErrorMessage(null);
+    return true;
+  };
 
+  const handleSearchClient = async () => {
+    setIsClientLoading(true);
+    setClient(null);
+    setErrorMessage(null);
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, country, balance')
-        .eq('phone', agentPhone)
+        .from("profiles")
+        .select("id, full_name, phone, country")
+        .eq("phone", phone)
         .single();
 
       if (error) {
-        console.error("Erreur lors de la recherche de l'agent:", error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de trouver l'agent avec ce numéro",
-          variant: "destructive",
-        });
-        setAgentProfile(null);
-        return;
+        throw new Error("Client introuvable.");
       }
 
-      setAgentProfile(data);
-      setDepositSuccess(false);
+      if (!data) {
+        throw new Error("Client introuvable.");
+      }
 
-    } catch (error) {
-      console.error("Erreur lors de la recherche de l'agent:", error);
-      toast({
-        title: "Erreur",
-        description: "Une erreur s'est produite lors de la recherche de l'agent",
-        variant: "destructive",
+      setClient({
+        id: data.id,
+        full_name: data.full_name || "N/A",
+        phone: data.phone,
+        country: data.country || "N/A",
       });
-      setAgentProfile(null);
+    } catch (error: any) {
+      setErrorMessage(error.message || "Erreur lors de la recherche du client.");
     } finally {
-      setIsProcessing(false);
+      setIsClientLoading(false);
     }
   };
 
-  const handleAutomaticDeposit = async () => {
-    if (!agentProfile) {
-      toast({
-        title: "Agent requis",
-        description: "Veuillez d'abord rechercher l'agent",
-        variant: "destructive",
-      });
-      return;
+const handleDeposit = async () => {
+  if (!validateForm()) return;
+
+  setIsLoading(true);
+  try {
+    const depositAmount = parseFloat(amount);
+    
+    // Use secure_increment_balance function instead of direct balance update
+    const { data, error } = await supabase.rpc('secure_increment_balance', {
+      target_user_id: client.id,
+      amount: depositAmount,
+      operation_type: 'agent_deposit',
+      performed_by: profile?.id
+    });
+
+    if (error) {
+      throw error;
     }
 
-    if (!depositAmount || isNaN(Number(depositAmount)) || Number(depositAmount) <= 0) {
-      toast({
-        title: "Montant invalide",
-        description: "Veuillez entrer un montant valide",
-        variant: "destructive",
-      });
-      return;
-    }
+    
+    
+    // Calculate and add commission to agent
+    const commission = calculateCommission(depositAmount);
+    await supabase.rpc('increment_agent_commission', {
+      agent_user_id: profile?.id,
+      commission_amount: commission
+    });
 
-    setIsProcessing(true);
-
-    try {
-      // Update agent profile with automatic deposit details
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          auto_deposit_amount: Number(depositAmount),
-          auto_deposit_frequency: depositFrequency,
-        })
-        .eq('id', agentProfile.id);
-
-      if (error) {
-        console.error("Erreur lors de la mise à jour du profil de l'agent:", error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de configurer le dépôt automatique",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Dépôt automatique configuré",
-        description: `Dépôt automatique de ${formatCurrency(Number(depositAmount))} configuré avec succès pour ${agentProfile.full_name}`,
-      });
-
-      setDepositSuccess(true);
-
-      // Reset form
-      setAgentPhone("");
-      setDepositAmount("");
-      setDepositFrequency("daily");
-      setAgentProfile(null);
-
-    } catch (error) {
-      console.error("Erreur inattendue:", error);
-      toast({
-        title: "Erreur",
-        description: "Une erreur inattendue s'est produite",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+    toast({
+      title: "Dépôt réussi",
+      description: `Dépôt de ${formatCurrency(depositAmount)} effectué pour ${client?.full_name}.`,
+    });
+    setSuccess(true);
+    setAmount("");
+    setPhone("");
+    setClient(null);
+  } catch (error: any) {
+    console.error("Error during deposit:", error);
+    toast({
+      title: "Erreur",
+      description: error.message || "Impossible d'effectuer le dépôt.",
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <Card className="bg-white shadow-md rounded-lg">
       <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-        <CardTitle className="text-lg font-semibold">Dépôt Automatique pour Agents</CardTitle>
-        <ArrowDownLeft className="h-6 w-6 text-gray-500" />
+        <CardTitle className="text-lg font-semibold">
+          Dépôt Automatique
+        </CardTitle>
       </CardHeader>
 
       <CardContent className="p-4">
         <div className="space-y-4">
-          {/* Search Agent */}
+          {/* Phone Search */}
           <div>
-            <Label htmlFor="agentPhone">Téléphone de l'agent</Label>
-            <div className="flex space-x-2">
+            <Label htmlFor="phone">Numéro de téléphone du client</Label>
+            <div className="relative">
               <Input
                 type="tel"
-                id="agentPhone"
+                id="phone"
                 placeholder="Entrez le numéro de téléphone"
-                value={agentPhone}
-                onChange={(e) => setAgentPhone(e.target.value)}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="pl-12"
               />
-              <Button onClick={handleSearchAgent} disabled={isProcessing}>
-                {isProcessing ? (
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <Button
+                onClick={handleSearchClient}
+                disabled={isClientLoading || !phone}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-auto px-3 py-2"
+              >
+                {isClientLoading ? (
                   <div className="flex items-center justify-center">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                     <span>Recherche...</span>
                   </div>
                 ) : (
@@ -175,78 +174,64 @@ const AgentAutomaticDepositForm = () => {
             </div>
           </div>
 
-          {/* Agent Info */}
-          {agentProfile && (
-            <div className="p-4 bg-emerald-50 rounded-md border border-emerald-200">
-              <div className="flex items-center space-x-3 mb-2">
-                <CheckCircle className="h-5 w-5 text-emerald-500" />
-                <h4 className="font-semibold text-gray-700">Informations de l'agent</h4>
-              </div>
-              <p className="text-sm text-gray-600">Nom: {agentProfile.full_name}</p>
-              <p className="text-sm text-gray-600">Téléphone: {agentProfile.phone}</p>
-              <p className="text-sm text-gray-600">Solde actuel: {formatCurrency(agentProfile.balance)}</p>
-            </div>
-          )}
-
-          {/* Automatic Deposit Form */}
-          {agentProfile && (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="depositAmount">Montant du dépôt automatique</Label>
-                <Input
-                  type="number"
-                  id="depositAmount"
-                  placeholder="Entrez le montant à déposer automatiquement"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="depositFrequency">Fréquence du dépôt</Label>
-                <Select value={depositFrequency} onValueChange={setDepositFrequency}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Sélectionnez la fréquence" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">Quotidien</SelectItem>
-                    <SelectItem value="weekly">Hebdomadaire</SelectItem>
-                    <SelectItem value="monthly">Mensuel</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button onClick={handleAutomaticDeposit} className="w-full" disabled={isProcessing}>
-                {isProcessing ? (
-                  <div className="flex items-center justify-center">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    <span>Configuration en cours...</span>
-                  </div>
-                ) : (
-                  "Configurer le Dépôt Automatique"
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* Alert Message */}
-          {!agentProfile && agentPhone && (
-            <div className="p-3 bg-red-50 rounded-md border border-red-200">
+          {/* Client Info */}
+          {client && (
+            <div className="p-3 bg-green-50 rounded-md border border-green-200">
               <div className="flex items-center space-x-2">
-                <AlertCircle className="h-4 w-4 text-red-500" />
-                <span className="text-xs text-red-700">
-                  Aucun agent trouvé avec le numéro de téléphone fourni.
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span className="text-xs text-green-700">
+                  Client trouvé: {client.full_name} ({client.phone})
                 </span>
               </div>
             </div>
           )}
 
-          {depositSuccess && (
-            <div className="p-3 bg-green-50 rounded-md border border-green-200">
+          {/* Amount Input */}
+          <div>
+            <Label htmlFor="amount">Montant du dépôt</Label>
+            <div className="relative">
+              <Input
+                type="number"
+                id="amount"
+                placeholder="Entrez le montant"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="pl-10"
+                disabled={!client}
+              />
+              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="p-3 bg-red-50 rounded-md border border-red-200">
               <div className="flex items-center space-x-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span className="text-xs text-green-700">
-                  Dépôt automatique configuré avec succès.
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                <span className="text-xs text-red-700">{errorMessage}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <Button onClick={handleDeposit} className="w-full" disabled={isLoading || !client}>
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <span>Traitement...</span>
+              </div>
+            ) : (
+              "Effectuer le Dépôt"
+            )}
+          </Button>
+
+          {/* Success Message */}
+          {success && (
+            <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-blue-500" />
+                <span className="text-xs text-blue-700">
+                  Dépôt réussi!
                 </span>
               </div>
             </div>
