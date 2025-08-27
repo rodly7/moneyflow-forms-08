@@ -23,6 +23,8 @@ const ProfileEditForm = ({ profile }: ProfileEditFormProps) => {
   const {
     fullName,
     setFullName,
+    birthDate,
+    setBirthDate,
     isUploading,
     previewUrl,
     setPreviewUrl,
@@ -85,6 +87,8 @@ const ProfileEditForm = ({ profile }: ProfileEditFormProps) => {
           fullName={fullName}
           setFullName={setFullName}
           phone={profile?.phone}
+          birthDate={birthDate}
+          setBirthDate={setBirthDate}
         />
       </div>
 
@@ -95,7 +99,6 @@ const ProfileEditForm = ({ profile }: ProfileEditFormProps) => {
         />
       </div>
       
-      {/* Fixed space for form messages */}
       <div className="min-h-[18px] form-message-zone">
         {/* Toast messages will appear here without shifting the form */}
       </div>

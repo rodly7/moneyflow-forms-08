@@ -8,12 +8,14 @@ interface ProfileData {
   id: string;
   full_name: string;
   phone: string;
+  birth_date?: string;
   avatar_url?: string;
   id_card_photo_url?: string;
 }
 
 export const useProfileForm = (profile: ProfileData) => {
   const [fullName, setFullName] = useState(profile?.full_name || "");
+  const [birthDate, setBirthDate] = useState(profile?.birth_date || "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -99,6 +101,15 @@ export const useProfileForm = (profile: ProfileData) => {
       return;
     }
 
+    if (!birthDate) {
+      toast({
+        title: "Erreur",
+        description: "La date de naissance est requise",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsUploading(true);
 
     try {
@@ -108,7 +119,8 @@ export const useProfileForm = (profile: ProfileData) => {
       await ensureBucketsExist();
 
       const updates: any = { 
-        full_name: fullName.trim()
+        full_name: fullName.trim(),
+        birth_date: birthDate
       };
       
       // Upload de l'avatar si un fichier est sélectionné
@@ -206,6 +218,8 @@ export const useProfileForm = (profile: ProfileData) => {
   return {
     fullName,
     setFullName,
+    birthDate,
+    setBirthDate,
     avatarFile,
     setAvatarFile,
     idCardFile,
