@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Shield } from 'lucide-react';
+import { AlertCircle, FileText } from 'lucide-react';
 import KYCVerificationStep from './KYCVerificationStep';
 
 const KYCCompletionModal = () => {
@@ -23,7 +23,7 @@ const KYCCompletionModal = () => {
       if (!user?.id) return;
       
       const status = await getKYCStatus(user.id);
-      if (!status.isVerified && !status.hasDocuments) {
+      if (!status.hasDocuments) {
         setShowModal(true);
       }
     };
@@ -40,8 +40,8 @@ const KYCCompletionModal = () => {
 
     const success = await saveKYCData(user.id, {
       ...kycData,
-      isVerified: kycData.verificationScore > 75,
-      verifiedAt: kycData.verificationScore > 75 ? new Date().toISOString() : undefined,
+      isVerified: false, // Les documents sont juste sauvegardés
+      verifiedAt: undefined,
     });
 
     if (success) {
@@ -64,21 +64,21 @@ const KYCCompletionModal = () => {
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-amber-500" />
-                Vérification d'identité requise
+                <FileText className="w-5 h-5 text-blue-500" />
+                Documents d'identité requis
               </DialogTitle>
             </DialogHeader>
             
             <div className="space-y-4">
-              <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-medium text-amber-700">
-                    Votre compte nécessite une vérification d'identité
+                  <p className="font-medium text-blue-700">
+                    Complétez votre profil avec vos documents
                   </p>
-                  <p className="text-amber-600 mt-1">
-                    Pour des raisons de sécurité et de conformité, veuillez compléter 
-                    votre vérification KYC en téléchargeant votre pièce d'identité et un selfie.
+                  <p className="text-blue-600 mt-1">
+                    Pour finaliser votre inscription, veuillez télécharger 
+                    votre pièce d'identité et une photo de profil.
                   </p>
                 </div>
               </div>
@@ -88,7 +88,7 @@ const KYCCompletionModal = () => {
                   onClick={() => setShowKYCForm(true)}
                   className="w-full"
                 >
-                  Commencer la vérification
+                  Ajouter mes documents
                 </Button>
                 <Button 
                   variant="outline" 

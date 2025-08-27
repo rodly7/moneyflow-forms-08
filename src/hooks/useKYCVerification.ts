@@ -24,16 +24,16 @@ export const useKYCVerification = () => {
         .update({
           id_card_url: kycData.idCardUrl,
           selfie_url: kycData.selfieUrl,
-          is_verified: kycData.isVerified || false,
-          verified_at: kycData.verifiedAt || null,
+          is_verified: false, // Pas de vérification automatique
+          verified_at: null,
         })
         .eq('id', userId);
 
       if (error) throw error;
 
       toast({
-        title: "KYC enregistré",
-        description: "Vos documents de vérification ont été sauvegardés",
+        title: "Documents enregistrés",
+        description: "Vos documents ont été sauvegardés avec succès",
       });
 
       return true;
@@ -41,7 +41,7 @@ export const useKYCVerification = () => {
       console.error('Erreur sauvegarde KYC:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de sauvegarder les données KYC",
+        description: "Impossible de sauvegarder les documents KYC",
         variant: "destructive"
       });
       return false;
@@ -62,7 +62,7 @@ export const useKYCVerification = () => {
 
       return {
         isVerified: data?.is_verified || false,
-        verificationScore: data?.is_verified ? 85 : 0, // Score simulé basé sur le statut
+        verificationScore: 0, // Pas de score automatique
         verifiedAt: data?.verified_at,
         hasDocuments: !!(data?.id_card_url && data?.selfie_url)
       };
@@ -79,7 +79,7 @@ export const useKYCVerification = () => {
 
   const requiresKYC = async (userId: string) => {
     const status = await getKYCStatus(userId);
-    return !status.isVerified && !status.hasDocuments;
+    return !status.hasDocuments; // Vérifie seulement si les documents sont présents
   };
 
   return {

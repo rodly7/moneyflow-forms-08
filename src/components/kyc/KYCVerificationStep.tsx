@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Upload, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Camera, Upload, Check, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -24,11 +24,6 @@ const KYCVerificationStep = ({ onComplete, onSkip }: KYCVerificationStepProps) =
   const [idCardPreview, setIdCardPreview] = useState<string | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationResult, setVerificationResult] = useState<{
-    score: number;
-    isMatch: boolean;
-  } | null>(null);
 
   const idCardInputRef = useRef<HTMLInputElement>(null);
   const selfieInputRef = useRef<HTMLInputElement>(null);
@@ -87,24 +82,7 @@ const KYCVerificationStep = ({ onComplete, onSkip }: KYCVerificationStepProps) =
     return urlData.publicUrl;
   };
 
-  const compareFaces = async (idCardUrl: string, selfieUrl: string): Promise<{ score: number; isMatch: boolean }> => {
-    try {
-      // Simuler la comparaison de visages - à remplacer par un vrai service
-      // En production, utilisez AWS Rekognition, Azure Face API, ou Google Vision API
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Score simulé entre 0 et 100
-      const score = Math.random() * 40 + 60; // Score entre 60 et 100 pour simulation
-      const isMatch = score > 75; // Seuil de confiance à 75%
-      
-      return { score, isMatch };
-    } catch (error) {
-      console.error('Erreur lors de la comparaison:', error);
-      throw new Error('Échec de la vérification automatique');
-    }
-  };
-
-  const handleVerification = async () => {
+  const handleSubmit = async () => {
     if (!idCardFile || !selfieFile) {
       toast({
         title: "Documents manquants",
@@ -125,56 +103,38 @@ const KYCVerificationStep = ({ onComplete, onSkip }: KYCVerificationStepProps) =
       const idCardUrl = await uploadFile(idCardFile, 'kyc-documents', idCardFileName);
       const selfieUrl = await uploadFile(selfieFile, 'kyc-documents', selfieFileName);
       
-      setIsUploading(false);
-      setIsVerifying(true);
+      toast({
+        title: "Documents sauvegardés",
+        description: "Vos documents ont été téléchargés avec succès",
+      });
       
-      // Comparaison des visages
-      const comparisonResult = await compareFaces(idCardUrl, selfieUrl);
-      setVerificationResult(comparisonResult);
-      setIsVerifying(false);
-      
-      if (comparisonResult.isMatch) {
-        toast({
-          title: "Vérification réussie",
-          description: `Documents vérifiés avec succès (Score: ${comparisonResult.score.toFixed(1)}%)`,
-        });
-        
-        onComplete({
-          idCardUrl,
-          selfieUrl,
-          verificationScore: comparisonResult.score
-        });
-      } else {
-        toast({
-          title: "Vérification échouée",
-          description: `Les documents ne correspondent pas (Score: ${comparisonResult.score.toFixed(1)}%)`,
-          variant: "destructive"
-        });
-      }
+      onComplete({
+        idCardUrl,
+        selfieUrl,
+        verificationScore: 0 // Pas de vérification automatique
+      });
       
     } catch (error) {
       console.error('Erreur KYC:', error);
-      setIsUploading(false);
-      setIsVerifying(false);
       toast({
         title: "Erreur",
-        description: "Une erreur est survenue lors de la vérification",
+        description: "Une erreur est survenue lors du téléchargement",
         variant: "destructive"
       });
+    } finally {
+      setIsUploading(false);
     }
   };
-
-  const isProcessing = isUploading || isVerifying;
 
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
         <CardTitle className="flex items-center justify-center gap-2">
           <Camera className="w-5 h-5" />
-          Vérification d'identité (KYC)
+          Documents d'identité (KYC)
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Téléchargez votre pièce d'identité et prenez un selfie pour vérifier votre compte
+          Téléchargez votre pièce d'identité et prenez un selfie pour compléter votre profil
         </p>
       </CardHeader>
       
@@ -249,40 +209,15 @@ const KYCVerificationStep = ({ onComplete, onSkip }: KYCVerificationStepProps) =
           />
         </div>
 
-        {/* Résultat de vérification */}
-        {verificationResult && (
-          <div className={`p-3 rounded-lg flex items-center gap-2 ${
-            verificationResult.isMatch 
-              ? 'bg-green-50 text-green-700' 
-              : 'bg-red-50 text-red-700'
-          }`}>
-            {verificationResult.isMatch ? (
-              <Check className="w-5 h-5" />
-            ) : (
-              <AlertCircle className="w-5 h-5" />
-            )}
-            <div>
-              <p className="font-medium">
-                {verificationResult.isMatch ? 'Vérification réussie' : 'Vérification échouée'}
-              </p>
-              <p className="text-sm">
-                Score de correspondance: {verificationResult.score.toFixed(1)}%
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Boutons d'action */}
         <div className="space-y-2">
           <Button 
-            onClick={handleVerification}
+            onClick={handleSubmit}
             className="w-full"
-            disabled={!idCardFile || !selfieFile || isProcessing}
+            disabled={!idCardFile || !selfieFile || isUploading}
           >
-            {isProcessing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {isUploading ? "Téléchargement..." : 
-             isVerifying ? "Vérification en cours..." : 
-             "Vérifier les documents"}
+            {isUploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {isUploading ? "Téléchargement..." : "Sauvegarder les documents"}
           </Button>
           
           {onSkip && (
@@ -290,7 +225,7 @@ const KYCVerificationStep = ({ onComplete, onSkip }: KYCVerificationStepProps) =
               variant="outline" 
               onClick={onSkip}
               className="w-full"
-              disabled={isProcessing}
+              disabled={isUploading}
             >
               Passer cette étape
             </Button>
