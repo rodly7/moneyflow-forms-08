@@ -1,248 +1,156 @@
-import React from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { 
   TrendingUp, 
   DollarSign, 
   Target, 
-  Award, 
-  AlertTriangle,
-  Gift,
-  ArrowUp
+  Trophy,
+  Calendar,
+  RefreshCw,
+  Award,
+  Star
 } from "lucide-react";
-import { useAgentEarnings } from "@/hooks/useAgentEarnings";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency } from "@/lib/utils/currency";
+import { useToast } from "@/hooks/use-toast";
 
-const AgentEarningsCard = () => {
-  const { 
-    earnings, 
-    isLoading, 
-    getNextTierInfo, 
-    getBonusProgress 
-  } = useAgentEarnings();
+interface AgentEarningsCardProps {
+  userId: string | undefined;
+  onRefresh: () => void;
+  isLoading: boolean;
+}
 
-  if (isLoading) {
-    return (
-      <Card className="w-full">
-        <CardContent className="pt-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-muted rounded w-3/4"></div>
-            <div className="h-4 bg-muted rounded w-1/2"></div>
-            <div className="h-4 bg-muted rounded w-2/3"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+export const AgentEarningsCard: React.FC<AgentEarningsCardProps> = ({ userId, onRefresh, isLoading }) => {
+  const { toast } = useToast();
+  const [totalEarnings, setTotalEarnings] = useState(0);
+  const [monthlyRevenue, setMonthlyRevenue] = useState(0);
+  const [dailyTarget, setDailyTarget] = useState(500000);
+  const [timeRemaining, setTimeRemaining] = useState({ hours: 0, minutes: 0 });
 
-  if (!earnings) {
-    return (
-      <Card className="w-full">
-        <CardContent className="pt-6">
-          <p className="text-muted-foreground text-center">
-            Aucune donnée de gains disponible
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const fetchAgentEarnings = async () => {
+    if (!userId) return;
 
-  const nextTier = getNextTierInfo();
-  const bonusProgress = getBonusProgress();
+    try {
+      // Fetch total earnings
+      const { data: earningsData, error: earningsError } = await supabase.from('transfers')
+        .select('amount')
+        .eq('sender_id', userId);
 
-  const getTierBadgeVariant = (tierName: string) => {
-    switch (tierName) {
-      case 'Bronze': return 'secondary';
-      case 'Silver': return 'default';
-      case 'Gold': return 'default';
-      default: return 'secondary';
+      if (earningsError) {
+        console.error("Erreur lors de la récupération des gains:", earningsError);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les données de gains",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const totalEarningsAmount = earningsData?.reduce((sum, transfer) => sum + transfer.amount, 0) || 0;
+      setTotalEarnings(totalEarningsAmount);
+
+      // Fetch monthly revenue
+      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      const { data: revenueData, error: revenueError } = await supabase.from('transfers')
+        .select('amount')
+        .eq('sender_id', userId)
+        .gte('created_at', startOfMonth);
+
+      if (revenueError) {
+        console.error("Erreur lors de la récupération du chiffre d'affaires mensuel:", revenueError);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les données du chiffre d'affaires mensuel",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const monthlyRevenueAmount = revenueData?.reduce((sum, transfer) => sum + transfer.amount, 0) || 0;
+      setMonthlyRevenue(monthlyRevenueAmount);
+
+    } catch (error) {
+      console.error("Erreur inattendue:", error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite",
+        variant: "destructive"
+      });
     }
   };
 
-  const getTierColor = (tierName: string) => {
-    switch (tierName) {
-      case 'Bronze': return 'text-yellow-600';
-      case 'Silver': return 'text-gray-600';
-      case 'Gold': return 'text-yellow-500';
-      default: return 'text-gray-600';
-    }
-  };
+  useEffect(() => {
+    fetchAgentEarnings();
+
+    // Update time remaining every minute
+    const intervalId = setInterval(() => {
+      const now = new Date();
+      const endOfDay = new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const diffInSeconds = (endOfDay.getTime() - now.getTime()) / 1000;
+      const hours = Math.floor(diffInSeconds / 3600);
+      const minutes = Math.floor((diffInSeconds % 3600) / 60);
+
+      setTimeRemaining({ hours, minutes });
+    }, 60000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
+  }, [userId, toast]);
+
+  const progress = dailyTarget > 0 ? Math.min((monthlyRevenue / dailyTarget) * 100, 100) : 0;
 
   return (
-    <div className="space-y-4 w-full">
-      {/* Résumé principal */}
-      <Card className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-emerald-800">
-            <DollarSign className="w-5 h-5" />
-            Revenus Mensuels Estimés
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-emerald-700 mb-2">
-            {formatCurrency(earnings.totalEarnings, 'XAF')}
-          </div>
-          <div className="flex items-center gap-2 mb-4">
-            <Badge 
-              variant={getTierBadgeVariant(earnings.tierName)}
-              className={`${getTierColor(earnings.tierName)} font-semibold`}
-            >
-              <Award className="w-3 h-3 mr-1" />
-              Niveau {earnings.tierName}
-            </Badge>
-            <Badge variant="outline">
-              {(earnings.commissionRate * 100).toFixed(1)}% de commission
-            </Badge>
-          </div>
-          
-          {/* Détail des gains */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Total Earnings Card */}
+      <Card className="bg-emerald-50 border border-emerald-200 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
             <div>
-              <span className="text-muted-foreground">Commission de base:</span>
-              <div className="font-semibold text-emerald-700">
-                {formatCurrency(earnings.baseCommission, 'XAF')}
-              </div>
+              <p className="text-sm font-medium opacity-80">Gains Totaux</p>
+              {isLoading ? (
+                <div className="animate-pulse bg-white/30 h-8 w-24 rounded mt-1"></div>
+              ) : (
+                <p className="text-2xl font-bold mt-1">
+                  {formatCurrency(totalEarnings, 'XAF')}
+                </p>
+              )}
             </div>
-            <div>
-              <span className="text-muted-foreground">Bonus totaux:</span>
-              <div className="font-semibold text-emerald-700">
-                {formatCurrency(
-                  earnings.volumeBonus + earnings.transactionBonus + earnings.noComplaintBonus, 
-                  'XAF'
-                )}
-              </div>
-            </div>
+            <DollarSign className="w-8 h-8 opacity-70 text-emerald-600" />
           </div>
         </CardContent>
       </Card>
 
-      {/* Statistiques mensuelles */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
-            Performance du Mois
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-700">
-                {earnings.totalTransactions}
-              </div>
-              <div className="text-sm text-blue-600">Transactions</div>
+      {/* Monthly Revenue Card */}
+      <Card className="bg-blue-50 border border-blue-200 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium opacity-80">Chiffre d'affaires Mensuel</p>
+              {isLoading ? (
+                <div className="animate-pulse bg-white/30 h-8 w-32 rounded mt-1"></div>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold mt-1">
+                    {formatCurrency(monthlyRevenue, 'XAF')}
+                  </p>
+                  <Progress value={progress} className="mt-2" />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {progress.toFixed(1)}% de l'objectif atteint
+                  </p>
+                </>
+              )}
             </div>
-            <div className="p-3 bg-purple-50 rounded-lg">
-              <div className="text-2xl font-bold text-purple-700">
-                {formatCurrency(earnings.totalVolume, 'XAF')}
-              </div>
-              <div className="text-sm text-purple-600">Volume traité</div>
-            </div>
-          </div>
-
-          {earnings.complaintsCount > 0 && (
-            <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
-              <div className="flex items-center gap-2 text-red-700">
-                <AlertTriangle className="w-4 h-4" />
-                <span className="font-semibold">
-                  {earnings.complaintsCount} réclamation(s) ce mois
-                </span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Progression vers le niveau supérieur */}
-      {nextTier && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-amber-800">
-              <ArrowUp className="w-5 h-5" />
-              Progression vers {nextTier.tierName}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>Volume requis:</span>
-                <span className="font-semibold">
-                  {formatCurrency(nextTier.requiredVolume, 'XAF')}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Restant:</span>
-                <span className="font-semibold text-amber-700">
-                  {formatCurrency(nextTier.remainingVolume, 'XAF')}
-                </span>
-              </div>
-              <Progress 
-                value={(earnings.totalVolume / nextTier.requiredVolume) * 100}
-                className="h-2"
-              />
-              <div className="text-xs text-amber-700">
-                Nouveau taux: {(nextTier.commissionRate * 100).toFixed(1)}%
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Progression des bonus */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            <Gift className="w-5 h-5" />
-            Bonus Mensuels
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {bonusProgress.map((bonus, index) => (
-              <div key={index} className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">{bonus.description}</span>
-                  {bonus.achieved ? (
-                    <Badge className="bg-green-100 text-green-800">
-                      <Award className="w-3 h-3 mr-1" />
-                      Atteint
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline">
-                      {formatCurrency(bonus.bonusAmount, 'XAF')}
-                    </Badge>
-                  )}
-                </div>
-                <Progress 
-                  value={bonus.progress}
-                  className="h-2"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>
-                     {bonus.bonusType === 'no_complaints' 
-                      ? `${bonus.current} réclamation(s)`
-                      : bonus.bonusType === 'volume'
-                      ? formatCurrency(bonus.current, 'XAF')
-                      : `${bonus.current} transactions`
-                    }
-                  </span>
-                  <span>
-                    {bonus.bonusType === 'no_complaints'
-                      ? 'Objectif: 0 réclamation'
-                      : bonus.bonusType === 'volume'
-                      ? `Objectif: ${formatCurrency(bonus.requirementValue, 'XAF')}`
-                      : `Objectif: ${bonus.requirementValue} transactions`
-                    }
-                  </span>
-                </div>
-              </div>
-            ))}
+            <TrendingUp className="w-8 h-8 opacity-70 text-blue-600" />
           </div>
         </CardContent>
       </Card>
     </div>
   );
 };
-
-export default AgentEarningsCard;

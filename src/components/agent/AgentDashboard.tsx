@@ -16,7 +16,7 @@ import {
   History
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
 import { AgentRealTimePerformance } from "@/components/agent/AgentRealTimePerformance";

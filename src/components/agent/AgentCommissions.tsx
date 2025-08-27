@@ -1,235 +1,120 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, DollarSign, Calendar, Percent } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils/currency";
+import { Star, Receipt, TrendingUp, DollarSign, Calendar } from "lucide-react";
 
-interface CommissionData {
-  date: string;
-  withdrawals: number;
-  deposits: number;
-  totalCommission: number;
-  withdrawalCommission: number;
-  depositCommission: number;
+interface AgentCommissionsProps {
+  userId: string | undefined;
 }
 
-const AgentCommissions = () => {
-  const { user } = useAuth();
-  const [dailyCommissions, setDailyCommissions] = useState<CommissionData[]>([]);
-  const [weeklyCommissions, setWeeklyCommissions] = useState<CommissionData[]>([]);
-  const [monthlyCommissions, setMonthlyCommissions] = useState<CommissionData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+const AgentCommissions: React.FC<AgentCommissionsProps> = ({ userId }) => {
+  const [totalEarnings, setTotalEarnings] = useState(0);
+  const [totalTransfers, setTotalTransfers] = useState(0);
+  const [totalWithdrawals, setTotalWithdrawals] = useState(0);
+  const [startDate, setStartDate] = useState<Date | null>(new Date(new Date().setDate(new Date().getDate() - 30)));
+  const [endDate, setEndDate] = useState<Date | null>(new Date());
 
-  const calculateCommissions = async (period: 'daily' | 'weekly' | 'monthly') => {
-    if (!user?.id) return [];
-
-    try {
-      const now = new Date();
-      let periods: Date[] = [];
-
-      if (period === 'daily') {
-        // Derniers 7 jours
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date(now);
-          date.setDate(date.getDate() - i);
-          periods.push(date);
-        }
-      } else if (period === 'weekly') {
-        // Dernières 4 semaines
-        for (let i = 3; i >= 0; i--) {
-          const date = new Date(now);
-          date.setDate(date.getDate() - (i * 7));
-          periods.push(date);
-        }
-      } else {
-        // Derniers 6 mois
-        for (let i = 5; i >= 0; i--) {
-          const date = new Date(now);
-          date.setMonth(date.getMonth() - i);
-          periods.push(date);
-        }
-      }
-
-      const commissions: CommissionData[] = [];
-
-      for (const periodStart of periods) {
-        const periodEnd = new Date(periodStart);
-        if (period === 'daily') {
-          periodEnd.setDate(periodEnd.getDate() + 1);
-        } else if (period === 'weekly') {
-          periodEnd.setDate(periodEnd.getDate() + 7);
-        } else {
-          periodEnd.setMonth(periodEnd.getMonth() + 1);
-        }
-
-        // Récupérer les retraits traités par l'agent
-        const { data: withdrawalRequests } = await supabase
-          .from('withdrawal_requests')
-          .select('amount')
-          .eq('agent_id', user.id)
-          .gte('created_at', periodStart.toISOString())
-          .lt('created_at', periodEnd.toISOString())
-          .eq('status', 'completed');
-
-        // Récupérer les dépôts traités par l'agent (via recharges où l'agent est le provider)
-        const { data: deposits } = await supabase
-          .from('recharges')
-          .select('amount')
-          .eq('provider_transaction_id', user.id)
-          .gte('created_at', periodStart.toISOString())
-          .lt('created_at', periodEnd.toISOString())
-          .eq('status', 'completed');
-
-        // Calculer les commissions selon les nouveaux taux
-        const withdrawalCommission = withdrawalRequests?.reduce((sum, w) => sum + (Number(w.amount) * 0.005), 0) || 0; // 0,5% sur les retraits
-        const depositCommission = deposits?.reduce((sum, d) => sum + (Number(d.amount) * 0.05), 0) || 0; // 5% sur les dépôts
-
-        console.log(`📊 Période ${periodStart.toLocaleDateString('fr-FR')}:`);
-        console.log(`- Retraits traités: ${withdrawalRequests?.length || 0}, Volume: ${withdrawalRequests?.reduce((sum, w) => sum + Number(w.amount), 0) || 0}, Commission: ${withdrawalCommission}`);
-        console.log(`- Dépôts traités: ${deposits?.length || 0}, Volume: ${deposits?.reduce((sum, d) => sum + Number(d.amount), 0) || 0}, Commission: ${depositCommission}`);
-
-        commissions.push({
-          date: periodStart.toLocaleDateString('fr-FR'),
-          withdrawals: withdrawalRequests?.length || 0,
-          deposits: deposits?.length || 0,
-          withdrawalCommission,
-          depositCommission,
-          totalCommission: withdrawalCommission + depositCommission
-        });
-      }
-
-      return commissions;
-    } catch (error) {
-      console.error('Erreur lors du calcul des commissions:', error);
-      return [];
-    }
+  const formatDate = (date: Date | null): string => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
-  const loadCommissions = async () => {
-    setIsLoading(true);
-    try {
-      console.log('🔄 Rechargement des commissions...');
-      // Forcer le recalcul des performances avant de charger les commissions
-      if (user) {
-        const currentMonth = new Date().getMonth() + 1;
-        const currentYear = new Date().getFullYear();
-        
-        console.log(`📅 Recalcul pour agent ${user.id}, mois ${currentMonth}/${currentYear}`);
-        const { data: recalcResult, error: recalcError } = await supabase.rpc('calculate_agent_monthly_performance', {
-          agent_id_param: user.id,
-          month_param: currentMonth,
-          year_param: currentYear
-        });
-        
-        if (recalcError) {
-          console.error('❌ Erreur recalcul:', recalcError);
-        } else {
-          console.log('✅ Recalcul terminé:', recalcResult);
-        }
-      }
-      
-      const [daily, weekly, monthly] = await Promise.all([
-        calculateCommissions('daily'),
-        calculateCommissions('weekly'),
-        calculateCommissions('monthly')
-      ]);
+  const { data: transfers, isLoading: transfersLoading } = useQuery({
+    queryKey: ['agent-transfers', userId, formatDate(startDate), formatDate(endDate)],
+    queryFn: async () => {
+      if (!userId || !startDate || !endDate) return [];
 
-      setDailyCommissions(daily);
-      setWeeklyCommissions(weekly);
-      setMonthlyCommissions(monthly);
-    } catch (error) {
-      console.error('Erreur lors du chargement des commissions:', error);
-    }
-    setIsLoading(false);
-  };
+      const { data, error } = await supabase
+        .from('transfers')
+        .select('amount, fees, created_at')
+        .eq('sender_id', userId)
+        .gte('created_at', formatDate(startDate))
+        .lte('created_at', formatDate(endDate))
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: withdrawals, isLoading: withdrawalsLoading } = useQuery({
+    queryKey: ['agent-withdrawals', userId, formatDate(startDate), formatDate(endDate)],
+    queryFn: async () => {
+      if (!userId || !startDate || !endDate) return [];
+
+      const { data, error } = await supabase
+        .from('withdrawals')
+        .select('amount, created_at')
+        .eq('user_id', userId)
+        .eq('status', 'completed')
+        .gte('created_at', formatDate(startDate))
+        .lte('created_at', formatDate(endDate))
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   useEffect(() => {
-    if (user?.id) {
-      loadCommissions();
+    if (transfers && withdrawals) {
+      const totalTransfersAmount = transfers.reduce((sum, transfer) => sum + transfer.amount, 0);
+      const totalWithdrawalsAmount = withdrawals.reduce((sum, withdrawal) => sum + withdrawal.amount, 0);
+      const totalEarningsAmount = (totalTransfersAmount * 0.01) + (totalWithdrawalsAmount * 0.005);
+
+      setTotalEarnings(totalEarningsAmount);
+      setTotalTransfers(transfers.length);
+      setTotalWithdrawals(withdrawals.length);
     }
-  }, [user?.id]);
-
-  const CommissionCard = ({ data, title }: { data: CommissionData[], title: string }) => (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">{title}</h3>
-      {data.map((item, index) => (
-        <Card key={index} className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-medium text-gray-700">{item.date}</span>
-              <div className="flex items-center gap-2">
-                <Percent className="w-4 h-4 text-green-600" />
-                <span className="font-bold text-green-700">
-                  {formatCurrency(item.totalCommission, 'XAF')}
-                </span>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="text-center p-2 bg-red-100 rounded">
-                <div className="font-bold text-red-700">{item.withdrawals}</div>
-                <div className="text-red-600">Retraits traités</div>
-                <div className="text-xs text-red-500">
-                  Commission 0,5%: {formatCurrency(item.withdrawalCommission, 'XAF')}
-                </div>
-              </div>
-              
-              <div className="text-center p-2 bg-green-100 rounded">
-                <div className="font-bold text-green-700">{item.deposits}</div>
-                <div className="text-green-600">Dépôts traités</div>
-                <div className="text-xs text-green-500">
-                  Commission 5%: {formatCurrency(item.depositCommission, 'XAF')}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-
-  if (isLoading) {
-    return (
-      <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-        <CardContent className="p-8">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  }, [transfers, withdrawals]);
 
   return (
-    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-green-600" />
-          Mes Commissions
+    <Card className="bg-white shadow-md rounded-lg">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+        <CardTitle className="text-lg font-semibold">
+          <Receipt className="mr-2 h-5 w-5 text-gray-500" />
+          Commissions Agent
         </CardTitle>
+        <Badge variant="secondary">Agent</Badge>
       </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="daily" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="daily">Quotidien</TabsTrigger>
-            <TabsTrigger value="weekly">Hebdomadaire</TabsTrigger>
-            <TabsTrigger value="monthly">Mensuel</TabsTrigger>
-          </TabsList>
 
-          <TabsContent value="daily">
-            <CommissionCard data={dailyCommissions} title="Commissions des 7 derniers jours" />
-          </TabsContent>
+      <CardContent className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Total Earnings */}
+          <div className="bg-emerald-50 rounded-md p-4 border border-emerald-200">
+            <div className="flex items-center space-x-3 mb-2">
+              <TrendingUp className="h-5 w-5 text-emerald-500" />
+              <h4 className="font-semibold text-gray-700">Gains Totaux</h4>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">
+              {formatCurrency(totalEarnings, 'XAF')}
+            </p>
+          </div>
 
-          <TabsContent value="weekly">
-            <CommissionCard data={weeklyCommissions} title="Commissions des 4 dernières semaines" />
-          </TabsContent>
+          {/* Total Transfers */}
+          <div className="bg-blue-50 rounded-md p-4 border border-blue-200">
+            <div className="flex items-center space-x-3 mb-2">
+              <DollarSign className="h-5 w-5 text-blue-500" />
+              <h4 className="font-semibold text-gray-700">Transferts Totaux</h4>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{totalTransfers}</p>
+          </div>
 
-          <TabsContent value="monthly">
-            <CommissionCard data={monthlyCommissions} title="Commissions des 6 derniers mois" />
-          </TabsContent>
-        </Tabs>
+          {/* Total Withdrawals */}
+          <div className="bg-orange-50 rounded-md p-4 border border-orange-200">
+            <div className="flex items-center space-x-3 mb-2">
+              <Calendar className="h-5 w-5 text-orange-500" />
+              <h4 className="font-semibold text-gray-700">Retraits Totaux</h4>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{totalWithdrawals}</p>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

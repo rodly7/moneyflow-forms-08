@@ -1,229 +1,153 @@
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils/currency";
+import { Package, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Package, AlertTriangle, TrendingUp, Wallet } from 'lucide-react';
-import { formatCurrency } from '@/integrations/supabase/client';
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  stock: number;
-  max_stock: number;
-  min_threshold: number;
-  unit_price: number;
-  status: 'available' | 'low_stock' | 'out_of_stock';
-  created_at: string;
-  updated_at: string;
+interface InventoryData {
+  total_products: number;
+  products_in_stock: number;
+  products_out_of_stock: number;
+  average_price: number;
+  total_value: number;
+  low_stock_products: number;
 }
 
 const SubAdminInventoryTab = () => {
-  // Mock inventory data until the database tables are available
-  const inventory: InventoryItem[] = [
-    {
-      id: '1',
-      name: 'Cartes de recharge Orange',
-      category: 'Télécommunications',
-      stock: 150,
-      max_stock: 200,
-      min_threshold: 20,
-      unit_price: 1000,
-      status: 'available',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: '2',
-      name: 'Cartes de recharge MTN',
-      category: 'Télécommunications',
-      stock: 15,
-      max_stock: 200,
-      min_threshold: 20,
-      unit_price: 1000,
-      status: 'low_stock',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: '3',
-      name: 'Cartes de recharge Moov',
-      category: 'Télécommunications',
-      stock: 0,
-      max_stock: 200,
-      min_threshold: 20,
-      unit_price: 1000,
-      status: 'out_of_stock',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: '4',
-      name: 'Billets de 1000 XAF',
-      category: 'Espèces',
-      stock: 500,
-      max_stock: 1000,
-      min_threshold: 100,
-      unit_price: 1000,
-      status: 'available',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-  ];
+  const { toast } = useToast();
+  const [inventoryData, setInventoryData] = useState<InventoryData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'available':
-        return <Badge className="bg-green-100 text-green-800">Disponible</Badge>;
-      case 'low_stock':
-        return <Badge className="bg-orange-100 text-orange-800">Stock Faible</Badge>;
-      case 'out_of_stock':
-        return <Badge className="bg-red-100 text-red-800">Rupture</Badge>;
-      default:
-        return <Badge variant="secondary">Inconnu</Badge>;
+  const fetchInventoryData = async () => {
+    setIsLoading(true);
+    try {
+      // Simulate fetching inventory data (replace with your actual data fetching logic)
+      const mockData: InventoryData = {
+        total_products: 150,
+        products_in_stock: 120,
+        products_out_of_stock: 30,
+        average_price: 7500,
+        total_value: 900000,
+        low_stock_products: 15,
+      };
+
+      setInventoryData(mockData);
+    } catch (error) {
+      console.error("Error fetching inventory data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch inventory data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getStockPercentage = (current: number, max: number) => {
-    return Math.min((current / max) * 100, 100);
-  };
+  useEffect(() => {
+    fetchInventoryData();
+  }, []);
 
-  const totalValue = inventory.reduce((sum, item) => sum + (item.stock * item.unit_price), 0);
-  const lowStockItems = inventory.filter(item => item.status === 'low_stock').length;
-  const outOfStockItems = inventory.filter(item => item.status === 'out_of_stock').length;
+  const handleRefresh = () => {
+    fetchInventoryData();
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Package className="w-6 h-6" />
-          <h2 className="text-2xl font-bold">Gestion d'Inventaire</h2>
-        </div>
-      </div>
+    <Card className="bg-white shadow-md rounded-lg">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+        <CardTitle className="text-lg font-semibold">Aperçu de l'Inventaire</CardTitle>
+        <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={isLoading}>
+          {isLoading ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              Actualisation...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Actualiser
+            </>
+          )}
+        </Button>
+      </CardHeader>
 
-      {/* Statistiques générales */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valeur Totale</CardTitle>
-            <Wallet className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalValue, 'XAF')}</div>
-            <p className="text-sm text-muted-foreground">Inventaire total</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Articles Totaux</CardTitle>
-            <Package className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{inventory.length}</div>
-            <p className="text-sm text-muted-foreground">Types d'articles</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Stock Faible</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{lowStockItems}</div>
-            <p className="text-sm text-muted-foreground">Articles à réapprovisionner</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ruptures</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{outOfStockItems}</div>
-            <p className="text-sm text-muted-foreground">Articles épuisés</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Liste des articles */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
-            État de l'Inventaire
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardContent className="p-4">
+        {isLoading ? (
+          <div className="animate-pulse space-y-3">
+            <div className="h-8 bg-gray-200 rounded-md w-3/4"></div>
+            <div className="h-6 bg-gray-200 rounded-md"></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="h-12 bg-gray-200 rounded-md"></div>
+              <div className="h-12 bg-gray-200 rounded-md"></div>
+            </div>
+          </div>
+        ) : inventoryData ? (
           <div className="space-y-4">
-            {inventory.map((item) => (
-              <div key={item.id} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold">{item.name}</h4>
-                    <p className="text-sm text-muted-foreground">{item.category}</p>
-                  </div>
-                  {getStatusBadge(item.status)}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Stock: {item.stock} / {item.max_stock}</span>
-                    <span>Seuil min: {item.min_threshold}</span>
-                  </div>
-                  <Progress 
-                    value={getStockPercentage(item.stock, item.max_stock)}
-                    className="h-2"
-                  />
-                </div>
-
-                <div className="flex justify-between items-center text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Prix unitaire: </span>
-                    <span className="font-semibold">{formatCurrency(item.unit_price, 'XAF')}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Valeur totale: </span>
-                    <span className="font-semibold text-green-600">
-                      {formatCurrency(item.stock * item.unit_price, 'XAF')}
-                    </span>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center p-4 bg-blue-50 rounded-md border border-blue-200">
+                <Package className="w-6 h-6 mr-3 text-blue-500" />
+                <div>
+                  <h4 className="font-semibold text-gray-700">Total des Produits</h4>
+                  <p className="text-gray-600">{inventoryData.total_products}</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Alertes */}
-      {(lowStockItems > 0 || outOfStockItems > 0) && (
-        <Card className="border-orange-200 bg-orange-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-orange-800">
-              <AlertTriangle className="w-5 h-5" />
-              Alertes d'Inventaire
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm">
-              {lowStockItems > 0 && (
-                <p className="text-orange-700">
-                  ⚠️ {lowStockItems} article(s) ont un stock faible et nécessitent un réapprovisionnement.
-                </p>
-              )}
-              {outOfStockItems > 0 && (
-                <p className="text-red-700">
-                  🚨 {outOfStockItems} article(s) sont en rupture de stock.
-                </p>
-              )}
+              <div className="flex items-center p-4 bg-green-50 rounded-md border border-green-200">
+                <TrendingUp className="w-6 h-6 mr-3 text-green-500" />
+                <div>
+                  <h4 className="font-semibold text-gray-700">Produits en Stock</h4>
+                  <p className="text-gray-600">{inventoryData.products_in_stock}</p>
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center p-4 bg-orange-50 rounded-md border border-orange-200">
+                <AlertTriangle className="w-6 h-6 mr-3 text-orange-500" />
+                <div>
+                  <h4 className="font-semibold text-gray-700">Produits en Rupture de Stock</h4>
+                  <p className="text-gray-600">{inventoryData.products_out_of_stock}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center p-4 bg-purple-50 rounded-md border border-purple-200">
+                <TrendingUp className="w-6 h-6 mr-3 text-purple-500" />
+                <div>
+                  <h4 className="font-semibold text-gray-700">Produits Bientôt en Rupture de Stock</h4>
+                  <p className="text-gray-600">{inventoryData.low_stock_products}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center p-4 bg-teal-50 rounded-md border border-teal-200">
+                <TrendingUp className="w-6 h-6 mr-3 text-teal-500" />
+                <div>
+                  <h4 className="font-semibold text-gray-700">Prix Moyen</h4>
+                  <p className="text-gray-600">{formatCurrency(inventoryData.average_price, 'XAF')}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center p-4 bg-yellow-50 rounded-md border border-yellow-200">
+                <TrendingUp className="w-6 h-6 mr-3 text-yellow-500" />
+                <div>
+                  <h4 className="font-semibold text-gray-700">Valeur Totale de l'Inventaire</h4>
+                  <p className="text-gray-600">{formatCurrency(inventoryData.total_value, 'XAF')}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-gray-500">
+            Aucune donnée d'inventaire disponible.
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

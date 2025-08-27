@@ -1,40 +1,60 @@
-
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Banknote, 
-  CreditCard, 
-  Users, 
-  BarChart3, 
-  Wallet, 
-  TrendingUp,
-  ArrowUpRight,
+  ArrowUpRight, 
   ArrowDownLeft,
+  LogOut,
+  Eye,
+  EyeOff,
   Settings,
-  Bell,
-  MapPin,
-  Shield,
+  RefreshCw,
+  Wallet,
+  History,
+  TrendingUp,
+  Users,
   DollarSign,
   Target,
-  Award,
+  Trophy,
+  Bell,
   Calendar,
-  History,
-  UserCog,
-  ChartLine,
-  FileText,
-  Smartphone,
-  QrCode
+  MapPin,
+  Clock,
+  Star,
+  Award,
+  BarChart3,
+  PieChart,
+  LineChart
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { formatCurrency } from "@/lib/utils/currency";
+import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { AgentRealTimePerformance } from "@/components/agent/AgentRealTimePerformance";
+import AgentTransactionHistory from "@/components/agent/AgentTransactionHistory";
+import AgentEarningsCard from "@/components/agent/AgentEarningsCard";
+import AgentRanking from "@/components/agent/AgentRanking";
+import AgentZoneAnalysis from "@/components/agent/AgentZoneAnalysis";
+import AgentDailyHistory from "@/components/agent/AgentDailyHistory";
+import AgentYesterdaySummary from "@/components/agent/AgentYesterdaySummary";
 
-const EnhancedAgentDashboard = () => {
-  const { user, profile } = useAuth();
+interface EnhancedAgentDashboardProps {
+  userId: string | undefined;
+}
+
+const EnhancedAgentDashboard: React.FC<EnhancedAgentDashboardProps> = ({ userId }) => {
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  
+  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
+  const [showTransactionHistory, setShowTransactionHistory] = useState(false);
+
   const {
     agentBalance,
     agentCommissionBalance,
@@ -42,325 +62,234 @@ const EnhancedAgentDashboard = () => {
     fetchAgentBalances
   } = useAgentWithdrawalEnhanced();
 
-  const quickActions = [
-    {
-      title: "Retrait Client",
-      description: "Effectuer un retrait pour un client",
-      icon: ArrowUpRight,
-      onClick: () => navigate("/agent-withdrawal-advanced"),
-      color: "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600",
-      textColor: "text-white"
-    },
-    {
-      title: "Dépôt Client", 
-      description: "Effectuer un dépôt pour un client",
-      icon: ArrowDownLeft,
-      onClick: () => navigate("/agent-deposit"),
-      color: "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600",
-      textColor: "text-white"
-    },
-    {
-      title: "Mes Services",
-      description: "Gérer mes services",
-      icon: Users,
-      onClick: () => navigate("/agent-services"),
-      color: "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600",
-      textColor: "text-white"
-    },
-    {
-      title: "Mes Performances",
-      description: "Voir mes statistiques",
-      icon: BarChart3,
-      onClick: () => navigate("/agent-performance-dashboard"),
-      color: "bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-600 hover:to-violet-600",
-      textColor: "text-white"
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/auth');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
     }
-  ];
+  };
 
-  const transactionActions = [
-    {
-      title: "Historique Transactions",
-      description: "Voir toutes mes transactions",
-      icon: History,
-      onClick: () => navigate("/transactions"),
-      color: "bg-gradient-to-r from-amber-500 to-orange-500"
-    },
-    {
-      title: "Recharges Mobiles",
-      description: "Services de recharge",
-      icon: Smartphone,
-      onClick: () => navigate("/mobile-recharge"),
-      color: "bg-gradient-to-r from-sky-500 to-blue-500"
-    },
-    {
-      title: "Paiement QR",
-      description: "Scanner pour payer",
-      icon: QrCode,
-      onClick: () => navigate("/qr-payment"),
-      color: "bg-gradient-to-r from-pink-500 to-rose-500"
-    },
-  ];
+  const toggleBalanceVisibility = () => {
+    setIsBalanceVisible(!isBalanceVisible);
+  };
 
-  const managementActions = [
-    {
-      title: "Mes Paramètres",
-      description: "Configurer mon compte",
-      icon: UserCog,
-      onClick: () => navigate("/agent-settings"),
-      color: "bg-gradient-to-r from-gray-600 to-slate-600"
-    },
-    {
-      title: "Notifications",
-      description: "Voir mes notifications",
-      icon: Bell,
-      onClick: () => navigate("/notifications"),
-      color: "bg-gradient-to-r from-orange-500 to-amber-500"
-    },
-    {
-      title: "Ma Zone",
-      description: "Gérer ma zone géographique",
-      icon: MapPin,
-      onClick: () => navigate("/agent-zone"),
-      color: "bg-gradient-to-r from-teal-500 to-cyan-500"
-    },
-    {
-      title: "Sécurité",
-      description: "Sécurité et authentification",
-      icon: Shield,
-      onClick: () => navigate("/agent-security"),
-      color: "bg-gradient-to-r from-indigo-500 to-blue-500"
+  const formatBalanceDisplay = (balance: number) => {
+    if (!isBalanceVisible) {
+      return "••••••••";
     }
-  ];
+    return formatCurrency(balance, 'XAF');
+  };
 
-  return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4">
-      <div className="container max-w-7xl mx-auto space-y-6">
-        {/* En-tête amélioré */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                Tableau de Bord Agent
-              </h1>
-              <p className="text-gray-600 mt-2 text-lg">
-                Bienvenue {profile?.full_name || 'Agent'} - {profile?.country || 'Congo Brazzaville'}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
+  if (showTransactionHistory) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between">
+              <Button
+                onClick={() => setShowTransactionHistory(false)}
+                variant="ghost"
                 size="sm"
-                onClick={() => navigate("/notifications")}
-                className="relative border-2 border-blue-200 hover:border-blue-400"
               >
-                <Bell className="w-4 h-4" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+                ← Retour au tableau de bord
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={fetchAgentBalances}
-                disabled={isLoadingBalance}
-                className="border-2 border-green-200 hover:border-green-400"
-              >
-                <TrendingUp className={`w-4 h-4 ${isLoadingBalance ? 'animate-spin' : ''}`} />
-                Actualiser
-              </Button>
+              <div className="flex items-center space-x-2">
+                <UnifiedNotificationBell />
+                <Button
+                  onClick={handleLogout}
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Soldes en première ligne */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="px-4 py-6">
+          <AgentTransactionHistory />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={profile?.avatar_url} />
+                <AvatarFallback className="bg-blue-100 text-blue-600">
+                  {profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'A'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  {profile?.full_name || 'Agent'}
+                </h1>
+                <p className="text-sm text-gray-500">Agent SendFlow</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <UnifiedNotificationBell />
+              <Button
+                onClick={fetchAgentBalances}
+                variant="ghost"
+                size="sm"
+                disabled={isLoadingBalance}
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoadingBalance ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="ghost"
+                size="sm"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 py-6 space-y-6">
+        {/* Balance Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Solde Principal */}
-          <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl flex items-center gap-3">
-                <div className="p-2 bg-blue-500 rounded-lg">
-                  <Wallet className="w-6 h-6 text-white" />
-                </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
                 Solde Principal
               </CardTitle>
+              <div className="flex items-center space-x-2">
+                <Button
+                  onClick={toggleBalanceVisibility}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+                <Wallet className="w-4 h-4 text-blue-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="text-4xl font-bold text-blue-800">
-                  {isLoadingBalance ? (
-                    <div className="animate-pulse bg-blue-200 h-12 w-48 rounded"></div>
-                  ) : (
-                    formatCurrency(agentBalance, 'XAF')
-                  )}
-                </div>
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  onClick={() => navigate("/agent-recharge")}
-                  className="w-full border-blue-300 text-blue-700 hover:bg-blue-50 h-12"
-                >
-                  <DollarSign className="w-5 h-5 mr-2" />
-                  Recharger mon solde
-                </Button>
+              <div className="text-2xl font-bold text-gray-900 mb-3">
+                {formatBalanceDisplay(agentBalance || 0)}
               </div>
             </CardContent>
           </Card>
 
-          {/* Commissions */}
-          <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl flex items-center gap-3">
-                <div className="p-2 bg-green-500 rounded-lg">
-                  <Award className="w-6 h-6 text-white" />
-                </div>
-                Mes Commissions
+          {/* Commissions - Total (Dépôt 1% + Retrait 0,5%) */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">
+                Commissions Totales
               </CardTitle>
+              <Wallet className="w-4 h-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="text-4xl font-bold text-green-800">
-                  {isLoadingBalance ? (
-                    <div className="animate-pulse bg-green-200 h-12 w-48 rounded"></div>
-                  ) : (
-                    formatCurrency(agentCommissionBalance, 'XAF')
-                  )}
-                </div>
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  onClick={() => navigate("/agent-commission-withdrawal")}
-                  className="w-full border-green-300 text-green-700 hover:bg-green-50 h-12"
-                >
-                  <Target className="w-5 h-5 mr-2" />
-                  Retirer mes commissions
-                </Button>
+              <div className="text-2xl font-bold text-gray-900 mb-3">
+                {formatBalanceDisplay(agentCommissionBalance || 0)}
               </div>
+              <div className="text-xs text-gray-500 mb-3">
+                Dépôt: 1% | Retrait: 0,5%
+              </div>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate('/agent-commission-withdrawal')}
+              >
+                Retirer Commissions
+              </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* Actions Principales */}
-        <Card className="shadow-xl">
+        {/* Quick Actions - Moved after commissions */}
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-3 text-2xl">
-              <Banknote className="w-7 h-7 text-blue-600" />
-              Actions Principales
-            </CardTitle>
+            <CardTitle className="text-lg font-semibold">Actions Rapides</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {quickActions.map((action, index) => (
-                <Button
-                  key={index}
-                  onClick={action.onClick}
-                  className={`h-28 flex flex-col items-center justify-center gap-3 ${action.color} ${action.textColor} shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 rounded-xl text-base font-semibold`}
-                >
-                  <action.icon className="w-8 h-8" />
-                  <div className="text-center">
-                    <div className="font-bold">{action.title}</div>
-                    <div className="text-sm opacity-90">{action.description}</div>
-                  </div>
-                </Button>
-              ))}
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2 hover:bg-blue-50 border-blue-200"
+                onClick={() => navigate('/agent-withdrawal-advanced')}
+              >
+                <ArrowUpRight className="w-6 h-6 text-blue-600" />
+                <span className="text-sm">Retrait Client</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-20 flex-col gap-2 hover:bg-green-50 border-green-200"
+                onClick={() => navigate('/agent-deposit')}
+              >
+                <ArrowDownLeft className="w-6 h-6 text-green-600" />
+                <span className="text-sm">Dépôt Client</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Transactions et Historiques */}
-        <Card className="shadow-xl">
+        <Tabs defaultValue="performance" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
+            <TabsTrigger value="statistics">Statistiques</TabsTrigger>
+            <TabsTrigger value="analysis">Analyse</TabsTrigger>
+          </TabsList>
+          <TabsContent value="performance" className="space-y-4">
+            <AgentRealTimePerformance userId={userId} />
+            <AgentEarningsCard userId={userId} />
+            <AgentRanking userId={userId} />
+          </TabsContent>
+          <TabsContent value="statistics" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <AgentDailyHistory userId={userId} />
+              <AgentYesterdaySummary userId={userId} />
+          </TabsContent>
+          <TabsContent value="analysis">
+            <AgentZoneAnalysis userId={userId} />
+          </TabsContent>
+        </Tabs>
+
+        {/* Services */}
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-3 text-2xl">
-              <ChartLine className="w-7 h-7 text-purple-600" />
-              Transactions et Historiques
-            </CardTitle>
+            <CardTitle className="text-lg font-semibold">Services Agent</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {transactionActions.map((action, index) => (
-                <Button
-                  key={index}
-                  onClick={action.onClick}
-                  variant="outline"
-                  className={`h-24 flex flex-col items-center justify-center gap-3 hover:shadow-lg transition-all duration-300 border-2 rounded-xl`}
-                >
-                  <action.icon className="w-6 h-6" />
-                  <div className="text-center">
-                    <div className="font-semibold text-sm">{action.title}</div>
-                    <div className="text-xs text-gray-500">{action.description}</div>
-                  </div>
-                </Button>
-              ))}
+            <div className="space-y-3">
+              <Button
+                onClick={() => setShowTransactionHistory(true)}
+                variant="outline"
+                className="w-full h-12 justify-start"
+              >
+                <History className="w-5 h-5 mr-3 text-gray-600" />
+                Historique des Transactions
+              </Button>
+              
+              <Button
+                onClick={() => navigate('/agent-settings')}
+                variant="outline"
+                className="w-full h-12 justify-start"
+              >
+                <Settings className="w-5 h-5 mr-3 text-gray-600" />
+                Paramètres
+              </Button>
             </div>
           </CardContent>
         </Card>
-
-        {/* Gestion et Paramètres */}
-        <Card className="shadow-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-3 text-2xl">
-              <Settings className="w-7 h-7 text-gray-600" />
-              Gestion et Paramètres
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {managementActions.map((action, index) => (
-                <Button
-                  key={index}
-                  onClick={action.onClick}
-                  variant="outline"
-                  className={`h-24 flex flex-col items-center justify-center gap-3 hover:shadow-lg transition-all duration-300 border-2 rounded-xl`}
-                >
-                  <action.icon className="w-6 h-6" />
-                  <div className="text-center">
-                    <div className="font-semibold text-sm">{action.title}</div>
-                    <div className="text-xs text-gray-500">{action.description}</div>
-                  </div>
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Statistiques Rapides */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-gradient-to-br from-purple-50 to-pink-100 border-purple-200 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-lg text-purple-600 font-semibold">Aujourd'hui</p>
-                  <p className="text-3xl font-bold text-purple-800">0 XAF</p>
-                  <p className="text-sm text-purple-600 mt-1">Transactions du jour</p>
-                </div>
-                <Calendar className="w-10 h-10 text-purple-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-50 to-yellow-100 border-orange-200 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-lg text-orange-600 font-semibold">Cette semaine</p>
-                  <p className="text-3xl font-bold text-orange-800">0 XAF</p>
-                  <p className="text-sm text-orange-600 mt-1">Volume hebdomadaire</p>
-                </div>
-                <TrendingUp className="w-10 h-10 text-orange-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-cyan-50 to-blue-100 border-cyan-200 shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-lg text-cyan-600 font-semibold">Ce mois</p>
-                  <p className="text-3xl font-bold text-cyan-800">0 XAF</p>
-                  <p className="text-sm text-cyan-600 mt-1">Commissions mensuelles</p>
-                </div>
-                <Award className="w-10 h-10 text-cyan-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );

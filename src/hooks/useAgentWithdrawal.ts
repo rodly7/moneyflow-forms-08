@@ -1,173 +1,127 @@
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { getUserBalance, findUserByPhone, processAgentWithdrawal } from "@/services/withdrawalService";
-import { formatCurrency } from "@/integrations/supabase/client";
-
-interface ClientData {
-  id: string;
-  full_name: string;
-  phone: string;
-  balance: number;
-}
+import { formatCurrency } from "@/lib/utils/currency";
 
 export const useAgentWithdrawal = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const [amount, setAmount] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [clientData, setClientData] = useState<ClientData | null>(null);
-  const [isSearchingClient, setIsSearchingClient] = useState(false);
-  const [agentBalance, setAgentBalance] = useState<number>(0);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [agentBalance, setAgentBalance] = useState(0);
+  const [agentCommissionBalance, setAgentCommissionBalance] = useState(0);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
-  const fetchAgentBalance = async () => {
-    if (user?.id) {
-      setIsLoadingBalance(true);
-      try {
-        console.log("🔍 Récupération du solde agent...");
-        const balanceData = await getUserBalance(user.id);
-        setAgentBalance(balanceData.balance);
-        console.log("✅ Solde agent:", balanceData.balance, "FCFA");
-      } catch (error) {
-        console.error("❌ Erreur lors du chargement du solde:", error);
+  const fetchAgentBalances = async () => {
+    if (!user?.id) return;
+
+    setIsLoadingBalance(true);
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('balance, commission_balance')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error("Erreur lors de la récupération du profil agent:", profileError);
         toast({
           title: "Erreur",
-          description: "Impossible de charger votre solde",
+          description: "Impossible de charger le profil de l'agent",
           variant: "destructive"
         });
+        return;
       }
+
+      setAgentBalance(profileData?.balance || 0);
+      setAgentCommissionBalance(profileData?.commission_balance || 0);
+
+    } catch (error) {
+      console.error("Erreur inattendue:", error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoadingBalance(false);
     }
   };
 
-  const searchClientByPhone = async (phone: string) => {
-    if (!phone || phone.length < 6) {
-      setClientData(null);
-      return;
-    }
+  const { data: transactions, isLoading: isLoadingTransactions } = useQuery(
+    ['agent-transactions', user?.id],
+    async () => {
+      if (!user?.id) return [];
 
-    setIsSearchingClient(true);
-    try {
-      console.log("🔍 Recherche client:", phone);
-      
-      const client = await findUserByPhone(phone);
-      
-      if (client) {
-        setClientData(client);
-        console.log("✅ Client trouvé:", client.full_name);
-        
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    {
+      enabled: !!user?.id,
+    }
+  );
+
+  const withdrawalMutation = useMutation(
+    async ({ amount, description }: { amount: number; description: string }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+
+      // Optimistically update the agent's balance
+      queryClient.setQueryData(['profile'], (old: any) => ({
+        ...old,
+        balance: old.balance - amount,
+      }));
+
+      const { data, error } = await supabase.from('withdrawals').insert([
+        {
+          user_id: user.id,
+          amount: amount,
+          status: 'pending',
+          description: description,
+        },
+      ]);
+
+      if (error) {
+        // If the mutation fails, roll back the optimistic update
+        queryClient.setQueryData(['profile'], (old: any) => old);
+        throw error;
+      }
+
+      return data;
+    },
+    {
+      onSuccess: () => {
         toast({
-          title: "Client trouvé",
-          description: `${client.full_name || 'Utilisateur'} - Solde: ${formatCurrency(client.balance || 0, 'XAF')}`,
+          title: "Demande de retrait soumise",
+          description: "Votre demande de retrait a été soumise avec succès",
         });
-      } else {
-        setClientData(null);
+        queryClient.invalidateQueries(['agent-transactions', user?.id]);
+        queryClient.invalidateQueries(['profile']);
+      },
+      onError: (error: any) => {
         toast({
-          title: "Client non trouvé",
-          description: "Aucun utilisateur trouvé avec ce numéro",
+          title: "Erreur",
+          description: error.message || "Une erreur s'est produite lors de la soumission de la demande de retrait",
           variant: "destructive"
         });
-      }
-    } catch (error) {
-      console.error("❌ Erreur recherche:", error);
-      setClientData(null);
-      toast({
-        title: "Erreur de recherche",
-        description: "Impossible de rechercher le client",
-        variant: "destructive"
-      });
+      },
     }
-    setIsSearchingClient(false);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      toast({
-        title: "Montant invalide",
-        description: "Veuillez entrer un montant valide",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!clientData) {
-      toast({
-        title: "Client requis",
-        description: "Veuillez d'abord rechercher le client",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const operationAmount = Number(amount);
-
-    if (operationAmount > clientData.balance) {
-      toast({
-        title: "Solde insuffisant",
-        description: `Le client n'a que ${formatCurrency(clientData.balance, 'XAF')}`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-
-      const result = await processAgentWithdrawal(
-        user?.id || '',
-        clientData.id,
-        operationAmount,
-        phoneNumber
-      );
-
-      toast({
-        title: "Retrait effectué",
-        description: `Retrait de ${formatCurrency(operationAmount, 'XAF')} effectué`,
-      });
-
-      // Reset form
-      setAmount("");
-      setPhoneNumber("");
-      setClientData(null);
-      
-      // Refresh balance
-      fetchAgentBalance();
-      
-    } catch (error) {
-      console.error("❌ Erreur retrait:", error);
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur lors du retrait",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  useEffect(() => {
-    console.log("useEffect - fetchAgentBalance");
-    fetchAgentBalance();
-  }, [user]);
+  );
 
   return {
-    amount,
-    setAmount,
-    phoneNumber,
-    setPhoneNumber,
-    clientData,
-    isSearchingClient,
     agentBalance,
+    agentCommissionBalance,
     isLoadingBalance,
-    isProcessing,
-    fetchAgentBalance,
-    searchClientByPhone,
-    handleSubmit
+    fetchAgentBalances,
+    transactions,
+    isLoadingTransactions,
+    withdrawalMutation,
   };
 };

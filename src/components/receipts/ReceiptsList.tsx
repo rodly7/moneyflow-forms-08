@@ -1,182 +1,219 @@
-
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Calendar } from "lucide-react";
-import { generateReceipt, downloadReceipt } from "./ReceiptGenerator";
-import { formatCurrency } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { formatCurrency } from "@/lib/utils/currency";
+import { Receipt, Download, Search, Calendar, Filter } from "lucide-react";
 
-interface Receipt {
+interface ReceiptData {
   id: string;
-  transaction_id: string;
-  transaction_type: string;
-  receipt_data: any;
   created_at: string;
+  amount: number;
+  fees: number;
+  sender_id: string;
+  receiver_phone: string;
+  status: string;
 }
 
-const ReceiptsList = () => {
-  const { user, profile } = useAuth();
-  const { toast } = useToast();
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+interface ReceiptsListProps {
+  userId: string | undefined;
+}
 
-  const fetchReceipts = async () => {
-    if (!user?.id) return;
-    
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('transfers')
-        .select('*')
-        .eq('sender_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      const mappedReceipts = (data || []).map((transfer: any) => ({
-        id: transfer.id,
-        transaction_id: transfer.id,
-        transaction_type: 'transfer',
-        receipt_data: {
-          amount: transfer.amount,
-          fees: transfer.fees,
-          recipient: transfer.recipient_full_name,
-          phone: transfer.recipient_phone,
-          country: transfer.recipient_country,
-          status: transfer.status,
-          date: transfer.created_at
-        },
-        created_at: transfer.created_at,
-        user_id: transfer.sender_id
-      }));
-      
-      setReceipts(mappedReceipts);
-    } catch (error) {
-      console.error("Erreur lors du chargement des reçus:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les reçus",
-        variant: "destructive"
-      });
+const ReceiptsList = ({ userId }: ReceiptsListProps) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  const { data: receipts, isLoading, error } = useQuery(
+    ["receipts", userId, searchTerm, startDate, endDate, filterStatus],
+    async () => {
+      if (!userId) return [];
+
+      let query = supabase
+        .from("transfers")
+        .select("*")
+        .eq("sender_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (searchTerm) {
+        query = query.ilike("receiver_phone", `%${searchTerm}%`);
+      }
+
+      if (startDate) {
+        query = query.gte("created_at", startDate.toISOString());
+      }
+
+      if (endDate) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte("created_at", endOfDay.toISOString());
+      }
+
+      if (filterStatus !== "all") {
+        query = query.eq("status", filterStatus);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error fetching receipts:", error);
+        throw error;
+      }
+
+      return data as ReceiptData[];
     }
-    setIsLoading(false);
+  );
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  const handleDownloadReceipt = (receipt: Receipt) => {
-    if (!profile) return;
-
-    const transactionData = {
-      id: receipt.transaction_id,
-      type: receipt.transaction_type as any,
-      amount: receipt.receipt_data.amount,
-      recipient_name: receipt.receipt_data.recipient_name,
-      recipient_phone: receipt.receipt_data.recipient_phone,
-      created_at: receipt.created_at,
-      status: receipt.receipt_data.status || 'completed',
-      fees: receipt.receipt_data.fees
-    };
-
-    const userData = {
-      full_name: profile.full_name || 'Utilisateur',
-      phone: profile.phone,
-      country: profile.country || 'Non défini'
-    };
-
-    const doc = generateReceipt(transactionData, userData);
-    downloadReceipt(doc, receipt.transaction_id);
+  const downloadReceipt = (receipt: ReceiptData) => {
+    // Implement your receipt download logic here
+    console.log("Downloading receipt:", receipt.id);
   };
 
-  const getTransactionTypeLabel = (type: string) => {
-    const types = {
-      transfer: 'Transfert',
-      withdrawal: 'Retrait',
-      deposit: 'Dépôt',
-      savings: 'Épargne'
-    };
-    return types[type as keyof typeof types] || type;
-  };
-
-  useEffect(() => {
-    fetchReceipts();
-  }, [user]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const filteredReceipts = receipts || [];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 mb-6">
-        <FileText className="w-5 h-5 text-blue-600" />
-        <h2 className="text-xl font-semibold">Mes Reçus</h2>
-      </div>
+    <Card className="bg-white shadow-md rounded-lg">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+        <CardTitle className="text-lg font-semibold flex items-center">
+          <Receipt className="mr-2 h-5 w-5 text-gray-500" />
+          Historique des Reçus
+        </CardTitle>
+        <Badge variant="secondary">{filteredReceipts.length} Reçus</Badge>
+      </CardHeader>
 
-      {receipts.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">Aucun reçu disponible</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Les reçus seront générés automatiquement après vos transactions
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {receipts.map((receipt) => (
-            <Card key={receipt.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
-                        {getTransactionTypeLabel(receipt.transaction_type)}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        #{receipt.transaction_id.substring(0, 8).toUpperCase()}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {new Date(receipt.created_at).toLocaleDateString('fr-FR')}
-                      </div>
-                      <div className="font-medium">
-                        {formatCurrency(receipt.receipt_data.amount, "XAF")}
-                      </div>
-                    </div>
+      <CardContent className="p-4">
+        {/* Search and Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <Input
+            type="search"
+            placeholder="Rechercher par numéro"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="col-span-1 md:col-span-1"
+          />
 
-                    {receipt.receipt_data.recipient_name && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        Vers: {receipt.receipt_data.recipient_name}
-                      </p>
-                    )}
-                  </div>
+          <div className="col-span-1 md:col-span-1 flex items-center space-x-2">
+            <Calendar className="w-4 h-4 text-gray-500" />
+            <input
+              type="date"
+              onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : null)}
+              className="border rounded px-2 py-1 w-full text-sm"
+            />
+            <span className="mx-1">à</span>
+            <input
+              type="date"
+              onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : null)}
+              className="border rounded px-2 py-1 w-full text-sm"
+            />
+          </div>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDownloadReceipt(receipt)}
-                    className="flex items-center gap-1"
-                  >
-                    <Download className="w-4 h-4" />
-                    Télécharger
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="col-span-1 md:col-span-1 border rounded px-2 py-1 text-sm"
+          >
+            <option value="all">Tous les Status</option>
+            <option value="pending">En attente</option>
+            <option value="completed">Complété</option>
+            <option value="failed">Échoué</option>
+          </select>
         </div>
-      )}
-    </div>
+
+        {/* Receipts List */}
+        {isLoading ? (
+          <div className="text-center py-4">Chargement des reçus...</div>
+        ) : error ? (
+          <div className="text-center py-4 text-red-500">
+            Erreur lors du chargement des reçus.
+          </div>
+        ) : filteredReceipts.length === 0 ? (
+          <div className="text-center py-4">Aucun reçu trouvé.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Numéro
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Montant
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Frais
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredReceipts.map((receipt) => (
+                  <tr key={receipt.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(receipt.created_at)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {receipt.receiver_phone}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatCurrency(receipt.amount, "XAF")}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatCurrency(receipt.fees, "XAF")}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <Badge
+                        variant={
+                          receipt.status === "completed"
+                            ? "success"
+                            : receipt.status === "pending"
+                            ? "secondary"
+                            : "destructive"
+                        }
+                      >
+                        {receipt.status}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => downloadReceipt(receipt)}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Télécharger
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
