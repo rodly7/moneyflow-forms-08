@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +29,6 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/currency";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface UserRequest {
   id: string;
@@ -37,16 +37,12 @@ interface UserRequest {
   phone: string;
   country: string;
   address: string;
-  city: string;
-  id_type: string;
-  id_number: string;
-  id_recto_url: string;
-  id_verso_url: string;
-  proof_of_address_url: string;
-  status: 'pending' | 'approved' | 'rejected';
-  rejection_reason: string | null;
   role: 'user' | 'agent';
   balance: number;
+  is_verified?: boolean;
+  avatar_url?: string;
+  id_card_url?: string;
+  id_card_number?: string;
 }
 
 const AdminUserRequestsOverview = () => {
@@ -54,7 +50,6 @@ const AdminUserRequestsOverview = () => {
   const [requests, setRequests] = useState<UserRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("pending");
   const [selectedRole, setSelectedRole] = useState("user");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -66,18 +61,13 @@ const AdminUserRequestsOverview = () => {
     setIsLoading(true);
     setIsRefreshing(true);
     try {
+      console.log('🔄 Chargement des demandes utilisateurs...');
+
       let query = supabase
         .from('profiles')
-        .select('*')
-        .not('id_recto_url', 'is', null)
-        .not('id_verso_url', 'is', null)
-        .not('proof_of_address_url', 'is', null);
+        .select('*');
 
-      if (selectedStatus !== "all") {
-        query = query.eq('status', selectedStatus);
-      }
-
-      if (selectedRole !== "all") {
+      if (selectedRole && selectedRole !== "all") {
         query = query.eq('role', selectedRole);
       }
 
@@ -97,7 +87,23 @@ const AdminUserRequestsOverview = () => {
         return;
       }
 
-      setRequests(data || []);
+      // Transform profiles data to match UserRequest interface
+      const transformedData: UserRequest[] = data?.map(profile => ({
+        id: profile.id,
+        created_at: profile.created_at,
+        full_name: profile.full_name || 'Non spécifié',
+        phone: profile.phone,
+        country: profile.country || 'Non spécifié',
+        address: profile.address || 'Non spécifié',
+        role: profile.role,
+        balance: profile.balance || 0,
+        is_verified: profile.is_verified,
+        avatar_url: profile.avatar_url,
+        id_card_url: profile.id_card_url,
+        id_card_number: profile.id_card_number
+      })) || [];
+
+      setRequests(transformedData);
     } catch (error) {
       console.error("Erreur inattendue:", error);
       toast({
@@ -113,14 +119,14 @@ const AdminUserRequestsOverview = () => {
 
   useEffect(() => {
     fetchUserRequests();
-  }, [selectedStatus, selectedRole, searchQuery]);
+  }, [selectedRole, searchQuery]);
 
   const handleApprove = async (requestId: string) => {
     setIsLoading(true);
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ status: 'approved' })
+        .update({ is_verified: true })
         .eq('id', requestId);
 
       if (error) {
@@ -160,7 +166,7 @@ const AdminUserRequestsOverview = () => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ status: 'rejected', rejection_reason: rejectionReason })
+        .update({ is_banned: true, banned_reason: rejectionReason })
         .eq('id', selectedRequest.id);
 
       if (error) {
@@ -238,20 +244,6 @@ const AdminUserRequestsOverview = () => {
         {isFilterOpen && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <Label htmlFor="status">Statut</Label>
-              <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Tous les statuts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">En attente</SelectItem>
-                  <SelectItem value="approved">Approuvé</SelectItem>
-                  <SelectItem value="rejected">Rejeté</SelectItem>
-                  <SelectItem value="all">Tous</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
               <Label htmlFor="role">Rôle</Label>
               <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value)}>
                 <SelectTrigger className="w-full">
@@ -306,7 +298,7 @@ const AdminUserRequestsOverview = () => {
                     Rôle
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date de la demande
+                    Date de création
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Statut
@@ -321,7 +313,7 @@ const AdminUserRequestsOverview = () => {
                   <tr key={request.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{request.full_name}</div>
-                      <div className="text-sm text-gray-500">{request.email}</div>
+                      <div className="text-sm text-gray-500">{request.phone}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{request.phone}</div>
@@ -333,18 +325,14 @@ const AdminUserRequestsOverview = () => {
                       <div className="text-sm text-gray-500">{formatDate(request.created_at)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {request.status === 'pending' && (
+                      {request.is_verified ? (
+                        <Badge className="bg-green-100 text-green-800">Vérifié</Badge>
+                      ) : (
                         <Badge variant="outline">En attente</Badge>
-                      )}
-                      {request.status === 'approved' && (
-                        <Badge className="bg-green-100 text-green-800">Approuvé</Badge>
-                      )}
-                      {request.status === 'rejected' && (
-                        <Badge className="bg-red-100 text-red-800">Rejeté</Badge>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      {request.status === 'pending' && (
+                      {!request.is_verified && (
                         <div className="flex items-center justify-end gap-2">
                           <Button
                             variant="ghost"
@@ -367,11 +355,6 @@ const AdminUserRequestsOverview = () => {
                             <CheckCircle className="w-4 h-4 mr-2" />
                             Approuver
                           </Button>
-                        </div>
-                      )}
-                      {request.status === 'rejected' && (
-                        <div className="text-sm text-red-500">
-                          Motif: {request.rejection_reason || 'Non spécifié'}
                         </div>
                       )}
                     </td>

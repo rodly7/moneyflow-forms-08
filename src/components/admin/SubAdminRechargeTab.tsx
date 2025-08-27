@@ -1,53 +1,50 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils/currency";
-import { Wallet, TrendingUp, Users } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { CreditCard } from "lucide-react";
 
 interface SubAdminRechargeTabProps {
-  userId: string | undefined;
+  userId: string;
 }
 
-const SubAdminRechargeTab: React.FC<SubAdminRechargeTabProps> = ({ userId }) => {
+const SubAdminRechargeTab = ({ userId }: SubAdminRechargeTabProps) => {
+  const [amount, setAmount] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const [totalRecharges, setTotalRecharges] = useState(0);
-  const [totalRechargeVolume, setTotalRechargeVolume] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
 
-  const fetchRechargeData = async () => {
-    if (!userId) return;
+  useEffect(() => {
+    console.log("SubAdminRechargeTab loaded for user:", userId);
+  }, [userId]);
+
+  const handleRecharge = async () => {
+    if (!amount || parseFloat(amount) <= 0) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez entrer un montant valide",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setIsLoading(true);
     try {
-      const { data: recharges, error: rechargesError } = await supabase
-        .from('recharges')
-        .select('amount')
-        .eq('user_id', userId);
-
-      if (rechargesError) {
-        console.error("Erreur lors de la récupération des recharges:", rechargesError);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les données de recharge",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const totalRechargesCount = recharges?.length || 0;
-      const totalRechargeVolumeSum = recharges?.reduce((sum, recharge) => sum + recharge.amount, 0) || 0;
-
-      setTotalRecharges(totalRechargesCount);
-      setTotalRechargeVolume(totalRechargeVolumeSum);
-
+      // Mock recharge logic - replace with actual implementation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      toast({
+        title: "Succès",
+        description: `Recharge de ${amount} XAF effectuée`,
+      });
+      
+      setAmount("");
     } catch (error) {
-      console.error("Erreur inattendue:", error);
       toast({
         title: "Erreur",
-        description: "Une erreur inattendue s'est produite",
+        description: "Erreur lors de la recharge",
         variant: "destructive"
       });
     } finally {
@@ -55,39 +52,32 @@ const SubAdminRechargeTab: React.FC<SubAdminRechargeTabProps> = ({ userId }) => 
     }
   };
 
-  useEffect(() => {
-    fetchRechargeData();
-  }, [userId, toast]);
-
   return (
-    <Card className="bg-white shadow-md rounded-lg">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-        <CardTitle className="text-lg font-semibold">Recharges</CardTitle>
-        <Wallet className="h-6 w-6 text-gray-500" />
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CreditCard className="w-5 h-5" />
+          Recharge de Compte
+        </CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
-        {isLoading ? (
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-medium text-gray-600">Volume Total</span>
-              </div>
-              <span className="text-lg font-bold text-gray-800">{formatCurrency(totalRechargeVolume, 'XAF')}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Users className="h-4 w-4 text-blue-500" />
-                <span className="text-sm font-medium text-gray-600">Nombre de Recharges</span>
-              </div>
-              <span className="text-lg font-bold text-gray-800">{totalRecharges}</span>
-            </div>
-          </div>
-        )}
+      <CardContent className="space-y-4">
+        <div>
+          <Label htmlFor="amount">Montant (XAF)</Label>
+          <Input
+            id="amount"
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Entrez le montant"
+          />
+        </div>
+        <Button 
+          onClick={handleRecharge} 
+          disabled={isLoading}
+          className="w-full"
+        >
+          {isLoading ? "Traitement..." : "Effectuer la recharge"}
+        </Button>
       </CardContent>
     </Card>
   );
