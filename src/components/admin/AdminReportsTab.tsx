@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarDateRangePicker } from "@/components/ui/date-range-picker";
 import { Download, TrendingUp, Users, DollarSign, FileText } from "lucide-react";
@@ -24,6 +23,12 @@ const AdminReportsTab = () => {
     to: new Date()
   });
   const [reportType, setReportType] = useState("daily");
+
+  const handleDateChange = (dates: Date[] | undefined) => {
+    if (dates && dates.length === 2) {
+      setDateRange({ from: dates[0], to: dates[1] });
+    }
+  };
 
   const { data: reports, isLoading, error } = useQuery({
     queryKey: ["admin-reports", dateRange, reportType],
@@ -118,7 +123,7 @@ const AdminReportsTab = () => {
             </div>
             <div>
               <h4 className="text-sm font-medium mb-2">Période</h4>
-              <CalendarDateRangePicker onDateChange={setDateRange} />
+              <CalendarDateRangePicker onDateChange={handleDateChange} />
             </div>
           </div>
         </CardContent>

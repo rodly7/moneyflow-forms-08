@@ -1,261 +1,152 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Search, RefreshCw, Eye } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/currency";
-import { useToast } from "@/hooks/use-toast";
-import { 
-  Search, 
-  RefreshCw, 
-  Eye, 
-  Calendar,
-  Filter,
-  Download
-} from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 
 interface Transaction {
   id: string;
-  created_at: string;
   type: string;
   amount: number;
-  fees: number;
-  currency: string;
   status: string;
-  sender_id: string;
-  recipient_identifier: string;
-  description: string;
-  reference_id: string;
-  verification_code: string;
-  sender_name: string;
-  recipient_full_name: string;
-  withdrawal_phone: string;
-  impact: string;
+  created_at: string;
+  user_id?: string;
 }
 
 const ExactTransactionMonitor = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('fr-FR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+  const { data: transactions, isLoading } = useQuery({
+    queryKey: ["exact-transactions", refreshKey, searchTerm],
+    queryFn: async () => {
+      // Get data from pending_transfers table as our main transaction source
+      const { data: pendingTransfers, error } = await supabase
+        .from('pending_transfers')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        console.error("Erreur lors de la récupération des transactions:", error);
+        return [];
+      }
+
+      // Transform to match Transaction interface
+      const transformedTransactions: Transaction[] = pendingTransfers?.map(transfer => ({
+        id: transfer.id,
+        type: 'transfer',
+        amount: transfer.amount,
+        status: transfer.status,
+        created_at: transfer.created_at,
+        user_id: transfer.sender_id
+      })) || [];
+
+      // Filter by search term if provided
+      if (searchTerm) {
+        return transformedTransactions.filter(transaction =>
+          transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          transaction.user_id?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+
+      return transformedTransactions;
+    },
+  });
+
+  const refreshTransactions = () => {
+    setRefreshKey(prev => prev + 1);
   };
 
-  const fetchTransactions = async () => {
-    setLoading(true);
-    try {
-      let query = supabase
-        .from('transactions')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range((page - 1) * pageSize, page * pageSize - 1);
-
-      if (searchQuery) {
-        query = query.ilike('description', `%${searchQuery}%`);
-      }
-
-      if (selectedDate) {
-        const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-        query = query.gte('created_at', `${formattedDate} 00:00:00`)
-                     .lte('created_at', `${formattedDate} 23:59:59`);
-      }
-
-      const { data, error, count } = await query;
-
-      if (error) throw error;
-
-      setTransactions(data || []);
-      setTotalCount(count || 0);
-    } catch (error: any) {
-      console.error("Error fetching transactions:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to fetch transactions",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-500';
+      case 'pending':
+        return 'bg-yellow-500';
+      case 'failed':
+        return 'bg-red-500';
+      default:
+        return 'bg-gray-500';
     }
   };
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [page, pageSize, searchQuery, selectedDate]);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    setPage(1); // Reset page when searching
-  };
-
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setPageSize(Number(e.target.value));
-    setPage(1); // Reset page when page size changes
-  };
-
-  const clearFilters = () => {
-    setSearchQuery("");
-    setSelectedDate(undefined);
-    setPage(1);
-  };
-
   return (
-    <Card className="min-h-screen">
-      <CardHeader className="flex flex-col md:flex-row items-center justify-between space-y-2 md:space-y-0 pb-2 pt-4 px-4">
-        <CardTitle className="text-lg font-semibold">
-          Surveillance des Transactions
-        </CardTitle>
-        <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-3">
-          <div className="relative">
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Moniteur de Transactions Exactes
+            <Button variant="outline" size="sm" onClick={refreshTransactions}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Actualiser
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-2 mb-4">
+            <Search className="w-4 h-4 text-muted-foreground" />
             <Input
-              type="search"
-              placeholder="Rechercher une transaction..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="pr-10"
+              placeholder="Rechercher par ID transaction ou utilisateur..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
             />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearchQuery("");
-                  fetchTransactions();
-                }}
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            )}
           </div>
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Calendar className="mr-2 h-4 w-4" />
-                <span>{selectedDate ? format(selectedDate, "PPP", { locale: fr }) : "Filtrer par date"}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                locale={fr}
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="rounded-md border"
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <Filter className="mr-2 h-4 w-4" />
-            Réinitialiser
-          </Button>
-        </div>
-      </CardHeader>
-
-      <CardContent className="overflow-x-auto">
-        {loading ? (
-          <div className="flex justify-center p-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
-          </div>
-        ) : transactions.length === 0 ? (
-          <div className="text-center p-4">Aucune transaction trouvée.</div>
-        ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">ID</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Frais</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead>Description</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell className="font-medium">{transaction.id.substring(0, 8)}</TableCell>
-                    <TableCell>{formatDate(new Date(transaction.created_at))}</TableCell>
-                    <TableCell>{transaction.type}</TableCell>
-                    <TableCell>{formatCurrency(transaction.amount, transaction.currency)}</TableCell>
-                    <TableCell>{formatCurrency(transaction.fees, transaction.currency)}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{transaction.status}</Badge>
-                    </TableCell>
-                    <TableCell>{transaction.description}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center space-x-2">
-          <span>Taille de la page:</span>
-          <select
-            value={pageSize}
-            onChange={handlePageSizeChange}
-            className="border rounded px-2 py-1"
-          >
-            <option value="5">5</option>
-            <option value="10">10</option>
-            <option value="20">20</option>
-            <option value="50">50</option>
-          </select>
-        </div>
-        <div className="space-x-2">
-          <Button
-            onClick={() => handlePageChange(page - 1)}
-            disabled={page === 1}
-            variant="outline"
-            size="sm"
-          >
-            Précédent
-          </Button>
-          <Button
-            onClick={() => handlePageChange(page + 1)}
-            disabled={page * pageSize >= totalCount}
-            variant="outline"
-            size="sm"
-          >
-            Suivant
-          </Button>
-        </div>
-      </div>
-    </Card>
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-16 bg-gray-200 rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          ) : transactions && transactions.length > 0 ? (
+            <div className="space-y-3">
+              {transactions.map((transaction) => (
+                <div key={transaction.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3">
+                        <Badge className={getStatusColor(transaction.status)}>
+                          {transaction.status}
+                        </Badge>
+                        <span className="font-mono text-sm">{transaction.id}</span>
+                        <span className="text-sm text-muted-foreground">
+                          Type: {transaction.type}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        Utilisateur: {transaction.user_id || 'N/A'} • 
+                        Date: {new Date(transaction.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">
+                        {formatCurrency(transaction.amount)}
+                      </div>
+                      <Button variant="ghost" size="sm">
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              {searchTerm ? 'Aucune transaction trouvée pour cette recherche' : 'Aucune transaction disponible'}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
