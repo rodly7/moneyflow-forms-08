@@ -1,170 +1,118 @@
-import React from "react";
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency, calculateFee } from "@/lib/utils/currency";
+import { User, MapPin, CreditCard, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface SimpleHtmlTransferConfirmationProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void>;
   amount: number;
-  recipientFullName: string;
+  recipientName: string;
   recipientPhone: string;
-  isLoading: boolean;
+  recipientCountry: string;
+  senderCountry: string;
+  isProcessing: boolean;
 }
 
-const SimpleHtmlTransferConfirmation: React.FC<SimpleHtmlTransferConfirmationProps> = ({
+export const SimpleHtmlTransferConfirmation = ({
   isOpen,
   onClose,
   onConfirm,
   amount,
-  recipientFullName,
+  recipientName,
   recipientPhone,
-  isLoading
-}) => {
-  const { profile } = useAuth();
+  recipientCountry,
+  senderCountry,
+  isProcessing
+}: SimpleHtmlTransferConfirmationProps) => {
+  const { userRole } = useAuth();
 
-  if (!isOpen) {
-    return null;
-  }
+  const { fee, rate } = calculateFee(
+    amount,
+    senderCountry,
+    recipientCountry,
+    userRole || 'user'
+  );
+
+  const totalAmount = amount + fee;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      zIndex: 9999,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '16px'
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        padding: '24px',
-        maxWidth: '400px',
-        width: '100%',
-        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
-      }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '24px'
-        }}>
-          <span style={{ fontSize: '20px' }}>❓</span>
-          <h2 style={{
-            fontSize: '18px',
-            fontWeight: 'bold',
-            margin: 0,
-            color: '#374151'
-          }}>
-            Confirmer le transfert
-          </h2>
-        </div>
-
-        <p style={{
-          fontSize: '14px',
-          color: '#6b7280',
-          marginBottom: '24px',
-          margin: 0
-        }}>
-          Voulez-vous vraiment transférer {formatCurrency(amount, 'XAF')} à {recipientFullName} ({recipientPhone}) ?
-        </p>
-
-        <div style={{
-          backgroundColor: '#f9fafb',
-          border: '1px solid #e5e7eb',
-          borderRadius: '6px',
-          padding: '16px',
-          marginBottom: '24px'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '8px'
-          }}>
-            <span style={{ fontSize: '14px', color: '#6b7280' }}>Votre solde:</span>
-            <span style={{ fontWeight: 'bold' }}>{formatCurrency(profile?.balance || 0, 'XAF')}</span>
-          </div>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '8px'
-          }}>
-            <span style={{ fontSize: '14px', color: '#6b7280' }}>Frais de transfert:</span>
-            <span style={{ fontWeight: 'bold' }}>{formatCurrency(calculateFee(amount, profile?.country || 'Cameroun', 'Cameroun').fee, 'XAF')}</span>
-          </div>
-          <div style={{
-            borderTop: '1px solid #e5e7eb',
-            paddingTop: '8px',
-            marginTop: '8px'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>Montant total:</span>
-              <span style={{ fontWeight: 'bold' }}>{formatCurrency(amount + calculateFee(amount, profile?.country || 'Cameroun', 'Cameroun').fee, 'XAF')}</span>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Confirmer le Transfert
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {/* Recipient Info */}
+          <div className="bg-blue-50 p-4 rounded-lg space-y-2">
+            <div className="flex items-center gap-2 mb-2">
+              <User className="h-4 w-4 text-blue-600" />
+              <span className="font-medium text-blue-800">Destinataire</span>
+            </div>
+            <p className="text-sm"><strong>Nom:</strong> {recipientName}</p>
+            <p className="text-sm"><strong>Téléphone:</strong> {recipientPhone}</p>
+            <div className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              <span className="text-sm">{recipientCountry}</span>
             </div>
           </div>
-        </div>
 
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={onClose}
-            style={{
-              width: '100%',
-              height: '48px',
-              backgroundColor: '#f3f4f6',
-              color: '#6b7280',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            Annuler
-          </button>
-          <Button
-            onClick={onConfirm}
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              height: '48px',
-              backgroundColor: '#4f46e5',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="animate-spin" style={{ width: '16px', height: '16px' }} />
-                <span>Confirmation...</span>
-              </>
-            ) : 'Confirmer'}
-          </Button>
+          {/* Transfer Details */}
+          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div className="flex justify-between">
+              <span>Montant:</span>
+              <span className="font-medium">{formatCurrency(amount, 'XAF')}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Frais ({rate}%):</span>
+              <span className="font-medium">{formatCurrency(fee, 'XAF')}</span>
+            </div>
+            <hr className="my-2" />
+            <div className="flex justify-between font-bold">
+              <span>Total:</span>
+              <span>{formatCurrency(totalAmount, 'XAF')}</span>
+            </div>
+          </div>
+
+          {/* Warning */}
+          <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
+              <div className="text-sm text-amber-800">
+                <p className="font-medium mb-1">Attention</p>
+                <p>Vérifiez attentivement les informations avant de confirmer. Cette opération ne pourra pas être annulée.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              disabled={isProcessing}
+              className="flex-1"
+            >
+              Annuler
+            </Button>
+            <Button 
+              onClick={onConfirm}
+              disabled={isProcessing}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+            >
+              {isProcessing ? "Traitement..." : "Confirmer"}
+            </Button>
+          </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
-
-export default SimpleHtmlTransferConfirmation;

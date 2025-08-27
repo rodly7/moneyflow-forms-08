@@ -1,530 +1,261 @@
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Wallet, Users, AlertCircle, CheckCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { formatCurrency } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
-import { Users, Plus, ArrowLeft, AlertCircle } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-
-interface Agent {
+interface AgentProfile {
   id: string;
   full_name: string;
   phone: string;
-  balance: number;
   country: string;
+  balance: number;
 }
 
-interface BatchDepositData {
-  agentId: string;
-  amount: number;
-}
-
-interface BatchAgentDepositProps {
-  onBack: () => void;
-}
-
-const BatchAgentDeposit = ({ onBack }: BatchAgentDepositProps) => {
-  const { user, profile } = useAuth();
+const BatchAgentDeposit = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set());
-  const [depositMode, setDepositMode] = useState<'uniform' | 'individual'>('uniform');
-  const [uniformAmount, setUniformAmount] = useState('');
-  const [individualAmounts, setIndividualAmounts] = useState<Record<string, string>>({});
+
+  const [agentPhone, setAgentPhone] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositNote, setDepositNote] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null);
 
-  // Fetch all agents with better error handling
-  const { data: agents, isLoading, error } = useQuery({
-    queryKey: ['agents-for-batch-deposit'],
-    queryFn: async () => {
-      console.log('Fetching agents for batch deposit...');
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, balance, country')
-        .eq('role', 'agent')
-        .order('full_name');
-      
-      if (error) {
-        console.error('Error fetching agents:', error);
-        throw error;
-      }
-      
-      console.log('Agents fetched:', data);
-      return data as Agent[];
-    },
-  });
-
-  const handleAgentToggle = (agentId: string) => {
-    const newSelected = new Set(selectedAgents);
-    if (newSelected.has(agentId)) {
-      newSelected.delete(agentId);
-      // Remove individual amount if deselected
-      const newAmounts = { ...individualAmounts };
-      delete newAmounts[agentId];
-      setIndividualAmounts(newAmounts);
-    } else {
-      newSelected.add(agentId);
-    }
-    setSelectedAgents(newSelected);
-  };
-
-  const handleSelectAll = () => {
-    if (!agents) return;
-    
-    if (selectedAgents.size === agents.length) {
-      setSelectedAgents(new Set());
-      setIndividualAmounts({});
-    } else {
-      setSelectedAgents(new Set(agents.map(agent => agent.id)));
-    }
-  };
-
-  const handleIndividualAmountChange = (agentId: string, amount: string) => {
-    setIndividualAmounts(prev => ({
-      ...prev,
-      [agentId]: amount
-    }));
-  };
-
-  const validateAmounts = (): BatchDepositData[] => {
-    const deposits: BatchDepositData[] = [];
-    
-    for (const agentId of selectedAgents) {
-      let amount: number;
-      
-      if (depositMode === 'uniform') {
-        amount = Number(uniformAmount);
-      } else {
-        amount = Number(individualAmounts[agentId] || 0);
-      }
-      
-      if (!amount || amount <= 0) {
-        throw new Error(`Montant invalide pour l'agent`);
-      }
-      
-      deposits.push({ agentId, amount });
-    }
-    
-    return deposits;
-  };
-
-  const handleBatchDeposit = async () => {
-    if (selectedAgents.size === 0) {
+  const handleSearchAgent = async () => {
+    if (!agentPhone) {
       toast({
-        title: "Aucun agent sélectionné",
-        description: "Veuillez sélectionner au moins un agent",
-        variant: "destructive"
+        title: "Téléphone requis",
+        description: "Veuillez entrer le numéro de téléphone de l'agent",
+        variant: "destructive",
       });
       return;
     }
 
+    setIsProcessing(true);
+
     try {
-      const deposits = validateAmounts();
-      const totalAmount = deposits.reduce((sum, deposit) => sum + deposit.amount, 0);
-      
-      // Verify admin/sub-admin has enough balance
-      if (profile && profile.balance < totalAmount) {
-        throw new Error(`Solde insuffisant. Total requis: ${formatCurrency(totalAmount, 'XAF')}`);
-      }
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, country, balance')
+        .eq('phone', agentPhone)
+        .single();
 
-      setIsProcessing(true);
-
-      // Process deposits in sequence to maintain transaction integrity
-      const results = [];
-      let processedAmount = 0;
-      const successfulAgents: string[] = [];
-
-      for (const deposit of deposits) {
-        try {
-          // Debit admin/sub-admin with secure function
-          const { error: debitError } = await supabase.rpc('secure_increment_balance', {
-            target_user_id: user?.id,
-            amount: -deposit.amount,
-            operation_type: 'batch_agent_deposit_debit',
-            performed_by: user?.id
-          });
-
-          if (debitError) {
-            throw new Error(`Erreur lors du débit: ${debitError.message}`);
-          }
-
-          // Credit agent with secure function
-          const { error: creditError } = await supabase.rpc('secure_increment_balance', {
-            target_user_id: deposit.agentId,
-            amount: deposit.amount,
-            operation_type: 'batch_agent_deposit_credit',
-            performed_by: user?.id
-          });
-
-          if (creditError) {
-            // Rollback debit if credit fails
-            await supabase.rpc('secure_increment_balance', {
-              target_user_id: user?.id,
-              amount: deposit.amount,
-              operation_type: 'batch_agent_deposit_rollback',
-              performed_by: user?.id
-            });
-            throw new Error(`Erreur lors du crédit: ${creditError.message}`);
-          }
-
-          // Create transaction record
-          const agent = agents?.find(a => a.id === deposit.agentId);
-          const transactionReference = `BATCH-${profile?.role?.toUpperCase()}-AGENT-DEP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-          
-          const { error: transactionError } = await supabase
-            .from('recharges')
-            .insert({
-              user_id: deposit.agentId,
-              amount: deposit.amount,
-              country: profile?.country || "Congo Brazzaville",
-              payment_method: `${profile?.role}_batch_agent_deposit`,
-              payment_phone: agent?.phone || '',
-              payment_provider: profile?.role || 'admin',
-              transaction_reference: transactionReference,
-              status: 'completed',
-              provider_transaction_id: user?.id
-            });
-
-          if (transactionError) {
-            console.error('Erreur transaction:', transactionError);
-          }
-
-          results.push({
-            agentId: deposit.agentId,
-            agentName: agent?.full_name,
-            amount: deposit.amount,
-            success: true
-          });
-
-          successfulAgents.push(deposit.agentId);
-          processedAmount += deposit.amount;
-
-        } catch (error) {
-          results.push({
-            agentId: deposit.agentId,
-            agentName: agents?.find(a => a.id === deposit.agentId)?.full_name,
-            amount: deposit.amount,
-            success: false,
-            error: error instanceof Error ? error.message : 'Erreur inconnue'
-          });
-        }
-      }
-
-      // Génération automatique de notifications si des dépôts ont réussi
-      if (successfulAgents.length > 0) {
-        try {
-          // Créer la notification principale pour les agents avec dépôts individuels
-          if (depositMode === 'individual') {
-            // Pour les montants individuels, créer une notification par agent
-            for (const agentId of successfulAgents) {
-              const depositAmount = deposits.find(d => d.agentId === agentId)?.amount || 0;
-              const agent = agents?.find(a => a.id === agentId);
-              
-              const { data: notification, error: notificationError } = await supabase
-                .from('notifications')
-                .insert({
-                  title: 'Dépôt effectué sur votre compte',
-                  message: `Votre compte a été crédité de ${formatCurrency(depositAmount, 'XAF')} par ${profile?.role === 'admin' ? 'l\'administrateur' : 'le sous-administrateur'}.`,
-                  priority: 'normal',
-                  notification_type: 'individual',
-                  target_users: [agentId],
-                  sent_by: user?.id,
-                  total_recipients: 1
-                })
-                .select()
-                .single();
-
-              if (notificationError) {
-                console.error('Erreur lors de la création de la notification:', notificationError);
-              } else {
-                // Créer l'enregistrement pour le destinataire
-                await supabase
-                  .from('notification_recipients')
-                  .insert({
-                    notification_id: notification.id,
-                    user_id: agentId,
-                    status: 'sent'
-                  });
-              }
-            }
-          } else {
-            // Pour les montants uniformes, créer une notification groupée
-            const { data: notification, error: notificationError } = await supabase
-              .from('notifications')
-              .insert({
-                title: 'Dépôt effectué sur votre compte',
-                message: `Votre compte a été crédité de ${formatCurrency(Number(uniformAmount), 'XAF')} par ${profile?.role === 'admin' ? 'l\'administrateur' : 'le sous-administrateur'}.`,
-                priority: 'normal',
-                notification_type: 'individual',
-                target_users: successfulAgents,
-                sent_by: user?.id,
-                total_recipients: successfulAgents.length
-              })
-              .select()
-              .single();
-
-            if (notificationError) {
-              console.error('Erreur lors de la création de la notification:', notificationError);
-            } else {
-              // Créer les enregistrements pour les destinataires
-              const individualNotifications = successfulAgents.map(agentId => ({
-                notification_id: notification.id,
-                user_id: agentId,
-                status: 'sent'
-              }));
-
-              await supabase
-                .from('notification_recipients')
-                .insert(individualNotifications);
-            }
-          }
-        } catch (notificationError) {
-          console.error('Erreur lors du processus de notification:', notificationError);
-        }
-      }
-
-      // Show results
-      const successful = results.filter(r => r.success).length;
-      const failed = results.filter(r => !r.success).length;
-
-      if (successful > 0) {
+      if (error) {
+        console.error("Erreur lors de la recherche de l'agent:", error);
         toast({
-          title: "Dépôts en lot effectués",
-          description: `${successful} agent(s) crédité(s) avec succès et notifié(s). Total: ${formatCurrency(processedAmount, 'XAF')}${failed > 0 ? `. ${failed} échec(s).` : ''}`,
+          title: "Erreur",
+          description: "Impossible de trouver l'agent avec ce numéro",
+          variant: "destructive",
         });
+        setAgentProfile(null);
+        return;
       }
 
-      if (failed > 0) {
-        const failedAgents = results.filter(r => !r.success).map(r => r.agentName).join(', ');
-        toast({
-          title: "Certains dépôts ont échoué",
-          description: `Agents concernés: ${failedAgents}`,
-          variant: "destructive"
-        });
-      }
-
-      // Reset form
-      setSelectedAgents(new Set());
-      setUniformAmount('');
-      setIndividualAmounts({});
+      setAgentProfile(data);
+      toast({
+        title: "Agent trouvé",
+        description: `Agent ${data.full_name} trouvé`,
+      });
 
     } catch (error) {
-      console.error('Erreur lors du dépôt en lot:', error);
+      console.error("Erreur lors de la recherche de l'agent:", error);
       toast({
         title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur lors du dépôt en lot",
-        variant: "destructive"
+        description: "Une erreur s'est produite lors de la recherche de l'agent",
+        variant: "destructive",
+      });
+      setAgentProfile(null);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeposit = async () => {
+    if (!agentProfile) {
+      toast({
+        title: "Agent requis",
+        description: "Veuillez d'abord rechercher l'agent",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!depositAmount || isNaN(Number(depositAmount)) || Number(depositAmount) <= 0) {
+      toast({
+        title: "Montant invalide",
+        description: "Veuillez entrer un montant valide",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Increment agent balance
+      const { error } = await supabase.rpc('increment_balance', {
+        user_id: agentProfile.id,
+        amount: Number(depositAmount)
+      });
+
+      if (error) {
+        console.error("Erreur lors du dépôt:", error);
+        toast({
+          title: "Erreur de dépôt",
+          description: "Impossible d'effectuer le dépôt",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create transaction record
+      const { error: transactionError } = await supabase.from('transactions').insert({
+        user_id: agentProfile.id,
+        type: 'deposit',
+        amount: Number(depositAmount),
+        currency: 'XAF',
+        status: 'completed',
+        description: `Dépôt par lot: ${depositNote}`,
+        created_by: user?.id,
+        impact: 'credit'
+      });
+
+      if (transactionError) {
+        console.error("Erreur lors de l'enregistrement de la transaction:", transactionError);
+        toast({
+          title: "Erreur",
+          description: "Impossible d'enregistrer la transaction",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Dépôt effectué",
+        description: `Dépôt de ${formatCurrency(Number(depositAmount))} effectué avec succès pour ${agentProfile.full_name}`,
+      });
+
+      // Reset form
+      setAgentPhone("");
+      setDepositAmount("");
+      setDepositNote("");
+      setAgentProfile(null);
+
+    } catch (error) {
+      console.error("Erreur inattendue:", error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite",
+        variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <Card className="bg-white">
-        <CardContent className="pt-6">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p>Chargement des agents...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card className="bg-white">
-        <CardContent className="pt-6">
-          <div className="text-center">
-            <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-4" />
-            <p className="text-red-600 mb-4">Erreur lors du chargement des agents</p>
-            <p className="text-sm text-gray-600 mb-4">{error.message}</p>
-            <Button onClick={() => window.location.reload()}>
-              Recharger la page
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!agents || agents.length === 0) {
-    return (
-      <Card className="bg-white">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-gray-900">
-              <Users className="w-5 h-5 text-blue-600" />
-              Dépôt en Lot pour Agents
-            </CardTitle>
-            <Button onClick={onBack} variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-lg font-medium text-gray-900 mb-2">Aucun agent trouvé</p>
-            <p className="text-gray-600">Il n'y a actuellement aucun agent dans le système.</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const selectedAgentsList = agents?.filter(agent => selectedAgents.has(agent.id)) || [];
-  const totalAmount = depositMode === 'uniform' 
-    ? Number(uniformAmount || 0) * selectedAgents.size
-    : selectedAgentsList.reduce((sum, agent) => sum + Number(individualAmounts[agent.id] || 0), 0);
-
   return (
-    <Card className="bg-white">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-gray-900">
-            <Users className="w-5 h-5 text-blue-600" />
-            Dépôt en Lot pour Agents
-          </CardTitle>
-          <Button onClick={onBack} variant="ghost" size="sm">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-        </div>
+    <Card className="bg-white shadow-md rounded-lg">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+        <CardTitle className="text-lg font-semibold">Dépôt par Lot pour Agents</CardTitle>
+        <Users className="h-6 w-6 text-gray-500" />
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Agent Selection */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <Label className="text-sm font-medium">
-              Sélection des agents ({selectedAgents.size} sur {agents.length} sélectionné(s))
-            </Label>
-            <Button
-              onClick={handleSelectAll}
-              variant="outline"
-              size="sm"
-            >
-              {selectedAgents.size === agents?.length ? 'Tout désélectionner' : 'Tout sélectionner'}
-            </Button>
-          </div>
-          
-          <div className="max-h-64 overflow-y-auto border rounded-lg p-3 space-y-2">
-            {agents.map((agent) => (
-              <div key={agent.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    checked={selectedAgents.has(agent.id)}
-                    onCheckedChange={() => handleAgentToggle(agent.id)}
-                  />
-                  <div>
-                    <p className="font-medium text-sm text-gray-900">{agent.full_name}</p>
-                    <p className="text-xs text-gray-600">{agent.phone}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-green-600">
-                    {formatCurrency(agent.balance, 'XAF')}
-                  </p>
-                  <Badge variant="secondary" className="text-xs">Agent</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Deposit Mode Selection */}
-        {selectedAgents.size > 0 && (
+      <CardContent className="p-4">
+        <div className="space-y-4">
+          {/* Search Agent */}
           <div>
-            <Label className="text-sm font-medium mb-3 block">Mode de dépôt</Label>
-            <div className="flex gap-4">
-              <Button
-                onClick={() => setDepositMode('uniform')}
-                variant={depositMode === 'uniform' ? 'default' : 'outline'}
-                size="sm"
-              >
-                Montant uniforme
-              </Button>
-              <Button
-                onClick={() => setDepositMode('individual')}
-                variant={depositMode === 'individual' ? 'default' : 'outline'}
-                size="sm"
-              >
-                Montants individuels
+            <Label htmlFor="agentPhone">Téléphone de l'agent</Label>
+            <div className="flex space-x-2">
+              <Input
+                type="tel"
+                id="agentPhone"
+                placeholder="Entrez le numéro de téléphone"
+                value={agentPhone}
+                onChange={(e) => setAgentPhone(e.target.value)}
+              />
+              <Button onClick={handleSearchAgent} disabled={isProcessing}>
+                {isProcessing ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <span>Recherche...</span>
+                  </div>
+                ) : (
+                  "Rechercher"
+                )}
               </Button>
             </div>
           </div>
-        )}
 
-        {/* Amount Input */}
-        {selectedAgents.size > 0 && (
-          <div className="space-y-4">
-            {depositMode === 'uniform' ? (
+          {/* Agent Info */}
+          {agentProfile && (
+            <div className="p-4 bg-emerald-50 rounded-md border border-emerald-200">
+              <div className="flex items-center space-x-3 mb-2">
+                <CheckCircle className="h-5 w-5 text-emerald-500" />
+                <h4 className="font-semibold text-gray-700">Informations de l'agent</h4>
+              </div>
+              <p className="text-sm text-gray-600">Nom: {agentProfile.full_name}</p>
+              <p className="text-sm text-gray-600">Téléphone: {agentProfile.phone}</p>
+              <p className="text-sm text-gray-600">Solde actuel: {formatCurrency(agentProfile.balance)}</p>
+            </div>
+          )}
+
+          {/* Deposit Form */}
+          {agentProfile && (
+            <div className="space-y-4">
               <div>
-                <Label htmlFor="uniformAmount">Montant par agent (FCFA)</Label>
+                <Label htmlFor="depositAmount">Montant du dépôt</Label>
                 <Input
-                  id="uniformAmount"
                   type="number"
-                  placeholder="Ex: 50000"
-                  value={uniformAmount}
-                  onChange={(e) => setUniformAmount(e.target.value)}
+                  id="depositAmount"
+                  placeholder="Entrez le montant à déposer"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
                 />
               </div>
-            ) : (
+
               <div>
-                <Label className="text-sm font-medium mb-3 block">Montants individuels (FCFA)</Label>
-                <div className="space-y-2 max-h-32 overflow-y-auto">
-                  {selectedAgentsList.map((agent) => (
-                    <div key={agent.id} className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{agent.full_name}</p>
-                      </div>
-                      <Input
-                        type="number"
-                        placeholder="Montant"
-                        className="w-32"
-                        value={individualAmounts[agent.id] || ''}
-                        onChange={(e) => handleIndividualAmountChange(agent.id, e.target.value)}
-                      />
-                    </div>
-                  ))}
-                </div>
+                <Label htmlFor="depositNote">Note de dépôt</Label>
+                <Textarea
+                  id="depositNote"
+                  placeholder="Ajouter une note (facultatif)"
+                  value={depositNote}
+                  onChange={(e) => setDepositNote(e.target.value)}
+                />
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Summary */}
-        {selectedAgents.size > 0 && totalAmount > 0 && (
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-blue-800 mb-2">Résumé du dépôt</h3>
-            <div className="text-sm text-blue-700 space-y-1">
-              <p>• {selectedAgents.size} agent(s) sélectionné(s)</p>
-              <p>• Montant total: <span className="font-semibold">{formatCurrency(totalAmount, 'XAF')}</span></p>
-              <p>• Votre solde actuel: <span className="font-semibold">{formatCurrency(profile?.balance || 0, 'XAF')}</span></p>
-              {profile && profile.balance < totalAmount && (
-                <p className="text-red-600 font-semibold">⚠️ Solde insuffisant</p>
-              )}
+              <Button onClick={handleDeposit} className="w-full" disabled={isProcessing}>
+                {isProcessing ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <span>Dépôt en cours...</span>
+                  </div>
+                ) : (
+                  "Effectuer le Dépôt"
+                )}
+              </Button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Action Button */}
-        <Button
-          onClick={handleBatchDeposit}
-          disabled={isProcessing || selectedAgents.size === 0 || totalAmount <= 0 || (profile && profile.balance < totalAmount)}
-          className="w-full bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          {isProcessing ? "Traitement en cours..." : `Effectuer les dépôts (${formatCurrency(totalAmount, 'XAF')})`}
-        </Button>
+          {/* Alert Message */}
+          {!agentProfile && agentPhone && (
+            <div className="p-3 bg-red-50 rounded-md border border-red-200">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                <span className="text-xs text-red-700">
+                  Aucun agent trouvé avec le numéro de téléphone fourni.
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

@@ -1,21 +1,24 @@
-import { Card } from "@/components/ui/card";
+
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import RecipientInfo from "./transfer-steps/RecipientInfo";
 import TransferDetails from "./transfer-steps/TransferDetails";
 import TransferSummary from "./transfer-steps/TransferSummary";
-import TransferStepper from "./transfer/TransferStepper";
-import SimpleHtmlTransferConfirmation from "./transfer/SimpleHtmlTransferConfirmation";
-import { BiometricConfirmation } from "@/components/security/BiometricConfirmation";
 import { useTransferForm } from "@/hooks/useTransferForm";
-import { useState } from "react";
-import { CheckCircle, Copy } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { BiometricConfirmation } from "./security/BiometricConfirmation";
+import { SimpleHtmlTransferConfirmation } from "./transfer/SimpleHtmlTransferConfirmation";
+
+const FORM_STEPS = [
+  { title: "Informations Bénéficiaire" },
+  { title: "Détails du Transfert" },
+  { title: "Résumé" },
+];
 
 const TransferForm = () => {
-  const { userRole, profile } = useAuth();
-  const isMobile = useIsMobile();
-  
+  const navigate = useNavigate();
   const {
     currentStep,
     data,
@@ -33,164 +36,134 @@ const TransferForm = () => {
     setShowBiometricConfirmation
   } = useTransferForm();
 
-  const [copied, setCopied] = useState(false);
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === FORM_STEPS.length - 1;
 
-  const steps = [
-    { title: "Informations Bénéficiaire", component: RecipientInfo },
-    { title: "Détails du Transfert", component: TransferDetails },
-    { title: "Résumé", component: TransferSummary },
-  ];
-
-  const CurrentStepComponent = steps[currentStep].component;
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Écran de confirmation pour transfert en attente
   if (pendingTransferInfo) {
     return (
-      <div className="w-full">
-        <Card className={`backdrop-blur-md bg-white/80 shadow-xl rounded-xl border-0 overflow-hidden w-full ${isMobile ? 'mx-1' : ''}`}>
-          <div className={`${isMobile ? 'p-2' : 'p-3'} w-full`}>
-            <div className="text-center mb-4">
-              <CheckCircle className={`${isMobile ? 'w-12 h-12' : 'w-16 h-16'} text-emerald-500 mx-auto mb-3`} />
-              <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>Transfert en attente</h2>
-              <p className={`text-gray-600 mt-2 ${isMobile ? 'text-sm' : ''}`}>
-                Le destinataire n'a pas encore de compte. Un code a été généré pour lui permettre de réclamer le transfert.
-              </p>
-            </div>
-            
-            <div className={`space-y-3 bg-gray-50 ${isMobile ? 'p-3' : 'p-4'} rounded-lg w-full`}>
-              <div>
-                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-500`}>Téléphone du destinataire</p>
-                <p className={`font-medium ${isMobile ? 'text-sm' : ''}`}>{pendingTransferInfo.recipientPhone}</p>
-              </div>
-              
-              <div>
-                <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-500`}>Code de réclamation</p>
-                <div className={`flex items-center justify-between bg-white border rounded-md ${isMobile ? 'p-2' : 'p-3'}`}>
-                  <span className={`font-mono font-bold ${isMobile ? 'text-base' : 'text-lg'} tracking-wider`}>
-                    {pendingTransferInfo.claimCode}
-                  </span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => copyToClipboard(pendingTransferInfo.claimCode)}
-                    className="text-emerald-600"
-                  >
-                    {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </Button>
+      <div className="min-h-screen bg-gradient-to-br from-blue-500/20 to-purple-500/20 py-8 px-4">
+        <div className="container max-w-md mx-auto">
+          <Card className="bg-white shadow-lg">
+            <CardHeader>
+              <CardTitle>Transfert en Attente</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p>Le destinataire ({pendingTransferInfo.recipientPhone}) peut réclamer l'argent avec ce code:</p>
+              <div className="text-center">
+                <div className="text-2xl font-bold bg-gray-100 p-4 rounded-lg">
+                  {pendingTransferInfo.claimCode}
                 </div>
-                <p className={`${isMobile ? 'text-xs' : 'text-xs'} text-gray-500 mt-1`}>
-                  Partagez ce code avec le destinataire pour qu'il puisse réclamer l'argent.
-                </p>
               </div>
-            </div>
-            
-            <div className="flex justify-center mt-4">
-              <Button 
-                onClick={resetForm} 
-                size={isMobile ? "default" : "lg"}
-                className={`w-full ${isMobile ? 'h-12 text-base' : 'h-14 text-lg'} ${
-                  userRole === 'agent' 
-                    ? 'bg-blue-600 hover:bg-blue-700' 
-                    : 'bg-emerald-600 hover:bg-emerald-700'
-                }`}
-              >
-                Faire un autre transfert
+              <Button onClick={resetForm} className="w-full">
+                Nouveau Transfert
               </Button>
-            </div>
-          </div>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
-  // Formulaire de transfert principal
   return (
-    <div className="w-full">
-      <Card className={`backdrop-blur-md bg-white/80 shadow-xl rounded-xl border-0 overflow-hidden w-full ${isMobile ? 'mx-1' : ''}`}>
-        <div className={`${isMobile ? 'p-1' : 'p-2'} w-full`}>
-          {/* En-tête adapté selon le rôle */}
-          {userRole === 'agent' && (
-            <div className={`mb-2 ${isMobile ? 'p-2' : 'p-2'} bg-blue-50 border border-blue-200 rounded-md w-full`}>
-              <p className={`text-blue-700 ${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
-                💼 Mode Agent: Effectuez des transferts pour vos clients depuis {profile?.country || 'votre pays'}
-              </p>
-            </div>
-          )}
+    <div className="min-h-screen bg-gradient-to-br from-blue-500/20 to-purple-500/20 py-8 px-4">
+      <div className="container max-w-2xl mx-auto space-y-6">
+        <Button variant="ghost" onClick={() => navigate('/')}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Retour
+        </Button>
 
-          <div className={`${isMobile ? 'mb-2' : 'mb-3'} w-full`}>
-            <TransferStepper steps={steps} currentStep={currentStep} />
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-1 w-full">
-            <div className="w-full">
-              <CurrentStepComponent {...data} updateFields={updateFields} />
+        {/* Progress Indicator */}
+        <Card className="bg-white shadow-md">
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center mb-4">
+              {FORM_STEPS.map((step, index) => (
+                <div key={index} className="flex items-center">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    index <= currentStep ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {index + 1}
+                  </div>
+                  {index < FORM_STEPS.length - 1 && (
+                    <div className={`w-16 h-1 mx-2 ${
+                      index < currentStep ? 'bg-blue-600' : 'bg-gray-200'
+                    }`} />
+                  )}
+                </div>
+              ))}
             </div>
-            
-            <div className={`${isMobile ? 'mt-2' : 'mt-2'} flex flex-col sm:flex-row justify-between gap-2 w-full`}>
-              {currentStep !== 0 && (
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={back}
-                  size={isMobile ? "default" : "lg"}
-                  className={`w-full sm:w-auto order-2 sm:order-1 ${isMobile ? 'h-10 text-sm' : 'h-12 text-base'}`}
-                  disabled={isLoading}
-                >
-                  Retour
-                </Button>
+            <h2 className="text-lg font-semibold text-center">
+              {FORM_STEPS[currentStep].title}
+            </h2>
+          </CardContent>
+        </Card>
+
+        {/* Form Content */}
+        <Card className="bg-white shadow-md">
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit}>
+              {currentStep === 0 && (
+                <RecipientInfo
+                  updateFields={updateFields}
+                  recipient={data.recipient}
+                />
               )}
-              <Button
-                type="submit"
-                size={isMobile ? "default" : "lg"}
-                className={`w-full sm:w-auto order-1 sm:order-2 ${isMobile ? 'h-10 text-sm' : 'h-12 text-base'} ${
-                  userRole === 'agent' 
-                    ? 'bg-blue-600 hover:bg-blue-700' 
-                    : 'bg-emerald-600 hover:bg-emerald-700'
-                } ${currentStep === 0 ? "sm:ml-auto" : ""}`}
-                disabled={isLoading}
-              >
-                {isLoading 
-                  ? "Traitement..." 
-                  : currentStep === steps.length - 1 
-                    ? "Valider" 
-                    : "Continuer"
-                }
-              </Button>
-            </div>
-          </form>
-        </div>
-      </Card>
+              
+              {currentStep === 1 && (
+                <TransferDetails
+                  updateFields={updateFields}
+                  recipientCountry={data.recipient.country}
+                  amount={data.transfer.amount}
+                  nextStep={() => {}}
+                />
+              )}
+              
+              {currentStep === 2 && (
+                <TransferSummary
+                  recipientFullName={data.recipient.fullName}
+                  recipientPhone={data.recipient.phone}
+                  recipientCountry={data.recipient.country}
+                  transferAmount={data.transfer.amount}
+                  transferCurrency={data.transfer.currency}
+                />
+              )}
 
-      {/* Confirmation sécurisée du transfert */}
-      <SimpleHtmlTransferConfirmation
-        isOpen={showTransferConfirmation}
-        onClose={() => setShowTransferConfirmation(false)}
-        onConfirm={handleConfirmedTransfer}
-        transferData={{
-          amount: data.transfer.amount,
-          recipientName: data.recipient.fullName,
-          recipientPhone: data.recipient.phone,
-          recipientCountry: data.recipient.country,
-          senderCountry: profile?.country || "Cameroun"
-        }}
-        isProcessing={isLoading}
-      />
+              <div className="flex gap-4 mt-6">
+                {!isFirstStep && (
+                  <Button type="button" variant="outline" onClick={back}>
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Précédent
+                  </Button>
+                )}
+                <Button type="submit" className="flex-1" disabled={isLoading}>
+                  {isLastStep ? "Confirmer le Transfert" : "Suivant"}
+                  {!isLastStep && <ArrowRight className="w-4 h-4 ml-2" />}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
-      {/* Confirmation biométrique */}
-      <BiometricConfirmation
-        isOpen={showBiometricConfirmation}
-        onClose={() => setShowBiometricConfirmation(false)}
-        onConfirm={processFinalTransfer}
-        amount={data.transfer.amount}
-        operationType="Transfert d'argent"
-        recipient={data.recipient.fullName}
-      />
+        {/* Transfer Confirmation Modal */}
+        <SimpleHtmlTransferConfirmation
+          isOpen={showTransferConfirmation}
+          onClose={() => setShowTransferConfirmation(false)}
+          onConfirm={handleConfirmedTransfer}
+          amount={data.transfer.amount}
+          recipientName={data.recipient.fullName}
+          recipientPhone={data.recipient.phone}
+          recipientCountry={data.recipient.country}
+          senderCountry="Cameroun"
+          isProcessing={isLoading}
+        />
+
+        {/* Biometric Confirmation */}
+        <BiometricConfirmation
+          isOpen={showBiometricConfirmation}
+          onClose={() => setShowBiometricConfirmation(false)}
+          onConfirm={processFinalTransfer}
+          isProcessing={isLoading}
+        />
+      </div>
     </div>
   );
 };

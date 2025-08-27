@@ -1,342 +1,188 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
-import { AdminUserService } from '@/services/adminUserService';
-import { formatCurrency } from '@/integrations/supabase/client';
-import { Search, CreditCard, DollarSign, AlertCircle, Users } from 'lucide-react';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Wallet, Plus, AlertCircle, CheckCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+
+interface DepositFormState {
+  agentId: string;
+  amount: number;
+  description: string;
+}
 
 const CustomDepositSystem = () => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResult, setSearchResult] = useState<any>(null);
-  const [depositAmount, setDepositAmount] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [agents, setAgents] = useState<any[]>([]);
-  const [isLoadingAgents, setIsLoadingAgents] = useState(false);
+  const [depositForm, setDepositForm] = useState<DepositFormState>({
+    agentId: "",
+    amount: 0,
+    description: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [depositSuccess, setDepositSuccess] = useState(false);
 
-  // Charger les agents automatiquement au montage du composant
-  useEffect(() => {
-    loadAgents();
-  }, []);
-
-  const loadAgents = async () => {
-    setIsLoadingAgents(true);
-    try {
-      const result = await AdminUserService.fetchAllUsers();
-      if (result.success) {
-        // Filtrer seulement les agents
-        const agentUsers = result.data?.filter(user => user.role === 'agent') || [];
-        setAgents(agentUsers);
-      } else {
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger la liste des agents",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des agents:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors du chargement des agents",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoadingAgents(false);
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setDepositForm((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
   };
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user?.id) {
       toast({
         title: "Erreur",
-        description: "Veuillez entrer un numéro de téléphone ou un nom",
-        variant: "destructive"
+        description: "Vous devez être connecté pour effectuer cette action.",
+        variant: "destructive",
       });
       return;
     }
 
-    setIsSearching(true);
+    setIsSubmitting(true);
+    setDepositSuccess(false);
+
     try {
-      const result = await AdminUserService.searchUser(searchTerm);
-      if (result.success && result.data) {
-        setSearchResult(result.data);
-      } else {
-        setSearchResult(null);
-        toast({
-          title: "Aucun utilisateur trouvé",
-          description: "Aucun utilisateur ne correspond à votre recherche",
-          variant: "destructive"
-        });
+      // Vérifier si l'agent existe
+      const { data: agentData, error: agentError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', depositForm.agentId)
+        .single();
+
+      if (agentError || !agentData) {
+        throw new Error("Agent introuvable. Veuillez vérifier l'ID de l'agent.");
       }
-    } catch (error) {
-      console.error('Erreur lors de la recherche:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la recherche d'utilisateur",
-        variant: "destructive"
+
+      // Effectuer le dépôt via une fonction Supabase (RPC)
+      const { error: depositError } = await supabase.rpc('admin_deposit_funds', {
+        agent_id: depositForm.agentId,
+        deposit_amount: depositForm.amount,
+        admin_id: user.id,
+        deposit_description: depositForm.description
       });
-    } finally {
-      setIsSearching(false);
-    }
-  };
 
-  const handleCustomDeposit = async () => {
-    if (!searchResult) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez d'abord rechercher un utilisateur",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const amount = Number(depositAmount);
-    if (!amount || amount <= 0) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez entrer un montant valide",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!profile?.balance || profile.balance < amount) {
-      toast({
-        title: "Solde insuffisant",
-        description: `Votre solde (${formatCurrency(profile?.balance || 0, 'XAF')}) est insuffisant pour ce dépôt`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      const result = await AdminUserService.performCustomDeposit(
-        searchResult.id,
-        amount,
-        profile.id,
-        `Dépôt manuel de ${profile.role} vers ${searchResult.full_name}`
-      );
-
-      if (result.success) {
-        toast({
-          title: "✅ Dépôt effectué avec succès",
-          description: `${formatCurrency(amount, 'XAF')} crédité à ${searchResult.full_name}`,
-        });
-        
-        // Réinitialiser le formulaire
-        setSearchResult(null);
-        setSearchTerm('');
-        setDepositAmount('');
-      } else {
-        toast({
-          title: "Erreur",
-          description: result.message,
-          variant: "destructive"
-        });
+      if (depositError) {
+        throw new Error(depositError.message || "Impossible d'effectuer le dépôt.");
       }
+
+      toast({
+        title: "Dépôt effectué",
+        description: `Dépôt de ${formatCurrency(depositForm.amount, 'XAF')} effectué avec succès pour l'agent ${depositForm.agentId}.`,
+      });
+
+      setDepositSuccess(true);
+      setDepositForm({
+        agentId: "",
+        amount: 0,
+        description: "",
+      });
     } catch (error: any) {
-      console.error('Erreur lors du dépôt personnalisé:', error);
+      console.error("Erreur lors du dépôt:", error);
       toast({
-        title: "Erreur critique",
-        description: error.message || "Erreur lors du dépôt personnalisé",
-        variant: "destructive"
+        title: "Erreur lors du dépôt",
+        description: error.message || "Une erreur est survenue lors du dépôt.",
+        variant: "destructive",
       });
+      setDepositSuccess(false);
     } finally {
-      setIsProcessing(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Card className="bg-white shadow-lg border-0">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-orange-700">
-          <CreditCard className="w-5 h-5" />
-          Système de Dépôt Manuel Personnalisé
-        </CardTitle>
+    <Card className="bg-white shadow-md rounded-lg">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
+        <CardTitle className="text-lg font-semibold">Système de Dépôt Personnalisé</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Information sur le solde admin */}
-        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-blue-700">Votre solde disponible</span>
-            <Badge className="bg-blue-600 text-white">
-              {formatCurrency(profile?.balance || 0, 'XAF')}
-            </Badge>
-          </div>
-        </div>
 
-        {/* Liste des agents disponibles */}
-        <div className="space-y-4">
-          <Label className="text-sm font-medium flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Agents Disponibles
-          </Label>
-          
-          {isLoadingAgents ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse p-3 bg-gray-100 rounded-lg">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              ))}
-            </div>
-          ) : agents.length > 0 ? (
-            <div className="grid gap-3 max-h-64 overflow-y-auto">
-              {agents.map((agent) => (
-                <div
-                  key={agent.id}
-                  className={`p-3 border rounded-lg cursor-pointer transition-colors hover:bg-blue-50 ${
-                    searchResult?.id === agent.id ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'
-                  }`}
-                  onClick={() => setSearchResult(agent)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-gray-800">{agent.full_name}</p>
-                      <p className="text-sm text-gray-600">{agent.phone}</p>
-                      <p className="text-xs text-gray-500">{agent.country}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-blue-600">
-                        Solde: {formatCurrency(agent.balance || 0, 'XAF')}
-                      </p>
-                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
-                        Agent
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-gray-500">
-              <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm">Aucun agent trouvé</p>
-            </div>
-          )}
-        </div>
-
-        {/* Recherche manuelle d'utilisateur */}
-        <div className="space-y-4">
-          <Label className="text-sm font-medium">Ou rechercher manuellement un utilisateur</Label>
-          <div className="flex gap-2">
+      <CardContent className="p-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="agentId">ID de l'Agent</Label>
             <Input
-              placeholder="Numéro de téléphone ou nom complet..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              type="text"
+              id="agentId"
+              placeholder="Entrez l'ID de l'agent"
+              value={depositForm.agentId}
+              onChange={handleInputChange}
+              required
             />
-            <Button
-              onClick={handleSearch}
-              disabled={isSearching}
-              variant="outline"
-            >
-              <Search className="w-4 h-4 mr-2" />
-              {isSearching ? 'Recherche...' : 'Rechercher'}
-            </Button>
           </div>
+
+          <div>
+            <Label htmlFor="amount">Montant à Déposer</Label>
+            <Input
+              type="number"
+              id="amount"
+              placeholder="Entrez le montant"
+              value={String(depositForm.amount)}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description du Dépôt</Label>
+            <Textarea
+              id="description"
+              placeholder="Entrez une description"
+              value={depositForm.description}
+              onChange={handleInputChange}
+            />
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <span>Traitement...</span>
+              </div>
+            ) : (
+              "Effectuer le Dépôt"
+            )}
+          </Button>
+        </form>
+
+        {depositSuccess && (
+          <div className="mt-4 p-3 bg-green-50 rounded-md border border-green-200">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="text-sm text-green-700">
+                Dépôt effectué avec succès !
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 p-4 bg-gray-50 rounded-md border border-gray-200">
+          <div className="flex items-center space-x-3 mb-3">
+            <Wallet className="h-5 w-5 text-blue-500" />
+            <h4 className="font-semibold text-gray-700">Informations Importantes</h4>
+          </div>
+          <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+            <li>Assurez-vous que l'ID de l'agent est correct avant de procéder.</li>
+            <li>Le montant sera crédité sur le compte de l'agent immédiatement.</li>
+            <li>Une description claire aide à suivre les dépôts effectués.</li>
+          </ul>
         </div>
 
-        {/* Résultat de la recherche */}
-        {searchResult && (
-          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-green-800">{searchResult.full_name}</p>
-                <p className="text-sm text-green-600">{searchResult.phone}</p>
-                <p className="text-xs text-green-600">{searchResult.country}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-green-600">
-                  Solde: {formatCurrency(searchResult.balance, 'XAF')}
-                </p>
-                <Badge variant="secondary" className="text-xs">
-                  {searchResult.role}
-                </Badge>
-              </div>
-            </div>
+        <div className="mt-4 p-3 bg-red-50 rounded-md border border-red-200">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-red-500" />
+            <span className="text-xs text-red-700">
+              Note: Cette action est irréversible. Vérifiez attentivement les informations avant de confirmer.
+            </span>
           </div>
-        )}
-
-        {/* Montant du dépôt */}
-        {searchResult && (
-          <div className="space-y-4">
-            <Label className="text-sm font-medium">Montant à déposer (FCFA)</Label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                type="number"
-                placeholder="Ex: 50000"
-                value={depositAmount}
-                onChange={(e) => setDepositAmount(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            {depositAmount && Number(depositAmount) > 0 && (
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex justify-between items-center text-sm">
-                  <span>Montant à déposer:</span>
-                  <span className="font-semibold">{formatCurrency(Number(depositAmount), 'XAF')}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm mt-1">
-                  <span>Nouveau solde destinataire:</span>
-                  <span className="font-semibold text-green-600">
-                    {formatCurrency(searchResult.balance + Number(depositAmount), 'XAF')}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-sm mt-1">
-                  <span>Votre solde restant:</span>
-                  <span className="font-semibold text-blue-600">
-                    {formatCurrency((profile?.balance || 0) - Number(depositAmount), 'XAF')}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Bouton de validation */}
-        {searchResult && depositAmount && Number(depositAmount) > 0 && (
-          <div className="space-y-4">
-            {Number(depositAmount) > (profile?.balance || 0) && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
-                <AlertCircle className="w-4 h-4 text-red-600" />
-                <span className="text-sm text-red-600">Solde insuffisant pour effectuer ce dépôt</span>
-              </div>
-            )}
-            
-            <Button
-              onClick={handleCustomDeposit}
-              disabled={isProcessing || Number(depositAmount) > (profile?.balance || 0)}
-              className="w-full bg-orange-600 hover:bg-orange-700"
-              size="lg"
-            >
-              <CreditCard className="w-4 h-4 mr-2" />
-              {isProcessing ? 'Traitement...' : `Effectuer le dépôt de ${formatCurrency(Number(depositAmount), 'XAF')}`}
-            </Button>
-          </div>
-        )}
-
-        {/* Instructions */}
-        <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-          <h4 className="text-sm font-semibold text-yellow-800 mb-2">Instructions</h4>
-          <ul className="text-xs text-yellow-700 space-y-1">
-            <li>• Recherchez un utilisateur par nom ou numéro de téléphone</li>
-            <li>• Entrez le montant à déposer sur son compte</li>
-            <li>• Le montant sera débité de votre solde administrateur</li>
-            <li>• Une notification sera automatiquement envoyée à l'utilisateur</li>
-          </ul>
         </div>
       </CardContent>
     </Card>
