@@ -22,14 +22,17 @@ export const useProfileForm = (profile: ProfileData) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const uploadFile = async (file: File, bucket: string, path: string) => {
+  const uploadFile = async (file: File, bucket: string, fileName: string) => {
     try {
-      console.log(`Upload du fichier vers ${bucket}/${path}`);
+      console.log(`Upload du fichier vers ${bucket}/${fileName}`);
+      
+      // Créer le chemin avec l'ID utilisateur pour respecter les politiques RLS
+      const filePath = `${profile.id}/${fileName}`;
       
       // Upload du fichier (avec upsert pour écraser s'il existe)
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(path, file, {
+        .upload(filePath, file, {
           cacheControl: '3600',
           upsert: true
         });
@@ -44,7 +47,7 @@ export const useProfileForm = (profile: ProfileData) => {
       // Obtenir l'URL publique
       const { data: urlData } = supabase.storage
         .from(bucket)
-        .getPublicUrl(path);
+        .getPublicUrl(filePath);
 
       return urlData.publicUrl;
     } catch (error) {
@@ -52,7 +55,7 @@ export const useProfileForm = (profile: ProfileData) => {
       
       // Gestion spécifique des erreurs de bucket
       if (error.message && error.message.includes('not found')) {
-        throw new Error(`Le stockage ${bucket} n'est pas configuré. Contactez l'administrateur.`);
+        throw new Error(`Le stockage ${bucket} n'est pas configuré. Les buckets ont été créés, veuillez réessayer.`);
       }
       
       throw error;
@@ -84,7 +87,7 @@ export const useProfileForm = (profile: ProfileData) => {
       if (avatarFile) {
         console.log('Upload de l\'avatar...');
         const fileExt = avatarFile.name.split('.').pop();
-        const fileName = `${profile.id}-avatar-${Date.now()}.${fileExt}`;
+        const fileName = `avatar-${Date.now()}.${fileExt}`;
         
         try {
           const avatarUrl = await uploadFile(avatarFile, 'avatars', fileName);
@@ -105,7 +108,7 @@ export const useProfileForm = (profile: ProfileData) => {
       if (idCardFile) {
         console.log('Upload de la photo d\'identité...');
         const fileExt = idCardFile.name.split('.').pop();
-        const fileName = `${profile.id}-idcard-${Date.now()}.${fileExt}`;
+        const fileName = `id-card-${Date.now()}.${fileExt}`;
         
         try {
           const idCardUrl = await uploadFile(idCardFile, 'id-cards', fileName);
