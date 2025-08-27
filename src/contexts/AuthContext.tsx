@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +6,7 @@ import { authService } from '@/services/authService';
 import { useUserSession } from '@/hooks/useUserSession';
 import SessionManager from '@/components/SessionManager';
 import RequiredFieldsModal from '@/components/auth/RequiredFieldsModal';
+import KYCRequiredModal from '@/components/auth/KYCRequiredModal';
 import { toast } from 'sonner';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,11 +16,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showRequiredFieldsModal, setShowRequiredFieldsModal] = useState(false);
+  const [showKYCModal, setShowKYCModal] = useState(false);
 
   // Vérifier si les champs obligatoires sont manquants
   const hasRequiredFields = useCallback((profile: Profile | null) => {
     if (!profile) return true;
     return !!(profile.birth_date && profile.id_card_url);
+  }, []);
+
+  // Vérifier si KYC est requis
+  const requiresKYC = useCallback((profile: Profile | null) => {
+    if (!profile) return false;
+    return profile.requires_kyc && (!profile.kyc_status || profile.kyc_status === 'not_started');
   }, []);
 
   // Mémoriser la fonction de rafraîchissement pour éviter les re-renders inutiles
@@ -60,11 +67,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Vérifier si les champs obligatoires sont manquants
       if (!hasRequiredFields(profileData)) {
         setShowRequiredFieldsModal(true);
+      } else if (requiresKYC(profileData)) {
+        // Si les champs de base sont OK mais KYC requis
+        setShowKYCModal(true);
       }
     } catch (error) {
       console.error('Erreur lors du rafraîchissement du profil:', error);
     }
-  }, [user?.id, hasRequiredFields]);
+  }, [user?.id, hasRequiredFields, requiresKYC]);
 
   // Fonction utilitaire pour charger le profil avec optimisation
   const loadProfile = useCallback(async (userId: string) => {
@@ -81,6 +91,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Vérifier si les champs obligatoires sont manquants
         if (!hasRequiredFields(profileData)) {
           setShowRequiredFieldsModal(true);
+        } else if (requiresKYC(profileData)) {
+          // Si les champs de base sont OK mais KYC requis
+          setShowKYCModal(true);
         }
         
         return true;
@@ -100,7 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Erreur lors de la récupération du profil:', error);
       return false;
     }
-  }, [hasRequiredFields]);
+  }, [hasRequiredFields, requiresKYC]);
 
   useEffect(() => {
     let mounted = true;
@@ -234,6 +247,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshProfile();
   }, [refreshProfile]);
 
+  const handleKYCComplete = useCallback(() => {
+    setShowKYCModal(false);
+    refreshProfile();
+  }, [refreshProfile]);
+
   // Mémoriser la valeur du contexte pour éviter les re-renders inutiles
   const contextValue = useMemo(() => ({
     user,
@@ -269,6 +287,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isOpen={showRequiredFieldsModal}
         profile={profile}
         onComplete={handleRequiredFieldsComplete}
+      />
+      <KYCRequiredModal
+        isOpen={showKYCModal}
+        onStartKYC={handleKYCComplete}
       />
     </AuthContext.Provider>
   );
