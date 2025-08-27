@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -25,6 +24,7 @@ import { SimpleMessagesTab } from './SimpleMessagesTab';
 import { SimpleSettingsTab } from './SimpleSettingsTab';
 import { SimpleTreasuryTab } from './SimpleTreasuryTab';
 import SimpleAdvancedTab from './SimpleAdvancedTab';
+import KYCVerificationManagement from './KYCVerificationManagement';
 
 const SimpleMainAdminDashboard = () => {
   const { profile } = useAuth();
@@ -57,7 +57,7 @@ const SimpleMainAdminDashboard = () => {
 
       {/* Onglets principaux */}
       <Tabs defaultValue="requests-overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="requests-overview" className="flex items-center gap-2">
             <Eye className="w-4 h-4" />
             Historique
@@ -65,6 +65,10 @@ const SimpleMainAdminDashboard = () => {
           <TabsTrigger value="user-requests" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Demandes
+          </TabsTrigger>
+          <TabsTrigger value="kyc-management" className="flex items-center gap-2">
+            <UserCheck className="w-4 h-4" />
+            KYC
           </TabsTrigger>
           <TabsTrigger value="recharges" className="flex items-center gap-2">
             <Wallet className="w-4 h-4" />
@@ -100,6 +104,11 @@ const SimpleMainAdminDashboard = () => {
         {/* Onglet Demandes utilisateurs */}
         <TabsContent value="user-requests">
           <UserRequestsManagement />
+        </TabsContent>
+
+        {/* Onglet KYC Management */}
+        <TabsContent value="kyc-management">
+          <KYCVerificationManagement />
         </TabsContent>
 
         {/* Onglet Recharges et Retraits */}

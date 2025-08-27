@@ -10,6 +10,7 @@ import { AgentManagementPanel } from '@/components/admin/AgentManagementPanel';
 import { RevenueAnalytics } from '@/components/admin/RevenueAnalytics';
 import { SimpleSettingsTab } from '@/components/admin/SimpleSettingsTab';
 import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
+import KYCVerificationManagement from '@/components/admin/KYCVerificationManagement';
 
 export default function SimpleMainAdminDashboard() {
   const { user, profile } = useAuth();
@@ -47,6 +48,7 @@ export default function SimpleMainAdminDashboard() {
     { id: 'dashboard', label: 'Tableau de bord', icon: '📊' },
     { id: 'users', label: 'Gestion Utilisateurs', icon: '👥' },
     { id: 'agents', label: 'Gestion Agents', icon: '🔧' },
+    { id: 'kyc', label: 'Vérifications KYC', icon: '🆔' },
     { id: 'revenue', label: 'Revenus & Analytics', icon: '💰' },
     { id: 'messages', label: 'Messages', icon: '📨' },
     { id: 'settings', label: 'Paramètres', icon: '⚙️' },
@@ -60,6 +62,8 @@ export default function SimpleMainAdminDashboard() {
         return <AdminUsersManagement />;
       case 'agents':
         return <AgentManagementPanel />;
+      case 'kyc':
+        return <KYCVerificationManagement />;
       case 'revenue':
         return <RevenueAnalytics />;
       case 'messages':
