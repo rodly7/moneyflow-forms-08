@@ -6,7 +6,7 @@ import { SimpleAdminDashboard } from '@/components/admin/SimpleAdminDashboard';
 import { AdminUsersManagement } from '@/components/admin/AdminUsersManagement';
 import { AgentManagementPanel } from '@/components/admin/AgentManagementPanel';
 import { RevenueAnalytics } from '@/components/admin/RevenueAnalytics';
-import { SimpleTransactionsList } from '@/components/admin/SimpleTransactionsList';
+import { EnhancedTransactionsTab } from '@/components/admin/EnhancedTransactionsTab';
 import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
 import { SimpleSettingsTab } from '@/components/admin/SimpleSettingsTab';
 import LogoutButton from '@/components/auth/LogoutButton';
@@ -74,7 +74,7 @@ export default function MainAdminDashboard() {
       case 'revenue':
         return <RevenueAnalytics />;
       case 'transactions':
-        return <SimpleTransactionsList />;
+        return <EnhancedTransactionsTab />;
       case 'messages':
         return <SimpleMessagesTab />;
       case 'settings':
