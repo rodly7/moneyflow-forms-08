@@ -20,25 +20,6 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
   const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const ensureBucketExists = async () => {
-    try {
-      const { data: bucket, error } = await supabase.storage.getBucket('id-cards');
-      if (error && error.message.includes('not found')) {
-        console.log('Création du bucket id-cards...');
-        const { error: createError } = await supabase.storage.createBucket('id-cards', {
-          public: false,
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
-          fileSizeLimit: 5242880 // 5MB
-        });
-        if (createError) {
-          console.log('Erreur création bucket:', createError);
-        }
-      }
-    } catch (error) {
-      console.log('Erreur lors de la vérification du bucket:', error);
-    }
-  };
-
   const handleIdCardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -64,15 +45,14 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
     setIsLoading(true);
 
     try {
-      // S'assurer que le bucket existe
-      await ensureBucketExists();
-
       let idCardUrl = null;
 
       // Upload de la pièce d'identité
       if (idCardFile) {
         const fileExt = idCardFile.name.split('.').pop();
         const fileName = `${profile.id}-id-card-${Date.now()}.${fileExt}`;
+        
+        console.log('Tentative d\'upload du fichier:', fileName);
         
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('id-cards')
@@ -83,6 +63,11 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
 
         if (uploadError) {
           console.error('Erreur upload:', uploadError);
+          // Si le bucket n'existe pas, informer l'utilisateur
+          if (uploadError.message.includes('not found')) {
+            toast.error('Erreur de configuration du stockage. Veuillez contacter l\'administrateur.');
+            return;
+          }
           throw uploadError;
         }
 
@@ -91,9 +76,15 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
           .getPublicUrl(uploadData.path);
 
         idCardUrl = publicUrl;
+        console.log('Upload réussi, URL:', idCardUrl);
       }
 
       // Mise à jour du profil
+      console.log('Mise à jour du profil avec:', {
+        birth_date: birthDate,
+        id_card_url: idCardUrl,
+      });
+
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -111,7 +102,19 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
       onComplete();
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
-      toast.error('Erreur lors de la mise à jour des informations: ' + (error.message || 'Erreur inconnue'));
+      let errorMessage = 'Erreur lors de la mise à jour des informations';
+      
+      if (error.message) {
+        if (error.message.includes('row-level security')) {
+          errorMessage = 'Erreur de permissions. Veuillez vous reconnecter et réessayer.';
+        } else if (error.message.includes('not found')) {
+          errorMessage = 'Erreur de configuration du stockage. Contactez l\'administrateur.';
+        } else {
+          errorMessage = `Erreur: ${error.message}`;
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

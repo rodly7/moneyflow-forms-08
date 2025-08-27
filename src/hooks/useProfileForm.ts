@@ -22,40 +22,6 @@ export const useProfileForm = (profile: ProfileData) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const ensureBucketsExist = async () => {
-    try {
-      // Vérifier et créer le bucket avatars si nécessaire
-      const { data: avatarBucket, error: avatarBucketError } = await supabase.storage.getBucket('avatars');
-      if (avatarBucketError && avatarBucketError.message.includes('not found')) {
-        console.log('Création du bucket avatars...');
-        const { error: createAvatarError } = await supabase.storage.createBucket('avatars', {
-          public: true,
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
-          fileSizeLimit: 2097152 // 2MB
-        });
-        if (createAvatarError) {
-          console.log('Erreur création bucket avatars:', createAvatarError);
-        }
-      }
-
-      // Vérifier et créer le bucket id-cards si nécessaire
-      const { data: idCardBucket, error: idCardBucketError } = await supabase.storage.getBucket('id-cards');
-      if (idCardBucketError && idCardBucketError.message.includes('not found')) {
-        console.log('Création du bucket id-cards...');
-        const { error: createIdCardError } = await supabase.storage.createBucket('id-cards', {
-          public: false,
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
-          fileSizeLimit: 5242880 // 5MB
-        });
-        if (createIdCardError) {
-          console.log('Erreur création bucket id-cards:', createIdCardError);
-        }
-      }
-    } catch (error) {
-      console.log('Erreur lors de la vérification des buckets:', error);
-    }
-  };
-
   const uploadFile = async (file: File, bucket: string, path: string) => {
     try {
       console.log(`Upload du fichier vers ${bucket}/${path}`);
@@ -83,6 +49,12 @@ export const useProfileForm = (profile: ProfileData) => {
       return urlData.publicUrl;
     } catch (error) {
       console.error(`Erreur lors de l'upload vers ${bucket}:`, error);
+      
+      // Gestion spécifique des erreurs de bucket
+      if (error.message && error.message.includes('not found')) {
+        throw new Error(`Le stockage ${bucket} n'est pas configuré. Contactez l'administrateur.`);
+      }
+      
       throw error;
     }
   };
@@ -103,9 +75,6 @@ export const useProfileForm = (profile: ProfileData) => {
 
     try {
       console.log('Début de la mise à jour du profil...');
-      
-      // S'assurer que les buckets existent
-      await ensureBucketsExist();
 
       const updates: any = { 
         full_name: fullName.trim()
@@ -125,7 +94,7 @@ export const useProfileForm = (profile: ProfileData) => {
           console.error('Erreur upload avatar:', error);
           toast({
             title: "Erreur",
-            description: "Impossible d'uploader la photo de profil",
+            description: error.message || "Impossible d'uploader la photo de profil",
             variant: "destructive"
           });
           return;
@@ -146,7 +115,7 @@ export const useProfileForm = (profile: ProfileData) => {
           console.error('Erreur upload ID card:', error);
           toast({
             title: "Erreur",
-            description: "Impossible d'uploader la photo d'identité",
+            description: error.message || "Impossible d'uploader la photo d'identité",
             variant: "destructive"
           });
           return;
@@ -186,10 +155,12 @@ export const useProfileForm = (profile: ProfileData) => {
           errorMessage = "Erreur lors de l'upload des fichiers";
         } else if (error.message.includes('profiles')) {
           errorMessage = "Erreur lors de la sauvegarde des informations";
-        } else if (error.message.includes('permission')) {
-          errorMessage = "Permissions insuffisantes";
+        } else if (error.message.includes('permission') || error.message.includes('row-level security')) {
+          errorMessage = "Erreur de permissions. Veuillez vous reconnecter.";
         } else if (error.message.includes('RLS')) {
           errorMessage = "Problème d'autorisation d'accès";
+        } else {
+          errorMessage = error.message;
         }
       }
       
