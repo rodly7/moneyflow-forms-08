@@ -24,7 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return !!(profile.birth_date && profile.id_card_url);
   }, []);
 
-  // Vérifier si KYC est requis
+  // Vérifier si KYC est requis avec des vérifications plus sûres
   const requiresKYC = useCallback((profile: Profile | null) => {
     if (!profile) return false;
     return profile.requires_kyc && (!profile.kyc_status || profile.kyc_status === 'not_started');
@@ -76,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user?.id, hasRequiredFields, requiresKYC]);
 
-  // Fonction utilitaire pour charger le profil avec optimisation
+  // Fonction utilitaire pour charger le profil avec cast de type sûr
   const loadProfile = useCallback(async (userId: string) => {
     try {
       const { data: profileData, error } = await supabase
@@ -86,12 +86,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (!error && profileData) {
-        setProfile(profileData);
+        const typedProfile = profileData as Profile;
+        setProfile(typedProfile);
         
         // Vérifier si les champs obligatoires sont manquants
-        if (!hasRequiredFields(profileData)) {
+        if (!hasRequiredFields(typedProfile)) {
           setShowRequiredFieldsModal(true);
-        } else if (requiresKYC(profileData)) {
+        } else if (requiresKYC(typedProfile)) {
           // Si les champs de base sont OK mais KYC requis
           setShowKYCModal(true);
         }

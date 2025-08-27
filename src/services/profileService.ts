@@ -18,7 +18,7 @@ export const profileService = {
       }
 
       console.log('✅ Profil récupéré:', data);
-      return data;
+      return data as Profile; // Cast explicite pour éviter les erreurs de type
     } catch (error) {
       console.error('❌ Erreur dans fetchProfile:', error);
       return null;

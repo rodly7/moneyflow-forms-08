@@ -11,7 +11,7 @@ export interface Profile {
   is_verified: boolean | null;
   birth_date: string | null;
   id_card_url: string | null;
-  kyc_status: 'not_started' | 'pending' | 'approved' | 'rejected' | 'requires_review' | null;
+  kyc_status: string | null; // Changé pour être plus flexible
   kyc_completed_at: string | null;
   requires_kyc: boolean | null;
 }

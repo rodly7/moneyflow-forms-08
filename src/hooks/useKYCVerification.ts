@@ -59,48 +59,35 @@ export const useKYCVerification = () => {
         uploadFile(selfieFile, 'kyc-selfies', selfieFileName)
       ]);
 
-      // Créer l'enregistrement de vérification KYC avec une requête SQL directe
-      const { data, error } = await supabase.rpc('create_kyc_verification', {
-        p_user_id: user.id,
-        p_id_document_url: documentUrl,
-        p_id_document_type: documentType,
-        p_selfie_url: selfieUrl
-      });
+      // Insérer directement dans la table
+      const { data: insertData, error: insertError } = await supabase
+        .from('kyc_verifications')
+        .insert({
+          user_id: user.id,
+          status: 'pending',
+          id_document_url: documentUrl,
+          id_document_type: documentType,
+          selfie_url: selfieUrl,
+          verification_provider: 'manual'
+        })
+        .select()
+        .single();
 
-      if (error) {
-        // Fallback : insérer directement si la fonction n'existe pas
-        const { data: insertData, error: insertError } = await supabase
-          .from('kyc_verifications' as any)
-          .insert({
-            user_id: user.id,
-            status: 'pending',
-            id_document_url: documentUrl,
-            id_document_type: documentType,
-            selfie_url: selfieUrl,
-            verification_provider: 'manual'
-          })
-          .select()
-          .single();
+      if (insertError) throw insertError;
+      
+      // Mettre à jour le statut KYC dans le profil
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ 
+          kyc_status: 'pending',
+          requires_kyc: true 
+        })
+        .eq('id', user.id);
 
-        if (insertError) throw insertError;
-        
-        // Mettre à jour le statut KYC dans le profil
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ 
-            kyc_status: 'pending',
-            requires_kyc: true 
-          })
-          .eq('id', user.id);
-
-        if (profileError) throw profileError;
-
-        toast.success('Demande de vérification soumise avec succès');
-        return insertData;
-      }
+      if (profileError) throw profileError;
 
       toast.success('Demande de vérification soumise avec succès');
-      return data;
+      return insertData;
 
     } catch (error: any) {
       console.error('Erreur soumission KYC:', error);
@@ -116,7 +103,7 @@ export const useKYCVerification = () => {
 
     try {
       const { data, error } = await supabase
-        .from('kyc_verifications' as any)
+        .from('kyc_verifications')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
