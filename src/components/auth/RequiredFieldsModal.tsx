@@ -20,6 +20,25 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
   const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const ensureBucketExists = async () => {
+    try {
+      const { data: bucket, error } = await supabase.storage.getBucket('id-cards');
+      if (error && error.message.includes('not found')) {
+        console.log('Création du bucket id-cards...');
+        const { error: createError } = await supabase.storage.createBucket('id-cards', {
+          public: false,
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
+          fileSizeLimit: 5242880 // 5MB
+        });
+        if (createError) {
+          console.log('Erreur création bucket:', createError);
+        }
+      }
+    } catch (error) {
+      console.log('Erreur lors de la vérification du bucket:', error);
+    }
+  };
+
   const handleIdCardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -45,6 +64,9 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
     setIsLoading(true);
 
     try {
+      // S'assurer que le bucket existe
+      await ensureBucketExists();
+
       let idCardUrl = null;
 
       // Upload de la pièce d'identité
@@ -54,9 +76,13 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
         
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('id-cards')
-          .upload(fileName, idCardFile);
+          .upload(fileName, idCardFile, {
+            cacheControl: '3600',
+            upsert: true
+          });
 
         if (uploadError) {
+          console.error('Erreur upload:', uploadError);
           throw uploadError;
         }
 
@@ -77,6 +103,7 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
         .eq('id', profile.id);
 
       if (updateError) {
+        console.error('Erreur mise à jour profil:', updateError);
         throw updateError;
       }
 
@@ -84,7 +111,7 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
       onComplete();
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
-      toast.error('Erreur lors de la mise à jour des informations');
+      toast.error('Erreur lors de la mise à jour des informations: ' + (error.message || 'Erreur inconnue'));
     } finally {
       setIsLoading(false);
     }

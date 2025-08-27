@@ -9,7 +9,7 @@ interface ProfileData {
   full_name: string;
   phone: string;
   avatar_url?: string;
-  id_card_photo_url?: string;
+  id_card_url?: string;
 }
 
 export const useProfileForm = (profile: ProfileData) => {
@@ -18,7 +18,7 @@ export const useProfileForm = (profile: ProfileData) => {
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(profile?.avatar_url || null);
-  const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(profile?.id_card_photo_url || null);
+  const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(profile?.id_card_url || null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -140,7 +140,7 @@ export const useProfileForm = (profile: ProfileData) => {
         
         try {
           const idCardUrl = await uploadFile(idCardFile, 'id-cards', fileName);
-          updates.id_card_photo_url = idCardUrl;
+          updates.id_card_url = idCardUrl;
           console.log('Photo d\'identité uploadée:', idCardUrl);
         } catch (error) {
           console.error('Erreur upload ID card:', error);
