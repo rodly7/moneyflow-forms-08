@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Wallet, RefreshCw } from "lucide-react";
-import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
+import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/lib/utils/currency";
 
 interface AgentBalanceCardProps {
   balance: number;
