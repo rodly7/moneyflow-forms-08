@@ -18,14 +18,7 @@ export const profileService = {
       }
 
       console.log('✅ Profil récupéré:', data);
-      
-      // Normaliser le profil pour s'assurer que birth_date est présent
-      const normalizedProfile: Profile = {
-        ...data,
-        birth_date: (data as any).birth_date || null
-      };
-      
-      return normalizedProfile;
+      return data;
     } catch (error) {
       console.error('❌ Erreur dans fetchProfile:', error);
       return null;

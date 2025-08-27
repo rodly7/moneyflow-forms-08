@@ -6,16 +6,12 @@ interface ProfileFormFieldsProps {
   fullName: string;
   setFullName: (value: string) => void;
   phone: string;
-  birthDate?: string;
-  setBirthDate?: (value: string) => void;
 }
 
 const ProfileFormFields = ({ 
   fullName, 
   setFullName, 
-  phone,
-  birthDate,
-  setBirthDate
+  phone 
 }: ProfileFormFieldsProps) => {
   return (
     <div className="form-container">
@@ -30,28 +26,11 @@ const ProfileFormFields = ({
           required
           className="h-12"
         />
+        {/* Fixed space for validation messages */}
         <div className="min-h-[20px] form-message-zone">
           {/* Validation messages will appear here */}
         </div>
       </div>
-
-      {setBirthDate && (
-        <div className="form-field-wrapper">
-          <Label htmlFor="birthDate">Date de naissance *</Label>
-          <Input 
-            id="birthDate"
-            type="date" 
-            value={birthDate || ""} 
-            onChange={(e) => setBirthDate(e.target.value)}
-            max={new Date().toISOString().split('T')[0]}
-            required
-            className="h-12"
-          />
-          <div className="min-h-[20px] form-message-zone">
-            <p className="text-xs text-gray-500">Information obligatoire pour votre compte</p>
-          </div>
-        </div>
-      )}
       
       <div className="form-field-wrapper">
         <Label htmlFor="phone">Téléphone</Label>
