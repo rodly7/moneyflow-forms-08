@@ -105,6 +105,7 @@ const TransferForm = () => {
                 <RecipientInfo
                   updateFields={updateFields}
                   recipient={data.recipient}
+                  transfer={data.transfer}
                 />
               )}
               
@@ -161,7 +162,6 @@ const TransferForm = () => {
           isOpen={showBiometricConfirmation}
           onClose={() => setShowBiometricConfirmation(false)}
           onConfirm={processFinalTransfer}
-          isProcessing={isLoading}
         />
       </div>
     </div>

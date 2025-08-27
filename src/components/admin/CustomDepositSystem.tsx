@@ -1,189 +1,170 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Wallet, Plus, AlertCircle, CheckCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency } from "@/lib/utils/currency";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-
-interface DepositFormState {
-  agentId: string;
-  amount: number;
-  description: string;
-}
+import { formatCurrency } from "@/lib/utils/currency";
+import { DollarSign, Users, FileText } from "lucide-react";
 
 const CustomDepositSystem = () => {
-  const { user } = useAuth();
+  const [targetType, setTargetType] = useState<"user" | "agent">("agent");
+  const [targetId, setTargetId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const [depositForm, setDepositForm] = useState<DepositFormState>({
-    agentId: "",
-    amount: 0,
-    description: "",
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [depositSuccess, setDepositSuccess] = useState(false);
+  const { user } = useAuth();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { id, value } = e.target;
-    setDepositForm((prev) => ({
-      ...prev,
-      [id]: value,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!user?.id) {
+  const handleCustomDeposit = async () => {
+    if (!user || !targetId.trim() || !amount) {
       toast({
         title: "Erreur",
-        description: "Vous devez être connecté pour effectuer cette action.",
-        variant: "destructive",
+        description: "Veuillez remplir tous les champs requis",
+        variant: "destructive"
       });
       return;
     }
 
-    setIsSubmitting(true);
-    setDepositSuccess(false);
+    setIsLoading(true);
 
     try {
-      // Vérifier si l'agent existe
-      const { data: agentData, error: agentError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', depositForm.agentId)
-        .single();
+      const depositAmount = parseFloat(amount);
 
-      if (agentError || !agentData) {
-        throw new Error("Agent introuvable. Veuillez vérifier l'ID de l'agent.");
+      if (isNaN(depositAmount) || depositAmount <= 0) {
+        throw new Error("Montant invalide");
       }
 
-      // Effectuer le dépôt via une fonction Supabase (RPC)
-      const { error: depositError } = await supabase.rpc('admin_deposit_funds', {
-        agent_id: depositForm.agentId,
-        deposit_amount: depositForm.amount,
-        admin_id: user.id,
-        deposit_description: depositForm.description
-      });
+      // Insert into admin_deposits table
+      const { error } = await supabase
+        .from('admin_deposits')
+        .insert({
+          admin_id: user.id,
+          agent_id: targetType === 'agent' ? targetId : null,
+          user_id: targetType === 'user' ? targetId : null,
+          amount: depositAmount,
+          reason: reason || 'Dépôt personnalisé',
+          created_at: new Date().toISOString()
+        });
 
-      if (depositError) {
-        throw new Error(depositError.message || "Impossible d'effectuer le dépôt.");
+      if (error) {
+        throw error;
       }
 
       toast({
-        title: "Dépôt effectué",
-        description: `Dépôt de ${formatCurrency(depositForm.amount, 'XAF')} effectué avec succès pour l'agent ${depositForm.agentId}.`,
+        title: "Succès",
+        description: `Dépôt de ${formatCurrency(depositAmount)} effectué avec succès`,
       });
 
-      setDepositSuccess(true);
-      setDepositForm({
-        agentId: "",
-        amount: 0,
-        description: "",
-      });
+      // Reset form
+      setTargetId("");
+      setAmount("");
+      setReason("");
     } catch (error: any) {
-      console.error("Erreur lors du dépôt:", error);
+      console.error('Erreur lors du dépôt personnalisé:', error);
       toast({
-        title: "Erreur lors du dépôt",
-        description: error.message || "Une erreur est survenue lors du dépôt.",
-        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible d'effectuer le dépôt personnalisé",
+        variant: "destructive"
       });
-      setDepositSuccess(false);
-    } finally {
-      setIsSubmitting(false);
     }
+
+    setIsLoading(false);
   };
 
   return (
-    <Card className="bg-white shadow-md rounded-lg">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-        <CardTitle className="text-lg font-semibold">Système de Dépôt Personnalisé</CardTitle>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <DollarSign className="w-5 h-5" />
+          Dépôt Personnalisé
+        </CardTitle>
       </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label>Type de Destinataire</Label>
+          <Select value={targetType} onValueChange={(value: "user" | "agent") => setTargetType(value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="agent">Agent</SelectItem>
+              <SelectItem value="user">Utilisateur</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-      <CardContent className="p-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="agentId">ID de l'Agent</Label>
+        <div className="space-y-2">
+          <Label htmlFor="targetId">ID du {targetType === 'agent' ? 'Agent' : 'Utilisateur'}</Label>
+          <div className="relative">
+            <Users className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
-              type="text"
-              id="agentId"
-              placeholder="Entrez l'ID de l'agent"
-              value={depositForm.agentId}
-              onChange={handleInputChange}
-              required
+              id="targetId"
+              placeholder={`ID du ${targetType}`}
+              value={targetId}
+              onChange={(e) => setTargetId(e.target.value)}
+              className="pl-10"
             />
           </div>
+        </div>
 
-          <div>
-            <Label htmlFor="amount">Montant à Déposer</Label>
+        <div className="space-y-2">
+          <Label htmlFor="amount">Montant (FCFA)</Label>
+          <div className="relative">
+            <DollarSign className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
-              type="number"
               id="amount"
-              placeholder="Entrez le montant"
-              value={String(depositForm.amount)}
-              onChange={handleInputChange}
-              required
+              type="number"
+              placeholder="100000"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="pl-10"
+              min="1"
             />
           </div>
+          {amount && (
+            <p className="text-sm text-gray-600">
+              Montant formaté: {formatCurrency(parseFloat(amount) || 0)}
+            </p>
+          )}
+        </div>
 
-          <div>
-            <Label htmlFor="description">Description du Dépôt</Label>
+        <div className="space-y-2">
+          <Label htmlFor="reason">Raison du dépôt</Label>
+          <div className="relative">
+            <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Textarea
-              id="description"
-              placeholder="Entrez une description"
-              value={depositForm.description}
-              onChange={handleInputChange}
+              id="reason"
+              placeholder="Décrivez la raison de ce dépôt personnalisé..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="pl-10 min-h-[80px]"
             />
           </div>
+        </div>
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                <span>Traitement...</span>
-              </div>
-            ) : (
-              "Effectuer le Dépôt"
-            )}
+        <div className="pt-4">
+          <Button
+            onClick={handleCustomDeposit}
+            disabled={isLoading || !targetId.trim() || !amount}
+            className="w-full"
+          >
+            {isLoading ? "Traitement en cours..." : "Effectuer le Dépôt"}
           </Button>
-        </form>
+        </div>
 
-        {depositSuccess && (
-          <div className="mt-4 p-3 bg-green-50 rounded-md border border-green-200">
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span className="text-sm text-green-700">
-                Dépôt effectué avec succès !
-              </span>
-            </div>
+        {targetId.trim() && amount && (
+          <div className="mt-4 p-4 bg-green-50 rounded-lg">
+            <p className="text-sm text-green-700">
+              <strong>Aperçu:</strong> Dépôt de {formatCurrency(parseFloat(amount) || 0)} vers {targetType} ID: {targetId}
+            </p>
           </div>
         )}
-
-        <div className="mt-6 p-4 bg-gray-50 rounded-md border border-gray-200">
-          <div className="flex items-center space-x-3 mb-3">
-            <Wallet className="h-5 w-5 text-blue-500" />
-            <h4 className="font-semibold text-gray-700">Informations Importantes</h4>
-          </div>
-          <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-            <li>Assurez-vous que l'ID de l'agent est correct avant de procéder.</li>
-            <li>Le montant sera crédité sur le compte de l'agent immédiatement.</li>
-            <li>Une description claire aide à suivre les dépôts effectués.</li>
-          </ul>
-        </div>
-
-        <div className="mt-4 p-3 bg-red-50 rounded-md border border-red-200">
-          <div className="flex items-center space-x-2">
-            <AlertCircle className="h-4 w-4 text-red-500" />
-            <span className="text-xs text-red-700">
-              Note: Cette action est irréversible. Vérifiez attentivement les informations avant de confirmer.
-            </span>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
