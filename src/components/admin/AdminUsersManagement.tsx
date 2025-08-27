@@ -178,20 +178,28 @@ export const AdminUsersManagement = () => {
                 </td>
                 <td style={{ padding: '15px' }}>
                   {(() => {
-                    const photoUrl = user.id_card_photo_url || user.id_card_url;
+                    const photoUrl = user.id_card_url || user.id_card_photo_url;
                     
                     if (photoUrl) {
                       return (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: 'column' }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          flexDirection: 'column',
+                          minWidth: '80px'
+                        }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <div style={{ 
-                              width: '40px', 
-                              height: '30px', 
-                              border: '1px solid #ddd',
-                              borderRadius: '4px',
+                              width: '50px', 
+                              height: '35px', 
+                              border: '2px solid #e0e0e0',
+                              borderRadius: '6px',
                               overflow: 'hidden',
-                              backgroundColor: '#f5f5f5',
-                              position: 'relative'
+                              backgroundColor: '#fafafa',
+                              position: 'relative',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                              cursor: 'pointer'
                             }}>
                               <img 
                                 src={photoUrl} 
@@ -200,18 +208,25 @@ export const AdminUsersManagement = () => {
                                   width: '100%', 
                                   height: '100%', 
                                   objectFit: 'cover',
-                                  cursor: 'pointer'
+                                  display: 'block',
+                                  opacity: '0.8'
                                 }}
                                 onClick={() => setSelectedUserPhoto({
                                   url: photoUrl,
                                   name: user.full_name || 'Utilisateur',
                                   type: 'Pièce d\'identité'
                                 })}
-                                onLoad={() => console.log('✅ Image chargée avec succès pour', user.full_name)}
+                                onLoad={(e) => {
+                                  console.log('✅ Photo chargée:', user.full_name);
+                                  e.currentTarget.style.opacity = '1';
+                                }}
                                 onError={(e) => {
-                                  console.error('❌ Erreur de chargement image pour', user.full_name, ':', photoUrl);
+                                  console.error('❌ Erreur photo:', user.full_name, photoUrl);
+                                  const errorDiv = document.createElement('div');
+                                  errorDiv.innerHTML = '❌';
+                                  errorDiv.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#ffebee;color:#d32f2f;font-size:16px;position:absolute;top:0;left:0;';
+                                  e.currentTarget.parentElement?.appendChild(errorDiv);
                                   e.currentTarget.style.display = 'none';
-                                  e.currentTarget.parentElement.innerHTML = '<span style="font-size: 10px; color: red;">Erreur</span>';
                                 }}
                               />
                             </div>
@@ -223,6 +238,7 @@ export const AdminUsersManagement = () => {
                                 name: user.full_name || 'Utilisateur',
                                 type: 'Pièce d\'identité'
                               })}
+                              style={{ height: '32px', minWidth: '32px' }}
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
@@ -231,14 +247,32 @@ export const AdminUsersManagement = () => {
                             href={photoUrl} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            style={{ fontSize: '10px', color: '#0066cc' }}
+                            style={{ 
+                              fontSize: '10px', 
+                              color: '#1976d2',
+                              textDecoration: 'none',
+                              padding: '2px 4px',
+                              borderRadius: '3px',
+                              backgroundColor: '#e3f2fd'
+                            }}
                           >
                             Lien direct
                           </a>
                         </div>
                       );
                     } else {
-                      return <span style={{ fontSize: '11px', color: '#999' }}>Non fournie</span>;
+                      return (
+                        <div style={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minHeight: '50px',
+                          color: '#999',
+                          fontSize: '11px'
+                        }}>
+                          Non fournie
+                        </div>
+                      );
                     }
                   })()}
                 </td>
