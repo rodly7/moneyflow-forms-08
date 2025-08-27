@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, RefreshCw, Calendar, TrendingUp, DollarSign } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Download, RefreshCw, Calendar, TrendingUp, DollarSign, Users } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/currency';
+import { UserTransactionsQuotaList } from './UserTransactionsQuotaList';
 import jsPDF from 'jspdf';
 
 interface Transaction {
@@ -315,7 +317,7 @@ export const EnhancedTransactionsTab = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Gestion des Transactions</h2>
-          <p className="text-muted-foreground">Toutes les transactions avec calculs automatiques</p>
+          <p className="text-muted-foreground">Toutes les transactions avec calculs automatiques et quotas</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => generatePDF(dailyStats)} variant="outline">
@@ -328,6 +330,17 @@ export const EnhancedTransactionsTab = () => {
           </Button>
         </div>
       </div>
+
+      <Tabs defaultValue="transactions" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="transactions">Toutes les Transactions</TabsTrigger>
+          <TabsTrigger value="quotas">
+            <Users className="w-4 h-4 mr-2" />
+            Quotas Utilisateurs
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="transactions" className="space-y-6">
 
       {/* Statistiques rapides */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -475,6 +488,12 @@ export const EnhancedTransactionsTab = () => {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="quotas">
+          <UserTransactionsQuotaList />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
