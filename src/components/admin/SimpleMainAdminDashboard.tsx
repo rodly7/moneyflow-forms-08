@@ -58,7 +58,7 @@ const SimpleMainAdminDashboard = () => {
 
       {/* Onglets principaux */}
       <Tabs defaultValue="fraud-detection" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="fraud-detection" className="flex items-center gap-2">
             <Eye className="w-4 h-4" />
             🔍 Fraude

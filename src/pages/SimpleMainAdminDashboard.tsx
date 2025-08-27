@@ -10,6 +10,7 @@ import { AgentManagementPanel } from '@/components/admin/AgentManagementPanel';
 import { RevenueAnalytics } from '@/components/admin/RevenueAnalytics';
 import { SimpleSettingsTab } from '@/components/admin/SimpleSettingsTab';
 import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
+import { FraudDetectionInterface } from '@/components/admin/FraudDetectionInterface';
 
 export default function SimpleMainAdminDashboard() {
   const { user, profile } = useAuth();
@@ -45,6 +46,7 @@ export default function SimpleMainAdminDashboard() {
 
   const tabs = [
     { id: 'dashboard', label: 'Tableau de bord', icon: '📊' },
+    { id: 'fraud', label: 'Détection Fraude', icon: '🔍' },
     { id: 'users', label: 'Gestion Utilisateurs', icon: '👥' },
     { id: 'agents', label: 'Gestion Agents', icon: '🔧' },
     { id: 'revenue', label: 'Revenus & Analytics', icon: '💰' },
@@ -56,6 +58,8 @@ export default function SimpleMainAdminDashboard() {
     switch (activeTab) {
       case 'dashboard':
         return <SimpleAdminDashboard />;
+      case 'fraud':
+        return <FraudDetectionInterface />;
       case 'users':
         return <AdminUsersManagement />;
       case 'agents':
