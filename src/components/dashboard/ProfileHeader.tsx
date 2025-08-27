@@ -15,6 +15,7 @@ interface Profile {
   full_name: string | null;
   phone: string;
   avatar_url?: string | null;
+  id_card_url?: string | null;
 }
 
 interface ProfileHeaderProps {
@@ -75,7 +76,11 @@ const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                 <DialogTrigger asChild>
                   <div className="cursor-pointer relative group">
                     <Avatar className="h-28 w-28 ring-4 ring-white/30 transition-all duration-500 group-hover:ring-white/50 group-hover:scale-110 shadow-2xl">
-                      <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || ''} />
+                      <AvatarImage 
+                        src={profile?.avatar_url || undefined} 
+                        alt={profile?.full_name || ''} 
+                        className="object-cover"
+                      />
                       <AvatarFallback className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-2xl font-bold shadow-inner">
                         {profile?.avatar_url ? (
                           getInitials(profile?.full_name || '')
