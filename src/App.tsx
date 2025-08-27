@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PWAInstallBanner } from "./components/pwa/PWAInstallBanner";
 import { PWAUpdateBanner } from "./components/pwa/PWAUpdateBanner";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
+import { ForcedPWAInstall } from "./components/pwa/ForcedPWAInstall";
 
 // CRITICAL: All imports must be static - NO dynamic imports whatsoever
 // Every single component is imported statically to prevent code splitting
@@ -144,6 +145,7 @@ function App() {
       <Toaster />
       <Sonner />
       <OfflineIndicator />
+      <ForcedPWAInstall />
       <PWAInstallBanner />
       <PWAUpdateBanner />
       <Routes>
