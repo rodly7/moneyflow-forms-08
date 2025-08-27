@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { countries } from '@/data/countries';
 import { toast } from 'sonner';
 import IdCardUploadSection from '@/components/profile/IdCardUploadSection';
-import KYCVerificationModal from '@/components/kyc/KYCVerificationModal';
 
 interface SignUpFormProps {
   onSwitchToLogin: () => void;
@@ -28,8 +28,6 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [showKYCModal, setShowKYCModal] = useState(false);
-  const [registrationComplete, setRegistrationComplete] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -73,18 +71,11 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
         role: formData.role,
         birth_date: formData.birthDate,
         id_card_file: idCardFile,
-        requires_kyc: true, // KYC obligatoire pour nouveaux utilisateurs
       };
 
       await signUp(formData.phone, formData.password, metadata);
       
-      setRegistrationComplete(true);
-      toast.success('Inscription réussie ! Procédez maintenant à la vérification d\'identité.');
-      
-      // Lancer automatiquement le processus KYC après inscription
-      setTimeout(() => {
-        setShowKYCModal(true);
-      }, 1000);
+      toast.success('Inscription réussie ! Vous pouvez maintenant vous connecter.');
       
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors de l\'inscription');
@@ -93,30 +84,11 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
     }
   };
 
-  const handleKYCComplete = () => {
-    setShowKYCModal(false);
-    toast.success('Vérification d\'identité soumise ! Votre compte sera activé après validation.');
-  };
-
-  if (registrationComplete && showKYCModal) {
-    return (
-      <KYCVerificationModal
-        isOpen={showKYCModal}
-        onClose={handleKYCComplete}
-        onComplete={handleKYCComplete}
-        mandatory={true}
-      />
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold">Inscription</h2>
         <p className="text-gray-600">Créez votre compte SendFlow</p>
-        <div className="mt-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-lg p-2">
-          ℹ️ Une vérification d'identité sera requise après l'inscription
-        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -226,7 +198,7 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
           className="w-full" 
           disabled={isLoading}
         >
-          {isLoading ? 'Inscription...' : 'S\'inscrire et vérifier mon identité'}
+          {isLoading ? 'Inscription...' : 'S\'inscrire'}
         </Button>
       </form>
 

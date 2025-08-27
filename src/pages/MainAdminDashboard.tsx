@@ -9,7 +9,6 @@ import { RevenueAnalytics } from '@/components/admin/RevenueAnalytics';
 import { SimpleTransactionsList } from '@/components/admin/SimpleTransactionsList';
 import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
 import { SimpleSettingsTab } from '@/components/admin/SimpleSettingsTab';
-import KYCVerificationManagement from '@/components/admin/KYCVerificationManagement';
 import LogoutButton from '@/components/auth/LogoutButton';
 import SubAdminTrafficMonitor from '@/components/admin/SubAdminTrafficMonitor';
 
@@ -55,7 +54,6 @@ export default function MainAdminDashboard() {
     { id: 'dashboard', label: 'Tableau de bord', icon: '📊' },
     { id: 'users', label: 'Gestion Utilisateurs', icon: '👥' },
     { id: 'agents', label: 'Gestion Agents', icon: '🔧' },
-    { id: 'kyc', label: 'Vérifications KYC', icon: '🆔' },
     { id: 'sub-admins', label: 'Trafic Sous-Admins', icon: '👨‍💼' },
     { id: 'revenue', label: 'Revenus & Analytics', icon: '💰' },
     { id: 'transactions', label: 'Transactions', icon: '💸' },
@@ -71,8 +69,6 @@ export default function MainAdminDashboard() {
         return <AdminUsersManagement />;
       case 'agents':
         return <AgentManagementPanel />;
-      case 'kyc':
-        return <KYCVerificationManagement />;
       case 'sub-admins':
         return <SubAdminTrafficMonitor />;
       case 'revenue':
