@@ -24,9 +24,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return !!(profile.birth_date && profile.id_card_url);
   }, []);
 
-  // Vérifier si KYC est requis - modifié pour permettre l'utilisation après soumission
+  // Vérifier si KYC est requis - exempter les administrateurs
   const requiresKYC = useCallback((profile: Profile | null) => {
     if (!profile) return false;
+    
+    // Les administrateurs ne sont pas soumis au KYC obligatoire
+    if (profile.role === 'admin') return false;
+    
     // L'utilisateur peut utiliser l'app si:
     // - KYC n'est pas requis, OU
     // - KYC est approuvé, OU 

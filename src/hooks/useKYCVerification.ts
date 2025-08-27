@@ -102,7 +102,7 @@ export const useKYCVerification = () => {
       setUploadProgress(90);
       console.log('Files uploaded successfully, inserting KYC record...');
 
-      // Prepare KYC data for insertion
+      // Prepare KYC data for insertion - statut pending au lieu d'approved
       const kycData: KYCVerificationInsert = {
         user_id: userId,
         id_document_type: verificationData.id_document_type,
@@ -113,8 +113,8 @@ export const useKYCVerification = () => {
         id_document_url,
         selfie_url,
         video_url,
-        status: 'approved',
-        verified_at: new Date().toISOString()
+        status: 'pending', // Changé de 'approved' à 'pending'
+        verified_at: undefined // Supprimé car non approuvé automatiquement
       };
 
       console.log('Inserting KYC data:', kycData);
@@ -133,16 +133,16 @@ export const useKYCVerification = () => {
 
       console.log('KYC record inserted successfully:', kycRecord);
 
-      // Update profile
+      // Update profile - mettre le statut KYC en pending
       console.log('Waiting before profile update...');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       console.log('Updating user profile...');
       const profileUpdateData = {
-        kyc_status: 'approved',
+        kyc_status: 'pending', // Changé de 'approved' à 'pending'
         kyc_completed_at: new Date().toISOString(),
-        is_verified: true,
-        verified_at: new Date().toISOString()
+        is_verified: false, // Changé de true à false
+        verified_at: null // Pas de vérification automatique
       };
 
       console.log('Profile update data:', profileUpdateData);
@@ -173,7 +173,7 @@ export const useKYCVerification = () => {
           console.error(`Erreur vérification profil (tentative ${attempt}):`, checkError);
         } else {
           console.log(`Profil vérifié (tentative ${attempt}):`, updatedProfile);
-          if (updatedProfile.kyc_status === 'approved' && updatedProfile.is_verified) {
+          if (updatedProfile.kyc_status === 'pending') {
             profileUpdated = true;
             break;
           }
@@ -185,7 +185,7 @@ export const useKYCVerification = () => {
       }
 
       setUploadProgress(100);
-      toast.success('Vérification d\'identité approuvée instantanément !');
+      toast.success('Vérification d\'identité soumise avec succès ! En attente d\'approbation par un administrateur.');
       
       return kycRecord;
     } catch (error: any) {

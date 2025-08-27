@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
 import { useKYCVerification } from '@/hooks/useKYCVerification';
-import { CheckCircle, Upload, Camera, AlertCircle, Clock, Zap } from 'lucide-react';
+import { CheckCircle, Upload, Camera, AlertCircle, Clock, Shield } from 'lucide-react';
 import DocumentUploadStep from './DocumentUploadStep';
 import SelfieStep from './SelfieStep';
 import VerificationReviewStep from './VerificationReviewStep';
@@ -92,22 +92,15 @@ const KYCVerificationModal = ({
         selfieFile
       );
 
-      // Attendre un peu plus longtemps et faire plusieurs tentatives de rafraîchissement
+      // Attendre un peu et rafraîchir le profil
       await new Promise(resolve => setTimeout(resolve, 1000));
       await refreshProfile();
       
-      // Deuxième tentative après un délai supplémentaire
-      setTimeout(async () => {
-        await refreshProfile();
-      }, 2000);
-
-      // Fermer le modal automatiquement après l'approbation
+      // Fermer le modal après soumission
       setTimeout(() => {
         onComplete?.();
         onClose();
-        // Forcer un rechargement de la page si nécessaire
-        window.location.reload();
-      }, 3000);
+      }, 2000);
 
     } catch (error) {
       console.error('Erreur lors de la soumission KYC:', error);
@@ -125,8 +118,10 @@ const KYCVerificationModal = ({
             <DialogTitle className="flex items-center gap-2">
               {profile?.kyc_status === 'approved' ? (
                 <CheckCircle className="h-5 w-5 text-green-500" />
-              ) : (
+              ) : profile?.kyc_status === 'pending' ? (
                 <Clock className="h-5 w-5 text-blue-500" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-orange-500" />
               )}
               Vérification d'identité
             </DialogTitle>
@@ -136,10 +131,13 @@ const KYCVerificationModal = ({
             <div className="mb-4">
               {profile?.kyc_status === 'pending' && (
                 <>
-                  <Clock className="mx-auto h-16 w-16 text-blue-500 mb-4" />
+                  <div className="relative">
+                    <Clock className="mx-auto h-16 w-16 text-blue-500 mb-4" />
+                    <Shield className="absolute top-0 right-1/3 h-6 w-6 text-green-500" />
+                  </div>
                   <h3 className="text-xl font-semibold mb-2">Vérification en cours</h3>
                   <p className="text-gray-600 mb-4">
-                    Votre dossier de vérification d'identité est en cours d'examen. 
+                    Votre dossier de vérification d'identité est en cours d'examen par un administrateur Sendflow. 
                     Vous pouvez continuer à utiliser l'application normalement.
                   </p>
                 </>
@@ -149,7 +147,7 @@ const KYCVerificationModal = ({
                   <AlertCircle className="mx-auto h-16 w-16 text-orange-500 mb-4" />
                   <h3 className="text-xl font-semibold mb-2">Révision nécessaire</h3>
                   <p className="text-gray-600 mb-4">
-                    Votre dossier nécessite une révision supplémentaire. 
+                    Votre dossier nécessite une révision supplémentaire par un administrateur. 
                     Vous pouvez continuer à utiliser l'application en attendant.
                   </p>
                 </>
@@ -158,11 +156,11 @@ const KYCVerificationModal = ({
                 <>
                   <div className="relative">
                     <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
-                    <Zap className="absolute top-0 right-1/3 h-6 w-6 text-yellow-500 animate-pulse" />
+                    <Shield className="absolute top-0 right-1/3 h-6 w-6 text-blue-500 animate-pulse" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2 text-green-600">Vérification approuvée !</h3>
                   <p className="text-gray-600 mb-4">
-                    Votre identité a été vérifiée avec succès instantanément ! 
+                    Votre identité a été vérifiée et approuvée par un administrateur Sendflow ! 
                     Vous avez maintenant accès à toutes les fonctionnalités.
                   </p>
                 </>
@@ -229,14 +227,17 @@ const KYCVerificationModal = ({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-yellow-500" />
-            Vérification d'identité instantanée (KYC)
+            <Shield className="h-5 w-5 text-blue-500" />
+            Vérification d'identité KYC
           </DialogTitle>
           {mandatory && !hasKYCInProgress && (
             <p className="text-sm text-orange-600">
               Cette vérification est obligatoire pour continuer à utiliser l'application.
             </p>
           )}
+          <p className="text-sm text-blue-600">
+            Votre dossier sera examiné par un administrateur Sendflow avant approbation.
+          </p>
         </DialogHeader>
 
         <div className="space-y-6">
