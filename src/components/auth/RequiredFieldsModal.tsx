@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import IdCardUploadSection from '@/components/profile/IdCardUploadSection';
+import { useAuthSession } from '@/hooks/useAuthSession';
 
 interface RequiredFieldsModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { handlePermissionError } = useAuthSession();
 
   const handleIdCardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -64,6 +66,20 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
 
         if (uploadError) {
           console.error('Erreur upload:', uploadError);
+          
+          // Gérer spécifiquement les erreurs de permissions
+          if (uploadError.message?.includes('row-level security') || 
+              uploadError.message?.includes('permission') ||
+              uploadError.message?.includes('policy')) {
+            const canRetry = await handlePermissionError();
+            if (canRetry) {
+              toast.error('Erreur de permissions corrigée. Veuillez réessayer.');
+              return;
+            } else {
+              return; // L'utilisateur sera redirigé
+            }
+          }
+          
           throw uploadError;
         }
 
@@ -91,6 +107,20 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
 
       if (updateError) {
         console.error('Erreur mise à jour profil:', updateError);
+        
+        // Gérer les erreurs de permissions RLS
+        if (updateError.message?.includes('row-level security') || 
+            updateError.message?.includes('permission') ||
+            updateError.message?.includes('policy')) {
+          const canRetry = await handlePermissionError();
+          if (canRetry) {
+            toast.error('Erreur de permissions corrigée. Veuillez réessayer.');
+            return;
+          } else {
+            return; // L'utilisateur sera redirigé
+          }
+        }
+        
         throw updateError;
       }
 
@@ -101,10 +131,8 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
       let errorMessage = 'Erreur lors de la mise à jour des informations';
       
       if (error.message) {
-        if (error.message.includes('row-level security')) {
-          errorMessage = 'Erreur de permissions. Veuillez vous reconnecter et réessayer.';
-        } else if (error.message.includes('not found')) {
-          errorMessage = 'Erreur de configuration du stockage. Les buckets ont été créés, veuillez réessayer.';
+        if (error.message.includes('not found')) {
+          errorMessage = 'Erreur de configuration du stockage. Contactez l\'administrateur.';
         } else {
           errorMessage = `Erreur: ${error.message}`;
         }

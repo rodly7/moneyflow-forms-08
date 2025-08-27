@@ -28,6 +28,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user?.id) return;
     
     try {
+      // Vérifier d'abord la validité de la session
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !currentUser) {
+        console.log('🔒 Session invalide lors du refresh profil, déconnexion');
+        await signOut();
+        return;
+      }
+
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
@@ -36,6 +45,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error('Erreur lors du rafraîchissement du profil:', error);
+        
+        // Si erreur de permissions, forcer la reconnexion
+        if (error.message?.includes('row-level security') || 
+            error.message?.includes('permission')) {
+          console.log('🔒 Erreur de permissions détectée, déconnexion forcée');
+          await signOut();
+        }
         return;
       }
       
@@ -70,6 +86,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       } else {
         console.error('Erreur profil:', error);
+        
+        // Si erreur de permissions, forcer la reconnexion
+        if (error?.message?.includes('row-level security') || 
+            error?.message?.includes('permission')) {
+          console.log('🔒 Erreur de permissions lors du chargement profil');
+          setTimeout(() => signOut(), 1000);
+        }
+        
         return false;
       }
     } catch (error) {
@@ -170,6 +194,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(null);
       setShowRequiredFieldsModal(false);
       
+      // Nettoyer le localStorage
+      localStorage.removeItem('supabase.auth.token');
+      
       // Puis appeler Supabase pour la déconnexion
       await authService.signOut();
       
@@ -177,6 +204,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut({ scope: 'local' });
       
       setLoading(false);
+      
+      // Rediriger vers la page d'authentification
+      window.location.href = '/auth';
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
       // Même en cas d'erreur, nettoyer l'état local
@@ -185,8 +215,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setShowRequiredFieldsModal(false);
       setLoading(false);
       
-      // Ne pas relancer l'erreur pour éviter de bloquer la déconnexion
-      toast.error('Déconnexion effectuée avec nettoyage forcé');
+      // Redirection forcée
+      window.location.href = '/auth';
     }
   }, []);
 

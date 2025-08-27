@@ -3,6 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuthSession } from "@/hooks/useAuthSession";
 
 interface ProfileData {
   id: string;
@@ -21,6 +22,7 @@ export const useProfileForm = (profile: ProfileData) => {
   const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(profile?.id_card_url || null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { handlePermissionError } = useAuthSession();
 
   const uploadFile = async (file: File, bucket: string, fileName: string) => {
     try {
@@ -39,6 +41,19 @@ export const useProfileForm = (profile: ProfileData) => {
 
       if (error) {
         console.error('Erreur upload:', error);
+        
+        // Gérer spécifiquement les erreurs de permissions
+        if (error.message?.includes('row-level security') || 
+            error.message?.includes('permission') ||
+            error.message?.includes('policy')) {
+          const canRetry = await handlePermissionError();
+          if (canRetry) {
+            throw new Error('Erreur de permissions corrigée. Veuillez réessayer.');
+          } else {
+            throw new Error('Session expirée. Vous allez être redirigé vers la connexion.');
+          }
+        }
+        
         throw error;
       }
 
@@ -55,7 +70,7 @@ export const useProfileForm = (profile: ProfileData) => {
       
       // Gestion spécifique des erreurs de bucket
       if (error.message && error.message.includes('not found')) {
-        throw new Error(`Le stockage ${bucket} n'est pas configuré. Les buckets ont été créés, veuillez réessayer.`);
+        throw new Error(`Le stockage ${bucket} n'est pas configuré. Contactez l'administrateur.`);
       }
       
       throw error;
@@ -135,6 +150,18 @@ export const useProfileForm = (profile: ProfileData) => {
 
       if (error) {
         console.error('Erreur lors de la mise à jour du profil:', error);
+        
+        // Gérer les erreurs de permissions RLS
+        if (error.message?.includes('row-level security') || 
+            error.message?.includes('permission') ||
+            error.message?.includes('policy')) {
+          const canRetry = await handlePermissionError();
+          if (!canRetry) {
+            return; // L'utilisateur sera redirigé
+          }
+          throw new Error('Erreur de permissions corrigée. Veuillez réessayer.');
+        }
+        
         throw error;
       }
 
@@ -154,14 +181,14 @@ export const useProfileForm = (profile: ProfileData) => {
       let errorMessage = "Impossible de mettre à jour votre profil";
       
       if (error instanceof Error) {
-        if (error.message.includes('storage')) {
+        if (error.message.includes('Session expirée')) {
+          errorMessage = error.message;
+        } else if (error.message.includes('permissions corrigée')) {
+          errorMessage = error.message;
+        } else if (error.message.includes('storage')) {
           errorMessage = "Erreur lors de l'upload des fichiers";
         } else if (error.message.includes('profiles')) {
           errorMessage = "Erreur lors de la sauvegarde des informations";
-        } else if (error.message.includes('permission') || error.message.includes('row-level security')) {
-          errorMessage = "Erreur de permissions. Veuillez vous reconnecter.";
-        } else if (error.message.includes('RLS')) {
-          errorMessage = "Problème d'autorisation d'accès";
         } else {
           errorMessage = error.message;
         }
