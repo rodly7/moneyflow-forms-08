@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types/auth';
 
@@ -21,7 +22,7 @@ export const profileService = {
       // Normaliser le profil pour s'assurer que birth_date est présent
       const normalizedProfile: Profile = {
         ...data,
-        birth_date: data.birth_date || null
+        birth_date: (data as any).birth_date || null
       };
       
       return normalizedProfile;

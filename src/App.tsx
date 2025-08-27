@@ -146,9 +146,9 @@ function App() {
       <OfflineIndicator />
       <PWAInstallBanner />
       <PWAUpdateBanner />
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Index />} />
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Index />} />
           <Route path="auth" element={<Auth />} />
           <Route path="agent-auth" element={<AgentAuth />} />
           <Route path="dashboard" element={<Dashboard />} />
@@ -187,8 +187,8 @@ function App() {
           <Route path="notifications" element={<Notifications />} />
           <Route path="change-password" element={<ChangePassword />} />
           <Route path="bill-payments" element={<BillPayments />} />
-        </Route>
-      </Routes>
+        </Routes>
+      </Layout>
     </TooltipProvider>
   );
 }

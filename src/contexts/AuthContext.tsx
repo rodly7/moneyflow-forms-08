@@ -33,10 +33,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // Assurer que birth_date est présent même s'il est null
+      // Assurer que birth_date est présent même s'il est null dans la DB
       const normalizedProfile: Profile = {
         ...profileData,
-        birth_date: profileData.birth_date || null
+        birth_date: (profileData as any).birth_date || null
       };
       setProfile(normalizedProfile);
     } catch (error) {
@@ -54,10 +54,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (!error && profileData) {
-        // Assurer que birth_date est présent même s'il est null
+        // Assurer que birth_date est présent même s'il est null dans la DB
         const normalizedProfile: Profile = {
           ...profileData,
-          birth_date: profileData.birth_date || null
+          birth_date: (profileData as any).birth_date || null
         };
         setProfile(normalizedProfile);
         return true;
