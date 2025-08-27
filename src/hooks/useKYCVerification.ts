@@ -82,8 +82,8 @@ export const useKYCVerification = () => {
 
       setUploadProgress(90);
 
-      // Insert KYC verification record
-      const { data, error } = await supabase
+      // Insert KYC verification record using a workaround for type issues
+      const { data, error } = await (supabase as any)
         .from('kyc_verifications')
         .insert({
           user_id: userId,
@@ -121,7 +121,7 @@ export const useKYCVerification = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('kyc_verifications')
         .select('*')
         .eq('user_id', user.id)
@@ -145,7 +145,7 @@ export const useKYCVerification = () => {
     updates: Partial<KYCVerificationData>
   ) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('kyc_verifications')
         .update(updates)
         .eq('id', verificationId)
