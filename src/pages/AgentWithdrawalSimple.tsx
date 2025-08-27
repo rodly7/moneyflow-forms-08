@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Send, User, Wallet, QrCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatCurrency } from "@/integrations/supabase/client";
 import { useUserSearch } from "@/hooks/useUserSearch";
 import { useAgentWithdrawalRequest } from "@/hooks/useAgentWithdrawalRequest";
 import QRScanner from "@/components/agent/QRScanner";

@@ -1,107 +1,77 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Wallet, Users, AlertCircle, CheckCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency } from "@/lib/utils/currency";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { Users, CreditCard, AlertCircle, CheckCircle, Loader } from "lucide-react";
+import { formatCurrency } from "@/integrations/supabase/client";
 
-interface AgentProfile {
+interface Agent {
   id: string;
   full_name: string;
   phone: string;
-  country: string;
   balance: number;
+  country: string;
 }
 
 const BatchAgentRecharge = () => {
-  const { user } = useAuth();
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
-  const [agentPhone, setAgentPhone] = useState("");
-  const [amount, setAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("mtn_momo");
-  const [paymentReference, setPaymentReference] = useState("");
-  const [additionalNotes, setAdditionalNotes] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null);
-  const [rechargeSuccess, setRechargeSuccess] = useState(false);
-
-  const handleSearchAgent = async () => {
-    if (!agentPhone) {
-      toast({
-        title: "Numéro de téléphone requis",
-        description: "Veuillez entrer le numéro de téléphone de l'agent",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const { data: profileData, error: profileError } = await supabase
+  const { data: agents, isLoading } = useQuery({
+    queryKey: ['agents-for-batch-recharge'],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, country, balance')
-        .eq('phone', agentPhone)
-        .single();
+        .select('id, full_name, phone, balance, country')
+        .eq('role', 'agent')
+        .order('full_name');
 
-      if (profileError) {
-        console.error("Erreur lors de la récupération du profil agent:", profileError);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger le profil de l'agent",
-          variant: "destructive"
-        });
-        return;
-      }
+      if (error) throw error;
+      return data as Agent[];
+    },
+  });
 
-      setAgentProfile(profileData);
-      setRechargeSuccess(false);
+  const handleAgentToggle = (agentId: string) => {
+    setSelectedAgents(prev => 
+      prev.includes(agentId) 
+        ? prev.filter(id => id !== agentId)
+        : [...prev, agentId]
+    );
+  };
 
-    } catch (error) {
-      console.error("Erreur inattendue:", error);
-      toast({
-        title: "Erreur",
-        description: "Une erreur inattendue s'est produite",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
+  const handleSelectAll = () => {
+    if (selectedAgents.length === agents?.length) {
+      setSelectedAgents([]);
+    } else {
+      setSelectedAgents(agents?.map(agent => agent.id) || []);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!agentProfile) {
+  const handleBatchRecharge = async () => {
+    if (!amount || selectedAgents.length === 0) {
       toast({
-        title: "Agent non trouvé",
-        description: "Veuillez d'abord rechercher l'agent",
+        title: "Données manquantes",
+        description: "Veuillez sélectionner des agents et saisir un montant",
         variant: "destructive"
       });
       return;
     }
 
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+    const rechargeAmount = Number(amount);
+    if (rechargeAmount <= 0) {
       toast({
         title: "Montant invalide",
-        description: "Veuillez entrer un montant valide",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!paymentMethod) {
-      toast({
-        title: "Méthode de paiement requise",
-        description: "Veuillez sélectionner une méthode de paiement",
+        description: "Le montant doit être supérieur à 0",
         variant: "destructive"
       });
       return;
@@ -110,46 +80,107 @@ const BatchAgentRecharge = () => {
     setIsProcessing(true);
 
     try {
-      // Perform recharge
-      const { error } = await supabase.from('recharges').insert({
-        user_id: agentProfile.id,
-        amount: Number(amount),
-        country: agentProfile.country,
-        payment_method: paymentMethod,
-        payment_phone: agentProfile.phone,
-        payment_provider: "admin",
-        status: 'completed',
-        transaction_reference: paymentReference,
-        additional_notes: additionalNotes
-      });
+      let successCount = 0;
+      let failCount = 0;
+      const results = [];
+      const successfulAgents: string[] = [];
 
-      if (error) {
-        console.error("Erreur lors de la recharge:", error);
-        toast({
-          title: "Erreur de recharge",
-          description: "Impossible d'effectuer la recharge",
-          variant: "destructive"
+      // Processus de recharge des agents
+      for (const agentId of selectedAgents) {
+        try {
+          const { error } = await supabase.rpc('secure_increment_balance', {
+            target_user_id: agentId,
+            amount: rechargeAmount,
+            operation_type: 'batch_agent_recharge'
+          });
+
+          if (error) throw error;
+          successCount++;
+          successfulAgents.push(agentId);
+          results.push({ agentId, success: true });
+        } catch (error) {
+          console.error(`Erreur pour l'agent ${agentId}:`, error);
+          failCount++;
+          results.push({ agentId, success: false, error: error.message });
+        }
+      }
+
+      // Log de l'opération batch
+      await supabase
+        .from('audit_logs')
+        .insert({
+          action: 'batch_agent_recharge',
+          table_name: 'profiles',
+          old_values: { selected_agents: selectedAgents.length },
+          new_values: { 
+            amount: rechargeAmount, 
+            success_count: successCount,
+            fail_count: failCount,
+            reason: reason || 'Recharge groupée',
+            results 
+          }
         });
-        return;
+
+      // Génération automatique de notifications si des recharges ont réussi
+      if (successCount > 0) {
+        try {
+          const currentUser = await supabase.auth.getUser();
+          const adminId = currentUser.data.user?.id;
+
+          // Créer la notification principale
+          const { data: notification, error: notificationError } = await supabase
+            .from('notifications')
+            .insert({
+              title: 'Recharge de compte effectuée',
+              message: `Votre compte a été rechargé de ${rechargeAmount.toLocaleString()} FCFA par l'administrateur. ${reason ? `Motif: ${reason}` : ''}`,
+              priority: 'normal',
+              notification_type: 'individual',
+              target_users: successfulAgents,
+              sent_by: adminId,
+              total_recipients: successCount
+            })
+            .select()
+            .single();
+
+          if (notificationError) {
+            console.error('Erreur lors de la création de la notification:', notificationError);
+          } else {
+            // Créer les enregistrements pour les destinataires
+            const individualNotifications = successfulAgents.map(agentId => ({
+              notification_id: notification.id,
+              user_id: agentId,
+              status: 'sent'
+            }));
+
+            const { error: recipientError } = await supabase
+              .from('notification_recipients')
+              .insert(individualNotifications);
+
+            if (recipientError) {
+              console.error('Erreur lors de l\'envoi des notifications aux agents:', recipientError);
+            }
+          }
+        } catch (notificationError) {
+          console.error('Erreur lors du processus de notification:', notificationError);
+        }
       }
 
       toast({
-        title: "Recharge effectuée",
-        description: `Recharge de ${formatCurrency(Number(amount), 'XAF')} effectuée avec succès pour ${agentProfile.full_name}`,
+        title: "Recharge groupée terminée",
+        description: `${successCount} agents rechargés avec succès${successCount > 0 ? ' et notifiés' : ''}, ${failCount} échecs`,
+        variant: successCount > 0 ? "default" : "destructive"
       });
 
-      setRechargeSuccess(true);
-
       // Reset form
+      setSelectedAgents([]);
       setAmount("");
-      setPaymentReference("");
-      setAdditionalNotes("");
+      setReason("");
 
     } catch (error) {
-      console.error("Erreur inattendue:", error);
+      console.error('Erreur lors de la recharge groupée:', error);
       toast({
         title: "Erreur",
-        description: "Une erreur inattendue s'est produite",
+        description: "Erreur lors de la recharge groupée",
         variant: "destructive"
       });
     } finally {
@@ -157,125 +188,160 @@ const BatchAgentRecharge = () => {
     }
   };
 
-  return (
-    <Card className="bg-white shadow-md rounded-lg">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-        <CardTitle className="text-lg font-semibold">Recharge Multiple d'Agents</CardTitle>
-        <Badge variant="secondary">Admin</Badge>
-      </CardHeader>
+  if (isLoading) {
+    return (
+      <Card className="backdrop-blur-xl bg-white/90 shadow-2xl border border-white/50 rounded-2xl">
+        <CardContent className="p-8 text-center">
+          <Loader className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">Chargement des agents...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
-      <CardContent className="p-4">
-        <div className="mb-4">
-          <Label htmlFor="agentPhone">Numéro de téléphone de l'agent</Label>
-          <div className="flex mt-2">
-            <Input
-              type="tel"
-              id="agentPhone"
-              placeholder="Entrez le numéro de téléphone"
-              value={agentPhone}
-              onChange={(e) => setAgentPhone(e.target.value)}
-              className="flex-1 mr-2"
-            />
-            <Button type="button" onClick={handleSearchAgent} disabled={isProcessing}>
-              {isProcessing ? "Recherche..." : "Rechercher"}
+  return (
+    <div className="space-y-6">
+      <Card className="backdrop-blur-xl bg-white/90 shadow-2xl border border-white/50 rounded-2xl">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-2xl">
+          <CardTitle className="flex items-center gap-3 text-blue-700">
+            <CreditCard className="w-6 h-6" />
+            Recharge Groupée des Agents
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 space-y-6">
+          {/* Configuration de la recharge */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="amount" className="text-gray-700 font-medium">
+                Montant à recharger (FCFA)
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="Montant en FCFA"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="h-12 bg-gray-50 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="reason" className="text-gray-700 font-medium">
+                Raison (optionnel)
+              </Label>
+              <Input
+                id="reason"
+                placeholder="Raison de la recharge"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="h-12 bg-gray-50 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Sélection des agents */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-gray-700 font-medium text-lg">
+                Sélectionner les agents ({selectedAgents.length} sélectionnés)
+              </Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                className="rounded-full"
+              >
+                {selectedAgents.length === agents?.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+              </Button>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto space-y-3 bg-gray-50 rounded-xl p-4">
+              {agents?.map((agent) => (
+                <div
+                  key={agent.id}
+                  className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={selectedAgents.includes(agent.id)}
+                      onCheckedChange={() => handleAgentToggle(agent.id)}
+                      className="w-5 h-5"
+                    />
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <Users className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{agent.full_name}</p>
+                        <p className="text-sm text-gray-600">{agent.phone}</p>
+                        <p className="text-xs text-gray-500">{agent.country}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-blue-600">
+                      {formatCurrency(agent.balance, 'XAF')}
+                    </p>
+                    <p className="text-xs text-gray-500">Solde actuel</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Résumé et confirmation */}
+          {selectedAgents.length > 0 && amount && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-blue-900 mb-2">Résumé de l'opération</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• {selectedAgents.length} agents sélectionnés</li>
+                    <li>• Montant par agent: {formatCurrency(Number(amount), 'XAF')}</li>
+                    <li>• Montant total: {formatCurrency(Number(amount) * selectedAgents.length, 'XAF')}</li>
+                    {reason && <li>• Raison: {reason}</li>}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedAgents([]);
+                setAmount("");
+                setReason("");
+              }}
+              disabled={isProcessing}
+              className="rounded-full px-6"
+            >
+              Réinitialiser
+            </Button>
+            <Button
+              onClick={handleBatchRecharge}
+              disabled={isProcessing || selectedAgents.length === 0 || !amount}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-full px-8"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader className="w-4 h-4 mr-2 animate-spin" />
+                  Traitement...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Recharger les agents
+                </>
+              )}
             </Button>
           </div>
-        </div>
-
-        {agentProfile && (
-          <div className="mb-4 p-4 bg-gray-50 rounded-md border border-gray-200">
-            <div className="flex items-center space-x-3 mb-2">
-              <Users className="h-5 w-5 text-blue-500" />
-              <h4 className="font-semibold text-gray-700">Informations sur l'Agent</h4>
-            </div>
-            <p className="text-sm text-gray-600">Nom: {agentProfile.full_name}</p>
-            <p className="text-sm text-gray-600">Téléphone: {agentProfile.phone}</p>
-            <p className="text-sm text-gray-600">Solde actuel: {formatCurrency(agentProfile.balance, 'XAF')}</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="amount">Montant à recharger</Label>
-            <Input
-              type="number"
-              id="amount"
-              placeholder="Entrez le montant"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="paymentMethod">Méthode de paiement</Label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Sélectionnez une méthode" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mtn_momo">MTN MoMo</SelectItem>
-                <SelectItem value="orange_money">Orange Money</SelectItem>
-                <SelectItem value="eumoney">EU Money</SelectItem>
-                <SelectItem value="autres">Autres</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="paymentReference">Référence de paiement</Label>
-            <Input
-              type="text"
-              id="paymentReference"
-              placeholder="Entrez la référence de paiement"
-              value={paymentReference}
-              onChange={(e) => setPaymentReference(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="additionalNotes">Notes additionnelles</Label>
-            <Textarea
-              id="additionalNotes"
-              placeholder="Ajouter des notes si nécessaire"
-              value={additionalNotes}
-              onChange={(e) => setAdditionalNotes(e.target.value)}
-            />
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isProcessing || !agentProfile}>
-            {isProcessing ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                <span>Traitement...</span>
-              </div>
-            ) : (
-              "Effectuer la Recharge"
-            )}
-          </Button>
-        </form>
-
-        {rechargeSuccess && (
-          <div className="mt-6 p-4 bg-green-50 rounded-md border border-green-200">
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span className="text-sm text-green-700">
-                Recharge effectuée avec succès pour {agentProfile?.full_name}
-              </span>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-6 p-4 bg-red-50 rounded-md border border-red-200">
-          <div className="flex items-center space-x-2">
-            <AlertCircle className="h-4 w-4 text-red-500" />
-            <span className="text-xs text-red-700">
-              Note: Assurez-vous que les informations sont correctes avant de confirmer la recharge.
-            </span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

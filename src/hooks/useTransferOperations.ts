@@ -1,9 +1,7 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "./use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { calculateFee } from "@/lib/utils/currency";
+import { supabase, calculateFee } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { NotificationService } from "@/services/notificationService";
 

@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency, getCurrencyForCountry } from "@/lib/utils/currency";
+import { supabase, formatCurrency, getCurrencyForCountry } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Dialog,

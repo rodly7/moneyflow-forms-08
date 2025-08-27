@@ -1,77 +1,102 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calculateFee } from "@/lib/utils/currency";
+import { TransferData } from "@/types/transfer";
 import { useAuth } from "@/contexts/AuthContext";
+import { calculateFee } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
-interface TransferDetailsProps {
-  recipientCountry: string;
-  amount: number;
-  updateFields: (fields: Partial<{
-    recipient: { fullName: string; phone: string; country: string };
-    transfer: { amount: number; currency: string };
-  }>) => void;
-  nextStep: () => void;
-}
+type TransferDetailsProps = TransferData & {
+  updateFields: (fields: Partial<TransferData>) => void;
+};
 
-const TransferDetails: React.FC<TransferDetailsProps> = ({ recipientCountry, amount, updateFields, nextStep }) => {
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const { profile, userRole } = useAuth();
-
-  useEffect(() => {
-    if (recipientCountry) {
-      updateFields({ recipient: { country: recipientCountry, fullName: '', phone: '' } });
-    }
-  }, [recipientCountry, updateFields]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!fullName || !phone) {
-      alert("Veuillez remplir tous les champs.");
-      return;
-    }
-
-    updateFields({ recipient: { fullName, phone, country: recipientCountry } });
-    nextStep();
-  };
+const TransferDetails = ({ transfer, recipient, updateFields }: TransferDetailsProps) => {
+  const { user, userRole, profile } = useAuth();
+  
+  // Utiliser le pays du profil directement
+  const userCountry = profile?.country || "Cameroun";
+  
+  // Calculer les frais automatiquement
+  const { fee: fees, rate: feeRate } = calculateFee(
+    transfer.amount, 
+    userCountry,
+    recipient.country, 
+    userRole || 'user'
+  );
+  
+  const total = transfer.amount + fees;
+  
+  // Déterminer si c'est un transfert national ou international
+  const isNational = userCountry === recipient.country;
+  const transferType = isNational ? "national" : "international";
+  const feePercentageDisplay = `${feeRate}% (${transferType})`;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Informations Bénéficiaire</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="fullName">Nom Complet</Label>
-            <Input
-              id="fullName"
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Nom complet du bénéficiaire"
-            />
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="amount">Montant à Envoyer ({transfer.currency})</Label>
+        <Input
+          id="amount"
+          type="number"
+          required
+          min="0"
+          step="100"
+          placeholder={`Entrez le montant en ${transfer.currency}`}
+          value={transfer.amount || ""}
+          onChange={(e) =>
+            updateFields({
+              transfer: { ...transfer, amount: parseFloat(e.target.value) },
+            })
+          }
+          className="text-lg h-12"
+        />
+      </div>
+
+      {transfer.amount > 0 && recipient.country && (
+        <div className="mt-4 p-4 bg-primary/5 rounded-xl space-y-2 border border-primary/10">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Montant du transfert :</span>
+            <span className="font-medium">
+              {transfer.amount.toLocaleString('fr-FR')} {transfer.currency}
+            </span>
           </div>
-          <div>
-            <Label htmlFor="phone">Numéro de Téléphone</Label>
-            <Input
-              id="phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Numéro de téléphone du bénéficiaire"
-            />
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">
+              Frais ({feePercentageDisplay}) :
+            </span>
+            <span className="font-medium">
+              {fees.toLocaleString('fr-FR')} {transfer.currency}
+            </span>
           </div>
-          <button type="submit" className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-700">
-            Suivant
-          </button>
-        </form>
-      </CardContent>
-    </Card>
+          <div className="flex justify-between font-semibold pt-2 border-t border-primary/10 text-lg">
+            <span>Total :</span>
+            <span>
+              {total.toLocaleString('fr-FR')} {transfer.currency}
+            </span>
+          </div>
+          
+          {/* Informations contextuelles */}
+          <div className="space-y-1 pt-2">
+            {isNational && (
+              <div className="text-sm text-emerald-600 bg-emerald-50 p-2 rounded">
+                💰 Transfert national - Taux préférentiel de {feeRate}%
+              </div>
+            )}
+            {!isNational && (
+              <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                🌍 Transfert international - Taux de {feeRate}%
+              </div>
+            )}
+            {userRole === 'agent' && (
+              <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                🏢 Mode Agent - Depuis {userCountry} vers {recipient.country}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

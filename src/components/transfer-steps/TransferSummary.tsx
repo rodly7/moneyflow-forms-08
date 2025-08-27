@@ -1,104 +1,99 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { MapPin, User, CreditCard, Banknote } from "lucide-react";
-import { calculateFee } from "@/lib/utils/currency";
+
+import { Card } from "@/components/ui/card";
+import { TransferData } from "@/types/transfer";
 import { useAuth } from "@/contexts/AuthContext";
+import { calculateFee } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
-interface TransferSummaryProps {
-  recipientFullName: string;
-  recipientPhone: string;
-  recipientCountry: string;
-  transferAmount: number;
-  transferCurrency: string;
-}
+type TransferSummaryProps = TransferData & {
+  updateFields: (fields: Partial<TransferData>) => void;
+};
 
-const TransferSummary: React.FC<TransferSummaryProps> = ({
-  recipientFullName,
-  recipientPhone,
-  recipientCountry,
-  transferAmount,
-  transferCurrency,
-}) => {
-  const { profile, userRole } = useAuth();
+const TransferSummary = ({ recipient, transfer }: TransferSummaryProps) => {
+  const { user, userRole } = useAuth();
+  
+  // Récupérer le profil de l'utilisateur pour connaître son pays
+  const { data: userProfile } = useQuery({
+    queryKey: ['userProfile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('country')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
-  if (!profile) {
-    return <p>Loading...</p>;
-  }
-
-  const senderCountry = profile.country || "Cameroun";
-  const { fee, rate } = calculateFee(
-    transferAmount,
-    senderCountry,
-    recipientCountry,
+  const userCountry = userProfile?.country || "Cameroun";
+  
+  // Calculer les frais en utilisant le pays de l'utilisateur
+  const { fee: fees, rate: feeRate } = calculateFee(
+    transfer.amount, 
+    userCountry,
+    recipient.country, 
     userRole || 'user'
   );
+  const total = transfer.amount + fees;
 
-  const totalAmount = transferAmount + fee;
+  // Déterminer si c'est un transfert national ou international
+  const isNational = userCountry === recipient.country;
+  const transferType = isNational ? "national" : "international";
+  const feePercentageDisplay = `${feeRate}% (${transferType})`;
 
   return (
-    <Card className="bg-white shadow-md">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">Résumé du Transfert</CardTitle>
-      </CardHeader>
-      <CardContent className="p-4">
-        <div className="space-y-4">
-          {/* Recipient Information */}
-          <div className="flex items-center space-x-2">
-            <User className="h-5 w-5 text-blue-500" />
-            <h4 className="text-sm font-medium">Informations Bénéficiaire</h4>
-          </div>
-          <div className="ml-7 space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-700">Nom complet:</span>
-              <span className="font-medium">{recipientFullName}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-700">Téléphone:</span>
-              <span className="font-medium">{recipientPhone}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-700">Pays:</span>
-              <span className="font-medium">{recipientCountry}</span>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <div className="text-center mb-6">
+        <h3 className="text-xl font-semibold text-primary">Résumé du Transfert</h3>
+        <p className="text-sm text-muted-foreground mt-1">
+          Veuillez vérifier les détails de votre transfert
+        </p>
+      </div>
 
-          <Separator className="my-2" />
+      <div className="grid gap-6">
+        <Card className="p-6 space-y-4 bg-white/50">
+          <h4 className="font-medium text-lg text-primary">Informations du Bénéficiaire</h4>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <span className="text-muted-foreground">Nom :</span>
+            <span className="font-medium">{recipient.fullName}</span>
+            <span className="text-muted-foreground">Téléphone :</span>
+            <span className="font-medium">{recipient.phone}</span>
+            <span className="text-muted-foreground">Pays :</span>
+            <span className="font-medium">{recipient.country}</span>
+          </div>
+        </Card>
 
-          {/* Transfer Details */}
-          <div className="flex items-center space-x-2">
-            <CreditCard className="h-5 w-5 text-green-500" />
-            <h4 className="text-sm font-medium">Détails du Transfert</h4>
+        <Card className="p-6 space-y-4 bg-primary/5 border-primary/10">
+          <h4 className="font-medium text-lg text-primary">Détails du Transfert</h4>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <span className="text-muted-foreground">Montant :</span>
+            <span className="font-medium">
+              {transfer.amount.toLocaleString('fr-FR')} {transfer.currency}
+            </span>
+            <span className="text-muted-foreground">
+              Frais ({feePercentageDisplay}) :
+            </span>
+            <span className="font-medium">
+              {fees.toLocaleString('fr-FR')} {transfer.currency}
+            </span>
+            <span className="text-muted-foreground">Total :</span>
+            <span className="font-medium text-lg">
+              {total.toLocaleString('fr-FR')} {transfer.currency}
+            </span>
           </div>
-          <div className="ml-7 space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-700">Montant:</span>
-              <span className="font-medium">{transferAmount} {transferCurrency}</span>
+          {isNational && (
+            <div className="text-sm text-emerald-600 bg-emerald-50 p-3 rounded-lg mt-4">
+              💰 Commission agent sur transfert: 1%
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-700">Frais:</span>
-              <span className="font-medium">{fee} XAF</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-700">Taux:</span>
-              <span className="font-medium">{rate}%</span>
-            </div>
-          </div>
-
-          <Separator className="my-2" />
-
-          {/* Total Amount */}
-          <div className="flex items-center space-x-2">
-            <Banknote className="h-5 w-5 text-purple-500" />
-            <h4 className="text-sm font-medium">Total</h4>
-          </div>
-          <div className="ml-7 flex justify-between">
-            <span className="text-gray-700">Montant Total:</span>
-            <span className="font-bold">{totalAmount} XAF</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+          )}
+        </Card>
+      </div>
+    </div>
   );
 };
 

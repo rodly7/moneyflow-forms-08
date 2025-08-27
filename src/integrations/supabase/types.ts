@@ -1085,51 +1085,6 @@ export type Database = {
           },
         ]
       }
-      payment_numbers: {
-        Row: {
-          admin_name: string | null
-          admin_type: string
-          country: string
-          created_at: string
-          description: string | null
-          id: string
-          is_active: boolean
-          is_default: boolean
-          phone_number: string
-          provider: string
-          service_type: string
-          updated_at: string
-        }
-        Insert: {
-          admin_name?: string | null
-          admin_type?: string
-          country: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          is_default?: boolean
-          phone_number: string
-          provider: string
-          service_type?: string
-          updated_at?: string
-        }
-        Update: {
-          admin_name?: string | null
-          admin_type?: string
-          country?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          is_default?: boolean
-          phone_number?: string
-          provider?: string
-          service_type?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       payment_sessions: {
         Row: {
           amount: number

@@ -16,3 +16,11 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Re-export utility functions from the currency utils for backward compatibility
+export {
+  formatCurrency,
+  getCurrencyForCountry,
+  convertCurrency,
+  calculateFee
+} from '@/lib/utils/currency';

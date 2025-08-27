@@ -10,7 +10,7 @@ import CreateSavingsAccountModal from "@/components/savings/CreateSavingsAccount
 import SavingsDepositModal from "@/components/savings/SavingsDepositModal";
 import SavingsWithdrawalModal from "@/components/savings/SavingsWithdrawalModal";
 import EditSavingsAccountModal from "@/components/savings/EditSavingsAccountModal";
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatCurrency } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface SavingsAccount {

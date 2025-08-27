@@ -1,399 +1,571 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CreditCard, Clock, CheckCircle, XCircle, User, Phone, Wallet } from 'lucide-react';
+import { formatCurrency } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { 
-  Users, 
-  Search,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Filter,
-  RefreshCw
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-
-export interface UserRequestsManagementProps {
-  type: 'verification' | 'general';
-}
-
-interface UserRequest {
+type UserRequest = {
   id: string;
+  user_id: string;
+  operation_type: string;
+  amount: number;
+  payment_method: string;
+  payment_phone: string;
+  status: string;
   created_at: string;
-  full_name: string;
-  phone: string;
-  country: string;
-  address: string;
-  role: 'user' | 'agent';
-  balance: number;
-  is_verified?: boolean;
-  avatar_url?: string;
-  id_card_url?: string;
-  id_card_number?: string;
-  type: string;
-}
+  processed_by?: string | null;
+  processed_at?: string | null;
+  rejection_reason?: string | null;
+  profiles?: {
+    full_name: string;
+    phone: string;
+    country: string;
+  } | null;
+};
 
-const UserRequestsManagement = ({ type }: UserRequestsManagementProps) => {
+const UserRequestsManagement = () => {
   const { toast } = useToast();
-  const [requests, setRequests] = useState<UserRequest[]>([]);
+  const { user } = useAuth();
+  const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRole, setSelectedRole] = useState<'user' | 'agent' | 'all'>('user');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<UserRequest | null>(null);
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
 
+  // Fonction pour charger les demandes utilisateurs
   const fetchUserRequests = async () => {
-    setIsLoading(true);
-    setIsRefreshing(true);
     try {
       console.log('🔄 Chargement des demandes utilisateurs...');
 
-      let query = supabase
-        .from('profiles')
-        .select('*');
-
-      if (selectedRole && selectedRole !== "all") {
-        query = query.eq('role', selectedRole);
-      }
-
-      if (searchQuery) {
-        query = query.ilike('full_name', `%${searchQuery}%`);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data: requests, error } = await supabase
+        .from('user_requests')
+        .select(`
+          id,
+          user_id,
+          operation_type,
+          amount,
+          payment_method,
+          payment_phone,
+          status,
+          created_at,
+          processed_by,
+          processed_at,
+          rejection_reason
+        `)
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error("Erreur lors de la récupération des demandes:", error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les demandes",
-          variant: "destructive"
-        });
-        return;
+        console.error('Erreur lors du chargement des demandes:', error);
+        throw error;
       }
 
-      // Transform profiles data to match UserRequest interface
-      const transformedData: UserRequest[] = data?.map(profile => ({
-        id: profile.id,
-        created_at: profile.created_at,
-        full_name: profile.full_name || 'Non spécifié',
-        phone: profile.phone,
-        country: profile.country || 'Non spécifié',
-        address: profile.address || 'Non spécifié',
-        role: profile.role === 'admin' || profile.role === 'sub_admin' ? 'agent' : profile.role as 'user' | 'agent',
-        balance: profile.balance || 0,
-        is_verified: profile.is_verified,
-        avatar_url: profile.avatar_url,
-        id_card_url: profile.id_card_url,
-        id_card_number: profile.id_card_number,
-        type: type
-      })) || [];
+      // Fetch profile data separately for each request
+      const requestsWithProfiles = await Promise.all(
+        (requests || []).map(async (request) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, phone, country')
+            .eq('id', request.user_id)
+            .single();
+          
+          return {
+            ...request,
+            profiles: profile
+          };
+        })
+      );
 
-      setRequests(transformedData);
+      console.log('✅ Demandes chargées:', requestsWithProfiles);
+      setUserRequests(requestsWithProfiles);
     } catch (error) {
-      console.error("Erreur inattendue:", error);
+      console.error('Erreur critique:', error);
       toast({
         title: "Erreur",
-        description: "Une erreur inattendue s'est produite",
+        description: "Erreur lors du chargement des demandes",
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
   };
 
+  // Charger les demandes au montage
   useEffect(() => {
     fetchUserRequests();
-  }, [selectedRole, searchQuery, type]);
+  }, []);
 
-  const handleApprove = async (request: UserRequest) => {
-    setIsLoading(true);
+  // Auto-refresh toutes les 5 secondes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isProcessing) {
+        fetchUserRequests();
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isProcessing]);
+
+  // Écouter les changements en temps réel
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('🔄 Configuration de l\'écoute temps réel pour user_requests');
+    
+    const channel = supabase
+      .channel('user_requests_changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'user_requests'
+        }, 
+        (payload) => {
+          console.log('📨 Changement détecté dans user_requests:', payload);
+          if (!isProcessing) {
+            setTimeout(() => {
+              fetchUserRequests();
+            }, 500);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('🔇 Désabonnement du canal user_requests');
+      supabase.removeChannel(channel);
+    };
+  }, [user, isProcessing]);
+
+  const handleApprove = async (requestId: string) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_verified: true })
-        .eq('id', request.id);
+      setIsProcessing(requestId);
+      console.log('🔄 Début approbation pour:', requestId);
+      
+      const request = userRequests.find(r => r.id === requestId);
+      if (!request) {
+        console.error('Demande non trouvée:', requestId);
+        return;
+      }
 
-      if (error) {
-        console.error("Erreur lors de l'approbation de la demande:", error);
+      // 1. Mettre à jour le statut de la demande
+      const { error: updateError } = await supabase
+        .from('user_requests')
+        .update({
+          status: 'approved',
+          processed_by: user?.id,
+          processed_at: new Date().toISOString()
+        })
+        .eq('id', requestId);
+
+      if (updateError) {
+        console.error('❌ Erreur lors de l\'approbation:', updateError);
         toast({
           title: "Erreur",
-          description: "Impossible d'approuver la demande",
+          description: "Impossible d'approuver la demande: " + updateError.message,
           variant: "destructive"
         });
         return;
       }
 
+      // 2. Traiter automatiquement le solde selon le type d'opération
+      if (request.operation_type === 'recharge') {
+        // Pour une recharge approuvée : créditer le compte de l'utilisateur
+        const { error: creditError } = await supabase.rpc('secure_increment_balance', {
+          target_user_id: request.user_id,
+          amount: request.amount,
+          operation_type: 'admin_approved_recharge',
+          performed_by: user?.id
+        });
+
+        if (creditError) {
+          console.error('❌ Erreur lors du crédit:', creditError);
+          toast({
+            title: "Erreur",
+            description: "Erreur lors du crédit automatique: " + creditError.message,
+            variant: "destructive"
+          });
+          // Annuler l'approbation en cas d'erreur
+          await supabase
+            .from('user_requests')
+            .update({ status: 'pending', processed_by: null, processed_at: null })
+            .eq('id', requestId);
+          return;
+        }
+
+        console.log(`✅ Compte crédité de ${request.amount} FCFA pour l'utilisateur`);
+      } else if (request.operation_type === 'withdrawal') {
+        // Pour un retrait approuvé : débiter le compte de l'utilisateur
+        const { error: debitError } = await supabase.rpc('secure_increment_balance', {
+          target_user_id: request.user_id,
+          amount: -request.amount,
+          operation_type: 'admin_approved_withdrawal',
+          performed_by: user?.id
+        });
+
+        if (debitError) {
+          console.error('❌ Erreur lors du débit:', debitError);
+          toast({
+            title: "Erreur",
+            description: "Erreur lors du débit automatique: " + debitError.message,
+            variant: "destructive"
+          });
+          // Annuler l'approbation en cas d'erreur
+          await supabase
+            .from('user_requests')
+            .update({ status: 'pending', processed_by: null, processed_at: null })
+            .eq('id', requestId);
+          return;
+        }
+
+        console.log(`✅ Compte débité de ${request.amount} FCFA pour l'utilisateur`);
+      }
+
+      console.log('✅ Approbation et traitement automatique réussis pour:', requestId);
+
+      const operationText = request.operation_type === 'recharge' ? 'Recharge' : 'Retrait';
+      const balanceAction = request.operation_type === 'recharge' ? 'crédité' : 'débité';
+      
       toast({
         title: "Demande approuvée",
-        description: "La demande a été approuvée avec succès",
+        description: `${operationText} approuvé avec succès. Le compte a été ${balanceAction} automatiquement de ${request.amount.toLocaleString()} FCFA`,
       });
 
+      // Recharger les données immédiatement
       fetchUserRequests();
     } catch (error) {
-      console.error("Erreur inattendue:", error);
+      console.error('💥 Erreur lors de l\'approbation:', error);
       toast({
         title: "Erreur",
-        description: "Une erreur inattendue s'est produite",
+        description: "Erreur lors du traitement de la demande",
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setIsProcessing(null);
     }
   };
 
-  const handleReject = async (request: UserRequest) => {
-    if (!request) return;
-
-    setIsLoading(true);
+  const handleReject = async () => {
+    if (!selectedRequest || !rejectionReason.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez fournir une raison pour le rejet",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
+      setIsProcessing(selectedRequest.id);
+      console.log('🔄 Début rejet pour:', selectedRequest.id);
+
       const { error } = await supabase
-        .from('profiles')
-        .update({ is_banned: true, banned_reason: rejectionReason })
-        .eq('id', request.id);
+        .from('user_requests')
+        .update({
+          status: 'rejected',
+          processed_by: user?.id,
+          processed_at: new Date().toISOString(),
+          rejection_reason: rejectionReason
+        })
+        .eq('id', selectedRequest.id);
 
       if (error) {
-        console.error("Erreur lors du rejet de la demande:", error);
+        console.error('❌ Erreur lors du rejet:', error);
         toast({
           title: "Erreur",
-          description: "Impossible de rejeter la demande",
+          description: "Impossible de rejeter la demande: " + error.message,
           variant: "destructive"
         });
         return;
       }
+
+      console.log('✅ Rejet réussi pour:', selectedRequest.id);
 
       toast({
         title: "Demande rejetée",
-        description: "La demande a été rejetée avec succès",
+        description: `${selectedRequest.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} rejeté`,
       });
 
+      // Fermer le dialogue et réinitialiser
+      setShowRejectDialog(false);
+      setSelectedRequest(null);
+      setRejectionReason('');
+      
+      // Recharger les données immédiatement
       fetchUserRequests();
     } catch (error) {
-      console.error("Erreur inattendue:", error);
+      console.error('💥 Erreur lors du rejet:', error);
       toast({
         title: "Erreur",
-        description: "Une erreur inattendue s'est produite",
+        description: "Erreur lors du traitement de la demande",
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
-      setRejectionReason("");
-      setSelectedRequest(null);
-      setIsRejectModalOpen(false);
+      setIsProcessing(null);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1" />En attente</Badge>;
+      case 'approved':
+        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Approuvée</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Rejetée</Badge>;
+      default:
+        return <Badge variant="secondary">Inconnu</Badge>;
+    }
   };
 
-  return (
-    <Card className="bg-white shadow-md rounded-lg">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Users className="w-5 h-5" />
-          Gestion des Demandes ({requests.length})
-        </CardTitle>
-        <div className="flex items-center space-x-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => fetchUserRequests()}
-            disabled={isRefreshing}
-            className="h-8 w-8 p-0"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-          >
-            <Filter className="w-4 h-4 mr-2" />
-            Filtrer
-          </Button>
-        </div>
-      </CardHeader>
+  const getOperationTypeLabel = (type: string) => {
+    return type === 'recharge' ? 'Recharge' : 'Retrait';
+  };
 
-      <CardContent className="p-4">
-        {/* Filter Section */}
-        {isFilterOpen && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <Label htmlFor="role">Rôle</Label>
-              <Select value={selectedRole} onValueChange={(value: 'user' | 'agent' | 'all') => setSelectedRole(value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Tous les rôles" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Utilisateur</SelectItem>
-                  <SelectItem value="agent">Agent</SelectItem>
-                  <SelectItem value="all">Tous</SelectItem>
-                </SelectContent>
-              </Select>
+  const getOperationIcon = (type: string) => {
+    return type === 'recharge' ? 
+      <Wallet className="w-4 h-4 text-green-600" /> : 
+      <CreditCard className="w-4 h-4 text-red-600" />;
+  };
+
+  // Filtrer les demandes
+  const pendingRequests = userRequests.filter(req => req.status === 'pending');
+  const processedRequests = userRequests.filter(req => req.status !== 'pending');
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              Chargement des demandes...
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="animate-pulse space-y-3">
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
             </div>
-          </div>
-        )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-        {/* Search Input */}
-        <div className="mb-4">
-          <Label htmlFor="search">Rechercher</Label>
-          <div className="relative">
-            <Input
-              type="text"
-              id="search"
-              placeholder="Rechercher par nom"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <Search className="absolute top-2.5 right-3 w-5 h-5 text-gray-500" />
-          </div>
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <CreditCard className="w-6 h-6" />
+          <h2 className="text-2xl font-bold">Demandes des Utilisateurs</h2>
         </div>
+        <Button 
+          onClick={fetchUserRequests}
+          variant="outline"
+          size="sm"
+          disabled={isLoading}
+        >
+          Actualiser
+        </Button>
+      </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        ) : requests.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>Aucune demande trouvée</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nom
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Téléphone
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rôle
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date de création
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Statut
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {requests.map((request) => (
-                  <tr key={request.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{request.full_name}</div>
-                      <div className="text-sm text-gray-500">{request.phone}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{request.phone}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant="secondary">{request.role}</Badge>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{formatDate(request.created_at)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {request.is_verified ? (
-                        <Badge className="bg-green-100 text-green-800">Vérifié</Badge>
-                      ) : (
-                        <Badge variant="outline">En attente</Badge>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      {!request.is_verified && (
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedRequest(request);
-                              setIsRejectModalOpen(true);
-                            }}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Rejeter
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleApprove(request)}
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Approuver
-                          </Button>
+      {/* Statistiques */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Demandes en attente</CardTitle>
+            <Clock className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pendingRequests.length}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total demandes</CardTitle>
+            <CreditCard className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{userRequests.length}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Montant total</CardTitle>
+            <CreditCard className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(userRequests.reduce((sum, req) => sum + req.amount, 0), 'XAF')}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Demandes en attente */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-orange-500" />
+            Demandes en Attente ({pendingRequests.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {pendingRequests.length > 0 ? (
+              pendingRequests.map((request) => (
+                <div key={request.id} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {getOperationIcon(request.operation_type)}
+                      <div>
+                        <h4 className="font-semibold">{getOperationTypeLabel(request.operation_type)} - {formatCurrency(request.amount, 'XAF')}</h4>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <User className="w-3 h-3" />
+                          <span>{request.profiles?.full_name || 'Utilisateur inconnu'}</span>
+                          <Phone className="w-3 h-3 ml-2" />
+                          <span>{request.profiles?.phone || 'Téléphone inconnu'}</span>
                         </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </CardContent>
+                      </div>
+                    </div>
+                    {getStatusBadge(request.status)}
+                  </div>
 
-      {/* Reject Modal */}
-      {selectedRequest && isRejectModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-auto bg-black/50">
-          <div className="relative p-8 bg-white rounded-md max-w-md mx-auto mt-20">
-            <h2 className="text-lg font-semibold mb-4">Rejeter la demande de {selectedRequest.full_name}</h2>
-            <Label htmlFor="rejectionReason">Motif du rejet</Label>
-            <Textarea
-              id="rejectionReason"
-              placeholder="Entrez le motif du rejet"
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              className="mb-4"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setIsRejectModalOpen(false)}>
+                  <div className="flex items-center justify-between text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Méthode: </span>
+                      <span className="font-semibold">{request.payment_method}</span>
+                      <span className="text-muted-foreground ml-2">Numéro: </span>
+                      <span className="font-mono">{request.payment_phone}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Date: </span>
+                      <span>{new Date(request.created_at).toLocaleDateString('fr-FR')}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
+                    <p className="text-blue-800">
+                      <strong>Instruction:</strong> {request.operation_type === 'recharge' 
+                        ? `Vérifiez que vous avez reçu ${formatCurrency(request.amount, 'XAF')} via ${request.payment_method} au numéro ${request.payment_phone}`
+                        : `Envoyez ${formatCurrency(request.amount, 'XAF')} à l'utilisateur via ${request.payment_method} au numéro ${request.payment_phone}`
+                      }
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => handleApprove(request.id)}
+                      disabled={isProcessing === request.id}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                      {isProcessing === request.id ? 'Traitement...' : 'Approuver'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setSelectedRequest(request);
+                        setShowRejectDialog(true);
+                      }}
+                      disabled={isProcessing === request.id}
+                    >
+                      <XCircle className="w-4 h-4 mr-1" />
+                      Rejeter
+                    </Button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Aucune demande en attente
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Historique des demandes traitées */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Historique des Demandes Traitées</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {processedRequests.length > 0 ? (
+              processedRequests.slice(0, 10).map((request) => (
+                <div key={request.id} className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {getOperationIcon(request.operation_type)}
+                      <div>
+                        <h4 className="font-semibold">{getOperationTypeLabel(request.operation_type)} - {formatCurrency(request.amount, 'XAF')}</h4>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <User className="w-3 h-3" />
+                          <span>{request.profiles?.full_name || 'Utilisateur inconnu'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {getStatusBadge(request.status)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Traité le: {request.processed_at ? new Date(request.processed_at).toLocaleDateString('fr-FR') : 'N/A'}
+                  </div>
+                  {request.rejection_reason && (
+                    <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-800">
+                      <strong>Raison du rejet:</strong> {request.rejection_reason}
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Aucune demande traitée
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dialog de rejet */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeter la demande</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Raison du rejet</label>
+              <Textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Expliquez pourquoi cette demande est rejetée..."
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
                 Annuler
               </Button>
-              <Button variant="destructive" onClick={() => handleReject(selectedRequest)} disabled={isLoading}>
-                {isLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    <span>Rejet en cours...</span>
-                  </div>
-                ) : (
-                  "Rejeter"
-                )}
+              <Button variant="destructive" onClick={handleReject} disabled={!rejectionReason.trim()}>
+                Rejeter
               </Button>
             </div>
           </div>
-        </div>
-      )}
-    </Card>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 

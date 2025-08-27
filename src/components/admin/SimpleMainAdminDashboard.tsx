@@ -1,141 +1,137 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Users, 
+  UserCheck, 
+  TrendingUp, 
   DollarSign,
-  FileText,
-  LucideIcon,
   Settings,
-  TrendingUp,
-  Users,
-  ChevronsUpDown
-} from "lucide-react";
-import { formatCurrency } from "@/lib/utils/currency";
-import { useAdminDashboardData } from "@/hooks/useAdminDashboardData";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
-import AdminReportsTab from "@/components/admin/AdminReportsTab";
-import EnhancedTreasuryTab from "@/components/admin/EnhancedTreasuryTab";
-import UserRequestsManagement from "@/components/admin/UserRequestsManagement";
-import SubAdminRechargeTab from "@/components/admin/SubAdminRechargeTab";
-
-interface DashboardCardProps {
-  title: string;
-  value: string | number;
-  icon: LucideIcon;
-  color?: string;
-}
-
-const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, icon: Icon, color = "text-blue-500" }) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium flex items-center gap-2">
-        <Icon className={`w-4 h-4 ${color}`} />
-        {title}
-      </CardTitle>
-      <Settings className="w-4 h-4 text-gray-400" />
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
-    </CardContent>
-  </Card>
-);
+  MessageSquare,
+  FileText,
+  Wallet,
+  Eye
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMainAdmin } from '@/hooks/useMainAdmin';
+import AdminGlobalStats from './AdminGlobalStats';
+import SubAdminRechargeTab from './SubAdminRechargeTab';
+import UserRequestsManagement from './UserRequestsManagement';
+import AdminUserRequestsOverview from './AdminUserRequestsOverview';
+import { SimpleUsersList } from './SimpleUsersList';
+import SimpleAgentsTab from './SimpleAgentsTab';
+import { SimpleMessagesTab } from './SimpleMessagesTab';
+import { SimpleSettingsTab } from './SimpleSettingsTab';
+import { SimpleTreasuryTab } from './SimpleTreasuryTab';
+import SimpleAdvancedTab from './SimpleAdvancedTab';
 
 const SimpleMainAdminDashboard = () => {
-  const { data, isLoading, refetch } = useAdminDashboardData();
-  const [activeTab, setActiveTab] = useState<'reports' | 'treasury' | 'users' | 'recharge'>('reports');
-
-  const handleTabChange = (tab: 'reports' | 'treasury' | 'users' | 'recharge') => {
-    setActiveTab(tab);
-  };
+  const { profile } = useAuth();
+  const { isMainAdmin } = useMainAdmin();
+  
+  if (!isMainAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900">Accès refusé</h3>
+          <p className="text-gray-600">Vous n'avez pas les permissions pour accéder à cette section.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Tableau de Bord Admin</h1>
-        <Button onClick={refetch} disabled={isLoading}>
-          {isLoading ? "Chargement..." : "Rafraîchir les données"}
-        </Button>
+    <div className="space-y-6">
+      {/* En-tête */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
+        <h1 className="text-2xl font-bold mb-2">Tableau de bord Administrateur Principal</h1>
+        <p className="opacity-90">
+          Bienvenue {profile?.full_name}. Gérez l'ensemble de la plateforme depuis cette interface.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <DashboardCard
-          title="Total Agents"
-          value={data?.totalAgents || 0}
-          icon={Users}
-          color="text-green-500"
-        />
-        <DashboardCard
-          title="Utilisateurs Actifs"
-          value={data?.activeUsers || 0}
-          icon={TrendingUp}
-          color="text-yellow-500"
-        />
-        <DashboardCard
-          title="Balance Totale"
-          value={formatCurrency(data?.adminBalance || 0)}
-          icon={DollarSign}
-          color="text-blue-500"
-        />
-        <DashboardCard
-          title="Total Volume"
-          value={formatCurrency(data?.totalVolume || 0)}
-          icon={FileText}
-          color="text-red-500"
-        />
-      </div>
+      {/* Statistiques globales */}
+      <AdminGlobalStats />
 
-      <Accordion type="single" collapsible className="w-full">
-        <AccordionItem value="reports">
-          <AccordionTrigger onClick={() => handleTabChange('reports')}>
-            <FileText className="w-4 h-4 mr-2" />
-            Rapports et Statistiques
-            <ChevronsUpDown className="ml-auto h-4 w-4" />
-          </AccordionTrigger>
-          <AccordionContent>
-            {activeTab === 'reports' && <AdminReportsTab />}
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="treasury">
-          <AccordionTrigger onClick={() => handleTabChange('treasury')}>
-            <DollarSign className="w-4 h-4 mr-2" />
+      {/* Onglets principaux */}
+      <Tabs defaultValue="requests-overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="requests-overview" className="flex items-center gap-2">
+            <Eye className="w-4 h-4" />
+            Historique
+          </TabsTrigger>
+          <TabsTrigger value="user-requests" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Demandes
+          </TabsTrigger>
+          <TabsTrigger value="recharges" className="flex items-center gap-2">
+            <Wallet className="w-4 h-4" />
+            Recharges
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Utilisateurs
+          </TabsTrigger>
+          <TabsTrigger value="agents" className="flex items-center gap-2">
+            <UserCheck className="w-4 h-4" />
+            Agents
+          </TabsTrigger>
+          <TabsTrigger value="treasury" className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4" />
             Trésorerie
-            <ChevronsUpDown className="ml-auto h-4 w-4" />
-          </AccordionTrigger>
-          <AccordionContent>
-            {activeTab === 'treasury' && <EnhancedTreasuryTab />}
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="users">
-          <AccordionTrigger onClick={() => handleTabChange('users')}>
-            <Users className="w-4 h-4 mr-2" />
-            Gestion des Utilisateurs
-            <ChevronsUpDown className="ml-auto h-4 w-4" />
-          </AccordionTrigger>
-          <AccordionContent>
-            {activeTab === 'users' && (
-              <UserRequestsManagement type="verification" />
-            )}
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="recharge">
-          <AccordionTrigger onClick={() => handleTabChange('recharge')}>
-            <DollarSign className="w-4 h-4 mr-2" />
-            Recharger un compte
-            <ChevronsUpDown className="ml-auto h-4 w-4" />
-          </AccordionTrigger>
-          <AccordionContent>
-            {activeTab === 'recharge' && (
-              <SubAdminRechargeTab userId="main-admin" />
-            )}
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+          </TabsTrigger>
+          <TabsTrigger value="messages" className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" />
+            Messages
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Paramètres
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Onglet Historique */}
+        <TabsContent value="requests-overview">
+          <AdminUserRequestsOverview />
+        </TabsContent>
+
+        {/* Onglet Demandes utilisateurs */}
+        <TabsContent value="user-requests">
+          <UserRequestsManagement />
+        </TabsContent>
+
+        {/* Onglet Recharges et Retraits */}
+        <TabsContent value="recharges">
+          <SubAdminRechargeTab />
+        </TabsContent>
+
+        {/* Onglet Utilisateurs */}
+        <TabsContent value="users">
+          <SimpleUsersList />
+        </TabsContent>
+
+        {/* Onglet Agents */}
+        <TabsContent value="agents">
+          <SimpleAgentsTab />
+        </TabsContent>
+
+        {/* Onglet Trésorerie */}
+        <TabsContent value="treasury">
+          <SimpleTreasuryTab />
+        </TabsContent>
+
+        {/* Onglet Messages */}
+        <TabsContent value="messages">
+          <SimpleMessagesTab />
+        </TabsContent>
+
+        {/* Onglet Paramètres */}
+        <TabsContent value="settings">
+          <SimpleSettingsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

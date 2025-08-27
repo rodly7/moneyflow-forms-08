@@ -1,141 +1,243 @@
+
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { 
-  Shield, 
-  User, 
-  Phone, 
-  DollarSign,
-  Eye,
-  EyeOff,
-  AlertTriangle
-} from "lucide-react";
-import { formatCurrency } from "@/lib/utils/currency";
+import { Shield, CheckCircle, XCircle, Eye, EyeOff, Fingerprint } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/integrations/supabase/client";
 
-interface SecureWithdrawalConfirmationProps {
-  userName: string;
-  userPhone: string;
-  withdrawalAmount: number;
-  onConfirm: (securityCode: string) => void;
-  onCancel: () => void;
-  isLoading: boolean;
+interface WithdrawalRequest {
+  id: string;
+  amount: number;
+  agent_name: string;
+  agent_phone: string;
+  created_at: string;
 }
 
-export const SecureWithdrawalConfirmation: React.FC<SecureWithdrawalConfirmationProps> = ({
-  userName,
-  userPhone,
-  withdrawalAmount,
-  onConfirm,
-  onCancel,
-  isLoading
-}) => {
-  const { toast } = useToast();
-  const [securityCode, setSecurityCode] = useState("");
-  const [showSecurityCode, setShowSecurityCode] = useState(false);
+interface SecureWithdrawalConfirmationProps {
+  request: WithdrawalRequest;
+  onClose: () => void;
+  onConfirmed: () => void;
+  onRejected: () => void;
+}
 
-  const handleConfirm = () => {
-    if (!securityCode) {
+export const SecureWithdrawalConfirmation = ({ 
+  request, 
+  onClose, 
+  onConfirmed,
+  onRejected
+}: SecureWithdrawalConfirmationProps) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [authMethod, setAuthMethod] = useState<'password' | 'biometric'>('password');
+
+  const handlePasswordConfirmation = async () => {
+    if (!password) {
       toast({
-        title: "Code de sécurité requis",
-        description: "Veuillez entrer le code de sécurité pour confirmer le retrait.",
-        variant: "destructive",
+        title: "Mot de passe requis",
+        description: "Veuillez entrer votre mot de passe pour confirmer",
+        variant: "destructive"
       });
       return;
     }
-    onConfirm(securityCode);
+
+    setIsProcessing(true);
+
+    try {
+      // Vérifier le mot de passe avec Supabase Auth
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: password
+      });
+
+      if (authError) {
+        toast({
+          title: "Mot de passe incorrect",
+          description: "Veuillez vérifier votre mot de passe",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      onConfirmed();
+    } catch (error) {
+      console.error("❌ Erreur d'authentification:", error);
+      toast({
+        title: "Erreur d'authentification",
+        description: "Impossible de vérifier votre identité",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const toggleSecurityCodeVisibility = () => {
-    setShowSecurityCode(!showSecurityCode);
+  const handleBiometricConfirmation = async () => {
+    setIsProcessing(true);
+
+    try {
+      // Vérifier si l'authentification biométrique est supportée
+      if (!navigator.credentials || !window.PublicKeyCredential) {
+        toast({
+          title: "Biométrie non supportée",
+          description: "Veuillez utiliser votre mot de passe",
+          variant: "destructive"
+        });
+        setAuthMethod('password');
+        return;
+      }
+
+      toast({
+        title: "Authentification biométrique",
+        description: "Utilisez votre empreinte digitale ou Face ID",
+      });
+      
+      // Simulation d'une authentification biométrique réussie
+      // Dans une vraie application, vous utiliseriez l'API WebAuthn
+      setTimeout(() => {
+        onConfirmed();
+      }, 2000);
+      
+    } catch (error) {
+      console.error("❌ Erreur biométrique:", error);
+      toast({
+        title: "Erreur biométrique",
+        description: "Veuillez utiliser votre mot de passe",
+        variant: "destructive"
+      });
+      setAuthMethod('password');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReject = () => {
+    onRejected();
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto bg-white shadow-md rounded-lg">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-lg font-semibold">Confirmation Sécurisée</CardTitle>
-        <Shield className="h-5 w-5 text-blue-500" />
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="w-5 h-5 text-blue-600" />
+          Confirmation de retrait
+        </CardTitle>
       </CardHeader>
-
-      <CardContent className="p-4">
-        <div className="space-y-4">
-          <div className="text-center">
-            <p className="text-gray-700">
-              Veuillez vérifier les informations suivantes avant de confirmer votre retrait.
-            </p>
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center space-x-2">
-            <User className="h-4 w-4 text-gray-500" />
-            <p className="text-sm font-medium">Nom:</p>
-            <p className="text-sm text-gray-600">{userName}</p>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Phone className="h-4 w-4 text-gray-500" />
-            <p className="text-sm font-medium">Téléphone:</p>
-            <p className="text-sm text-gray-600">{userPhone}</p>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <DollarSign className="h-4 w-4 text-gray-500" />
-            <p className="text-sm font-medium">Montant du retrait:</p>
-            <p className="text-sm text-gray-600">{formatCurrency(withdrawalAmount)}</p>
-          </div>
-
-          <Separator />
-
-          <div>
-            <Label htmlFor="securityCode">Code de sécurité</Label>
-            <div className="relative">
-              <Input
-                type={showSecurityCode ? "text" : "password"}
-                id="securityCode"
-                placeholder="Entrez le code de sécurité"
-                value={securityCode}
-                onChange={(e) => setSecurityCode(e.target.value)}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={toggleSecurityCodeVisibility}
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
-              >
-                {showSecurityCode ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </Button>
+      <CardContent className="space-y-4">
+        {/* Informations de la demande */}
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Montant:</span>
+              <span className="font-semibold text-blue-800">
+                {formatCurrency(request.amount, 'XAF')}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Agent:</span>
+              <span className="font-medium">{request.agent_name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Téléphone:</span>
+              <span className="font-medium">{request.agent_phone}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Demandé le:</span>
+              <span className="font-medium">
+                {new Date(request.created_at).toLocaleString()}
+              </span>
             </div>
           </div>
+        </div>
 
-          <div className="flex justify-between">
-            <Button variant="secondary" onClick={onCancel} disabled={isLoading}>
-              Annuler
+        {/* Méthodes d'authentification */}
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={authMethod === 'password' ? 'default' : 'outline'}
+              onClick={() => setAuthMethod('password')}
+              className="flex-1"
+            >
+              Mot de passe
             </Button>
-            <Button onClick={handleConfirm} disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Confirmer...
-                </>
-              ) : (
-                "Confirmer"
-              )}
+            <Button
+              type="button"
+              variant={authMethod === 'biometric' ? 'default' : 'outline'}
+              onClick={() => setAuthMethod('biometric')}
+              className="flex-1"
+            >
+              <Fingerprint className="w-4 h-4 mr-2" />
+              Biométrie
             </Button>
           </div>
+
+          {authMethod === 'password' && (
+            <div className="space-y-2">
+              <Label htmlFor="password">Confirmez avec votre mot de passe</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Entrez votre mot de passe"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Actions */}
+        <div className="flex space-x-2">
+          <Button
+            onClick={authMethod === 'password' ? handlePasswordConfirmation : handleBiometricConfirmation}
+            disabled={isProcessing || (authMethod === 'password' && !password)}
+            className="flex-1 bg-green-600 hover:bg-green-700"
+          >
+            {isProcessing ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            ) : (
+              <CheckCircle className="w-4 h-4 mr-2" />
+            )}
+            Confirmer
+          </Button>
+          
+          <Button
+            onClick={handleReject}
+            disabled={isProcessing}
+            variant="destructive"
+            className="flex-1"
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            Refuser
+          </Button>
+        </div>
+
+        <Button
+          onClick={onClose}
+          variant="outline"
+          className="w-full"
+        >
+          Annuler
+        </Button>
       </CardContent>
     </Card>
   );

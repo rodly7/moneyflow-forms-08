@@ -1,245 +1,325 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Download, AlertCircle, Loader2, User, Wallet, QrCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, User, DollarSign, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency } from "@/lib/utils/currency";
+import { findUserByPhone } from "@/services/withdrawalService";
+import { formatCurrency } from "@/integrations/supabase/client";
+import { useAgentAutomaticDeposit } from "@/hooks/useAgentAutomaticDeposit";
+import QRScanner from "@/components/agent/QRScanner";
+import { ClientSearchForm } from "@/components/agent/ClientSearchForm";
+import { AgentBalanceCard } from "@/components/agent/AgentBalanceCard";
 
 interface ClientData {
   id: string;
   full_name: string;
   phone: string;
+  balance: number;
   country?: string;
 }
 
-const calculateCommission = (amount: number): number => {
-  const rate = 0.02;
-  return amount * rate;
-};
-
-const AgentAutomaticDepositForm = () => {
+export const AgentAutomaticDepositForm = () => {
+  const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
-  const { profile } = useAuth();
-  const [phone, setPhone] = useState("");
+  const { processAgentAutomaticDeposit, isProcessing } = useAgentAutomaticDeposit();
+
   const [amount, setAmount] = useState("");
-  const [client, setClient] = useState<ClientData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isClientLoading, setIsClientLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [clientData, setClientData] = useState<ClientData | null>(null);
+  const [isSearchingClient, setIsSearchingClient] = useState(false);
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [qrVerified, setQrVerified] = useState(false);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
+  // Utiliser le solde du profil directement
+  const agentBalance = profile?.balance || 0;
+
+  // Rafraîchir le profil au chargement pour s'assurer d'avoir le bon solde
   useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => {
-        setSuccess(false);
-      }, 3000);
-      return () => clearTimeout(timer);
+    if (user?.id && profile) {
+      refreshProfile();
     }
-  }, [success]);
+  }, [user?.id, refreshProfile]);
 
-  const validateForm = (): boolean => {
-    if (!client) {
-      setErrorMessage("Veuillez rechercher un client.");
-      return false;
-    }
-    if (!amount || parseFloat(amount) <= 0) {
-      setErrorMessage("Montant invalide.");
-      return false;
-    }
-    setErrorMessage(null);
-    return true;
-  };
-
-  const handleSearchClient = async () => {
-    setIsClientLoading(true);
-    setClient(null);
-    setErrorMessage(null);
+  const handleRefreshBalance = async () => {
+    setIsLoadingBalance(true);
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, phone, country")
-        .eq("phone", phone)
-        .single();
-
-      if (error) {
-        throw new Error("Client introuvable.");
-      }
-
-      if (!data) {
-        throw new Error("Client introuvable.");
-      }
-
-      setClient({
-        id: data.id,
-        full_name: data.full_name || "N/A",
-        phone: data.phone,
-        country: data.country || "N/A",
+      await refreshProfile();
+      toast({
+        title: "Solde actualisé",
+        description: "Votre solde agent a été mis à jour",
       });
-    } catch (error: any) {
-      setErrorMessage(error.message || "Erreur lors de la recherche du client.");
-    } finally {
-      setIsClientLoading(false);
+    } catch (error) {
+      console.error("Erreur lors du rafraîchissement:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'actualiser le solde",
+        variant: "destructive"
+      });
+    }
+    setIsLoadingBalance(false);
+  };
+
+  const searchClient = async () => {
+    if (!phoneNumber || phoneNumber.length < 6) {
+      toast({
+        title: "Numéro invalide",
+        description: "Veuillez entrer un numéro de téléphone valide",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSearchingClient(true);
+    try {
+      const client = await findUserByPhone(phoneNumber);
+      
+      if (client) {
+        // Vérifier si le client est dans le même pays que l'agent
+        if (profile?.country && client.country !== profile.country) {
+          toast({
+            title: "Client non autorisé",
+            description: `Vous ne pouvez effectuer des opérations que pour des clients de ${profile.country}`,
+            variant: "destructive"
+          });
+          setClientData(null);
+          return;
+        }
+
+        setClientData(client);
+        setQrVerified(false);
+        toast({
+          title: "Client trouvé",
+          description: `${client.full_name || 'Utilisateur'} - Solde masqué pour la sécurité`,
+        });
+      } else {
+        setClientData(null);
+        toast({
+          title: "Client non trouvé",
+          description: "Ce numéro n'existe pas dans notre base de données",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("❌ Erreur lors de la recherche:", error);
+      toast({
+        title: "Erreur de recherche",
+        description: "Impossible de rechercher le client",
+        variant: "destructive"
+      });
+      setClientData(null);
+    }
+    setIsSearchingClient(false);
+  };
+
+  const handlePhoneChange = (value: string) => {
+    setPhoneNumber(value);
+    if (clientData) {
+      setClientData(null);
+      setQrVerified(false);
     }
   };
 
-const handleDeposit = async () => {
-  if (!validateForm()) return;
+  const handleQRScanSuccess = (userData: { userId: string; fullName: string; phone: string }) => {
+    if (clientData && clientData.id === userData.userId) {
+      setQrVerified(true);
+      setIsQRScannerOpen(false);
+      toast({
+        title: "QR Code vérifié",
+        description: "Identité du client confirmée. Vous pouvez maintenant effectuer le dépôt.",
+      });
+    } else {
+      toast({
+        title: "QR Code incorrect",
+        description: "Le QR code scanné ne correspond pas au client sélectionné",
+        variant: "destructive"
+      });
+    }
+  };
 
-  setIsLoading(true);
-  try {
-    const depositAmount = parseFloat(amount);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    // Use secure_increment_balance function instead of direct balance update
-    const { data, error } = await supabase.rpc('secure_increment_balance', {
-      target_user_id: client.id,
-      amount: depositAmount,
-      operation_type: 'agent_deposit',
-      performed_by: profile?.id
-    });
-
-    if (error) {
-      throw error;
+    if (!user?.id) {
+      toast({
+        title: "Erreur d'authentification",
+        description: "Vous devez être connecté",
+        variant: "destructive"
+      });
+      return;
     }
 
-    
-    
-    // Calculate and add commission to agent
-    const commission = calculateCommission(depositAmount);
-    await supabase.rpc('increment_agent_commission', {
-      agent_user_id: profile?.id,
-      commission_amount: commission
-    });
+    if (!clientData) {
+      toast({
+        title: "Client requis",
+        description: "Veuillez d'abord rechercher et sélectionner un client",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    toast({
-      title: "Dépôt réussi",
-      description: `Dépôt de ${formatCurrency(depositAmount)} effectué pour ${client?.full_name}.`,
-    });
-    setSuccess(true);
-    setAmount("");
-    setPhone("");
-    setClient(null);
-  } catch (error: any) {
-    console.error("Error during deposit:", error);
-    toast({
-      title: "Erreur",
-      description: error.message || "Impossible d'effectuer le dépôt.",
-      variant: "destructive",
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};
+    if (!qrVerified) {
+      toast({
+        title: "Scan QR requis",
+        description: "Vous devez scanner le QR code du client avant d'effectuer le dépôt",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      toast({
+        title: "Montant invalide",
+        description: "Veuillez entrer un montant valide",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const depositAmount = Number(amount);
+    
+    const result = await processAgentAutomaticDeposit(
+      clientData.id,
+      depositAmount,
+      clientData.phone,
+      clientData.full_name,
+      agentBalance
+    );
+
+    if (result.success) {
+      // Réinitialiser le formulaire
+      setPhoneNumber("");
+      setAmount("");
+      setClientData(null);
+      setQrVerified(false);
+      // Rafraîchir le solde agent
+      await refreshProfile();
+    }
+  };
+
+  const isAmountExceedsBalance = amount && Number(amount) > agentBalance;
 
   return (
-    <Card className="bg-white shadow-md rounded-lg">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-4 px-4">
-        <CardTitle className="text-lg font-semibold">
-          Dépôt Automatique
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Download className="w-5 h-5 text-emerald-500" />
+          Dépôt Client
         </CardTitle>
+        <p className="text-sm text-gray-600">
+          Effectuez un dépôt pour un client avec commission de 0,5%
+        </p>
+        <p className="text-sm text-orange-600 font-medium">
+          Uniquement pour les clients de {profile?.country || 'votre pays'}
+        </p>
       </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Affichage du solde agent */}
+          <AgentBalanceCard
+            balance={agentBalance}
+            isLoading={isLoadingBalance}
+            onRefresh={handleRefreshBalance}
+            userCountry={profile?.country}
+          />
 
-      <CardContent className="p-4">
-        <div className="space-y-4">
-          {/* Phone Search */}
-          <div>
-            <Label htmlFor="phone">Numéro de téléphone du client</Label>
-            <div className="relative">
-              <Input
-                type="tel"
-                id="phone"
-                placeholder="Entrez le numéro de téléphone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="pl-12"
-              />
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
-              <Button
-                onClick={handleSearchClient}
-                disabled={isClientLoading || !phone}
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-auto px-3 py-2"
-              >
-                {isClientLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    <span>Recherche...</span>
-                  </div>
-                ) : (
-                  "Rechercher"
-                )}
-              </Button>
-            </div>
-          </div>
+          {/* Recherche du client */}
+          <ClientSearchForm
+            phoneNumber={phoneNumber}
+            clientData={clientData}
+            isSearching={isSearchingClient}
+            onPhoneChange={handlePhoneChange}
+            onSearch={searchClient}
+            onQRScan={() => setIsQRScannerOpen(true)}
+          />
 
-          {/* Client Info */}
-          {client && (
-            <div className="p-3 bg-green-50 rounded-md border border-green-200">
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span className="text-xs text-green-700">
-                  Client trouvé: {client.full_name} ({client.phone})
+          {/* Section QR Code */}
+          {clientData && (
+            <div className="mt-4 pt-4 border-t border-green-200">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-green-800">
+                  Vérification QR Code
                 </span>
+                {qrVerified ? (
+                  <span className="text-green-600 text-sm">✅ Vérifié</span>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsQRScannerOpen(true)}
+                    className="border-green-300 text-green-700 hover:bg-green-50"
+                  >
+                    <QrCode className="w-4 h-4 mr-2" />
+                    Scanner QR
+                  </Button>
+                )}
               </div>
+              {!qrVerified && (
+                <p className="text-xs text-red-600 mt-1">
+                  ⚠️ Vous devez scanner le QR code du client pour continuer
+                </p>
+              )}
             </div>
           )}
 
-          {/* Amount Input */}
-          <div>
-            <Label htmlFor="amount">Montant du dépôt</Label>
-            <div className="relative">
-              <Input
-                type="number"
-                id="amount"
-                placeholder="Entrez le montant"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="pl-10"
-                disabled={!client}
-              />
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
-            </div>
+          {/* Montant */}
+          <div className="space-y-2">
+            <Label htmlFor="amount">Montant du dépôt (XAF)</Label>
+            <Input
+              id="amount"
+              type="number"
+              placeholder="Entrez le montant"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+              className="h-12 text-lg"
+              disabled={!clientData}
+            />
+            {isAmountExceedsBalance && (
+              <p className="text-red-600 text-sm">
+                Le montant dépasse votre solde disponible ({formatCurrency(agentBalance, 'XAF')})
+              </p>
+            )}
+            {amount && clientData && !isAmountExceedsBalance && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-green-700 text-sm">
+                  💰 Commission: {formatCurrency(Number(amount) * 0.005, 'XAF')} (0,5%)
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Error Message */}
-          {errorMessage && (
-            <div className="p-3 bg-red-50 rounded-md border border-red-200">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="h-4 w-4 text-red-500" />
-                <span className="text-xs text-red-700">{errorMessage}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <Button onClick={handleDeposit} className="w-full" disabled={isLoading || !client}>
-            {isLoading ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                <span>Traitement...</span>
+          <Button 
+            type="submit" 
+            className="w-full bg-emerald-600 hover:bg-emerald-700 mt-4 h-12 text-lg"
+            disabled={isProcessing || isAmountExceedsBalance || !clientData || !amount || !qrVerified}
+          >
+            {isProcessing ? (
+              <div className="flex items-center">
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <span>Traitement en cours...</span>
               </div>
             ) : (
-              "Effectuer le Dépôt"
+              <div className="flex items-center justify-center">
+                <Download className="mr-2 h-5 w-5" />
+                <span>Effectuer le dépôt</span>
+              </div>
             )}
           </Button>
+        </form>
 
-          {/* Success Message */}
-          {success && (
-            <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-4 w-4 text-blue-500" />
-                <span className="text-xs text-blue-700">
-                  Dépôt réussi!
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* QR Scanner Modal */}
+        <QRScanner 
+          isOpen={isQRScannerOpen}
+          onClose={() => setIsQRScannerOpen(false)}
+          onScanSuccess={handleQRScanSuccess}
+        />
       </CardContent>
     </Card>
   );
 };
-
-export default AgentAutomaticDepositForm;

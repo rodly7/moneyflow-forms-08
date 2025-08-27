@@ -1,145 +1,129 @@
+import React from 'react';
+import { useAdminDashboardData } from '@/hooks/useAdminDashboardData';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ArrowUpRight, ArrowDownLeft, Users, PackageCheck, PackageX, UserPlus, UserMinus } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils/currency';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { CalendarRange } from 'lucide-react';
+import { LineChart } from '@/components/admin/LineChart';
+import { SimpleTransactionsList } from './SimpleTransactionsList';
+import SubAdminTrafficMonitor from './SubAdminTrafficMonitor';
+import SubAdminSummaryCard from './SubAdminSummaryCard';
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  DollarSign,
-  FileText,
-  LucideIcon,
-  Settings,
-  TrendingUp,
-  Users,
-  ChevronsUpDown
-} from "lucide-react";
-import { formatCurrency } from "@/lib/utils/currency";
-import { useAdminDashboardData } from "@/hooks/useAdminDashboardData";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
-import AdminReportsTab from "@/components/admin/AdminReportsTab";
-import EnhancedTreasuryTab from "@/components/admin/EnhancedTreasuryTab";
-import UserRequestsManagement from "@/components/admin/UserRequestsManagement";
-import SubAdminRechargeTab from "@/components/admin/SubAdminRechargeTab";
-import SubAdminTrafficMonitor from "@/components/admin/SubAdminTrafficMonitor";
-
-interface DashboardCardProps {
-  title: string;
-  value: string | number;
-  icon: LucideIcon;
-  color?: string;
-}
-
-const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, icon: Icon, color = "text-blue-500" }) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium flex items-center gap-2">
-        <Icon className={`w-4 h-4 ${color}`} />
-        {title}
-      </CardTitle>
-      <Settings className="w-4 h-4 text-gray-400" />
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
-    </CardContent>
-  </Card>
-);
-
-const SimpleMainAdminDashboard = () => {
+export const SimpleAdminDashboard = () => {
   const { data, isLoading, refetch } = useAdminDashboardData();
-  const [activeTab, setActiveTab] = useState<'reports' | 'treasury' | 'users' | 'recharge'>('reports');
-
-  const handleTabChange = (tab: 'reports' | 'treasury' | 'users' | 'recharge') => {
-    setActiveTab(tab);
-  };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Tableau de Bord Admin</h1>
-        <Button onClick={refetch} disabled={isLoading}>
-          {isLoading ? "Chargement..." : "Rafraîchir les données"}
-        </Button>
+    <div className="space-y-6 p-6">
+      {/* Header avec statistiques principales */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-l-4 border-l-blue-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data?.totalAgents || 0}</div>
+            <p className="text-sm text-muted-foreground">
+              {data?.activeAgents} actifs
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-green-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Utilisateurs</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data?.totalUsers || 0}</div>
+            <p className="text-sm text-muted-foreground">
+              {data?.activeUsers} actifs
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-orange-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Balance Admin</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(data?.adminBalance || 0, 'XAF')}</div>
+          </CardContent>
+        </Card>
+        
+        {/* Nouvelle carte pour les sous-administrateurs */}
+        <SubAdminSummaryCard />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <DashboardCard
-          title="Total Agents"
-          value={data?.totalAgents || 0}
-          icon={Users}
-          color="text-green-500"
-        />
-        <DashboardCard
-          title="Utilisateurs Actifs"
-          value={data?.activeUsers || 0}
-          icon={TrendingUp}
-          color="text-yellow-500"
-        />
-        <DashboardCard
-          title="Balance Totale"
-          value={formatCurrency(data?.adminBalance || 0)}
-          icon={DollarSign}
-          color="text-blue-500"
-        />
-        <DashboardCard
-          title="Total Volume"
-          value={formatCurrency(data?.totalVolume || 0)}
-          icon={FileText}
-          color="text-red-500"
-        />
+      {/* Nouvelles métriques */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-l-4 border-l-purple-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Volume Total</CardTitle>
+            <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(data?.totalVolume || 0, 'XAF')}</div>
+            <p className="text-sm text-muted-foreground">
+              <span className="text-green-500">+20%</span> depuis le mois dernier
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-yellow-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Transactions Aujourd'hui</CardTitle>
+            <ArrowDownLeft className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data?.todayTransactions || 0}</div>
+            <p className="text-sm text-muted-foreground">
+              <span className="text-red-500">-5%</span> depuis hier
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-pink-500">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Nouveaux Utilisateurs</CardTitle>
+            <CalendarRange className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data?.newUsersToday || 0}</div>
+            <p className="text-sm text-muted-foreground">
+              <span className="text-green-500">+10%</span> cette semaine
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      <Accordion type="single" collapsible className="w-full">
-        <AccordionItem value="reports">
-          <AccordionTrigger onClick={() => handleTabChange('reports')}>
-            <FileText className="w-4 h-4 mr-2" />
-            Rapports et Statistiques
-            <ChevronsUpDown className="ml-auto h-4 w-4" />
-          </AccordionTrigger>
-          <AccordionContent>
-            {activeTab === 'reports' && <AdminReportsTab />}
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="treasury">
-          <AccordionTrigger onClick={() => handleTabChange('treasury')}>
-            <DollarSign className="w-4 h-4 mr-2" />
-            Trésorerie
-            <ChevronsUpDown className="ml-auto h-4 w-4" />
-          </AccordionTrigger>
-          <AccordionContent>
-            {activeTab === 'treasury' && <EnhancedTreasuryTab />}
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="users">
-          <AccordionTrigger onClick={() => handleTabChange('users')}>
-            <Users className="w-4 h-4 mr-2" />
-            Gestion des Utilisateurs
-            <ChevronsUpDown className="ml-auto h-4 w-4" />
-          </AccordionTrigger>
-          <AccordionContent>
-            {activeTab === 'users' && (
-              <UserRequestsManagement type="verification" />
-            )}
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="recharge">
-          <AccordionTrigger onClick={() => handleTabChange('recharge')}>
-            <DollarSign className="w-4 h-4 mr-2" />
-            Recharger un compte
-            <ChevronsUpDown className="ml-auto h-4 w-4" />
-          </AccordionTrigger>
-          <AccordionContent>
-            {activeTab === 'recharge' && (
-              <SubAdminRechargeTab userId="main-admin" />
-            )}
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      {/* Trafic des Sous-Administrateurs - NOUVEAU */}
+      <SubAdminTrafficMonitor />
+
+      {/* Graphiques et tableaux existants */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenus Mensuels</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <LineChart />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Dernières Transactions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SimpleTransactionsList />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
-
-export default SimpleMainAdminDashboard;

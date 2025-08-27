@@ -11,7 +11,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Zap, Shield, User, Phone, MapPin, Lock, ArrowLeft, Sparkles, Crown, Eye, EyeOff, CheckCircle2, Mail, Calendar } from "lucide-react";
 import { PasswordChangeAppointmentForm } from "@/components/auth/PasswordChangeAppointmentForm";
 import { PWAInstallMessage } from "@/components/pwa/PWAInstallMessage";
-import KYCVerificationStep from "@/components/kyc/KYCVerificationStep";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -20,8 +19,6 @@ const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(isAgentMode);
   const [loading, setLoading] = useState(false);
   const [showPWAInstall, setShowPWAInstall] = useState(true);
-  const [showKYCStep, setShowKYCStep] = useState(false);
-  const [pendingSignUpData, setPendingSignUpData] = useState<any>(null);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   
@@ -82,27 +79,6 @@ const Auth = () => {
         
         const userRole = isAgentMode ? "agent" : "user";
         
-        // Stocker les données d'inscription pour après le KYC
-        setPendingSignUpData({
-          phone,
-          password,
-          metadata: {
-            full_name: fullName,
-            country: country,
-            address: address,
-            phone: phone,
-            role: userRole,
-          }
-        });
-        
-        // Passer à l'étape KYC pour les utilisateurs normaux
-        if (!isAgentMode) {
-          setShowKYCStep(true);
-          setLoading(false);
-          return;
-        }
-        
-        // Les agents peuvent s'inscrire directement sans KYC obligatoire
         await signUp(phone, password, {
           full_name: fullName,
           country: country,
@@ -111,8 +87,12 @@ const Auth = () => {
           role: userRole,
         });
         
-        toast.success("Compte agent créé avec succès!");
+        const successMessage = isAgentMode ? "Compte agent créé avec succès!" : "Compte créé avec succès!";
+        toast.success(successMessage);
         
+        if (!isAgentMode) {
+          setIsSignUp(false);
+        }
       } else {
         if (!loginPhone || !loginPassword) {
           throw new Error("Veuillez remplir tous les champs");
@@ -143,59 +123,6 @@ const Auth = () => {
       
       toast.error(errorMessage);
     } finally {
-      if (!showKYCStep) {
-        setLoading(false);
-      }
-    }
-  };
-
-  const handleKYCComplete = async (kycData: {
-    idCardUrl: string;
-    selfieUrl: string;
-    verificationScore: number;
-  }) => {
-    if (!pendingSignUpData) return;
-    
-    try {
-      setLoading(true);
-      
-      // Créer le compte avec les données KYC
-      await signUp(pendingSignUpData.phone, pendingSignUpData.password, {
-        ...pendingSignUpData.metadata,
-        kyc_id_card_url: kycData.idCardUrl,
-        kyc_selfie_url: kycData.selfieUrl,
-        kyc_verification_score: kycData.verificationScore,
-        kyc_verified: kycData.verificationScore > 75,
-        kyc_verified_at: kycData.verificationScore > 75 ? new Date().toISOString() : null,
-      });
-      
-      toast.success("Compte créé avec succès et documents vérifiés!");
-      setShowKYCStep(false);
-      
-    } catch (error: any) {
-      console.error("Erreur création compte avec KYC:", error);
-      toast.error("Erreur lors de la création du compte");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKYCSkip = async () => {
-    if (!pendingSignUpData) return;
-    
-    try {
-      setLoading(true);
-      
-      // Créer le compte sans KYC (à compléter plus tard)
-      await signUp(pendingSignUpData.phone, pendingSignUpData.password, pendingSignUpData.metadata);
-      
-      toast.success("Compte créé avec succès! Vous pourrez compléter votre vérification plus tard.");
-      setShowKYCStep(false);
-      
-    } catch (error: any) {
-      console.error("Erreur création compte:", error);
-      toast.error("Erreur lors de la création du compte");
-    } finally {
       setLoading(false);
     }
   };
@@ -207,28 +134,6 @@ const Auth = () => {
   if (showAppointmentForm) {
     return (
       <PasswordChangeAppointmentForm onBack={() => setShowAppointmentForm(false)} />
-    );
-  }
-
-  if (showKYCStep) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 flex items-center justify-center p-4">
-        <Button
-          variant="ghost"
-          onClick={() => {
-            setShowKYCStep(false);
-            setLoading(false);
-          }}
-          className="fixed top-4 left-4 text-muted-foreground hover:text-foreground z-20"
-        >
-          ← Retour
-        </Button>
-        
-        <KYCVerificationStep 
-          onComplete={handleKYCComplete}
-          onSkip={handleKYCSkip}
-        />
-      </div>
     );
   }
 
