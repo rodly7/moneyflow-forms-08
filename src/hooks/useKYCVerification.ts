@@ -1,107 +1,126 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-interface KYCSubmissionData {
-  documentFile: File;
-  documentType: string;
-  selfieFile: File;
+export interface KYCVerificationData {
+  id_document_type: string;
+  document_name: string;
+  document_number: string;
+  document_birth_date: string;
+  document_expiry_date?: string;
+  id_document_url?: string;
+  selfie_url?: string;
+  video_url?: string;
 }
 
 export const useKYCVerification = () => {
-  const { user } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const uploadFile = async (file: File, bucket: string, fileName: string) => {
     try {
-      const filePath = `${user?.id}/${fileName}`;
-      
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file, {
+        .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: true
+          upsert: false
         });
 
       if (error) throw error;
-
+      
+      // Get the public URL
       const { data: urlData } = supabase.storage
         .from(bucket)
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       return urlData.publicUrl;
     } catch (error) {
-      console.error(`Erreur upload vers ${bucket}:`, error);
+      console.error('Error uploading file:', error);
       throw error;
     }
   };
 
-  const submitKYCVerification = async ({ 
-    documentFile, 
-    documentType, 
-    selfieFile 
-  }: KYCSubmissionData) => {
-    if (!user?.id) {
-      throw new Error('Utilisateur non connecté');
-    }
+  const submitKYCVerification = async (
+    verificationData: KYCVerificationData,
+    idDocumentFile?: File,
+    selfieFile?: File,
+    videoFile?: File
+  ) => {
+    setIsLoading(true);
+    setUploadProgress(0);
 
     try {
-      setIsSubmitting(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-      // Upload des fichiers
-      const documentFileName = `document-${Date.now()}.${documentFile.name.split('.').pop()}`;
-      const selfieFileName = `selfie-${Date.now()}.${selfieFile.name.split('.').pop()}`;
+      const userId = user.id;
+      let id_document_url = verificationData.id_document_url;
+      let selfie_url = verificationData.selfie_url;
+      let video_url = verificationData.video_url;
 
-      const [documentUrl, selfieUrl] = await Promise.all([
-        uploadFile(documentFile, 'kyc-documents', documentFileName),
-        uploadFile(selfieFile, 'kyc-selfies', selfieFileName)
-      ]);
+      // Upload ID document if provided
+      if (idDocumentFile) {
+        setUploadProgress(25);
+        const fileName = `${userId}/id-document-${Date.now()}.${idDocumentFile.name.split('.').pop()}`;
+        id_document_url = await uploadFile(idDocumentFile, 'kyc-documents', fileName);
+      }
 
-      // Insérer directement dans la table
-      const { data: insertData, error: insertError } = await supabase
+      // Upload selfie if provided
+      if (selfieFile) {
+        setUploadProgress(50);
+        const fileName = `${userId}/selfie-${Date.now()}.${selfieFile.name.split('.').pop()}`;
+        selfie_url = await uploadFile(selfieFile, 'kyc-selfies', fileName);
+      }
+
+      // Upload video if provided
+      if (videoFile) {
+        setUploadProgress(75);
+        const fileName = `${userId}/video-${Date.now()}.${videoFile.name.split('.').pop()}`;
+        video_url = await uploadFile(videoFile, 'kyc-selfies', fileName);
+      }
+
+      setUploadProgress(90);
+
+      // Insert KYC verification record
+      const { data, error } = await supabase
         .from('kyc_verifications')
         .insert({
-          user_id: user.id,
-          status: 'pending',
-          id_document_url: documentUrl,
-          id_document_type: documentType,
-          selfie_url: selfieUrl,
-          verification_provider: 'manual'
+          user_id: userId,
+          id_document_type: verificationData.id_document_type,
+          document_name: verificationData.document_name,
+          document_number: verificationData.document_number,
+          document_birth_date: verificationData.document_birth_date,
+          document_expiry_date: verificationData.document_expiry_date || null,
+          id_document_url,
+          selfie_url,
+          video_url,
+          status: 'pending'
         })
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (error) throw error;
+
+      setUploadProgress(100);
+      toast.success('Vérification d\'identité soumise avec succès');
       
-      // Mettre à jour le statut KYC dans le profil
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ 
-          kyc_status: 'pending',
-          requires_kyc: true 
-        })
-        .eq('id', user.id);
-
-      if (profileError) throw profileError;
-
-      toast.success('Demande de vérification soumise avec succès');
-      return insertData;
-
-    } catch (error: any) {
-      console.error('Erreur soumission KYC:', error);
-      toast.error(error.message || 'Erreur lors de la soumission');
+      return data;
+    } catch (error) {
+      console.error('Error submitting KYC verification:', error);
+      toast.error('Erreur lors de la soumission de la vérification');
       throw error;
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
+      setUploadProgress(0);
     }
   };
 
-  const checkKYCStatus = async () => {
-    if (!user?.id) return null;
-
+  const getKYCStatus = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('kyc_verifications')
         .select('*')
@@ -110,20 +129,45 @@ export const useKYCVerification = () => {
         .limit(1)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         throw error;
       }
 
       return data;
     } catch (error) {
-      console.error('Erreur vérification statut KYC:', error);
+      console.error('Error getting KYC status:', error);
       return null;
+    }
+  };
+
+  const updateKYCVerification = async (
+    verificationId: string,
+    updates: Partial<KYCVerificationData>
+  ) => {
+    try {
+      const { data, error } = await supabase
+        .from('kyc_verifications')
+        .update(updates)
+        .eq('id', verificationId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success('Vérification mise à jour avec succès');
+      return data;
+    } catch (error) {
+      console.error('Error updating KYC verification:', error);
+      toast.error('Erreur lors de la mise à jour');
+      throw error;
     }
   };
 
   return {
     submitKYCVerification,
-    checkKYCStatus,
-    isSubmitting
+    getKYCStatus,
+    updateKYCVerification,
+    isLoading,
+    uploadProgress
   };
 };
