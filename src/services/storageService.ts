@@ -11,6 +11,7 @@ export const storageService = {
       
       // Vérifier d'abord si le bucket existe
       const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      console.log('🔍 Buckets disponibles:', buckets?.map(b => ({ id: b.id, name: b.name, public: b.public })));
       
       if (bucketsError) {
         console.error('Erreur lors de la vérification des buckets:', bucketsError);
