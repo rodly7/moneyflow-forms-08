@@ -135,238 +135,504 @@ export const DataResetManager = () => {
   };
 
   const addRevenueData = async (doc: jsPDF, startY: number) => {
-    // En-tête avec style
-    doc.setFillColor(0, 102, 204);
-    doc.rect(15, startY - 5, 180, 15, 'F');
+    // En-tête principal avec dégradé
+    doc.setFillColor(15, 80, 180);
+    doc.rect(10, startY - 8, 190, 20, 'F');
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(2);
+    doc.rect(10, startY - 8, 190, 20, 'S');
+    
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('📊 REVENUS & ANALYTICS', 20, startY + 5);
-    doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'normal');
+    doc.text('📊 RAPPORT DÉTAILLÉ - REVENUS & ANALYTICS', 105, startY + 5, { align: 'center' });
+    
+    let y = startY + 25;
     
     try {
-      // Récupérer TOUTES les données de revenus avec jointures
+      // Récupérer TOUTES les données avec requêtes détaillées
       const { data: agentPerformance } = await supabase
         .from('agent_monthly_performance')
         .select(`
           *,
-          profiles!agent_monthly_performance_agent_id_fkey(full_name, phone)
+          profiles!agent_monthly_performance_agent_id_fkey(full_name, phone, country, role)
         `)
-        .order('created_at', { ascending: false });
+        .order('total_earnings', { ascending: false });
       
       const { data: commissions } = await supabase
         .from('agents')
-        .select(`
-          commission_balance, 
-          user_id, 
-          full_name, 
-          transactions_count, 
-          created_at,
-          profiles!agents_user_id_fkey(full_name, phone)
-        `)
-        .gte('commission_balance', 0);
+        .select('*')
+        .order('commission_balance', { ascending: false });
       
       const { data: adminDeposits } = await supabase
         .from('admin_deposits')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('amount', { ascending: false });
 
-      // Récupérer les rapports d'agents à la place
       const { data: agentReports } = await supabase
         .from('agent_reports')
         .select('*')
         .order('created_at', { ascending: false });
 
-      let y = startY + 25;
-      
-      // RÉSUMÉ EXÉCUTIF avec encadré coloré
-      doc.setFillColor(245, 245, 245);
-      doc.rect(15, y - 5, 180, 50, 'F');
-      doc.setDrawColor(0, 102, 204);
-      doc.setLineWidth(1);
-      doc.rect(15, y - 5, 180, 50, 'S');
+      // SECTION 1: RÉSUMÉ EXÉCUTIF DÉTAILLÉ
+      doc.setFillColor(248, 250, 252);
+      doc.rect(15, y - 5, 180, 65, 'F');
+      doc.setDrawColor(15, 80, 180);
+      doc.setLineWidth(1.5);
+      doc.rect(15, y - 5, 180, 65, 'S');
       
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 102, 204);
-      doc.text('RÉSUMÉ EXÉCUTIF', 20, y + 5);
+      doc.setTextColor(15, 80, 180);
+      doc.text('📈 DASHBOARD EXÉCUTIF - MÉTRIQUES CLÉS', 20, y + 8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
-      y += 15;
+      y += 18;
       
+      // Calculs détaillés
       const totalEarnings = agentPerformance?.reduce((sum, perf) => sum + Number(perf.total_earnings || 0), 0) || 0;
       const totalCommissions = commissions?.reduce((sum, c) => sum + Number(c.commission_balance), 0) || 0;
       const totalDeposits = adminDeposits?.reduce((sum, d) => sum + Number(d.amount || 0), 0) || 0;
       const totalVolume = agentPerformance?.reduce((sum, perf) => sum + Number(perf.total_volume || 0), 0) || 0;
+      const totalWithdrawals = agentPerformance?.reduce((sum, perf) => sum + Number(perf.withdrawals_volume || 0), 0) || 0;
+      const totalTransactions = agentPerformance?.reduce((sum, perf) => sum + Number(perf.total_transactions || 0), 0) || 0;
+      const avgCommissionRate = agentPerformance?.reduce((sum, perf) => sum + Number(perf.commission_rate || 0), 0) / (agentPerformance?.length || 1) || 0;
       
-      doc.setFontSize(10);
-      doc.text(`💰 Revenus totaux générés:`, 25, y);
+      // Affichage en colonnes structurées
+      doc.setFontSize(9);
+      // Colonne gauche
       doc.setFont('helvetica', 'bold');
-      doc.text(`${totalEarnings.toLocaleString('fr-FR')} XAF`, 130, y);
+      doc.setTextColor(34, 139, 34);
+      doc.text('💰 FINANCES', 25, y);
       doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
       y += 6;
-      
-      doc.text(`🎯 Commissions en attente:`, 25, y);
+      doc.text(`Revenus générés:`, 25, y);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${totalCommissions.toLocaleString('fr-FR')} XAF`, 130, y);
+      doc.text(`${totalEarnings.toLocaleString('fr-FR')} XAF`, 70, y);
       doc.setFont('helvetica', 'normal');
-      y += 6;
-      
-      doc.text(`🏦 Volume total traité:`, 25, y);
+      y += 4;
+      doc.text(`Commissions en attente:`, 25, y);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${totalVolume.toLocaleString('fr-FR')} XAF`, 130, y);
+      doc.text(`${totalCommissions.toLocaleString('fr-FR')} XAF`, 70, y);
       doc.setFont('helvetica', 'normal');
-      y += 6;
-      
-      doc.text(`👥 Agents actifs:`, 25, y);
+      y += 4;
+      doc.text(`Volume traité:`, 25, y);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${commissions?.length || 0} agents`, 130, y);
+      doc.text(`${totalVolume.toLocaleString('fr-FR')} XAF`, 70, y);
       doc.setFont('helvetica', 'normal');
-      y += 6;
-      
-      doc.text(`📊 Dépôts administrateur:`, 25, y);
+      y += 4;
+      doc.text(`Retraits volume:`, 25, y);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${totalDeposits.toLocaleString('fr-FR')} XAF`, 130, y);
+      doc.text(`${totalWithdrawals.toLocaleString('fr-FR')} XAF`, 70, y);
+      doc.setFont('helvetica', 'normal');
+      
+      // Colonne droite
+      y -= 16;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 140, 0);
+      doc.text('📊 OPÉRATIONS', 125, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      y += 6;
+      doc.text(`Total transactions:`, 125, y);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${totalTransactions.toLocaleString('fr-FR')}`, 165, y);
+      doc.setFont('helvetica', 'normal');
+      y += 4;
+      doc.text(`Agents actifs:`, 125, y);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${commissions?.length || 0}`, 165, y);
+      doc.setFont('helvetica', 'normal');
+      y += 4;
+      doc.text(`Dépôts admin:`, 125, y);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${adminDeposits?.length || 0}`, 165, y);
+      doc.setFont('helvetica', 'normal');
+      y += 4;
+      doc.text(`Taux comm. moyen:`, 125, y);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${(avgCommissionRate * 100).toFixed(2)}%`, 165, y);
       doc.setFont('helvetica', 'normal');
       y += 25;
       
-      // PERFORMANCES AGENTS DÉTAILLÉES
+      // SECTION 2: PERFORMANCES AGENTS DÉTAILLÉES
       if (agentPerformance?.length) {
+        doc.setFillColor(254, 249, 195);
+        doc.rect(15, y - 5, 180, 15, 'F');
+        doc.setDrawColor(251, 191, 36);
+        doc.setLineWidth(1);
+        doc.rect(15, y - 5, 180, 15, 'S');
+        
         doc.setFontSize(12);
-        doc.setTextColor(0, 102, 204);
-        doc.text(`📈 PERFORMANCES AGENTS (${agentPerformance.length} enregistrements)`, 20, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(180, 83, 9);
+        doc.text(`🎯 ANALYSE DÉTAILLÉE - PERFORMANCES AGENTS (${agentPerformance.length} records)`, 20, y + 5);
         doc.setTextColor(0, 0, 0);
-        y += 15;
-        
-        // Tableau d'en-tête
-        doc.setFontSize(9);
-        doc.text('N°', 25, y);
-        doc.text('Agent ID', 40, y);
-        doc.text('Mois/Année', 85, y);
-        doc.text('Vol. Total', 125, y);
-        doc.text('Transactions', 155, y);
-        doc.text('Gains (XAF)', 185, y);
-        y += 5;
-        
-        // Ligne de séparation
-        doc.line(20, y, 200, y);
-        y += 8;
-        
-        agentPerformance.slice(0, 25).forEach((perf, index) => {
-          if (y > 270) {
-            doc.addPage();
-            y = 20;
-            // Répéter l'en-tête
-            doc.setFontSize(9);
-            doc.text('N°', 25, y);
-            doc.text('Agent ID', 40, y);
-            doc.text('Mois/Année', 85, y);
-            doc.text('Vol. Total', 125, y);
-            doc.text('Transactions', 155, y);
-            doc.text('Gains (XAF)', 185, y);
-            y += 8;
-          }
-          
-          const agentId = String(perf.agent_id).substring(0, 8) + '...';
-          const monthYear = `${perf.month}/${perf.year}`;
-          const volume = Number(perf.total_volume || 0).toLocaleString('fr-FR');
-          const transactions = perf.total_transactions || 0;
-          const earnings = Number(perf.total_earnings || 0).toLocaleString('fr-FR');
-          
-          doc.text(`${index + 1}`, 25, y);
-          doc.text(agentId, 40, y);
-          doc.text(monthYear, 85, y);
-          doc.text(volume, 125, y);
-          doc.text(`${transactions}`, 155, y);
-          doc.text(earnings, 185, y);
-          y += 5;
-        });
-        
-        if (agentPerformance.length > 25) {
-          y += 5;
-          doc.setFontSize(8);
-          doc.setTextColor(128, 128, 128);
-          doc.text(`... et ${agentPerformance.length - 25} autres enregistrements`, 25, y);
-          doc.setTextColor(0, 0, 0);
-        }
-      }
-      
-      // COMMISSIONS AGENTS
-      if (commissions?.length) {
-        if (y > 200) {
-          doc.addPage();
-          y = 20;
-        }
+        doc.setFont('helvetica', 'normal');
         y += 20;
         
-        doc.setFontSize(12);
-        doc.setTextColor(0, 102, 204);
-        doc.text(`💰 COMMISSIONS AGENTS (${commissions.length} agents)`, 20, y);
-        doc.setTextColor(0, 0, 0);
-        y += 15;
+        // En-tête tableau avec style professionnel
+        doc.setFillColor(229, 231, 235);
+        doc.rect(15, y - 3, 180, 10, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text('#', 20, y + 3);
+        doc.text('AGENT / NOM', 30, y + 3);
+        doc.text('PÉRIODE', 75, y + 3);
+        doc.text('VOLUME TOTAL', 105, y + 3);
+        doc.text('RETRAITS', 135, y + 3);
+        doc.text('TRANS.', 160, y + 3);
+        doc.text('GAINS', 175, y + 3);
+        doc.setFont('helvetica', 'normal');
+        y += 12;
         
-        // Tableau d'en-tête
-        doc.setFontSize(9);
-        doc.text('N°', 25, y);
-        doc.text('Nom Agent', 40, y);
-        doc.text('Commission (XAF)', 110, y);
-        doc.text('Transactions', 155, y);
-        doc.text('Date création', 185, y);
-        y += 5;
+        // Ligne de séparation épaisse
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(156, 163, 175);
+        doc.line(15, y - 2, 195, y - 2);
         
-        doc.line(20, y, 200, y);
-        y += 8;
-        
-        commissions.slice(0, 20).forEach((comm, index) => {
-          if (y > 270) {
+        // Affichage des données avec alternance de couleurs
+        agentPerformance.slice(0, 30).forEach((perf, index) => {
+          if (y > 275) {
             doc.addPage();
             y = 20;
+            // Répéter l'en-tête stylé
+            doc.setFillColor(229, 231, 235);
+            doc.rect(15, y - 3, 180, 10, 'F');
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text('#', 20, y + 3);
+            doc.text('AGENT / NOM', 30, y + 3);
+            doc.text('PÉRIODE', 75, y + 3);
+            doc.text('VOLUME TOTAL', 105, y + 3);
+            doc.text('RETRAITS', 135, y + 3);
+            doc.text('TRANS.', 160, y + 3);
+            doc.text('GAINS', 175, y + 3);
+            doc.setFont('helvetica', 'normal');
+            y += 12;
           }
           
-          const name = (comm.full_name || 'Agent inconnu').substring(0, 20);
-          const commission = Number(comm.commission_balance).toLocaleString('fr-FR');
-          const transactions = comm.transactions_count || 0;
-          const dateCreated = new Date(comm.created_at).toLocaleDateString('fr-FR');
+          // Alternance de couleurs de fond
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(15, y - 2, 180, 6, 'F');
+          }
           
-          doc.text(`${index + 1}`, 25, y);
-          doc.text(name, 40, y);
-          doc.text(commission, 110, y);
-          doc.text(`${transactions}`, 155, y);
-          doc.text(dateCreated, 185, y);
-          y += 5;
+          const agentName = perf.profiles?.full_name || 'Agent inconnu';
+          const agentId = String(perf.agent_id).substring(0, 6) + '...';
+          const monthYear = `${perf.month}/${perf.year}`;
+          const volume = Number(perf.total_volume || 0);
+          const withdrawals = Number(perf.withdrawals_volume || 0);
+          const transactions = perf.total_transactions || 0;
+          const earnings = Number(perf.total_earnings || 0);
+          
+          doc.setFontSize(7);
+          doc.text(`${index + 1}`, 20, y + 2);
+          doc.text(`${agentName.substring(0, 15)}`, 30, y + 2);
+          doc.text(`${agentId}`, 30, y + 5);
+          doc.text(monthYear, 75, y + 2);
+          doc.text(`${volume.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}`, 105, y + 2);
+          doc.text(`${withdrawals.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}`, 135, y + 2);
+          doc.text(`${transactions}`, 160, y + 2);
+          
+          // Colorer les gains selon leur importance
+          if (earnings > 100000) {
+            doc.setTextColor(34, 139, 34); // Vert pour gros gains
+          } else if (earnings > 50000) {
+            doc.setTextColor(255, 140, 0); // Orange pour gains moyens
+          } else {
+            doc.setTextColor(0, 0, 0); // Noir pour petits gains
+          }
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${earnings.toLocaleString('fr-FR')}`, 175, y + 2);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
+          
+          y += 7;
         });
+        
+        if (agentPerformance.length > 30) {
+          y += 8;
+          doc.setFillColor(254, 243, 199);
+          doc.rect(15, y - 3, 180, 8, 'F');
+          doc.setFontSize(8);
+          doc.setTextColor(146, 64, 14);
+          doc.setFont('helvetica', 'italic');
+          doc.text(`📋 Affichage limité: ${agentPerformance.length - 30} autres enregistrements disponibles dans la base`, 20, y + 2);
+          doc.setTextColor(0, 0, 0);
+          doc.setFont('helvetica', 'normal');
+        }
+        y += 20;
       }
-
-      // DÉPÔTS ADMINISTRATEUR
-      if (adminDeposits?.length) {
+      
+      // SECTION 3: COMMISSIONS AGENTS AVEC DÉTAILS COMPLETS
+      if (commissions?.length) {
         if (y > 180) {
           doc.addPage();
           y = 20;
         }
-        y += 20;
+        
+        doc.setFillColor(236, 254, 255);
+        doc.rect(15, y - 5, 180, 15, 'F');
+        doc.setDrawColor(14, 165, 233);
+        doc.setLineWidth(1);
+        doc.rect(15, y - 5, 180, 15, 'S');
         
         doc.setFontSize(12);
-        doc.setTextColor(0, 102, 204);
-        doc.text(`🏦 DÉPÔTS ADMINISTRATEUR (${adminDeposits.length} dépôts)`, 20, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(3, 105, 161);
+        doc.text(`💎 TABLEAU DE BORD COMMISSIONS - ${commissions.length} AGENTS ENREGISTRÉS`, 20, y + 5);
         doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+        y += 20;
+        
+        // En-tête détaillé du tableau
+        doc.setFillColor(219, 234, 254);
+        doc.rect(15, y - 3, 180, 12, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text('#', 20, y + 2);
+        doc.text('AGENT INFO', 30, y + 2);
+        doc.text('CONTACT', 75, y + 2);
+        doc.text('COMMISSION', 105, y + 2);
+        doc.text('ACTIVITÉ', 140, y + 2);
+        doc.text('STATUT', 165, y + 2);
+        doc.text('PERFORMANCE', 180, y + 2);
+        doc.setFont('helvetica', 'normal');
         y += 15;
         
-        adminDeposits.slice(0, 15).forEach((deposit, index) => {
-          if (y > 270) {
+        // Tri par commission décroissante
+        const sortedCommissions = [...commissions].sort((a, b) => 
+          Number(b.commission_balance) - Number(a.commission_balance)
+        );
+        
+        sortedCommissions.slice(0, 25).forEach((comm, index) => {
+          if (y > 275) {
             doc.addPage();
             y = 20;
+            // Répéter l'en-tête
+            doc.setFillColor(219, 234, 254);
+            doc.rect(15, y - 3, 180, 12, 'F');
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text('#', 20, y + 2);
+            doc.text('AGENT INFO', 30, y + 2);
+            doc.text('CONTACT', 75, y + 2);
+            doc.text('COMMISSION', 105, y + 2);
+            doc.text('ACTIVITÉ', 140, y + 2);
+            doc.text('STATUT', 165, y + 2);
+            doc.text('PERFORMANCE', 180, y + 2);
+            doc.setFont('helvetica', 'normal');
+            y += 15;
           }
           
-          const amount = Number(deposit.amount).toLocaleString('fr-FR');
+          // Alternance de couleurs
+          if (index % 2 === 0) {
+            doc.setFillColor(249, 250, 251);
+            doc.rect(15, y - 2, 180, 8, 'F');
+          }
+          
+          const name = (comm.full_name || 'Agent inconnu').substring(0, 18);
+          const phone = comm.phone ? comm.phone.substring(0, 12) : 'N/A';
+          const commission = Number(comm.commission_balance);
+          const transactions = comm.transactions_count || 0;
+          const dateCreated = new Date(comm.created_at).toLocaleDateString('fr-FR');
+          const country = comm.country || 'N/A';
+          const userBalance = 0; // Balance info not available in agents table
+          
+          doc.setFontSize(7);
+          doc.text(`${index + 1}`, 20, y + 2);
+          doc.text(name, 30, y + 2);
+          doc.text(`ID: ${String(comm.user_id).substring(0, 8)}...`, 30, y + 5);
+          doc.text(phone, 75, y + 2);
+          doc.text(country, 75, y + 5);
+          
+          // Commission avec couleur selon montant
+          if (commission > 50000) {
+            doc.setTextColor(34, 139, 34);
+            doc.setFont('helvetica', 'bold');
+          } else if (commission > 10000) {
+            doc.setTextColor(255, 140, 0);
+          } else {
+            doc.setTextColor(220, 38, 38);
+          }
+          doc.text(`${commission.toLocaleString('fr-FR')} XAF`, 105, y + 2);
+          doc.setTextColor(0, 0, 0);
+          doc.setFont('helvetica', 'normal');
+          
+          doc.text(`${transactions} trans.`, 140, y + 2);
+          doc.text(dateCreated, 140, y + 5);
+          
+          // Statut selon l'activité
+          if (transactions > 100) {
+            doc.setTextColor(34, 139, 34);
+            doc.text('★★★', 165, y + 2);
+          } else if (transactions > 20) {
+            doc.setTextColor(255, 140, 0);
+            doc.text('★★', 165, y + 2);
+          } else {
+            doc.setTextColor(220, 38, 38);
+            doc.text('★', 165, y + 2);
+          }
+          doc.setTextColor(0, 0, 0);
+          
+          // Performance ratio
+          const ratio = transactions > 0 ? commission / transactions : 0;
+          doc.setFontSize(6);
+          doc.text(`${ratio.toFixed(0)}`, 180, y + 2);
+          doc.text('XAF/t', 180, y + 5);
+          
+          y += 9;
+        });
+        
+        if (commissions.length > 25) {
+          y += 5;
+          doc.setFillColor(254, 240, 138);
+          doc.rect(15, y - 2, 180, 6, 'F');
+          doc.setFontSize(7);
+          doc.setTextColor(146, 64, 14);
+          doc.text(`⚠️ Liste tronquée: ${commissions.length - 25} autres agents non affichés`, 20, y + 2);
+          doc.setTextColor(0, 0, 0);
+        }
+        y += 15;
+      }
+
+      // SECTION 4: DÉPÔTS ADMINISTRATEUR AVEC ANALYSE DÉTAILLÉE
+      if (adminDeposits?.length) {
+        if (y > 150) {
+          doc.addPage();
+          y = 20;
+        }
+        
+        doc.setFillColor(240, 253, 244);
+        doc.rect(15, y - 5, 180, 15, 'F');
+        doc.setDrawColor(34, 197, 94);
+        doc.setLineWidth(1);
+        doc.rect(15, y - 5, 180, 15, 'S');
+        
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(21, 128, 61);
+        doc.text(`🏛️ REGISTRE COMPLET - DÉPÔTS ADMINISTRATEUR (${adminDeposits.length} opérations)`, 20, y + 5);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+        y += 25;
+        
+        // Statistiques des dépôts
+        const totalAmount = adminDeposits.reduce((sum, d) => sum + Number(d.amount || 0), 0);
+        const avgAmount = totalAmount / adminDeposits.length;
+        const maxDeposit = Math.max(...adminDeposits.map(d => Number(d.amount || 0)));
+        const minDeposit = Math.min(...adminDeposits.map(d => Number(d.amount || 0)));
+        
+        doc.setFillColor(249, 250, 251);
+        doc.rect(15, y - 3, 180, 20, 'F');
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(75, 85, 99);
+        doc.text('📊 STATISTIQUES DES DÉPÔTS:', 20, y + 3);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        y += 8;
+        
+        doc.setFontSize(8);
+        doc.text(`Total: ${totalAmount.toLocaleString('fr-FR')} XAF`, 25, y);
+        doc.text(`Moyenne: ${avgAmount.toLocaleString('fr-FR')} XAF`, 85, y);
+        doc.text(`Max: ${maxDeposit.toLocaleString('fr-FR')} XAF`, 145, y);
+        y += 4;
+        doc.text(`Min: ${minDeposit.toLocaleString('fr-FR')} XAF`, 25, y);
+        doc.text(`Opérations: ${adminDeposits.length}`, 85, y);
+        y += 15;
+        
+        // En-tête tableau détaillé
+        doc.setFillColor(229, 231, 235);
+        doc.rect(15, y - 3, 180, 10, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text('#', 20, y + 2);
+        doc.text('MONTANT', 30, y + 2);
+        doc.text('DEVISE', 60, y + 2);
+        doc.text('ADMIN', 75, y + 2);
+        doc.text('BÉNÉFICIAIRE', 105, y + 2);
+        doc.text('TYPE', 140, y + 2);
+        doc.text('DATE', 160, y + 2);
+        doc.text('REF', 180, y + 2);
+        doc.setFont('helvetica', 'normal');
+        y += 12;
+        
+        // Tri par montant décroissant
+        const sortedDeposits = [...adminDeposits].sort((a, b) => 
+          Number(b.amount || 0) - Number(a.amount || 0)
+        );
+        
+        sortedDeposits.slice(0, 20).forEach((deposit, index) => {
+          if (y > 275) {
+            doc.addPage();
+            y = 20;
+            // Répéter l'en-tête
+            doc.setFillColor(229, 231, 235);
+            doc.rect(15, y - 3, 180, 10, 'F');
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text('#', 20, y + 2);
+            doc.text('MONTANT', 30, y + 2);
+            doc.text('DEVISE', 60, y + 2);
+            doc.text('ADMIN', 75, y + 2);
+            doc.text('BÉNÉFICIAIRE', 105, y + 2);
+            doc.text('TYPE', 140, y + 2);
+            doc.text('DATE', 160, y + 2);
+            doc.text('REF', 180, y + 2);
+            doc.setFont('helvetica', 'normal');
+            y += 12;
+          }
+          
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(15, y - 2, 180, 6, 'F');
+          }
+          
+          const amount = Number(deposit.amount || 0);
           const currency = deposit.currency || 'XAF';
           const date = new Date(deposit.created_at).toLocaleDateString('fr-FR');
-          const reference = deposit.reference_number || 'N/A';
+          const reference = (deposit.reference_number || 'N/A').substring(0, 6);
+          const type = deposit.deposit_type || 'standard';
+          const targetUser = String(deposit.target_user_id).substring(0, 8) + '...';
           
-          doc.setFontSize(9);
-          doc.text(`${index + 1}. ${amount} ${currency} - ${date} (Ref: ${reference})`, 25, y);
-          y += 5;
+          doc.setFontSize(7);
+          doc.text(`${index + 1}`, 20, y + 2);
+          
+          // Montant avec couleur selon l'importance
+          if (amount > 500000) {
+            doc.setTextColor(34, 139, 34);
+            doc.setFont('helvetica', 'bold');
+          } else if (amount > 100000) {
+            doc.setTextColor(255, 140, 0);
+          } else {
+            doc.setTextColor(0, 0, 0);
+          }
+          doc.text(`${amount.toLocaleString('fr-FR')}`, 30, y + 2);
+          doc.setTextColor(0, 0, 0);
+          doc.setFont('helvetica', 'normal');
+          
+          doc.text(currency, 60, y + 2);
+          doc.text(String(deposit.admin_id).substring(0, 6), 75, y + 2);
+          doc.text(targetUser.substring(0, 12), 105, y + 2);
+          doc.text(type.substring(0, 8), 140, y + 2);
+          doc.text(date, 160, y + 2);
+          doc.text(reference, 180, y + 2);
+          
+          y += 6;
         });
+        
+        if (adminDeposits.length > 20) {
+          y += 5;
+          doc.setFillColor(254, 249, 195);
+          doc.rect(15, y - 2, 180, 6, 'F');
+          doc.setFontSize(7);
+          doc.setTextColor(146, 64, 14);
+          doc.text(`📋 ${adminDeposits.length - 20} autres dépôts dans la base de données`, 20, y + 2);
+          doc.setTextColor(0, 0, 0);
+        }
       }
       
     } catch (error) {
