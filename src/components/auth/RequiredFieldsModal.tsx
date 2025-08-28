@@ -2,11 +2,10 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import IdCardUploadSection from '@/components/profile/IdCardUploadSection';
+import SelfieUploadSection from '@/components/profile/SelfieUploadSection';
 import { useAuthSession } from '@/hooks/useAuthSession';
 
 interface RequiredFieldsModalProps {
@@ -16,11 +15,26 @@ interface RequiredFieldsModalProps {
 }
 
 const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModalProps) => {
-  const [birthDate, setBirthDate] = useState('');
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
+  const [selfiePreviewUrl, setSelfiePreviewUrl] = useState<string | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { handlePermissionError } = useAuthSession();
+
+  const handleSelfieFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La photo selfie ne doit pas dépasser 5 Mo');
+      return;
+    }
+
+    setSelfieFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setSelfiePreviewUrl(objectUrl);
+  };
 
   const handleIdCardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,15 +53,58 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!birthDate || !idCardFile) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+    if (!selfieFile || !idCardFile) {
+      toast.error('Veuillez ajouter les deux photos obligatoires');
       return;
     }
 
     setIsLoading(true);
 
     try {
+      let selfieUrl = null;
       let idCardUrl = null;
+
+      // Upload de la photo selfie
+      if (selfieFile) {
+        const fileExt = selfieFile.name.split('.').pop();
+        const fileName = `selfie-${Date.now()}.${fileExt}`;
+        const filePath = `${profile.id}/${fileName}`;
+        
+        console.log('Tentative d\'upload du selfie:', filePath);
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('selfies')
+          .upload(filePath, selfieFile, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.error('Erreur upload selfie:', uploadError);
+          
+          // Gérer spécifiquement les erreurs de permissions
+          if (uploadError.message?.includes('row-level security') || 
+              uploadError.message?.includes('permission') ||
+              uploadError.message?.includes('policy')) {
+            const canRetry = await handlePermissionError();
+            if (canRetry) {
+              toast.error('Erreur de permissions corrigée. Veuillez réessayer.');
+              return;
+            } else {
+              return; // L'utilisateur sera redirigé
+            }
+          }
+          
+          throw uploadError;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('selfies')
+          .getPublicUrl(uploadData.path);
+
+        selfieUrl = publicUrl;
+        console.log('Upload selfie réussi, URL:', selfieUrl);
+      }
 
       // Upload de la pièce d'identité
       if (idCardFile) {
@@ -93,14 +150,14 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
 
       // Mise à jour du profil
       console.log('Mise à jour du profil avec:', {
-        birth_date: birthDate,
+        selfie_url: selfieUrl,
         id_card_url: idCardUrl,
       });
 
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
-          birth_date: birthDate,
+          selfie_url: selfieUrl,
           id_card_url: idCardUrl,
         })
         .eq('id', profile.id);
@@ -152,30 +209,24 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="birthDate">Date de naissance *</Label>
-            <Input
-              id="birthDate"
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              required
-            />
-          </div>
+          <SelfieUploadSection 
+            selfiePreviewUrl={selfiePreviewUrl}
+            onFileChange={handleSelfieFileChange}
+          />
 
           <IdCardUploadSection 
             idCardPreviewUrl={idCardPreviewUrl}
             onFileChange={handleIdCardFileChange}
           />
 
-          <div className="text-sm text-gray-600">
-            <p>Ces informations sont obligatoires pour continuer à utiliser l'application.</p>
+          <div className="text-sm text-muted-foreground">
+            <p>Ces photos sont obligatoires pour continuer à utiliser l'application.</p>
           </div>
 
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={isLoading || !birthDate || !idCardFile}
+            disabled={isLoading || !selfieFile || !idCardFile}
           >
             {isLoading ? 'Mise à jour...' : 'Valider'}
           </Button>
