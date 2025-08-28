@@ -135,193 +135,406 @@ export const DataResetManager = () => {
   };
 
   const addRevenueData = async (doc: jsPDF, startY: number) => {
-    doc.setFontSize(14);
-    doc.text('Données de Revenus et Analytics', 20, startY);
+    doc.setFontSize(16);
+    doc.setTextColor(0, 102, 204);
+    doc.text('📊 REVENUS & ANALYTICS', 20, startY);
+    doc.setTextColor(0, 0, 0);
     
     try {
       // Récupérer TOUTES les données de revenus
-      const { data: agentPerformance, error: perfError } = await supabase
+      const { data: agentPerformance } = await supabase
         .from('agent_monthly_performance')
         .select('*')
         .order('created_at', { ascending: false });
       
-      const { data: commissions, error: commError } = await supabase
+      const { data: commissions } = await supabase
         .from('agents')
-        .select('commission_balance, user_id, full_name, transactions_count')
+        .select('commission_balance, user_id, full_name, transactions_count, created_at')
         .gte('commission_balance', 0);
       
-      const { data: adminDeposits, error: depositsError } = await supabase
+      const { data: adminDeposits } = await supabase
         .from('admin_deposits')
         .select('*')
         .order('created_at', { ascending: false });
 
-      console.log('Performance data:', agentPerformance?.length || 0);
-      console.log('Commissions data:', commissions?.length || 0);
-      console.log('Admin deposits:', adminDeposits?.length || 0);
-      
       let y = startY + 20;
-      doc.setFontSize(10);
       
+      // RÉSUMÉ GÉNÉRAL
+      doc.setFontSize(12);
+      doc.setTextColor(51, 51, 51);
+      doc.text('═══ RÉSUMÉ GÉNÉRAL ═══', 20, y);
+      y += 10;
+      
+      const totalEarnings = agentPerformance?.reduce((sum, perf) => sum + Number(perf.total_earnings || 0), 0) || 0;
+      const totalCommissions = commissions?.reduce((sum, c) => sum + Number(c.commission_balance), 0) || 0;
+      const totalDeposits = adminDeposits?.reduce((sum, d) => sum + Number(d.amount || 0), 0) || 0;
+      
+      doc.setFontSize(10);
+      doc.text(`• Total des gains agents: ${totalEarnings.toLocaleString('fr-FR')} XAF`, 25, y);
+      y += 6;
+      doc.text(`• Total commissions non retirées: ${totalCommissions.toLocaleString('fr-FR')} XAF`, 25, y);
+      y += 6;
+      doc.text(`• Total dépôts admin: ${totalDeposits.toLocaleString('fr-FR')} XAF`, 25, y);
+      y += 6;
+      doc.text(`• Nombre d'agents actifs: ${commissions?.length || 0}`, 25, y);
+      y += 15;
+      
+      // PERFORMANCES AGENTS DÉTAILLÉES
       if (agentPerformance?.length) {
-        doc.text(`Performances Agents (${agentPerformance.length} enregistrements):`, 20, y);
-        y += 10;
+        doc.setFontSize(12);
+        doc.setTextColor(0, 102, 204);
+        doc.text(`📈 PERFORMANCES AGENTS (${agentPerformance.length} enregistrements)`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
         
-        const totalEarnings = agentPerformance.reduce((sum, perf) => sum + Number(perf.total_earnings || 0), 0);
-        doc.text(`Total gains: ${totalEarnings.toLocaleString()} XAF`, 25, y);
+        // Tableau d'en-tête
+        doc.setFontSize(9);
+        doc.text('N°', 25, y);
+        doc.text('Agent ID', 40, y);
+        doc.text('Mois/Année', 85, y);
+        doc.text('Vol. Total', 125, y);
+        doc.text('Transactions', 155, y);
+        doc.text('Gains (XAF)', 185, y);
         y += 5;
         
-        agentPerformance.slice(0, 30).forEach((perf, index) => {
+        // Ligne de séparation
+        doc.line(20, y, 200, y);
+        y += 8;
+        
+        agentPerformance.slice(0, 25).forEach((perf, index) => {
           if (y > 270) {
             doc.addPage();
             y = 20;
+            // Répéter l'en-tête
+            doc.setFontSize(9);
+            doc.text('N°', 25, y);
+            doc.text('Agent ID', 40, y);
+            doc.text('Mois/Année', 85, y);
+            doc.text('Vol. Total', 125, y);
+            doc.text('Transactions', 155, y);
+            doc.text('Gains (XAF)', 185, y);
+            y += 8;
           }
-          doc.text(`${index + 1}. Agent: ${perf.agent_id} - Gains: ${perf.total_earnings} XAF - Mois: ${perf.month}/${perf.year}`, 25, y);
+          
+          const agentId = String(perf.agent_id).substring(0, 8) + '...';
+          const monthYear = `${perf.month}/${perf.year}`;
+          const volume = Number(perf.total_volume || 0).toLocaleString('fr-FR');
+          const transactions = perf.total_transactions || 0;
+          const earnings = Number(perf.total_earnings || 0).toLocaleString('fr-FR');
+          
+          doc.text(`${index + 1}`, 25, y);
+          doc.text(agentId, 40, y);
+          doc.text(monthYear, 85, y);
+          doc.text(volume, 125, y);
+          doc.text(`${transactions}`, 155, y);
+          doc.text(earnings, 185, y);
           y += 5;
         });
-      } else {
-        doc.text('Aucune donnée de performance trouvée', 20, y);
-        y += 10;
+        
+        if (agentPerformance.length > 25) {
+          y += 5;
+          doc.setFontSize(8);
+          doc.setTextColor(128, 128, 128);
+          doc.text(`... et ${agentPerformance.length - 25} autres enregistrements`, 25, y);
+          doc.setTextColor(0, 0, 0);
+        }
       }
       
+      // COMMISSIONS AGENTS
       if (commissions?.length) {
-        if (y > 250) {
+        if (y > 200) {
           doc.addPage();
           y = 20;
         }
-        y += 10;
-        doc.text(`Soldes Commissions (${commissions.length} agents):`, 20, y);
-        y += 10;
-        const totalCommissions = commissions.reduce((sum, c) => sum + Number(c.commission_balance), 0);
-        doc.text(`Total commissions: ${totalCommissions.toLocaleString()} XAF`, 25, y);
+        y += 20;
+        
+        doc.setFontSize(12);
+        doc.setTextColor(0, 102, 204);
+        doc.text(`💰 COMMISSIONS AGENTS (${commissions.length} agents)`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
+        
+        // Tableau d'en-tête
+        doc.setFontSize(9);
+        doc.text('N°', 25, y);
+        doc.text('Nom Agent', 40, y);
+        doc.text('Commission (XAF)', 110, y);
+        doc.text('Transactions', 155, y);
+        doc.text('Date création', 185, y);
         y += 5;
+        
+        doc.line(20, y, 200, y);
+        y += 8;
         
         commissions.slice(0, 20).forEach((comm, index) => {
           if (y > 270) {
             doc.addPage();
             y = 20;
           }
-          doc.text(`${index + 1}. ${comm.full_name || 'Agent'}: ${Number(comm.commission_balance).toLocaleString()} XAF (${comm.transactions_count} transactions)`, 25, y);
+          
+          const name = (comm.full_name || 'Agent inconnu').substring(0, 20);
+          const commission = Number(comm.commission_balance).toLocaleString('fr-FR');
+          const transactions = comm.transactions_count || 0;
+          const dateCreated = new Date(comm.created_at).toLocaleDateString('fr-FR');
+          
+          doc.text(`${index + 1}`, 25, y);
+          doc.text(name, 40, y);
+          doc.text(commission, 110, y);
+          doc.text(`${transactions}`, 155, y);
+          doc.text(dateCreated, 185, y);
           y += 5;
         });
-      } else {
-        doc.text('Aucune commission trouvée', 20, y);
-        y += 10;
       }
 
+      // DÉPÔTS ADMINISTRATEUR
       if (adminDeposits?.length) {
-        if (y > 230) {
+        if (y > 180) {
           doc.addPage();
           y = 20;
         }
+        y += 20;
+        
+        doc.setFontSize(12);
+        doc.setTextColor(0, 102, 204);
+        doc.text(`🏦 DÉPÔTS ADMINISTRATEUR (${adminDeposits.length} dépôts)`, 20, y);
+        doc.setTextColor(0, 0, 0);
         y += 15;
-        doc.text(`Dépôts Admin (${adminDeposits.length} dépôts):`, 20, y);
-        y += 10;
-        const totalDeposits = adminDeposits.reduce((sum, d) => sum + Number(d.amount || 0), 0);
-        doc.text(`Total dépôts: ${totalDeposits.toLocaleString()} XAF`, 25, y);
+        
+        adminDeposits.slice(0, 15).forEach((deposit, index) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          
+          const amount = Number(deposit.amount).toLocaleString('fr-FR');
+          const currency = deposit.currency || 'XAF';
+          const date = new Date(deposit.created_at).toLocaleDateString('fr-FR');
+          const reference = deposit.reference_number || 'N/A';
+          
+          doc.setFontSize(9);
+          doc.text(`${index + 1}. ${amount} ${currency} - ${date} (Ref: ${reference})`, 25, y);
+          y += 5;
+        });
       }
       
     } catch (error) {
       console.error('Erreur récupération données revenus:', error);
-      doc.text('Erreur lors de la récupération des données de revenus: ' + error, 20, startY + 20);
+      doc.setTextColor(255, 0, 0);
+      doc.text('❌ Erreur lors de la récupération des données de revenus', 20, startY + 20);
+      doc.setTextColor(0, 0, 0);
     }
   };
 
   const addTransactionData = async (doc: jsPDF, startY: number) => {
-    doc.setFontSize(14);
-    doc.text('Données des Transactions', 20, startY);
+    doc.setFontSize(16);
+    doc.setTextColor(220, 38, 127);
+    doc.text('💳 DONNÉES DES TRANSACTIONS', 20, startY);
+    doc.setTextColor(0, 0, 0);
     
     try {
       // Récupérer TOUTES les données de transactions
-      const { data: transfers, error: transfersError } = await supabase
+      const { data: transfers } = await supabase
         .from('transfers')
         .select('*')
         .order('created_at', { ascending: false });
       
-      const { data: withdrawals, error: withdrawalsError } = await supabase
+      const { data: withdrawals } = await supabase
         .from('withdrawals')
         .select('*')
         .order('created_at', { ascending: false });
       
-      const { data: deposits, error: depositsError } = await supabase
+      const { data: deposits } = await supabase
         .from('recharges')
         .select('*')
         .order('created_at', { ascending: false });
 
-      const { data: pendingTransfers, error: pendingError } = await supabase
+      const { data: pendingTransfers } = await supabase
         .from('pending_transfers')
         .select('*')
         .order('created_at', { ascending: false });
-
-      console.log('Transfers data:', transfers?.length || 0);
-      console.log('Withdrawals data:', withdrawals?.length || 0);
-      console.log('Deposits data:', deposits?.length || 0);
-      console.log('Pending transfers:', pendingTransfers?.length || 0);
       
       let y = startY + 20;
-      doc.setFontSize(10);
       
-      // Statistiques générales
-      doc.text(`=== STATISTIQUES TRANSACTIONS ===`, 20, y);
+      // RÉSUMÉ STATISTIQUES
+      doc.setFontSize(12);
+      doc.setTextColor(51, 51, 51);
+      doc.text('═══ STATISTIQUES GÉNÉRALES ═══', 20, y);
+      y += 15;
+      
+      const transfersCompleted = transfers?.filter(t => t.status === 'completed').length || 0;
+      const transfersPending = transfers?.filter(t => t.status === 'pending').length || 0;
+      const withdrawalsCompleted = withdrawals?.filter(w => w.status === 'completed').length || 0;
+      const withdrawalsPending = withdrawals?.filter(w => w.status === 'pending').length || 0;
+      const depositsSuccess = deposits?.filter(d => d.status === 'completed').length || 0;
+      
+      const totalTransferAmount = transfers?.reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+      const totalWithdrawAmount = withdrawals?.reduce((sum, w) => sum + Number(w.amount || 0), 0) || 0;
+      const totalDepositAmount = deposits?.reduce((sum, d) => sum + Number(d.amount || 0), 0) || 0;
+      
+      doc.setFontSize(10);
+      doc.text(`📊 TRANSFERTS:`, 25, y);
+      y += 6;
+      doc.text(`  • Complétés: ${transfersCompleted} (${totalTransferAmount.toLocaleString('fr-FR')} XAF)`, 30, y);
+      y += 5;
+      doc.text(`  • En attente: ${transfersPending}`, 30, y);
+      y += 5;
+      doc.text(`  • En suspens: ${pendingTransfers?.length || 0}`, 30, y);
       y += 10;
-      doc.text(`Transferts complétés: ${transfers?.filter(t => t.status === 'completed').length || 0}`, 20, y);
+      
+      doc.text(`💸 RETRAITS:`, 25, y);
+      y += 6;
+      doc.text(`  • Complétés: ${withdrawalsCompleted} (${totalWithdrawAmount.toLocaleString('fr-FR')} XAF)`, 30, y);
       y += 5;
-      doc.text(`Retraits totaux: ${withdrawals?.length || 0}`, 20, y);
-      y += 5;
-      doc.text(`Dépôts totaux: ${deposits?.length || 0}`, 20, y);
-      y += 5;
-      doc.text(`Transferts en attente: ${pendingTransfers?.length || 0}`, 20, y);
+      doc.text(`  • En attente: ${withdrawalsPending}`, 30, y);
+      y += 10;
+      
+      doc.text(`💰 DÉPÔTS:`, 25, y);
+      y += 6;
+      doc.text(`  • Réussis: ${depositsSuccess} (${totalDepositAmount.toLocaleString('fr-FR')} XAF)`, 30, y);
       y += 15;
 
-      // Détails des transferts récents
+      // DÉTAIL DES TRANSFERTS
       if (transfers?.length) {
-        const totalTransferAmount = transfers.reduce((sum, t) => sum + Number(t.amount || 0), 0);
-        doc.text(`Volume total transferts: ${totalTransferAmount.toLocaleString()} XAF`, 20, y);
-        y += 10;
+        doc.setFontSize(12);
+        doc.setTextColor(220, 38, 127);
+        doc.text(`🔄 HISTORIQUE TRANSFERTS (${transfers.length} au total)`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
         
-        doc.text(`Derniers transferts:`, 20, y);
+        // En-tête tableau
+        doc.setFontSize(8);
+        doc.text('N°', 25, y);
+        doc.text('Montant', 40, y);
+        doc.text('Statut', 70, y);
+        doc.text('Expéditeur', 95, y);
+        doc.text('Destinataire', 135, y);
+        doc.text('Date', 175, y);
         y += 5;
-        transfers.slice(0, 15).forEach((transfer, index) => {
+        
+        doc.line(20, y, 200, y);
+        y += 8;
+        
+        transfers.slice(0, 20).forEach((transfer, index) => {
           if (y > 270) {
             doc.addPage();
             y = 20;
+            // Répéter l'en-tête
+            doc.text('N°', 25, y);
+            doc.text('Montant', 40, y);
+            doc.text('Statut', 70, y);
+            doc.text('Expéditeur', 95, y);
+            doc.text('Destinataire', 135, y);
+            doc.text('Date', 175, y);
+            y += 8;
           }
-          doc.text(`${index + 1}. ${transfer.amount} XAF - ${transfer.status} - ${new Date(transfer.created_at).toLocaleDateString()}`, 25, y);
-          y += 4;
+          
+          const amount = Number(transfer.amount || 0).toLocaleString('fr-FR');
+          const status = transfer.status || 'N/A';
+          const senderId = String(transfer.sender_id).substring(0, 8) + '...';
+          const recipientPhone = transfer.recipient_phone || 'N/A';
+          const date = new Date(transfer.created_at).toLocaleDateString('fr-FR');
+          
+          doc.text(`${index + 1}`, 25, y);
+          doc.text(`${amount}`, 40, y);
+          doc.text(status, 70, y);
+          doc.text(senderId, 95, y);
+          doc.text(recipientPhone.substring(0, 12), 135, y);
+          doc.text(date, 175, y);
+          y += 5;
         });
       }
 
-      // Détails des retraits récents
+      // DÉTAIL DES RETRAITS
       if (withdrawals?.length) {
-        if (y > 230) {
+        if (y > 150) {
           doc.addPage();
           y = 20;
         }
-        y += 10;
-        const totalWithdrawAmount = withdrawals.reduce((sum, w) => sum + Number(w.amount || 0), 0);
-        doc.text(`Volume total retraits: ${totalWithdrawAmount.toLocaleString()} XAF`, 20, y);
-        y += 10;
+        y += 20;
         
-        doc.text(`Derniers retraits:`, 20, y);
+        doc.setFontSize(12);
+        doc.setTextColor(220, 38, 127);
+        doc.text(`💸 HISTORIQUE RETRAITS (${withdrawals.length} au total)`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
+        
+        // En-tête tableau
+        doc.setFontSize(8);
+        doc.text('N°', 25, y);
+        doc.text('Montant', 40, y);
+        doc.text('Statut', 70, y);
+        doc.text('Utilisateur', 95, y);
+        doc.text('Téléphone', 135, y);
+        doc.text('Date', 175, y);
         y += 5;
-        withdrawals.slice(0, 10).forEach((withdrawal, index) => {
+        
+        doc.line(20, y, 200, y);
+        y += 8;
+        
+        withdrawals.slice(0, 15).forEach((withdrawal, index) => {
           if (y > 270) {
             doc.addPage();
             y = 20;
           }
-          doc.text(`${index + 1}. ${withdrawal.amount} XAF - ${withdrawal.status} - ${new Date(withdrawal.created_at).toLocaleDateString()}`, 25, y);
-          y += 4;
+          
+          const amount = Number(withdrawal.amount || 0).toLocaleString('fr-FR');
+          const status = withdrawal.status || 'N/A';
+          const userId = String(withdrawal.user_id).substring(0, 8) + '...';
+          const phone = withdrawal.withdrawal_phone || 'N/A';
+          const date = new Date(withdrawal.created_at).toLocaleDateString('fr-FR');
+          
+          doc.text(`${index + 1}`, 25, y);
+          doc.text(`${amount}`, 40, y);
+          doc.text(status, 70, y);
+          doc.text(userId, 95, y);
+          doc.text(phone.substring(0, 12), 135, y);
+          doc.text(date, 175, y);
+          y += 5;
         });
+      }
+
+      // ANALYSE PAR PÉRIODE
+      if (transfers?.length || withdrawals?.length) {
+        if (y > 200) {
+          doc.addPage();
+          y = 20;
+        }
+        y += 20;
+        
+        doc.setFontSize(12);
+        doc.setTextColor(220, 38, 127);
+        doc.text('📈 ANALYSE PAR PÉRIODE', 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
+        
+        // Transactions des 7 derniers jours
+        const last7Days = new Date();
+        last7Days.setDate(last7Days.getDate() - 7);
+        
+        const recentTransfers = transfers?.filter(t => new Date(t.created_at) > last7Days).length || 0;
+        const recentWithdrawals = withdrawals?.filter(w => new Date(w.created_at) > last7Days).length || 0;
+        
+        doc.setFontSize(10);
+        doc.text('📅 Activité des 7 derniers jours:', 25, y);
+        y += 8;
+        doc.text(`  • Transferts: ${recentTransfers}`, 30, y);
+        y += 6;
+        doc.text(`  • Retraits: ${recentWithdrawals}`, 30, y);
       }
       
     } catch (error) {
       console.error('Erreur récupération transactions:', error);
-      doc.text('Erreur lors de la récupération des données de transactions: ' + error, 20, startY + 20);
+      doc.setTextColor(255, 0, 0);
+      doc.text('❌ Erreur lors de la récupération des données de transactions', 20, startY + 20);
+      doc.setTextColor(0, 0, 0);
     }
   };
 
   const addSubAdminData = async (doc: jsPDF, startY: number) => {
-    doc.setFontSize(14);
-    doc.text('Données Trafic Sous-admins', 20, startY);
+    doc.setFontSize(16);
+    doc.setTextColor(16, 185, 129);
+    doc.text('🚀 TRAFIC SOUS-ADMINISTRATEURS', 20, startY);
+    doc.setTextColor(0, 0, 0);
     
     try {
       // Récupérer TOUTES les données des sous-admins
@@ -339,65 +552,191 @@ export const DataResetManager = () => {
         .from('sub_admin_quota_settings')
         .select('*');
 
-      console.log('Sub-admins data:', subAdmins?.length || 0);
-      console.log('User sessions:', userSessions?.length || 0);
-      console.log('Sub-admin quotas:', subAdminQuotas?.length || 0);
+      const { data: supportMessages } = await supabase
+        .from('customer_support_messages')
+        .select('*')
+        .order('created_at', { ascending: false });
       
       let y = startY + 20;
-      doc.setFontSize(10);
       
-      doc.text(`=== DONNÉES SOUS-ADMINISTRATEURS ===`, 20, y);
-      y += 10;
-      doc.text(`Nombre de sous-admins: ${subAdmins?.length || 0}`, 20, y);
-      y += 5;
-      doc.text(`Sessions utilisateurs: ${userSessions?.length || 0}`, 20, y);
-      y += 5;
-      doc.text(`Sessions actives: ${userSessions?.filter(s => s.is_active).length || 0}`, 20, y);
+      // RÉSUMÉ GÉNÉRAL
+      doc.setFontSize(12);
+      doc.setTextColor(51, 51, 51);
+      doc.text('═══ RÉSUMÉ ACTIVITÉ SOUS-ADMINS ═══', 20, y);
       y += 15;
       
+      const activeSessions = userSessions?.filter(s => s.is_active).length || 0;
+      const totalSessions = userSessions?.length || 0;
+      const supportTotal = supportMessages?.length || 0;
+      const supportUnread = supportMessages?.filter(m => m.status === 'unread').length || 0;
+      
+      doc.setFontSize(10);
+      doc.text(`👥 Sous-administrateurs actifs: ${subAdmins?.length || 0}`, 25, y);
+      y += 8;
+      doc.text(`📊 Sessions totales: ${totalSessions}`, 25, y);
+      y += 6;
+      doc.text(`🔴 Sessions actives: ${activeSessions}`, 25, y);
+      y += 6;
+      doc.text(`💬 Messages support: ${supportTotal} (${supportUnread} non lus)`, 25, y);
+      y += 6;
+      doc.text(`⚙️  Quotas configurés: ${subAdminQuotas?.length || 0}`, 25, y);
+      y += 20;
+      
+      // DÉTAIL DES SOUS-ADMINS
       if (subAdmins?.length) {
-        doc.text('Liste des sous-admins:', 20, y);
+        doc.setFontSize(12);
+        doc.setTextColor(16, 185, 129);
+        doc.text(`👤 PROFILS SOUS-ADMINISTRATEURS`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
+        
+        // En-tête tableau
+        doc.setFontSize(9);
+        doc.text('N°', 25, y);
+        doc.text('Nom Complet', 40, y);
+        doc.text('Téléphone', 100, y);
+        doc.text('Pays', 135, y);
+        doc.text('Date Création', 155, y);
+        doc.text('Statut', 185, y);
         y += 5;
+        
+        doc.line(20, y, 200, y);
+        y += 8;
+        
         subAdmins.forEach((admin, index) => {
           if (y > 270) {
             doc.addPage();
             y = 20;
+            // Répéter l'en-tête
+            doc.setFontSize(9);
+            doc.text('N°', 25, y);
+            doc.text('Nom Complet', 40, y);
+            doc.text('Téléphone', 100, y);
+            doc.text('Pays', 135, y);
+            doc.text('Date Création', 155, y);
+            doc.text('Statut', 185, y);
+            y += 8;
           }
+          
+          const fullName = (admin.full_name || 'Non défini').substring(0, 15);
+          const phone = admin.phone || 'N/A';
+          const country = (admin.country || 'N/A').substring(0, 8);
           const createdDate = new Date(admin.created_at).toLocaleDateString('fr-FR');
-          doc.text(`${index + 1}. ${admin.full_name || 'Non défini'} - ${admin.phone} (Créé: ${createdDate})`, 25, y);
-          y += 4;
+          const status = admin.is_banned ? '🔴 Banni' : '🟢 Actif';
+          
+          doc.text(`${index + 1}`, 25, y);
+          doc.text(fullName, 40, y);
+          doc.text(phone, 100, y);
+          doc.text(country, 135, y);
+          doc.text(createdDate, 155, y);
+          doc.text(status, 185, y);
+          y += 5;
         });
       }
 
+      // ANALYSE DES SESSIONS
       if (userSessions?.length) {
-        if (y > 220) {
+        if (y > 150) {
           doc.addPage();
           y = 20;
         }
+        y += 20;
+        
+        doc.setFontSize(12);
+        doc.setTextColor(16, 185, 129);
+        doc.text(`📱 HISTORIQUE SESSIONS (${userSessions.length} au total)`, 20, y);
+        doc.setTextColor(0, 0, 0);
         y += 15;
-        doc.text('Historique des sessions (20 dernières):', 20, y);
+        
+        // Analyse par statut
+        const last24h = new Date();
+        last24h.setHours(last24h.getHours() - 24);
+        const recentSessions = userSessions.filter(s => new Date(s.created_at) > last24h).length;
+        
+        doc.setFontSize(10);
+        doc.text(`📈 Activité dernières 24h: ${recentSessions} nouvelles sessions`, 25, y);
+        y += 10;
+        
+        // Détail des sessions récentes
+        doc.setFontSize(9);
+        doc.text('N°', 25, y);
+        doc.text('Utilisateur', 40, y);
+        doc.text('Date Début', 90, y);
+        doc.text('Dernière Activité', 130, y);
+        doc.text('Statut', 180, y);
         y += 5;
-        userSessions.slice(0, 20).forEach((session, index) => {
+        
+        doc.line(20, y, 200, y);
+        y += 8;
+        
+        userSessions.slice(0, 15).forEach((session, index) => {
           if (y > 270) {
             doc.addPage();
             y = 20;
           }
-          const sessionDate = new Date(session.created_at).toLocaleDateString('fr-FR');
-          const status = session.is_active ? 'Active' : 'Inactive';
-          doc.text(`${index + 1}. Session ${status} - ${sessionDate}`, 25, y);
-          y += 4;
+          
+          const userId = String(session.user_id).substring(0, 8) + '...';
+          const startDate = new Date(session.created_at).toLocaleDateString('fr-FR');
+          const lastActivity = session.last_activity ? 
+            new Date(session.last_activity).toLocaleDateString('fr-FR') : 'N/A';
+          const status = session.is_active ? '🟢 Active' : '🔴 Inactive';
+          
+          doc.text(`${index + 1}`, 25, y);
+          doc.text(userId, 40, y);
+          doc.text(startDate, 90, y);
+          doc.text(lastActivity, 130, y);
+          doc.text(status, 180, y);
+          y += 5;
+        });
+      }
+
+      // QUOTAS ET LIMITES
+      if (subAdminQuotas?.length) {
+        if (y > 200) {
+          doc.addPage();
+          y = 20;
+        }
+        y += 20;
+        
+        doc.setFontSize(12);
+        doc.setTextColor(16, 185, 129);
+        doc.text(`⚙️  CONFIGURATION QUOTAS`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
+        
+        subAdminQuotas.forEach((quota, index) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          
+          const subAdminId = String(quota.sub_admin_id).substring(0, 8) + '...';
+          const dailyLimit = quota.daily_limit || 'Non défini';
+          const usedToday = 0; // Quota usage tracking not implemented in current schema
+          
+          doc.setFontSize(10);
+          doc.text(`${index + 1}. Sous-admin: ${subAdminId}`, 25, y);
+          y += 5;
+          doc.text(`   Limite journalière: ${dailyLimit}`, 30, y);
+          y += 5;
+          doc.text(`   Utilisé aujourd'hui: ${usedToday}`, 30, y);
+          y += 8;
         });
       }
       
     } catch (error) {
       console.error('Erreur récupération sous-admins:', error);
-      doc.text('Erreur lors de la récupération des données sous-admins: ' + error, 20, startY + 20);
+      doc.setTextColor(255, 0, 0);
+      doc.text('❌ Erreur lors de la récupération des données sous-admins', 20, startY + 20);
+      doc.setTextColor(0, 0, 0);
     }
   };
 
   const addUserData = async (doc: jsPDF, startY: number) => {
-    doc.setFontSize(14);
-    doc.text('Données Utilisateurs', 20, startY);
+    doc.setFontSize(16);
+    doc.setTextColor(147, 51, 234);
+    doc.text('👥 DONNÉES UTILISATEURS', 20, startY);
+    doc.setTextColor(0, 0, 0);
     
     try {
       // Récupérer TOUTES les données utilisateurs
@@ -421,59 +760,186 @@ export const DataResetManager = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      console.log('Users data:', users?.length || 0);
-      console.log('Agents data:', agents?.length || 0);
-      console.log('KYC verifications:', kycVerifications?.length || 0);
-      console.log('Support messages:', supportMessages?.length || 0);
+      const { data: identityVerifications } = await supabase
+        .from('identity_verifications')
+        .select('*')
+        .order('created_at', { ascending: false });
       
       let y = startY + 20;
-      doc.setFontSize(10);
       
-      doc.text(`=== STATISTIQUES UTILISATEURS ===`, 20, y);
-      y += 10;
-      doc.text(`Utilisateurs réguliers: ${users?.length || 0}`, 20, y);
-      y += 5;
-      doc.text(`Agents: ${agents?.length || 0}`, 20, y);
-      y += 5;
-      doc.text(`Vérifications KYC: ${kycVerifications?.length || 0}`, 20, y);
-      y += 5;
-      doc.text(`Messages support: ${supportMessages?.length || 0}`, 20, y);
+      // RÉSUMÉ GÉNÉRAL
+      doc.setFontSize(12);
+      doc.setTextColor(51, 51, 51);
+      doc.text('═══ RÉSUMÉ BASE UTILISATEURS ═══', 20, y);
+      y += 15;
+      
+      const totalBalance = [...(users || []), ...(agents || [])].reduce((sum, u) => sum + Number(u.balance || 0), 0);
+      const verifiedUsers = users?.filter(u => u.is_verified).length || 0;
+      const bannedUsers = [...(users || []), ...(agents || [])].filter(u => u.is_banned).length;
+      
+      doc.setFontSize(10);
+      doc.text(`👤 Utilisateurs réguliers: ${users?.length || 0}`, 25, y);
+      y += 6;
+      doc.text(`🏢 Agents: ${agents?.length || 0}`, 25, y);
+      y += 6;
+      doc.text(`✅ Utilisateurs vérifiés: ${verifiedUsers}`, 25, y);
+      y += 6;
+      doc.text(`🚫 Utilisateurs bannis: ${bannedUsers}`, 25, y);
+      y += 6;
+      doc.text(`💰 Solde total utilisateurs: ${totalBalance.toLocaleString('fr-FR')} XAF`, 25, y);
       y += 15;
 
-      // Répartition des statuts KYC
+      // VÉRIFICATIONS KYC DÉTAILLÉES
       if (kycVerifications?.length) {
         const approvedKyc = kycVerifications.filter(k => k.status === 'approved').length;
         const pendingKyc = kycVerifications.filter(k => k.status === 'pending').length;
         const rejectedKyc = kycVerifications.filter(k => k.status === 'rejected').length;
         
-        doc.text('Répartition KYC:', 20, y);
+        doc.setFontSize(12);
+        doc.setTextColor(147, 51, 234);
+        doc.text(`🆔 VÉRIFICATIONS KYC (${kycVerifications.length} au total)`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
+        
+        doc.setFontSize(10);
+        doc.text(`📊 Répartition des statuts:`, 25, y);
+        y += 8;
+        doc.text(`  • ✅ Approuvées: ${approvedKyc} (${((approvedKyc/kycVerifications.length)*100).toFixed(1)}%)`, 30, y);
+        y += 6;
+        doc.text(`  • ⏳ En attente: ${pendingKyc} (${((pendingKyc/kycVerifications.length)*100).toFixed(1)}%)`, 30, y);
+        y += 6;
+        doc.text(`  • ❌ Rejetées: ${rejectedKyc} (${((rejectedKyc/kycVerifications.length)*100).toFixed(1)}%)`, 30, y);
+        y += 15;
+        
+        // Détails des KYC récentes
+        doc.setFontSize(9);
+        doc.text('N°', 25, y);
+        doc.text('Utilisateur', 40, y);
+        doc.text('Statut', 85, y);
+        doc.text('Type Document', 115, y);
+        doc.text('Score Vérif.', 155, y);
+        doc.text('Date', 180, y);
         y += 5;
-        doc.text(`- Approuvées: ${approvedKyc}`, 25, y);
-        y += 4;
-        doc.text(`- En attente: ${pendingKyc}`, 25, y);
-        y += 4;
-        doc.text(`- Rejetées: ${rejectedKyc}`, 25, y);
-        y += 10;
+        
+        doc.line(20, y, 200, y);
+        y += 8;
+        
+        kycVerifications.slice(0, 15).forEach((kyc, index) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          
+          const userId = String(kyc.user_id).substring(0, 8) + '...';
+          const status = kyc.status === 'approved' ? '✅' : kyc.status === 'pending' ? '⏳' : '❌';
+          const docType = (kyc.id_document_type || 'N/A').substring(0, 10);
+          const score = kyc.verification_score ? `${Number(kyc.verification_score).toFixed(1)}%` : 'N/A';
+          const date = new Date(kyc.created_at).toLocaleDateString('fr-FR');
+          
+          doc.text(`${index + 1}`, 25, y);
+          doc.text(userId, 40, y);
+          doc.text(status, 85, y);
+          doc.text(docType, 115, y);
+          doc.text(score, 155, y);
+          doc.text(date, 180, y);
+          y += 5;
+        });
       }
 
-      // Messages de support par statut
+      // SUPPORT CLIENT ANALYSE
       if (supportMessages?.length) {
+        if (y > 120) {
+          doc.addPage();
+          y = 20;
+        }
+        y += 20;
+        
         const unreadMessages = supportMessages.filter(m => m.status === 'unread').length;
         const respondedMessages = supportMessages.filter(m => m.status === 'responded').length;
         const resolvedMessages = supportMessages.filter(m => m.status === 'resolved').length;
         
-        doc.text('Messages de support:', 20, y);
-        y += 5;
-        doc.text(`- Non lus: ${unreadMessages}`, 25, y);
-        y += 4;
-        doc.text(`- Répondus: ${respondedMessages}`, 25, y);
-        y += 4;
-        doc.text(`- Résolus: ${resolvedMessages}`, 25, y);
+        doc.setFontSize(12);
+        doc.setTextColor(147, 51, 234);
+        doc.text(`💬 SUPPORT CLIENT (${supportMessages.length} messages)`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
+        
+        doc.setFontSize(10);
+        doc.text(`📈 Répartition des statuts:`, 25, y);
+        y += 8;
+        doc.text(`  • 🔴 Non lus: ${unreadMessages}`, 30, y);
+        y += 6;
+        doc.text(`  • 💬 Répondus: ${respondedMessages}`, 30, y);
+        y += 6;
+        doc.text(`  • ✅ Résolus: ${resolvedMessages}`, 30, y);
+        y += 15;
+        
+        // Messages récents par catégorie
+        const categories = [...new Set(supportMessages.map(m => m.category || 'general'))];
+        doc.text(`📂 Messages par catégorie:`, 25, y);
+        y += 8;
+        categories.forEach(category => {
+          const count = supportMessages.filter(m => (m.category || 'general') === category).length;
+          doc.text(`  • ${category}: ${count}`, 30, y);
+          y += 5;
+        });
+      }
+
+      // VÉRIFICATIONS D'IDENTITÉ
+      if (identityVerifications?.length) {
+        if (y > 180) {
+          doc.addPage();
+          y = 20;
+        }
+        y += 20;
+        
+        const approvedIds = identityVerifications.filter(i => i.status === 'approved').length;
+        const pendingIds = identityVerifications.filter(i => i.status === 'pending').length;
+        const rejectedIds = identityVerifications.filter(i => i.status === 'rejected').length;
+        
+        doc.setFontSize(12);
+        doc.setTextColor(147, 51, 234);
+        doc.text(`🆔 VÉRIFICATIONS IDENTITÉ (${identityVerifications.length})`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
+        
+        doc.setFontSize(10);
+        doc.text(`  • Approuvées: ${approvedIds}`, 30, y);
+        y += 6;
+        doc.text(`  • En attente: ${pendingIds}`, 30, y);
+        y += 6;
+        doc.text(`  • Rejetées: ${rejectedIds}`, 30, y);
+      }
+
+      // ANALYSE TEMPORELLE
+      if (users?.length) {
+        if (y > 220) {
+          doc.addPage();
+          y = 20;
+        }
+        y += 20;
+        
+        const last30Days = new Date();
+        last30Days.setDate(last30Days.getDate() - 30);
+        const recentUsers = users.filter(u => new Date(u.created_at) > last30Days).length;
+        
+        doc.setFontSize(12);
+        doc.setTextColor(147, 51, 234);
+        doc.text('📅 ANALYSE TEMPORELLE', 20, y);
+        doc.setTextColor(0, 0, 0);
+        y += 15;
+        
+        doc.setFontSize(10);
+        doc.text(`📈 Nouveaux utilisateurs (30 derniers jours): ${recentUsers}`, 25, y);
+        y += 6;
+        doc.text(`📊 Taux de croissance: ${((recentUsers/users.length)*100).toFixed(1)}%`, 25, y);
       }
       
     } catch (error) {
       console.error('Erreur récupération utilisateurs:', error);
-      doc.text('Erreur lors de la récupération des données utilisateurs: ' + error, 20, startY + 20);
+      doc.setTextColor(255, 0, 0);
+      doc.text('❌ Erreur lors de la récupération des données utilisateurs', 20, startY + 20);
+      doc.setTextColor(0, 0, 0);
     }
   };
 
