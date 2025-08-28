@@ -135,19 +135,29 @@ export const DataResetManager = () => {
   };
 
   const addRevenueData = async (doc: jsPDF, startY: number) => {
-    // En-tête principal avec dégradé
-    doc.setFillColor(15, 80, 180);
-    doc.rect(10, startY - 8, 190, 20, 'F');
-    doc.setDrawColor(255, 255, 255);
+    // Design moderne avec dégradé professionnel
+    const gradient = doc.internal.pageSize.width;
+    
+    // En-tête principal avec design premium
+    doc.setFillColor(16, 24, 40); // Slate-900
+    doc.rect(5, startY - 12, 200, 30, 'F');
+    
+    // Bordure dorée pour l'élégance
+    doc.setDrawColor(255, 193, 7); // Couleur or
     doc.setLineWidth(2);
-    doc.rect(10, startY - 8, 190, 20, 'S');
+    doc.rect(5, startY - 12, 200, 30, 'S');
     
+    // Logo et titre avec style premium
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(18);
+    doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
-    doc.text('📊 RAPPORT DÉTAILLÉ - REVENUS & ANALYTICS', 105, startY + 5, { align: 'center' });
+    doc.text('💰 SENDFLOW - RAPPORT EXÉCUTIF REVENUS', 105, startY - 2, { align: 'center' });
     
-    let y = startY + 25;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Analyse Complète des Performances Financières', 105, startY + 8, { align: 'center' });
+    
+    let y = startY + 30;
     
     try {
       // Récupérer TOUTES les données avec requêtes détaillées
@@ -174,20 +184,23 @@ export const DataResetManager = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // SECTION 1: RÉSUMÉ EXÉCUTIF DÉTAILLÉ
+      // SECTION 1: TABLEAU DE BORD EXÉCUTIF AVANCÉ
       doc.setFillColor(248, 250, 252);
-      doc.rect(15, y - 5, 180, 65, 'F');
-      doc.setDrawColor(15, 80, 180);
-      doc.setLineWidth(1.5);
-      doc.rect(15, y - 5, 180, 65, 'S');
+      doc.rect(10, y - 8, 190, 85, 'F');
+      doc.setDrawColor(37, 99, 235);
+      doc.setLineWidth(2);
+      doc.rect(10, y - 8, 190, 85, 'S');
       
+      // En-tête section avec icône
+      doc.setFillColor(37, 99, 235);
+      doc.rect(10, y - 8, 190, 18, 'F');
+      doc.setTextColor(255, 255, 255);
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(15, 80, 180);
-      doc.text('📈 DASHBOARD EXÉCUTIF - MÉTRIQUES CLÉS', 20, y + 8);
-      doc.setFont('helvetica', 'normal');
+      doc.text('📊 TABLEAU DE BORD EXÉCUTIF - INDICATEURS CLÉS', 105, y + 2, { align: 'center' });
       doc.setTextColor(0, 0, 0);
-      y += 18;
+      doc.setFont('helvetica', 'normal');
+      y += 25;
       
       // Calculs détaillés
       const totalEarnings = agentPerformance?.reduce((sum, perf) => sum + Number(perf.total_earnings || 0), 0) || 0;
@@ -198,63 +211,86 @@ export const DataResetManager = () => {
       const totalTransactions = agentPerformance?.reduce((sum, perf) => sum + Number(perf.total_transactions || 0), 0) || 0;
       const avgCommissionRate = agentPerformance?.reduce((sum, perf) => sum + Number(perf.commission_rate || 0), 0) / (agentPerformance?.length || 1) || 0;
       
-      // Affichage en colonnes structurées
-      doc.setFontSize(9);
-      // Colonne gauche
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(34, 139, 34);
-      doc.text('💰 FINANCES', 25, y);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
-      y += 6;
-      doc.text(`Revenus générés:`, 25, y);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${totalEarnings.toLocaleString('fr-FR')} XAF`, 70, y);
-      doc.setFont('helvetica', 'normal');
-      y += 4;
-      doc.text(`Commissions en attente:`, 25, y);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${totalCommissions.toLocaleString('fr-FR')} XAF`, 70, y);
-      doc.setFont('helvetica', 'normal');
-      y += 4;
-      doc.text(`Volume traité:`, 25, y);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${totalVolume.toLocaleString('fr-FR')} XAF`, 70, y);
-      doc.setFont('helvetica', 'normal');
-      y += 4;
-      doc.text(`Retraits volume:`, 25, y);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${totalWithdrawals.toLocaleString('fr-FR')} XAF`, 70, y);
-      doc.setFont('helvetica', 'normal');
+      // Design en cartes avec métriques visuelles
+      doc.setFontSize(10);
       
-      // Colonne droite
-      y -= 16;
+      // Carte 1: Finances
+      doc.setFillColor(220, 252, 231); // Vert clair
+      doc.rect(20, y - 3, 80, 35, 'F');
+      doc.setDrawColor(34, 197, 94);
+      doc.setLineWidth(1);
+      doc.rect(20, y - 3, 80, 35, 'S');
+      
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 140, 0);
-      doc.text('📊 OPÉRATIONS', 125, y);
+      doc.setTextColor(22, 101, 52);
+      doc.text('💰 PERFORMANCE FINANCIÈRE', 25, y + 3);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
-      y += 6;
-      doc.text(`Total transactions:`, 125, y);
+      doc.setFontSize(8);
+      y += 8;
+      
+      doc.text(`● Revenus totaux générés:`, 25, y);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${totalTransactions.toLocaleString('fr-FR')}`, 165, y);
+      doc.setTextColor(22, 101, 52);
+      doc.text(`${totalEarnings.toLocaleString('fr-FR')} XAF`, 25, y + 4);
       doc.setFont('helvetica', 'normal');
-      y += 4;
-      doc.text(`Agents actifs:`, 125, y);
+      doc.setTextColor(0, 0, 0);
+      y += 8;
+      
+      doc.text(`● Commissions en attente:`, 25, y);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${commissions?.length || 0}`, 165, y);
+      doc.setTextColor(251, 146, 60);
+      doc.text(`${totalCommissions.toLocaleString('fr-FR')} XAF`, 25, y + 4);
       doc.setFont('helvetica', 'normal');
-      y += 4;
-      doc.text(`Dépôts admin:`, 125, y);
+      doc.setTextColor(0, 0, 0);
+      y += 8;
+      
+      doc.text(`● Volume total traité:`, 25, y);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${adminDeposits?.length || 0}`, 165, y);
+      doc.setTextColor(37, 99, 235);
+      doc.text(`${totalVolume.toLocaleString('fr-FR')} XAF`, 25, y + 4);
       doc.setFont('helvetica', 'normal');
-      y += 4;
-      doc.text(`Taux comm. moyen:`, 125, y);
+      doc.setTextColor(0, 0, 0);
+      
+      // Carte 2: Opérations
+      y -= 35;
+      doc.setFillColor(254, 240, 138); // Jaune clair
+      doc.rect(110, y - 3, 80, 35, 'F');
+      doc.setDrawColor(245, 158, 11);
+      doc.setLineWidth(1);
+      doc.rect(110, y - 3, 80, 35, 'S');
+      
       doc.setFont('helvetica', 'bold');
-      doc.text(`${(avgCommissionRate * 100).toFixed(2)}%`, 165, y);
+      doc.setTextColor(146, 64, 14);
+      doc.text('📊 ACTIVITÉ OPÉRATIONNELLE', 115, y + 3);
       doc.setFont('helvetica', 'normal');
-      y += 25;
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(8);
+      y += 8;
+      
+      doc.text(`● Total transactions:`, 115, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(147, 51, 234);
+      doc.text(`${totalTransactions.toLocaleString('fr-FR')}`, 115, y + 4);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      y += 8;
+      
+      doc.text(`● Agents actifs:`, 115, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(34, 197, 94);
+      doc.text(`${commissions?.length || 0} agents`, 115, y + 4);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      y += 8;
+      
+      doc.text(`● Taux commission moyen:`, 115, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(220, 38, 38);
+      doc.text(`${(avgCommissionRate * 100).toFixed(2)}%`, 115, y + 4);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      y += 20;
       
       // SECTION 2: PERFORMANCES AGENTS DÉTAILLÉES
       if (agentPerformance?.length) {
