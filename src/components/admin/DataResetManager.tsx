@@ -277,44 +277,99 @@ export const DataResetManager = () => {
         return;
       }
       
-      // Simulation de la réinitialisation (à adapter selon les besoins)
+      // Réinitialisation réelle des données
       switch (categoryId) {
         case 'revenue-analytics':
-          // Réinitialiser les performances agents (garder la structure)
+          // Supprimer toutes les performances mensuelles des agents
           await supabase
             .from('agent_monthly_performance')
-            .update({ 
-              total_earnings: 0, 
-              base_commission: 0, 
-              volume_bonus: 0,
-              transaction_bonus: 0,
-              no_complaint_bonus: 0
-            })
-            .neq('id', '00000000-0000-0000-0000-000000000000'); // Condition pour tous
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000');
+          
+          // Réinitialiser les soldes de commission des agents
+          await supabase
+            .from('agents')
+            .update({ commission_balance: 0, transactions_count: 0 })
+            .neq('id', '00000000-0000-0000-0000-000000000000');
+          
+          // Supprimer les rapports d'agents
+          await supabase
+            .from('agent_reports')
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000');
           break;
           
         case 'transactions':
-          // Marquer les transactions comme archivées plutôt que les supprimer
+          // Supprimer toutes les transactions complétées
           await supabase
             .from('transfers')
-            .update({ status: 'archived' })
+            .delete()
             .eq('status', 'completed');
+          
+          // Supprimer tous les retraits complétés  
+          await supabase
+            .from('withdrawals')
+            .delete()
+            .eq('status', 'completed');
+          
+          // Supprimer toutes les recharges complétées
+          await supabase
+            .from('recharges')
+            .delete()
+            .eq('status', 'completed');
+          
+          // Supprimer les transferts en attente expirés
+          await supabase
+            .from('pending_transfers')
+            .delete()
+            .lt('expires_at', new Date().toISOString());
           break;
           
         case 'traffic-subadmins':
-          // Réinitialiser les sessions utilisateurs
+          // Supprimer toutes les sessions utilisateurs inactives
+          await supabase
+            .from('user_sessions')
+            .delete()
+            .eq('is_active', false);
+          
+          // Désactiver toutes les sessions actives
           await supabase
             .from('user_sessions')
             .update({ is_active: false })
             .eq('is_active', true);
+          
+          // Supprimer les quotas de sous-admins
+          await supabase
+            .from('sub_admin_quota_settings')
+            .update({ daily_limit: 300, current_usage: 0 })
+            .neq('id', '00000000-0000-0000-0000-000000000000');
           break;
           
         case 'user-data':
-          // Supprimer uniquement les données non essentielles
+          // Supprimer les vérifications KYC rejetées et en attente
           await supabase
             .from('kyc_verifications')
             .delete()
-            .eq('status', 'rejected');
+            .in('status', ['rejected', 'pending']);
+          
+          // Supprimer les vérifications d'identité obsolètes
+          await supabase
+            .from('identity_verifications')
+            .delete()
+            .in('status', ['rejected', 'pending']);
+          
+          // Supprimer les demandes de support anciennes résolues
+          await supabase
+            .from('customer_support_messages')
+            .delete()
+            .eq('status', 'resolved')
+            .lt('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+          
+          // Réinitialiser les limites de taux pour tous les utilisateurs
+          await supabase
+            .from('rate_limits')
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000');
           break;
       }
       
