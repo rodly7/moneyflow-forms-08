@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import IdCardUploadSection from '@/components/profile/IdCardUploadSection';
-import SelfieUploadSection from '@/components/profile/SelfieUploadSection';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { storageService } from '@/services/storageService';
 
@@ -16,26 +15,10 @@ interface RequiredFieldsModalProps {
 }
 
 const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModalProps) => {
-  const [selfieFile, setSelfieFile] = useState<File | null>(null);
-  const [selfiePreviewUrl, setSelfiePreviewUrl] = useState<string | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { handlePermissionError } = useAuthSession();
-
-  const handleSelfieFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('La photo selfie ne doit pas dépasser 5 Mo');
-      return;
-    }
-
-    setSelfieFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    setSelfiePreviewUrl(objectUrl);
-  };
 
   const handleIdCardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -54,40 +37,15 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selfieFile || !idCardFile) {
-      toast.error('Veuillez ajouter les deux photos obligatoires');
+    if (!idCardFile) {
+      toast.error('Veuillez ajouter la photo de votre pièce d\'identité');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      let selfieUrl = null;
       let idCardUrl = null;
-
-      // Upload de la photo selfie
-      if (selfieFile) {
-        try {
-          selfieUrl = await storageService.uploadFile(selfieFile, 'selfies', profile.id, 'selfie');
-          console.log('Upload selfie réussi, URL:', selfieUrl);
-        } catch (error) {
-          console.error('Erreur upload selfie:', error);
-          
-          // Gérer spécifiquement les erreurs de permissions
-          if (error.message?.includes('permissions') || error.message?.includes('reconnecter')) {
-            const canRetry = await handlePermissionError();
-            if (canRetry) {
-              toast.error('Erreur de permissions corrigée. Veuillez réessayer.');
-              return;
-            } else {
-              return; // L'utilisateur sera redirigé
-            }
-          }
-          
-          toast.error(error.message || 'Erreur lors de l\'upload du selfie');
-          return;
-        }
-      }
 
       // Upload de la pièce d'identité
       if (idCardFile) {
@@ -115,14 +73,12 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
 
       // Mise à jour du profil
       console.log('Mise à jour du profil avec:', {
-        selfie_url: selfieUrl,
         id_card_url: idCardUrl,
       });
 
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
-          selfie_url: selfieUrl,
           id_card_url: idCardUrl,
         })
         .eq('id', profile.id);
@@ -174,24 +130,19 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <SelfieUploadSection 
-            selfiePreviewUrl={selfiePreviewUrl}
-            onFileChange={handleSelfieFileChange}
-          />
-
           <IdCardUploadSection 
             idCardPreviewUrl={idCardPreviewUrl}
             onFileChange={handleIdCardFileChange}
           />
 
           <div className="text-sm text-muted-foreground">
-            <p>Ces photos sont obligatoires pour continuer à utiliser l'application.</p>
+            <p>Cette photo est obligatoire pour continuer à utiliser l'application.</p>
           </div>
 
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={isLoading || !selfieFile || !idCardFile}
+            disabled={isLoading || !idCardFile}
           >
             {isLoading ? 'Mise à jour...' : 'Valider'}
           </Button>
