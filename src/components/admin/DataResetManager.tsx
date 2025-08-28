@@ -135,21 +135,36 @@ export const DataResetManager = () => {
   };
 
   const addRevenueData = async (doc: jsPDF, startY: number) => {
+    // En-tête avec style
+    doc.setFillColor(0, 102, 204);
+    doc.rect(15, startY - 5, 180, 15, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
-    doc.setTextColor(0, 102, 204);
-    doc.text('📊 REVENUS & ANALYTICS', 20, startY);
+    doc.setFont('helvetica', 'bold');
+    doc.text('📊 REVENUS & ANALYTICS', 20, startY + 5);
     doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
     
     try {
-      // Récupérer TOUTES les données de revenus
+      // Récupérer TOUTES les données de revenus avec jointures
       const { data: agentPerformance } = await supabase
         .from('agent_monthly_performance')
-        .select('*')
+        .select(`
+          *,
+          profiles!agent_monthly_performance_agent_id_fkey(full_name, phone)
+        `)
         .order('created_at', { ascending: false });
       
       const { data: commissions } = await supabase
         .from('agents')
-        .select('commission_balance, user_id, full_name, transactions_count, created_at')
+        .select(`
+          commission_balance, 
+          user_id, 
+          full_name, 
+          transactions_count, 
+          created_at,
+          profiles!agents_user_id_fkey(full_name, phone)
+        `)
         .gte('commission_balance', 0);
       
       const { data: adminDeposits } = await supabase
@@ -157,27 +172,64 @@ export const DataResetManager = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      let y = startY + 20;
+      // Récupérer les rapports d'agents à la place
+      const { data: agentReports } = await supabase
+        .from('agent_reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      let y = startY + 25;
       
-      // RÉSUMÉ GÉNÉRAL
-      doc.setFontSize(12);
-      doc.setTextColor(51, 51, 51);
-      doc.text('═══ RÉSUMÉ GÉNÉRAL ═══', 20, y);
-      y += 10;
+      // RÉSUMÉ EXÉCUTIF avec encadré coloré
+      doc.setFillColor(245, 245, 245);
+      doc.rect(15, y - 5, 180, 50, 'F');
+      doc.setDrawColor(0, 102, 204);
+      doc.setLineWidth(1);
+      doc.rect(15, y - 5, 180, 50, 'S');
+      
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 102, 204);
+      doc.text('RÉSUMÉ EXÉCUTIF', 20, y + 5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      y += 15;
       
       const totalEarnings = agentPerformance?.reduce((sum, perf) => sum + Number(perf.total_earnings || 0), 0) || 0;
       const totalCommissions = commissions?.reduce((sum, c) => sum + Number(c.commission_balance), 0) || 0;
       const totalDeposits = adminDeposits?.reduce((sum, d) => sum + Number(d.amount || 0), 0) || 0;
+      const totalVolume = agentPerformance?.reduce((sum, perf) => sum + Number(perf.total_volume || 0), 0) || 0;
       
       doc.setFontSize(10);
-      doc.text(`• Total des gains agents: ${totalEarnings.toLocaleString('fr-FR')} XAF`, 25, y);
+      doc.text(`💰 Revenus totaux générés:`, 25, y);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${totalEarnings.toLocaleString('fr-FR')} XAF`, 130, y);
+      doc.setFont('helvetica', 'normal');
       y += 6;
-      doc.text(`• Total commissions non retirées: ${totalCommissions.toLocaleString('fr-FR')} XAF`, 25, y);
+      
+      doc.text(`🎯 Commissions en attente:`, 25, y);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${totalCommissions.toLocaleString('fr-FR')} XAF`, 130, y);
+      doc.setFont('helvetica', 'normal');
       y += 6;
-      doc.text(`• Total dépôts admin: ${totalDeposits.toLocaleString('fr-FR')} XAF`, 25, y);
+      
+      doc.text(`🏦 Volume total traité:`, 25, y);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${totalVolume.toLocaleString('fr-FR')} XAF`, 130, y);
+      doc.setFont('helvetica', 'normal');
       y += 6;
-      doc.text(`• Nombre d'agents actifs: ${commissions?.length || 0}`, 25, y);
-      y += 15;
+      
+      doc.text(`👥 Agents actifs:`, 25, y);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${commissions?.length || 0} agents`, 130, y);
+      doc.setFont('helvetica', 'normal');
+      y += 6;
+      
+      doc.text(`📊 Dépôts administrateur:`, 25, y);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${totalDeposits.toLocaleString('fr-FR')} XAF`, 130, y);
+      doc.setFont('helvetica', 'normal');
+      y += 25;
       
       // PERFORMANCES AGENTS DÉTAILLÉES
       if (agentPerformance?.length) {
@@ -326,10 +378,15 @@ export const DataResetManager = () => {
   };
 
   const addTransactionData = async (doc: jsPDF, startY: number) => {
+    // En-tête avec style
+    doc.setFillColor(220, 38, 127);
+    doc.rect(15, startY - 5, 180, 15, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
-    doc.setTextColor(220, 38, 127);
-    doc.text('💳 DONNÉES DES TRANSACTIONS', 20, startY);
+    doc.setFont('helvetica', 'bold');
+    doc.text('💳 DONNÉES DES TRANSACTIONS', 20, startY + 5);
     doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
     
     try {
       // Récupérer TOUTES les données de transactions
@@ -531,10 +588,15 @@ export const DataResetManager = () => {
   };
 
   const addSubAdminData = async (doc: jsPDF, startY: number) => {
+    // En-tête avec style
+    doc.setFillColor(16, 185, 129);
+    doc.rect(15, startY - 5, 180, 15, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
-    doc.setTextColor(16, 185, 129);
-    doc.text('🚀 TRAFIC SOUS-ADMINISTRATEURS', 20, startY);
+    doc.setFont('helvetica', 'bold');
+    doc.text('🚀 TRAFIC SOUS-ADMINISTRATEURS', 20, startY + 5);
     doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
     
     try {
       // Récupérer TOUTES les données des sous-admins
@@ -733,10 +795,15 @@ export const DataResetManager = () => {
   };
 
   const addUserData = async (doc: jsPDF, startY: number) => {
+    // En-tête avec style
+    doc.setFillColor(147, 51, 234);
+    doc.rect(15, startY - 5, 180, 15, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
-    doc.setTextColor(147, 51, 234);
-    doc.text('👥 DONNÉES UTILISATEURS', 20, startY);
+    doc.setFont('helvetica', 'bold');
+    doc.text('👥 DONNÉES UTILISATEURS', 20, startY + 5);
     doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
     
     try {
       // Récupérer TOUTES les données utilisateurs
