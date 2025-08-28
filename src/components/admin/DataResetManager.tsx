@@ -139,40 +139,90 @@ export const DataResetManager = () => {
     doc.text('Données de Revenus et Analytics', 20, startY);
     
     try {
-      // Récupérer les données de revenus
-      const { data: agentPerformance } = await supabase
+      // Récupérer TOUTES les données de revenus
+      const { data: agentPerformance, error: perfError } = await supabase
         .from('agent_monthly_performance')
         .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
       
-      const { data: commissions } = await supabase
+      const { data: commissions, error: commError } = await supabase
         .from('agents')
-        .select('commission_balance, user_id')
-        .gt('commission_balance', 0);
+        .select('commission_balance, user_id, full_name, transactions_count')
+        .gte('commission_balance', 0);
+      
+      const { data: adminDeposits, error: depositsError } = await supabase
+        .from('admin_deposits')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      console.log('Performance data:', agentPerformance?.length || 0);
+      console.log('Commissions data:', commissions?.length || 0);
+      console.log('Admin deposits:', adminDeposits?.length || 0);
       
       let y = startY + 20;
       doc.setFontSize(10);
       
       if (agentPerformance?.length) {
-        doc.text('Performances Agents (50 dernières):', 20, y);
+        doc.text(`Performances Agents (${agentPerformance.length} enregistrements):`, 20, y);
         y += 10;
-        agentPerformance.slice(0, 20).forEach((perf, index) => {
-          doc.text(`${index + 1}. Agent: ${perf.agent_id} - Total: ${perf.total_earnings} XAF`, 25, y);
+        
+        const totalEarnings = agentPerformance.reduce((sum, perf) => sum + Number(perf.total_earnings || 0), 0);
+        doc.text(`Total gains: ${totalEarnings.toLocaleString()} XAF`, 25, y);
+        y += 5;
+        
+        agentPerformance.slice(0, 30).forEach((perf, index) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.text(`${index + 1}. Agent: ${perf.agent_id} - Gains: ${perf.total_earnings} XAF - Mois: ${perf.month}/${perf.year}`, 25, y);
           y += 5;
         });
+      } else {
+        doc.text('Aucune donnée de performance trouvée', 20, y);
+        y += 10;
       }
       
       if (commissions?.length) {
+        if (y > 250) {
+          doc.addPage();
+          y = 20;
+        }
         y += 10;
-        doc.text('Soldes Commissions:', 20, y);
+        doc.text(`Soldes Commissions (${commissions.length} agents):`, 20, y);
         y += 10;
         const totalCommissions = commissions.reduce((sum, c) => sum + Number(c.commission_balance), 0);
-        doc.text(`Total commissions: ${totalCommissions} XAF`, 25, y);
+        doc.text(`Total commissions: ${totalCommissions.toLocaleString()} XAF`, 25, y);
+        y += 5;
+        
+        commissions.slice(0, 20).forEach((comm, index) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.text(`${index + 1}. ${comm.full_name || 'Agent'}: ${Number(comm.commission_balance).toLocaleString()} XAF (${comm.transactions_count} transactions)`, 25, y);
+          y += 5;
+        });
+      } else {
+        doc.text('Aucune commission trouvée', 20, y);
+        y += 10;
+      }
+
+      if (adminDeposits?.length) {
+        if (y > 230) {
+          doc.addPage();
+          y = 20;
+        }
+        y += 15;
+        doc.text(`Dépôts Admin (${adminDeposits.length} dépôts):`, 20, y);
+        y += 10;
+        const totalDeposits = adminDeposits.reduce((sum, d) => sum + Number(d.amount || 0), 0);
+        doc.text(`Total dépôts: ${totalDeposits.toLocaleString()} XAF`, 25, y);
       }
       
     } catch (error) {
-      doc.text('Erreur lors de la récupération des données de revenus', 20, startY + 20);
+      console.error('Erreur récupération données revenus:', error);
+      doc.text('Erreur lors de la récupération des données de revenus: ' + error, 20, startY + 20);
     }
   };
 
@@ -181,30 +231,91 @@ export const DataResetManager = () => {
     doc.text('Données des Transactions', 20, startY);
     
     try {
-      // Statistiques générales des transactions
-      const { data: transfers } = await supabase
+      // Récupérer TOUTES les données de transactions
+      const { data: transfers, error: transfersError } = await supabase
         .from('transfers')
-        .select('count')
-        .eq('status', 'completed');
+        .select('*')
+        .order('created_at', { ascending: false });
       
-      const { data: withdrawals } = await supabase
+      const { data: withdrawals, error: withdrawalsError } = await supabase
         .from('withdrawals')
-        .select('count');
+        .select('*')
+        .order('created_at', { ascending: false });
       
-      const { data: deposits } = await supabase
+      const { data: deposits, error: depositsError } = await supabase
         .from('recharges')
-        .select('count');
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const { data: pendingTransfers, error: pendingError } = await supabase
+        .from('pending_transfers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      console.log('Transfers data:', transfers?.length || 0);
+      console.log('Withdrawals data:', withdrawals?.length || 0);
+      console.log('Deposits data:', deposits?.length || 0);
+      console.log('Pending transfers:', pendingTransfers?.length || 0);
       
       let y = startY + 20;
       doc.setFontSize(10);
-      doc.text(`Nombre de transferts: ${transfers?.length || 0}`, 20, y);
+      
+      // Statistiques générales
+      doc.text(`=== STATISTIQUES TRANSACTIONS ===`, 20, y);
       y += 10;
-      doc.text(`Nombre de retraits: ${withdrawals?.length || 0}`, 20, y);
-      y += 10;
-      doc.text(`Nombre de dépôts: ${deposits?.length || 0}`, 20, y);
+      doc.text(`Transferts complétés: ${transfers?.filter(t => t.status === 'completed').length || 0}`, 20, y);
+      y += 5;
+      doc.text(`Retraits totaux: ${withdrawals?.length || 0}`, 20, y);
+      y += 5;
+      doc.text(`Dépôts totaux: ${deposits?.length || 0}`, 20, y);
+      y += 5;
+      doc.text(`Transferts en attente: ${pendingTransfers?.length || 0}`, 20, y);
+      y += 15;
+
+      // Détails des transferts récents
+      if (transfers?.length) {
+        const totalTransferAmount = transfers.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        doc.text(`Volume total transferts: ${totalTransferAmount.toLocaleString()} XAF`, 20, y);
+        y += 10;
+        
+        doc.text(`Derniers transferts:`, 20, y);
+        y += 5;
+        transfers.slice(0, 15).forEach((transfer, index) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.text(`${index + 1}. ${transfer.amount} XAF - ${transfer.status} - ${new Date(transfer.created_at).toLocaleDateString()}`, 25, y);
+          y += 4;
+        });
+      }
+
+      // Détails des retraits récents
+      if (withdrawals?.length) {
+        if (y > 230) {
+          doc.addPage();
+          y = 20;
+        }
+        y += 10;
+        const totalWithdrawAmount = withdrawals.reduce((sum, w) => sum + Number(w.amount || 0), 0);
+        doc.text(`Volume total retraits: ${totalWithdrawAmount.toLocaleString()} XAF`, 20, y);
+        y += 10;
+        
+        doc.text(`Derniers retraits:`, 20, y);
+        y += 5;
+        withdrawals.slice(0, 10).forEach((withdrawal, index) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.text(`${index + 1}. ${withdrawal.amount} XAF - ${withdrawal.status} - ${new Date(withdrawal.created_at).toLocaleDateString()}`, 25, y);
+          y += 4;
+        });
+      }
       
     } catch (error) {
-      doc.text('Erreur lors de la récupération des données de transactions', 20, startY + 20);
+      console.error('Erreur récupération transactions:', error);
+      doc.text('Erreur lors de la récupération des données de transactions: ' + error, 20, startY + 20);
     }
   };
 
@@ -213,27 +324,74 @@ export const DataResetManager = () => {
     doc.text('Données Trafic Sous-admins', 20, startY);
     
     try {
+      // Récupérer TOUTES les données des sous-admins
       const { data: subAdmins } = await supabase
         .from('profiles')
-        .select('id, full_name, created_at')
+        .select('*')
         .eq('role', 'sub_admin');
+      
+      const { data: userSessions } = await supabase
+        .from('user_sessions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const { data: subAdminQuotas } = await supabase
+        .from('sub_admin_quota_settings')
+        .select('*');
+
+      console.log('Sub-admins data:', subAdmins?.length || 0);
+      console.log('User sessions:', userSessions?.length || 0);
+      console.log('Sub-admin quotas:', subAdminQuotas?.length || 0);
       
       let y = startY + 20;
       doc.setFontSize(10);
+      
+      doc.text(`=== DONNÉES SOUS-ADMINISTRATEURS ===`, 20, y);
+      y += 10;
       doc.text(`Nombre de sous-admins: ${subAdmins?.length || 0}`, 20, y);
+      y += 5;
+      doc.text(`Sessions utilisateurs: ${userSessions?.length || 0}`, 20, y);
+      y += 5;
+      doc.text(`Sessions actives: ${userSessions?.filter(s => s.is_active).length || 0}`, 20, y);
+      y += 15;
       
       if (subAdmins?.length) {
-        y += 15;
         doc.text('Liste des sous-admins:', 20, y);
         y += 5;
         subAdmins.forEach((admin, index) => {
-          doc.text(`${index + 1}. ${admin.full_name} (Créé: ${new Date(admin.created_at).toLocaleDateString('fr-FR')})`, 25, y);
-          y += 5;
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          const createdDate = new Date(admin.created_at).toLocaleDateString('fr-FR');
+          doc.text(`${index + 1}. ${admin.full_name || 'Non défini'} - ${admin.phone} (Créé: ${createdDate})`, 25, y);
+          y += 4;
+        });
+      }
+
+      if (userSessions?.length) {
+        if (y > 220) {
+          doc.addPage();
+          y = 20;
+        }
+        y += 15;
+        doc.text('Historique des sessions (20 dernières):', 20, y);
+        y += 5;
+        userSessions.slice(0, 20).forEach((session, index) => {
+          if (y > 270) {
+            doc.addPage();
+            y = 20;
+          }
+          const sessionDate = new Date(session.created_at).toLocaleDateString('fr-FR');
+          const status = session.is_active ? 'Active' : 'Inactive';
+          doc.text(`${index + 1}. Session ${status} - ${sessionDate}`, 25, y);
+          y += 4;
         });
       }
       
     } catch (error) {
-      doc.text('Erreur lors de la récupération des données sous-admins', 20, startY + 20);
+      console.error('Erreur récupération sous-admins:', error);
+      doc.text('Erreur lors de la récupération des données sous-admins: ' + error, 20, startY + 20);
     }
   };
 
@@ -242,24 +400,80 @@ export const DataResetManager = () => {
     doc.text('Données Utilisateurs', 20, startY);
     
     try {
+      // Récupérer TOUTES les données utilisateurs
       const { data: users } = await supabase
         .from('profiles')
-        .select('count')
+        .select('*')
         .eq('role', 'user');
       
       const { data: agents } = await supabase
         .from('profiles')
-        .select('count')
+        .select('*')
         .eq('role', 'agent');
+
+      const { data: kycVerifications } = await supabase
+        .from('kyc_verifications')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const { data: supportMessages } = await supabase
+        .from('customer_support_messages')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      console.log('Users data:', users?.length || 0);
+      console.log('Agents data:', agents?.length || 0);
+      console.log('KYC verifications:', kycVerifications?.length || 0);
+      console.log('Support messages:', supportMessages?.length || 0);
       
       let y = startY + 20;
       doc.setFontSize(10);
-      doc.text(`Nombre d'utilisateurs: ${users?.length || 0}`, 20, y);
+      
+      doc.text(`=== STATISTIQUES UTILISATEURS ===`, 20, y);
       y += 10;
-      doc.text(`Nombre d'agents: ${agents?.length || 0}`, 20, y);
+      doc.text(`Utilisateurs réguliers: ${users?.length || 0}`, 20, y);
+      y += 5;
+      doc.text(`Agents: ${agents?.length || 0}`, 20, y);
+      y += 5;
+      doc.text(`Vérifications KYC: ${kycVerifications?.length || 0}`, 20, y);
+      y += 5;
+      doc.text(`Messages support: ${supportMessages?.length || 0}`, 20, y);
+      y += 15;
+
+      // Répartition des statuts KYC
+      if (kycVerifications?.length) {
+        const approvedKyc = kycVerifications.filter(k => k.status === 'approved').length;
+        const pendingKyc = kycVerifications.filter(k => k.status === 'pending').length;
+        const rejectedKyc = kycVerifications.filter(k => k.status === 'rejected').length;
+        
+        doc.text('Répartition KYC:', 20, y);
+        y += 5;
+        doc.text(`- Approuvées: ${approvedKyc}`, 25, y);
+        y += 4;
+        doc.text(`- En attente: ${pendingKyc}`, 25, y);
+        y += 4;
+        doc.text(`- Rejetées: ${rejectedKyc}`, 25, y);
+        y += 10;
+      }
+
+      // Messages de support par statut
+      if (supportMessages?.length) {
+        const unreadMessages = supportMessages.filter(m => m.status === 'unread').length;
+        const respondedMessages = supportMessages.filter(m => m.status === 'responded').length;
+        const resolvedMessages = supportMessages.filter(m => m.status === 'resolved').length;
+        
+        doc.text('Messages de support:', 20, y);
+        y += 5;
+        doc.text(`- Non lus: ${unreadMessages}`, 25, y);
+        y += 4;
+        doc.text(`- Répondus: ${respondedMessages}`, 25, y);
+        y += 4;
+        doc.text(`- Résolus: ${resolvedMessages}`, 25, y);
+      }
       
     } catch (error) {
-      doc.text('Erreur lors de la récupération des données utilisateurs', 20, startY + 20);
+      console.error('Erreur récupération utilisateurs:', error);
+      doc.text('Erreur lors de la récupération des données utilisateurs: ' + error, 20, startY + 20);
     }
   };
 
