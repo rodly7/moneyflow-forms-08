@@ -93,7 +93,7 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold">Inscription</h2>
-        <p className="text-gray-600">Créez votre compte SendFlow</p>
+        <p className="text-muted-foreground">Créez votre compte SendFlow</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
