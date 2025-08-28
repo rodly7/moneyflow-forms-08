@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/contexts/AuthContext';
 import { countries } from '@/data/countries';
 import { toast } from 'sonner';
-import IdCardUploadSection from '@/components/profile/IdCardUploadSection';
+
 
 interface SignUpFormProps {
   onSwitchToLogin: () => void;
@@ -25,8 +25,6 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
     role: 'user',
     birthDate: '',
   });
-  const [idCardFile, setIdCardFile] = useState<File | null>(null);
-  const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
@@ -54,19 +52,6 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
     }));
   };
 
-  const handleIdCardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('La photo de la pièce d\'identité ne doit pas dépasser 5 Mo');
-      return;
-    }
-
-    setIdCardFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    setIdCardPreviewUrl(objectUrl);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,10 +61,6 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
       return;
     }
 
-    if (!idCardFile) {
-      toast.error('Veuillez ajouter une photo de votre pièce d\'identité');
-      return;
-    }
 
     setIsLoading(true);
 
@@ -94,7 +75,7 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
         address: formData.city, // Using city as address
         role: formData.role,
         birth_date: formData.birthDate,
-        id_card_file: idCardFile,
+        
       };
 
       await signUp(formData.phone, formData.password, metadata);
@@ -196,10 +177,6 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
           </div>
         </div>
 
-        <IdCardUploadSection 
-          idCardPreviewUrl={idCardPreviewUrl}
-          onFileChange={handleIdCardFileChange}
-        />
 
         <div className="space-y-2">
           <Label htmlFor="password">Mot de passe *</Label>
