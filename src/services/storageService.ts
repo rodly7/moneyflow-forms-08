@@ -9,21 +9,9 @@ export const storageService = {
       
       console.log(`Tentative d'upload vers ${bucket}/${filePath}`);
       
-      // Vérifier d'abord si le bucket existe
-      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-      
-      if (bucketsError) {
-        console.error('Erreur lors de la vérification des buckets:', bucketsError);
-        throw new Error('Impossible de vérifier la configuration du stockage');
-      }
-      
-      // Simplifier la vérification
-      const bucketExists = buckets && buckets.some(b => b.id === bucket);
-      
-      if (!bucketExists) {
-        console.error(`Le bucket ${bucket} n'existe pas`);
-        throw new Error(`Le stockage ${bucket} n'est pas configuré. Contactez l'administrateur.`);
-      }
+      // Tentative d'upload direct sans vérification de bucket
+      // (la vérification sera faite par Supabase lui-même)
+      console.log(`Upload direct vers ${bucket}/${filePath}`);
       
       // Upload du fichier
       const { data, error } = await supabase.storage
@@ -35,6 +23,11 @@ export const storageService = {
 
       if (error) {
         console.error('Erreur upload:', error);
+        
+        // Gestion des erreurs spécifiques
+        if (error.message?.includes('Bucket not found') || error.message?.includes('bucket does not exist')) {
+          throw new Error(`Le stockage ${bucket} n'est pas configuré. Contactez l'administrateur.`);
+        }
         
         if (error.message?.includes('row-level security') || 
             error.message?.includes('permission') ||
