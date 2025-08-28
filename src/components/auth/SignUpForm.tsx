@@ -202,19 +202,6 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
         />
 
         <div className="space-y-2">
-          <Label htmlFor="role">Type de compte</Label>
-          <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="user">Utilisateur</SelectItem>
-              <SelectItem value="agent">Agent</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
           <Label htmlFor="password">Mot de passe *</Label>
           <Input
             id="password"
