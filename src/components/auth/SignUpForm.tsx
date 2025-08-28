@@ -21,7 +21,7 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
     password: '',
     confirmPassword: '',
     country: '',
-    address: '',
+    city: '',
     role: 'user',
     birthDate: '',
   });
@@ -31,6 +31,27 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const selectedCountry = countries.find(c => c.name === formData.country);
+  const phonePrefix = selectedCountry ? selectedCountry.code : '';
+  
+  const handlePhoneChange = (value: string) => {
+    // Remove any existing prefix to avoid duplication
+    let cleanPhone = value;
+    if (phonePrefix && value.startsWith(phonePrefix)) {
+      cleanPhone = value.substring(phonePrefix.length).trim();
+    }
+    setFormData(prev => ({ ...prev, phone: cleanPhone }));
+  };
+
+  const handleCountryChange = (countryName: string) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      country: countryName,
+      city: '', // Reset city when country changes
+      phone: '' // Reset phone when country changes
+    }));
   };
 
   const handleIdCardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,11 +84,14 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
     setIsLoading(true);
 
     try {
+      // Combine country code with phone number
+      const fullPhoneNumber = phonePrefix + ' ' + formData.phone;
+      
       const metadata = {
         full_name: formData.fullName,
-        phone: formData.phone,
+        phone: fullPhoneNumber,
         country: formData.country,
-        address: formData.address,
+        address: formData.city, // Using city as address
         role: formData.role,
         birth_date: formData.birthDate,
         id_card_file: idCardFile,
@@ -104,18 +128,6 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="phone">Numéro de téléphone *</Label>
-          <Input
-            id="phone"
-            type="tel"
-            placeholder="+221 XX XXX XX XX"
-            value={formData.phone}
-            onChange={(e) => handleInputChange('phone', e.target.value)}
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
           <Label htmlFor="birthDate">Date de naissance *</Label>
           <Input
             id="birthDate"
@@ -128,7 +140,7 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
 
         <div className="space-y-2">
           <Label htmlFor="country">Pays *</Label>
-          <Select value={formData.country} onValueChange={(value) => handleInputChange('country', value)}>
+          <Select value={formData.country} onValueChange={handleCountryChange}>
             <SelectTrigger>
               <SelectValue placeholder="Sélectionnez votre pays" />
             </SelectTrigger>
@@ -143,14 +155,45 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="address">Adresse *</Label>
-          <Input
-            id="address"
-            type="text"
-            value={formData.address}
-            onChange={(e) => handleInputChange('address', e.target.value)}
-            required
-          />
+          <Label htmlFor="city">Ville *</Label>
+          <Select 
+            value={formData.city} 
+            onValueChange={(value) => handleInputChange('city', value)}
+            disabled={!formData.country}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={formData.country ? "Sélectionnez votre ville" : "Sélectionnez d'abord un pays"} />
+            </SelectTrigger>
+            <SelectContent>
+              {selectedCountry?.cities.map((city) => (
+                <SelectItem key={city.name} value={city.name}>
+                  {city.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="phone">Numéro de téléphone *</Label>
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              value={phonePrefix}
+              disabled
+              className="w-20 bg-gray-100"
+            />
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="XX XXX XX XX"
+              value={formData.phone}
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              disabled={!formData.country}
+              required
+              className="flex-1"
+            />
+          </div>
         </div>
 
         <IdCardUploadSection 
