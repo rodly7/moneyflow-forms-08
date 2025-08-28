@@ -6,6 +6,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DataResetManager } from './DataResetManager';
+import SimplePaymentNumbersManager from './SimplePaymentNumbersManager';
 
 interface SystemSetting {
   id: string;
@@ -227,16 +230,31 @@ export const SimpleSettingsTab = () => {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">
-          Paramètres Système
+          Paramètres et Configuration
         </h2>
-        <Button
-          onClick={resetToDefaults}
-          variant="outline"
-          className="text-orange-600 border-orange-300 hover:bg-orange-50"
-        >
-          Remettre par défaut
-        </Button>
       </div>
+
+      <Tabs defaultValue="system" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="system">Système</TabsTrigger>
+          <TabsTrigger value="payment-numbers">Numéros de Paiement</TabsTrigger>
+          <TabsTrigger value="data-reset">Réinitialisation</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="system">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Paramètres Système
+              </h3>
+              <Button
+                onClick={resetToDefaults}
+                variant="outline"
+                className="text-orange-600 border-orange-300 hover:bg-orange-50"
+              >
+                Remettre par défaut
+              </Button>
+            </div>
 
       {Object.entries(settingsByCategory).map(([category, options]) => (
         <Card key={category} className="bg-white shadow-sm">
@@ -297,6 +315,17 @@ export const SimpleSettingsTab = () => {
           </div>
         </CardContent>
       </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="payment-numbers">
+          <SimplePaymentNumbersManager />
+        </TabsContent>
+        
+        <TabsContent value="data-reset">
+          <DataResetManager />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
