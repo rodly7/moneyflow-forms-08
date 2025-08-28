@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import IdCardUploadSection from '@/components/profile/IdCardUploadSection';
 import SelfieUploadSection from '@/components/profile/SelfieUploadSection';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { storageService } from '@/services/storageService';
 
 interface RequiredFieldsModalProps {
   isOpen: boolean;
@@ -66,26 +67,14 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
 
       // Upload de la photo selfie
       if (selfieFile) {
-        const fileExt = selfieFile.name.split('.').pop();
-        const fileName = `selfie-${Date.now()}.${fileExt}`;
-        const filePath = `${profile.id}/${fileName}`;
-        
-        console.log('Tentative d\'upload du selfie:', filePath);
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('selfies')
-          .upload(filePath, selfieFile, {
-            cacheControl: '3600',
-            upsert: true
-          });
-
-        if (uploadError) {
-          console.error('Erreur upload selfie:', uploadError);
+        try {
+          selfieUrl = await storageService.uploadFile(selfieFile, 'selfies', profile.id, 'selfie');
+          console.log('Upload selfie réussi, URL:', selfieUrl);
+        } catch (error) {
+          console.error('Erreur upload selfie:', error);
           
           // Gérer spécifiquement les erreurs de permissions
-          if (uploadError.message?.includes('row-level security') || 
-              uploadError.message?.includes('permission') ||
-              uploadError.message?.includes('policy')) {
+          if (error.message?.includes('permissions') || error.message?.includes('reconnecter')) {
             const canRetry = await handlePermissionError();
             if (canRetry) {
               toast.error('Erreur de permissions corrigée. Veuillez réessayer.');
@@ -95,39 +84,21 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
             }
           }
           
-          throw uploadError;
+          toast.error(error.message || 'Erreur lors de l\'upload du selfie');
+          return;
         }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('selfies')
-          .getPublicUrl(uploadData.path);
-
-        selfieUrl = publicUrl;
-        console.log('Upload selfie réussi, URL:', selfieUrl);
       }
 
       // Upload de la pièce d'identité
       if (idCardFile) {
-        const fileExt = idCardFile.name.split('.').pop();
-        const fileName = `id-card-${Date.now()}.${fileExt}`;
-        const filePath = `${profile.id}/${fileName}`;
-        
-        console.log('Tentative d\'upload du fichier:', filePath);
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('id-cards')
-          .upload(filePath, idCardFile, {
-            cacheControl: '3600',
-            upsert: true
-          });
-
-        if (uploadError) {
-          console.error('Erreur upload:', uploadError);
+        try {
+          idCardUrl = await storageService.uploadFile(idCardFile, 'id-cards', profile.id, 'id-card');
+          console.log('Upload carte identité réussi, URL:', idCardUrl);
+        } catch (error) {
+          console.error('Erreur upload carte identité:', error);
           
           // Gérer spécifiquement les erreurs de permissions
-          if (uploadError.message?.includes('row-level security') || 
-              uploadError.message?.includes('permission') ||
-              uploadError.message?.includes('policy')) {
+          if (error.message?.includes('permissions') || error.message?.includes('reconnecter')) {
             const canRetry = await handlePermissionError();
             if (canRetry) {
               toast.error('Erreur de permissions corrigée. Veuillez réessayer.');
@@ -137,15 +108,9 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
             }
           }
           
-          throw uploadError;
+          toast.error(error.message || 'Erreur lors de l\'upload de la carte d\'identité');
+          return;
         }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('id-cards')
-          .getPublicUrl(uploadData.path);
-
-        idCardUrl = publicUrl;
-        console.log('Upload réussi, URL:', idCardUrl);
       }
 
       // Mise à jour du profil
