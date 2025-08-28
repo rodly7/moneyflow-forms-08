@@ -11,15 +11,18 @@ interface ProfileData {
   phone: string;
   avatar_url?: string;
   id_card_url?: string;
+  selfie_url?: string;
 }
 
 export const useProfileForm = (profile: ProfileData) => {
   const [fullName, setFullName] = useState(profile?.full_name || "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(profile?.avatar_url || null);
   const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(profile?.id_card_url || null);
+  const [selfiePreviewUrl, setSelfiePreviewUrl] = useState<string | null>(profile?.selfie_url || null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { handlePermissionError } = useAuthSession();
@@ -140,6 +143,27 @@ export const useProfileForm = (profile: ProfileData) => {
         }
       }
 
+      // Upload du selfie si un fichier est sélectionné
+      if (selfieFile) {
+        console.log('Upload du selfie...');
+        const fileExt = selfieFile.name.split('.').pop();
+        const fileName = `selfie-${Date.now()}.${fileExt}`;
+        
+        try {
+          const selfieUrl = await uploadFile(selfieFile, 'selfies', fileName);
+          updates.selfie_url = selfieUrl;
+          console.log('Selfie uploadé:', selfieUrl);
+        } catch (error) {
+          console.error('Erreur upload selfie:', error);
+          toast({
+            title: "Erreur",
+            description: error.message || "Impossible d'uploader le selfie",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
       console.log('Mise à jour des données du profil...', updates);
 
       // Mettre à jour le profil dans la base de données
@@ -211,11 +235,15 @@ export const useProfileForm = (profile: ProfileData) => {
     setAvatarFile,
     idCardFile,
     setIdCardFile,
+    selfieFile,
+    setSelfieFile,
     isUploading,
     previewUrl,
     setPreviewUrl,
     idCardPreviewUrl,
     setIdCardPreviewUrl,
+    selfiePreviewUrl,
+    setSelfiePreviewUrl,
     handleSubmit,
     toast
   };
