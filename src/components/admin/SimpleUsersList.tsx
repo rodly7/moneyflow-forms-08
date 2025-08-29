@@ -36,19 +36,9 @@ export const SimpleUsersList = () => {
         setRefreshing(true);
       }
       
-      // D'abord synchroniser les photos d'identité avant de charger
-      if (!isAutoRefresh) {
-        console.log('🔄 Synchronisation des photos d\'identité...');
-        try {
-          await supabase.rpc('sync_agent_identity_photos');
-          console.log('✅ Synchronisation terminée');
-        } catch (syncError) {
-          console.warn('⚠️ Erreur synchronisation (continuons):', syncError);
-        }
-      }
+      console.log('📊 REQUÊTE: Chargement de TOUS les utilisateurs avec photos...');
       
-      console.log('📊 REQUÊTE: Chargement des utilisateurs avec photos...');
-      
+      // Requête principale pour récupérer TOUS les utilisateurs avec photos
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, balance, role, is_verified, created_at, country, address, birth_date, id_card_photo_url')
@@ -63,12 +53,30 @@ export const SimpleUsersList = () => {
       }
       
       console.log('✅ DONNÉES chargées:', data?.length, 'utilisateurs');
-      console.log('📸 Avec photos:', data?.filter(u => u.id_card_photo_url).length);
       
+      // Compter nouveaux vs anciens utilisateurs avec photos
+      const cutoffDate = new Date('2025-08-20');
+      const nouveauxAvecPhotos = data?.filter(u => 
+        u.id_card_photo_url && new Date(u.created_at) >= cutoffDate
+      ).length || 0;
+      
+      const anciensAvecPhotos = data?.filter(u => 
+        u.id_card_photo_url && new Date(u.created_at) < cutoffDate
+      ).length || 0;
+      
+      console.log('📸 STATISTIQUES PHOTOS:');
+      console.log('   📈 Nouveaux utilisateurs avec photos:', nouveauxAvecPhotos);
+      console.log('   📊 Anciens utilisateurs avec photos:', anciensAvecPhotos);
+      console.log('   🔢 Total avec photos:', nouveauxAvecPhotos + anciensAvecPhotos);
+      
+      // Afficher le détail des utilisateurs avec photos
       data?.forEach((user, index) => {
-        console.log(`👤 [${index}] ${user.full_name} - Photo: ${user.id_card_photo_url ? 'OUI' : 'NON'}`);
+        const isNouveau = new Date(user.created_at) >= cutoffDate;
+        const typeUser = isNouveau ? '🆕 NOUVEAU' : '📅 ANCIEN';
+        
         if (user.id_card_photo_url) {
-          console.log(`   📷 URL: ${user.id_card_photo_url}`);
+          console.log(`👤 [${index}] ${typeUser} ${user.full_name}`);
+          console.log(`   📷 Photo URL: ${user.id_card_photo_url}`);
         }
       });
       
