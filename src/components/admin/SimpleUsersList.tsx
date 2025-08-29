@@ -233,18 +233,19 @@ export const SimpleUsersList = () => {
                 {user.birth_date ? new Date(user.birth_date).toLocaleDateString('fr-FR') : 'N/A'}
               </td>
               <td style={{ padding: '12px' }}>
-                {user.id_card_photo_url ? (
+                {user.id_card_photo_url && user.id_card_photo_url.trim() !== '' ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <img 
                       src={user.id_card_photo_url} 
-                      alt="Pièce d'identité" 
+                      alt={`Pièce d'identité de ${user.full_name}`}
                       style={{ 
-                        width: '40px', 
-                        height: '30px', 
+                        width: '50px', 
+                        height: '35px', 
                         objectFit: 'cover', 
                         borderRadius: '4px', 
                         cursor: 'pointer',
-                        border: '1px solid #ddd'
+                        border: '2px solid #4CAF50',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                       }}
                       onClick={() => setSelectedUserPhoto({
                         url: user.id_card_photo_url,
@@ -252,12 +253,14 @@ export const SimpleUsersList = () => {
                         type: 'Pièce d\'identité'
                       })}
                       onError={(e) => {
-                        console.error('Erreur chargement image:', user.id_card_photo_url);
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling.textContent = '❌ Erreur';
+                        console.error('❌ Erreur chargement image:', user.id_card_photo_url);
+                        const target = e.currentTarget as HTMLImageElement;
+                        target.style.display = 'none';
+                        const errorSpan = target.nextElementSibling as HTMLElement;
+                        if (errorSpan) errorSpan.textContent = '❌ Erreur';
                       }}
                       onLoad={() => {
-                        console.log('✅ Image chargée:', user.id_card_photo_url);
+                        console.log('✅ Photo chargée avec succès:', user.id_card_photo_url);
                       }}
                     />
                     <button
@@ -267,22 +270,43 @@ export const SimpleUsersList = () => {
                         type: 'Pièce d\'identité'
                       })}
                       style={{
-                        padding: '4px 8px',
-                        backgroundColor: '#f0f0f0',
-                        border: '1px solid #ccc',
+                        padding: '6px 10px',
+                        backgroundColor: '#4CAF50',
+                        color: 'white',
+                        border: 'none',
                         borderRadius: '4px',
                         cursor: 'pointer',
-                        fontSize: '11px'
+                        fontSize: '11px',
+                        fontWeight: 'bold'
                       }}
                     >
                       👁️ Voir
                     </button>
-                    <span style={{ fontSize: '10px', color: '#666', display: 'block' }}>
-                      ✅ Photo OK
-                    </span>
+                    <div style={{ 
+                      fontSize: '10px', 
+                      color: '#4CAF50', 
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center'
+                    }}>
+                      <span>✅ PHOTO OK</span>
+                      <span style={{ color: '#666' }}>
+                        {new Date(user.created_at) >= new Date('2025-08-20') ? 'NOUVEAU' : 'ANCIEN'}
+                      </span>
+                    </div>
                   </div>
                 ) : (
-                  <span style={{ fontSize: '11px', color: '#999' }}>Non fournie</span>
+                  <div style={{ 
+                    fontSize: '11px', 
+                    color: '#999',
+                    padding: '8px',
+                    border: '1px dashed #ccc',
+                    borderRadius: '4px',
+                    textAlign: 'center'
+                  }}>
+                    ❌ Aucune photo
+                  </div>
                 )}
               </td>
               <td style={{ padding: '12px', fontWeight: 'bold' }}>
