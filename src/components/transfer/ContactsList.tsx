@@ -30,20 +30,25 @@ export const ContactsList = ({ selectedCountry, onContactSelect }: ContactsListP
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasContactsPermission, setHasContactsPermission] = useState(false);
 
-  // Fonction pour demander l'accès aux contacts
+  // Fonction pour demander l'accès aux contacts du téléphone
   const requestContactsAccess = async () => {
     try {
+      // Vérifier si l'API Contacts est disponible
       if ('contacts' in navigator && 'ContactsManager' in window) {
-        // API Contacts moderne (limitée à quelques navigateurs)
+        console.log("📱 API Contacts disponible, demande d'accès...");
         const contacts = await (navigator as any).contacts.select(['name', 'tel'], { multiple: true });
         return contacts;
       } else {
-        // Fallback: utiliser input file pour sélectionner un fichier de contacts
-        console.log("API Contacts non supportée, utilisation d'un fallback");
+        console.log("📱 API Contacts non supportée dans ce navigateur");
+        // Pour les navigateurs qui ne supportent pas l'API Contacts
+        // On peut demander à l'utilisateur d'importer manuellement ses contacts
         return null;
       }
     } catch (error) {
-      console.error("Erreur lors de l'accès aux contacts:", error);
+      console.error("❌ Erreur lors de l'accès aux contacts:", error);
+      if (error.name === 'NotAllowedError') {
+        console.log("❌ Accès aux contacts refusé par l'utilisateur");
+      }
       return null;
     }
   };
