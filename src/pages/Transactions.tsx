@@ -3,7 +3,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CreditCard, Minus, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CreditCard, Minus, Plus, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAllTransactions } from "@/hooks/useAllTransactions";
 import { useState } from "react";
 import TransactionDetailModal from "@/components/transactions/TransactionDetailModal";
@@ -16,6 +18,7 @@ import {
 
 const Transactions = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { transactions, loading } = useAllTransactions(user?.id);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -68,6 +71,19 @@ const Transactions = () => {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
+      {/* Bouton de retour */}
+      <div className="flex items-center gap-4">
+        <Button 
+          variant="outline" 
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Retour
+        </Button>
+        <h1 className="text-2xl font-bold">Historique des Transactions</h1>
+      </div>
+
       {/* Résumé financier */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
