@@ -49,8 +49,8 @@ export const useEnhancedNotifications = () => {
       })) || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 30000, // Réduit à 30 secondes
-    refetchIntervalInBackground: false, // Désactiver en arrière-plan
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
   });
 
   // Récupérer les recharges récentes
@@ -82,8 +82,8 @@ export const useEnhancedNotifications = () => {
       })) || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 30000, // Réduit à 30 secondes
-    refetchIntervalInBackground: false, // Désactiver en arrière-plan
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
   });
 
   // Récupérer les retraits récents
@@ -115,8 +115,8 @@ export const useEnhancedNotifications = () => {
       })) || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 30000, // Réduit à 30 secondes
-    refetchIntervalInBackground: false, // Désactiver en arrière-plan
+    refetchInterval: 3000,
+    refetchIntervalInBackground: true,
   });
 
   // Combiner toutes les notifications
@@ -152,15 +152,12 @@ export const useEnhancedNotifications = () => {
     setLastNotificationCount(allNotifications.length);
   }, [allNotifications.length, lastNotificationCount, toast]);
 
-  // Écoute en temps réel consolidée pour éviter trop de connexions
+  // Écoute en temps réel pour les nouveaux transferts
   useEffect(() => {
     if (!user?.id) return;
 
-    console.log('🔗 Configuration connexion temps réel pour:', user.id);
-
-    // Une seule connexion pour toutes les notifications
-    const notificationChannel = supabase
-      .channel(`user-notifications-${user.id}`)
+    const transferChannel = supabase
+      .channel('new-transfers')
       .on(
         'postgres_changes',
         {
@@ -180,9 +177,18 @@ export const useEnhancedNotifications = () => {
               duration: 8000,
               className: 'bg-green-50 border-green-200 text-green-800'
             });
+
+            setTimeout(() => {
+              setLastNotificationCount(prev => prev + 1);
+            }, 1000);
           }
         }
       )
+      .subscribe();
+
+    // Écoute en temps réel pour les recharges
+    const rechargeChannel = supabase
+      .channel('new-recharges')
       .on(
         'postgres_changes',
         {
@@ -214,6 +220,11 @@ export const useEnhancedNotifications = () => {
           }
         }
       )
+      .subscribe();
+
+    // Écoute en temps réel pour les retraits
+    const withdrawalChannel = supabase
+      .channel('new-withdrawals')
       .on(
         'postgres_changes',
         {
@@ -245,21 +256,12 @@ export const useEnhancedNotifications = () => {
           }
         }
       )
-      .subscribe((status) => {
-        console.log('📡 Statut connexion notifications:', status);
-        if (status === 'CLOSED') {
-          console.log('🔄 Connexion fermée, programmation reconnexion...');
-          // Reconnexion automatique après 5 secondes
-          setTimeout(() => {
-            if (!user?.id) return;
-            console.log('🔄 Tentative de reconnexion...');
-          }, 5000);
-        }
-      });
+      .subscribe();
 
     return () => {
-      console.log('🔌 Nettoyage connexion temps réel');
-      supabase.removeChannel(notificationChannel);
+      supabase.removeChannel(transferChannel);
+      supabase.removeChannel(rechargeChannel);
+      supabase.removeChannel(withdrawalChannel);
     };
   }, [user?.id, user?.phone, user?.email, toast]);
 

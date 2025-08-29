@@ -1,12 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import IdCardUploadSection from '@/components/profile/IdCardUploadSection';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { storageService } from '@/services/storageService';
 
 interface RequiredFieldsModalProps {
   isOpen: boolean;
@@ -15,29 +16,11 @@ interface RequiredFieldsModalProps {
 }
 
 const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModalProps) => {
+  const [birthDate, setBirthDate] = useState('');
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { handlePermissionError } = useAuthSession();
-
-  // Charger l'URL signée pour la carte d'identité au montage
-  useEffect(() => {
-    const loadSignedUrl = async () => {
-      if (profile?.id_card_url) {
-        try {
-          const signedUrl = await storageService.getSignedUrl('id-cards', profile.id_card_url);
-          setIdCardPreviewUrl(signedUrl);
-        } catch (error) {
-          console.error('Erreur lors du chargement de l\'URL signée:', error);
-          setIdCardPreviewUrl(profile.id_card_url); // Fallback
-        }
-      }
-    };
-
-    if (isOpen) {
-      loadSignedUrl();
-    }
-  }, [isOpen, profile?.id_card_url]);
 
   const handleIdCardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -56,8 +39,8 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!idCardFile) {
-      toast.error('Veuillez ajouter la photo de votre pièce d\'identité');
+    if (!birthDate || !idCardFile) {
+      toast.error('Veuillez remplir tous les champs obligatoires');
       return;
     }
 
@@ -68,14 +51,26 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
 
       // Upload de la pièce d'identité
       if (idCardFile) {
-        try {
-          idCardUrl = await storageService.uploadFile(idCardFile, 'id-cards', profile.id, 'id-card');
-          console.log('Upload carte identité réussi, URL:', idCardUrl);
-        } catch (error) {
-          console.error('Erreur upload carte identité:', error);
+        const fileExt = idCardFile.name.split('.').pop();
+        const fileName = `id-card-${Date.now()}.${fileExt}`;
+        const filePath = `${profile.id}/${fileName}`;
+        
+        console.log('Tentative d\'upload du fichier:', filePath);
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('id-cards')
+          .upload(filePath, idCardFile, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.error('Erreur upload:', uploadError);
           
           // Gérer spécifiquement les erreurs de permissions
-          if (error.message?.includes('permissions') || error.message?.includes('reconnecter')) {
+          if (uploadError.message?.includes('row-level security') || 
+              uploadError.message?.includes('permission') ||
+              uploadError.message?.includes('policy')) {
             const canRetry = await handlePermissionError();
             if (canRetry) {
               toast.error('Erreur de permissions corrigée. Veuillez réessayer.');
@@ -85,19 +80,27 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
             }
           }
           
-          toast.error(error.message || 'Erreur lors de l\'upload de la carte d\'identité');
-          return;
+          throw uploadError;
         }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('id-cards')
+          .getPublicUrl(uploadData.path);
+
+        idCardUrl = publicUrl;
+        console.log('Upload réussi, URL:', idCardUrl);
       }
 
       // Mise à jour du profil
       console.log('Mise à jour du profil avec:', {
+        birth_date: birthDate,
         id_card_url: idCardUrl,
       });
 
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
+          birth_date: birthDate,
           id_card_url: idCardUrl,
         })
         .eq('id', profile.id);
@@ -149,19 +152,30 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="birthDate">Date de naissance *</Label>
+            <Input
+              id="birthDate"
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              required
+            />
+          </div>
+
           <IdCardUploadSection 
             idCardPreviewUrl={idCardPreviewUrl}
             onFileChange={handleIdCardFileChange}
           />
 
-          <div className="text-sm text-muted-foreground">
-            <p>Cette photo est obligatoire pour continuer à utiliser l'application.</p>
+          <div className="text-sm text-gray-600">
+            <p>Ces informations sont obligatoires pour continuer à utiliser l'application.</p>
           </div>
 
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={isLoading || !idCardFile}
+            disabled={isLoading || !birthDate || !idCardFile}
           >
             {isLoading ? 'Mise à jour...' : 'Valider'}
           </Button>

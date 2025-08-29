@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ProfileEditForm from "@/components/ProfileEditForm";
-import QuickAvatarUpload from "@/components/profile/QuickAvatarUpload";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
 import { LogOut, Star, Edit3, Camera, User, QrCode, Sparkles, Crown, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -73,10 +72,49 @@ const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
         <CardContent className="p-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-8">
-              <QuickAvatarUpload 
-                profile={profile}
-                onAvatarUpdated={() => window.location.reload()}
-              />
+              <Dialog>
+                <DialogTrigger asChild>
+                  <div className="cursor-pointer relative group">
+                    <Avatar className="h-28 w-28 ring-4 ring-white/30 transition-all duration-500 group-hover:ring-white/50 group-hover:scale-110 shadow-2xl">
+                      <AvatarImage 
+                        src={profile?.avatar_url || undefined} 
+                        alt={profile?.full_name || ''} 
+                        className="object-cover"
+                      />
+                      <AvatarFallback className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-2xl font-bold shadow-inner">
+                        {profile?.avatar_url ? (
+                          getInitials(profile?.full_name || '')
+                        ) : (
+                          <User className="h-12 w-12" />
+                        )}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full p-3 opacity-0 group-hover:opacity-100 transition-all duration-500 shadow-xl hover:scale-110">
+                      {profile?.avatar_url ? (
+                        <Edit3 className="h-5 w-5 text-white" />
+                      ) : (
+                        <Camera className="h-5 w-5 text-white" />
+                      )}
+                    </div>
+                    {!profile?.avatar_url && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 backdrop-blur-sm">
+                        <span className="text-white text-sm font-semibold">Ajouter</span>
+                      </div>
+                    )}
+                  </div>
+                </DialogTrigger>
+                <DialogContent className="rounded-3xl max-w-md glass backdrop-blur-lg border-white/20">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                      <div className="p-2 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl">
+                        <Camera className="h-6 w-6 text-white" />
+                      </div>
+                      Modifier votre profil
+                    </DialogTitle>
+                  </DialogHeader>
+                  {profile && <ProfileEditForm profile={profile} />}
+                </DialogContent>
+              </Dialog>
               
               <div className="flex-1">
                 <div className="flex items-center gap-4 mb-2">

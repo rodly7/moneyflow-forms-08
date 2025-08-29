@@ -11,29 +11,16 @@ export const useUserSession = () => {
     // Démarrer une session quand l'utilisateur se connecte
     const startSession = async () => {
       try {
-        // Vérifier d'abord que l'utilisateur est bien connecté
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          console.log('⚠️ Pas de session active, skip du démarrage de session');
-          return;
-        }
-
         const userAgent = navigator.userAgent;
         const { error } = await supabase.rpc('start_user_session', {
           p_user_agent: userAgent
         });
         
         if (error) {
-          console.error('❌ Erreur lors du démarrage de session:', error);
-          // Ne pas afficher l'erreur si c'est juste un problème d'auth
-          if (!error.message.includes('must be authenticated')) {
-            console.error('Erreur session non liée à l\'auth:', error);
-          }
-        } else {
-          console.log('✅ Session utilisateur démarrée');
+          console.error('Erreur lors du démarrage de session:', error);
         }
       } catch (error) {
-        console.error('❌ Exception lors du démarrage de session:', error);
+        console.error('Erreur lors du démarrage de session:', error);
       }
     };
 
@@ -61,11 +48,11 @@ export const useUserSession = () => {
       }
     };
 
-    // Démarrer la session seulement si on a un utilisateur
+    // Démarrer la session
     startSession();
 
-    // Mettre à jour l'activité toutes les 10 minutes (réduit la fréquence)
-    const activityInterval = setInterval(updateActivity, 10 * 60 * 1000);
+    // Mettre à jour l'activité toutes les 5 minutes
+    const activityInterval = setInterval(updateActivity, 5 * 60 * 1000);
 
     // Mettre à jour l'activité lors des interactions
     const handleActivity = () => updateActivity();

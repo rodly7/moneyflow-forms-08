@@ -67,26 +67,16 @@ const UserManagementModal = ({ isOpen, onClose, user, onUserUpdated, isSubAdmin 
   const fetchAgentData = async () => {
     if (user?.role === 'agent') {
       try {
-        console.log('🔍 Récupération des données agent pour user_id:', user.id);
         const { data, error } = await supabase
           .from('agents')
           .select('*')
           .eq('user_id', user.id)
-          .maybeSingle();
+          .single();
         
         if (error) throw error;
-        
-        if (data) {
-          console.log('✅ Données agent récupérées:', data);
-          console.log('📸 Photo d\'identité:', data.identity_photo);
-          setAgentData(data);
-        } else {
-          console.warn('⚠️ Aucun agent trouvé pour user_id:', user.id);
-          setAgentData(null);
-        }
+        setAgentData(data);
       } catch (error) {
-        console.error('❌ Erreur lors du chargement des données agent:', error);
-        setAgentData(null);
+        console.error('Erreur lors du chargement des données agent:', error);
       }
     }
   };

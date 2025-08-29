@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { storageService } from '@/services/storageService';
 import { Camera, Upload, Trash2, Eye, User, FileImage } from 'lucide-react';
 
 interface Agent {
@@ -25,47 +24,15 @@ interface AgentPhotoManagerProps {
 }
 
 const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) => {
+  const { toast } = useToast();
   const [identityPhoto, setIdentityPhoto] = useState<File | null>(null);
-  const [identityPreviewUrl, setIdentityPreviewUrl] = useState<string | null>(null);
+  const [identityPreviewUrl, setIdentityPreviewUrl] = useState<string | null>(agent.identity_photo);
   const [isUploading, setIsUploading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const { toast } = useToast();
 
-  // Charger l'URL de l'image d'identité au montage
   useEffect(() => {
-    const loadImageUrl = () => {
-      console.log('🔍 Agent data:', agent);
-      
-      if (agent.identity_photo) {
-        console.log('🔍 Chargement de l\'image pour:', agent.identity_photo);
-        
-        // Pour tester, utiliser une image placeholder si c'est le fichier de test
-        if (agent.identity_photo === 'test-id-card.jpg' || agent.identity_photo === 'agent_identity/test_id_card.jpg') {
-          // Utiliser une image de test en ligne
-          const testImageUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmOWZmIiBzdHJva2U9IiMzYjgyZjYiIHN0cm9rZS13aWR0aD0iMiIvPjx0ZXh0IHg9IjUwJSIgeT0iMzAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IiMzYjgyZjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5QScOoY2UgZCdpZGVudGl0w6k8L3RleHQ+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzFmMjkzNyIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkNoYXJsZXMgTmc8L3RleHQ+PHRleHQgeD0iNTAlIiB5PSI3MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIGRlIHRlc3Q8L3RleHQ+PC9zdmc+';
-          console.log('✅ Utilisation image de test');
-          setIdentityPreviewUrl(testImageUrl);
-          return;
-        }
-        
-        // Sinon, utiliser l'URL publique normale
-        const { data: publicUrl } = supabase.storage
-          .from('id-cards')
-          .getPublicUrl(agent.identity_photo);
-        
-        console.log('✅ URL publique générée:', publicUrl.publicUrl);
-        setIdentityPreviewUrl(publicUrl.publicUrl);
-      } else {
-        console.log('ℹ️ Aucune photo d\'identité pour cet agent:', agent.full_name);
-        setIdentityPreviewUrl(null);
-      }
-    };
-
-    // Ajouter un délai pour s'assurer que les données sont chargées
-    const timeoutId = setTimeout(loadImageUrl, 100);
-    
-    return () => clearTimeout(timeoutId);
-  }, [agent.identity_photo, agent.full_name]);
+    setIdentityPreviewUrl(agent.identity_photo);
+  }, [agent.identity_photo]);
 
   const ensureBucketsExist = async () => {
     try {
@@ -151,25 +118,17 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
     
     try {
       // Upload de la photo d'identité
-      let identityPhotoPath = null;
+      let identityPhotoUrl = null;
       if (identityPhoto) {
         const identityPath = `agent_identity/${agent.user_id}_${Date.now()}.${identityPhoto.name.split('.').pop()}`;
-        const { data, error: uploadError } = await supabase.storage
-          .from('id-cards')
-          .upload(identityPath, identityPhoto, {
-            cacheControl: '3600',
-            upsert: true
-          });
-
-        if (uploadError) throw uploadError;
-        identityPhotoPath = data.path; // Stocker seulement le chemin, pas l'URL publique
+        identityPhotoUrl = await uploadFile(identityPhoto, 'id-cards', identityPath);
       }
 
       // Mettre à jour les informations de l'agent
       const { error } = await supabase
         .from('agents')
         .update({
-          identity_photo: identityPhotoPath
+          identity_photo: identityPhotoUrl
         })
         .eq('id', agent.id);
 
@@ -271,24 +230,13 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
           <Label className="text-lg font-semibold text-gray-800">Photo de la pièce d'identité</Label>
           
           {/* Prévisualisation actuelle */}
-          {identityPreviewUrl ? (
+          {identityPreviewUrl && (
             <div className="space-y-3">
               <div className="relative">
                 <img 
                   src={identityPreviewUrl} 
-                  alt={`Pièce d'identité de ${agent.full_name}`}
-                  className="w-full max-w-md h-48 object-cover rounded-lg border-2 border-green-200 shadow-sm"
-                  onError={(e) => {
-                    console.error('❌ Erreur de chargement de l\'image:', e);
-                    console.error('URL qui a échoué:', e.currentTarget.src);
-                    
-                    // Afficher une image de placeholder à la place
-                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZmVmMmYyIiBzdHJva2U9IiNmOTI4MjgiIHN0cm9rZS13aWR0aD0iMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNDAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNmOTI4MjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZSBub24gZGlzcG9uaWJsZTwvdGV4dD48dGV4dCB4PSI1MCUiIHk9IjYwJSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+VsOpcmlmaWV6IGxlIGNoZW1pbjwvdGV4dD48L3N2Zz4=';
-                    e.currentTarget.className = "w-full max-w-md h-48 object-contain rounded-lg border-2 border-red-200 shadow-sm bg-red-50";
-                  }}
-                  onLoad={() => {
-                    console.log('✅ Image chargée avec succès pour:', agent.full_name);
-                  }}
+                  alt="Pièce d'identité" 
+                  className="w-full max-w-md h-48 object-cover rounded-lg border-2 border-gray-200 shadow-sm"
                 />
                 <div className="absolute top-2 right-2 flex gap-2">
                   <Button
@@ -310,39 +258,6 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
                   </Button>
                 </div>
               </div>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <p className="text-sm text-green-700">
-                  ✅ Photo d'identité disponible
-                </p>
-                <p className="text-xs text-green-600 mt-1">
-                  Fichier: {agent.identity_photo}
-                </p>
-              </div>
-            </div>
-          ) : agent.identity_photo ? (
-            <div className="space-y-3">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-center gap-2">
-                  <FileImage className="w-5 h-5 text-yellow-600" />
-                  <p className="text-sm text-yellow-700">
-                    ⚠️ Photo d'identité référencée mais non accessible
-                  </p>
-                </div>
-                <p className="text-xs text-yellow-600 mt-2">
-                  Chemin: {agent.identity_photo}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Vérifiez que le fichier existe dans le stockage
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <FileImage className="w-16 h-16 mx-auto mb-2 text-gray-300" />
-              <p className="text-gray-600 font-medium">Aucune pièce d'identité</p>
-              <p className="text-sm text-gray-500 mt-1">
-                Cet agent n'a pas encore téléchargé sa pièce d'identité
-              </p>
             </div>
           )}
 
@@ -394,39 +309,21 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
 
         {/* Modal de prévisualisation */}
         {showPreview && identityPreviewUrl && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
-            <div className="relative max-w-5xl max-h-[95vh] p-6">
-              <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center">
-                  <h3 className="text-lg font-semibold">Pièce d'identité - {agent.full_name}</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowPreview(false)}
-                    className="text-white hover:bg-white/20"
-                  >
-                    ✕ Fermer
-                  </Button>
-                </div>
-                <div className="p-6 bg-gray-50">
-                  <img 
-                    src={identityPreviewUrl} 
-                    alt={`Pièce d'identité de ${agent.full_name}`}
-                    className="w-full max-h-[70vh] object-contain rounded-lg border shadow-sm bg-white"
-                    onError={(e) => {
-                      console.error('Erreur de chargement de l\'image:', e);
-                      e.currentTarget.src = '/placeholder.svg';
-                    }}
-                  />
-                </div>
-                <div className="bg-white px-6 py-4 border-t">
-                  <div className="flex gap-4 text-sm text-gray-600">
-                    <span><strong>Agent:</strong> {agent.agent_id}</span>
-                    <span><strong>Téléphone:</strong> {agent.phone}</span>
-                    <span><strong>Pays:</strong> {agent.country}</span>
-                  </div>
-                </div>
-              </div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+            <div className="relative max-w-4xl max-h-[90vh] p-4">
+              <img 
+                src={identityPreviewUrl} 
+                alt="Pièce d'identité - Prévisualisation" 
+                className="max-w-full max-h-full object-contain rounded-lg"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPreview(false)}
+                className="absolute top-2 right-2 bg-white/90 hover:bg-white"
+              >
+                ✕
+              </Button>
             </div>
           </div>
         )}

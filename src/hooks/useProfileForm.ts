@@ -140,7 +140,6 @@ export const useProfileForm = (profile: ProfileData) => {
         }
       }
 
-
       console.log('Mise à jour des données du profil...', updates);
 
       // Mettre à jour le profil dans la base de données

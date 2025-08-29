@@ -25,95 +25,20 @@ export const SimpleUsersList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUserPhoto, setSelectedUserPhoto] = useState<{ url: string; name: string; type: string } | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  const loadUsers = async (isAutoRefresh = false) => {
+  const loadUsers = async () => {
     try {
-      console.log('🚀 DÉBUT loadUsers - Synchronisation forcée des photos');
-      
-      if (isAutoRefresh) {
-        setRefreshing(true);
-      }
-      
-      // Synchroniser TOUTES les photos depuis le bucket id-cards
-      console.log('🔄 Exécution de la synchronisation complète...');
-      try {
-        const { data: syncResults, error: syncError } = await supabase.rpc('sync_all_identity_photos');
-        
-        if (syncError) {
-          console.error('❌ Erreur synchronisation:', syncError);
-        } else {
-          console.log('✅ Synchronisation terminée:', syncResults?.length || 0, 'photos traitées');
-          syncResults?.forEach(result => {
-            console.log(`📷 ${result.sync_status}: ${result.user_id} -> ${result.photo_url}`);
-          });
-        }
-      } catch (syncError) {
-        console.warn('⚠️ Erreur synchronisation (continuons):', syncError);
-      }
-      
-      console.log('📊 REQUÊTE: Chargement TOUS utilisateurs avec photos synchronisées...');
-      
-      // Requête pour récupérer TOUS les utilisateurs avec leurs photos d'identité
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, balance, role, is_verified, created_at, country, address, birth_date, id_card_photo_url')
         .order('created_at', { ascending: false });
 
-      console.log('📡 RÉPONSE profiles - data:', !!data, 'error:', !!error);
-
-      if (error) {
-        console.error('❌ ERREUR chargement profiles:', error);
-        throw error;
-      }
-      
-      const totalUsers = data?.length || 0;
-      const usersWithPhotos = data?.filter(u => u.id_card_photo_url && u.id_card_photo_url.trim() !== '').length || 0;
-      
-      console.log('📊 STATISTIQUES APRÈS SYNCHRONISATION:');
-      console.log('   👥 Total utilisateurs:', totalUsers);
-      console.log('   📸 Avec photos id-cards:', usersWithPhotos);
-      
-      // Séparer nouveaux et anciens utilisateurs
-      const cutoffDate = new Date('2025-08-20');
-      const nouveauxUtilisateurs = data?.filter(u => new Date(u.created_at) >= cutoffDate) || [];
-      const anciensUtilisateurs = data?.filter(u => new Date(u.created_at) < cutoffDate) || [];
-      
-      const nouveauxAvecPhotos = nouveauxUtilisateurs.filter(u => u.id_card_photo_url).length;
-      const anciensAvecPhotos = anciensUtilisateurs.filter(u => u.id_card_photo_url).length;
-      
-      console.log('📈 NOUVEAUX utilisateurs (≥2025-08-20):', nouveauxUtilisateurs.length, '- Photos:', nouveauxAvecPhotos);
-      console.log('📊 ANCIENS utilisateurs (<2025-08-20):', anciensUtilisateurs.length, '- Photos:', anciensAvecPhotos);
-      
-      // Afficher les détails de chaque utilisateur avec photo
-      console.log('🔍 DÉTAIL DES PHOTOS:');
-      data?.forEach((user, index) => {
-        const isNouveau = new Date(user.created_at) >= cutoffDate;
-        const typeUser = isNouveau ? '🆕 NOUVEAU' : '📅 ANCIEN';
-        
-        if (user.id_card_photo_url) {
-          console.log(`${typeUser} [${index}] ${user.full_name}`);
-          console.log(`   📷 URL: ${user.id_card_photo_url}`);
-          console.log(`   📅 Créé: ${user.created_at}`);
-        } else {
-          console.log(`${typeUser} [${index}] ${user.full_name} - ❌ PAS DE PHOTO`);
-        }
-      });
-      
+      if (error) throw error;
       setUsers(data || []);
-      setLastUpdate(new Date());
-      
-      if (isAutoRefresh) {
-        console.log('🔄 Auto-refresh utilisateurs:', new Date().toLocaleTimeString());
-      }
     } catch (error) {
-      console.error('❌ Erreur chargement utilisateurs:', error);
+      console.error('Erreur chargement utilisateurs:', error);
     } finally {
       setLoading(false);
-      if (isAutoRefresh) {
-        setRefreshing(false);
-      }
     }
   };
 
@@ -136,32 +61,13 @@ export const SimpleUsersList = () => {
   };
 
   useEffect(() => {
-    console.log('🎯 SimpleUsersList - useEffect MOUNT');
     loadUsers();
-    
-    // Rafraîchissement automatique toutes les 5 secondes
-    const interval = setInterval(() => {
-      console.log('⏰ Auto-refresh déclenché');
-      loadUsers(true);
-    }, 5000);
-    
-    return () => {
-      console.log('🎯 SimpleUsersList - useEffect UNMOUNT');
-      clearInterval(interval);
-    };
   }, []);
 
   const filteredUsers = users.filter(user => 
     user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.phone?.includes(searchTerm)
   );
-
-  console.log('🔍 FILTRAGE:', {
-    totalUsers: users.length,
-    filteredUsers: filteredUsers.length,
-    searchTerm,
-    usersWithPhotos: filteredUsers.filter(u => u.id_card_photo_url).length
-  });
 
   if (loading) {
     return <div style={{ padding: '20px' }}>Chargement des utilisateurs...</div>;
@@ -184,7 +90,7 @@ export const SimpleUsersList = () => {
           }}
         />
         <button
-          onClick={() => loadUsers()}
+          onClick={loadUsers}
           style={{
             padding: '10px 15px',
             backgroundColor: '#0066cc',
@@ -196,17 +102,6 @@ export const SimpleUsersList = () => {
         >
           Actualiser
         </button>
-        <div style={{ 
-          fontSize: '12px', 
-          color: refreshing ? '#ff6600' : '#666',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '5px'
-        }}>
-          {refreshing && <span>🔄</span>}
-          Dernière MAJ: {lastUpdate.toLocaleTimeString()}
-          <span style={{ color: '#009900' }}>• Auto-refresh 5s</span>
-        </div>
       </div>
 
       <table style={{ 
@@ -239,35 +134,17 @@ export const SimpleUsersList = () => {
                 {user.birth_date ? new Date(user.birth_date).toLocaleDateString('fr-FR') : 'N/A'}
               </td>
               <td style={{ padding: '12px' }}>
-                {user.id_card_photo_url && user.id_card_photo_url.trim() !== '' ? (
+                {user.id_card_photo_url ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <img 
                       src={user.id_card_photo_url} 
-                      alt={`Pièce d'identité de ${user.full_name}`}
-                      style={{ 
-                        width: '50px', 
-                        height: '35px', 
-                        objectFit: 'cover', 
-                        borderRadius: '4px', 
-                        cursor: 'pointer',
-                        border: '2px solid #4CAF50',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}
+                      alt="Pièce d'identité" 
+                      style={{ width: '40px', height: '30px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
                       onClick={() => setSelectedUserPhoto({
                         url: user.id_card_photo_url,
                         name: user.full_name || 'Utilisateur',
                         type: 'Pièce d\'identité'
                       })}
-                      onError={(e) => {
-                        console.error('❌ Erreur chargement image:', user.id_card_photo_url);
-                        const target = e.currentTarget as HTMLImageElement;
-                        target.style.display = 'none';
-                        const errorSpan = target.nextElementSibling as HTMLElement;
-                        if (errorSpan) errorSpan.textContent = '❌ Erreur';
-                      }}
-                      onLoad={() => {
-                        console.log('✅ Photo chargée avec succès:', user.id_card_photo_url);
-                      }}
                     />
                     <button
                       onClick={() => setSelectedUserPhoto({
@@ -276,43 +153,19 @@ export const SimpleUsersList = () => {
                         type: 'Pièce d\'identité'
                       })}
                       style={{
-                        padding: '6px 10px',
-                        backgroundColor: '#4CAF50',
-                        color: 'white',
-                        border: 'none',
+                        padding: '4px 8px',
+                        backgroundColor: '#f0f0f0',
+                        border: '1px solid #ccc',
                         borderRadius: '4px',
                         cursor: 'pointer',
-                        fontSize: '11px',
-                        fontWeight: 'bold'
+                        fontSize: '11px'
                       }}
                     >
                       👁️ Voir
                     </button>
-                    <div style={{ 
-                      fontSize: '10px', 
-                      color: '#4CAF50', 
-                      fontWeight: 'bold',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center'
-                    }}>
-                      <span>✅ PHOTO OK</span>
-                      <span style={{ color: '#666' }}>
-                        {new Date(user.created_at) >= new Date('2025-08-20') ? 'NOUVEAU' : 'ANCIEN'}
-                      </span>
-                    </div>
                   </div>
                 ) : (
-                  <div style={{ 
-                    fontSize: '11px', 
-                    color: '#999',
-                    padding: '8px',
-                    border: '1px dashed #ccc',
-                    borderRadius: '4px',
-                    textAlign: 'center'
-                  }}>
-                    ❌ Aucune photo
-                  </div>
+                  <span style={{ fontSize: '11px', color: '#999' }}>Non fournie</span>
                 )}
               </td>
               <td style={{ padding: '12px', fontWeight: 'bold' }}>

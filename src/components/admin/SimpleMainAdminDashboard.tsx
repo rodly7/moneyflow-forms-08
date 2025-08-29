@@ -19,7 +19,7 @@ import AdminGlobalStats from './AdminGlobalStats';
 import SubAdminRechargeTab from './SubAdminRechargeTab';
 import UserRequestsManagement from './UserRequestsManagement';
 import AdminUserRequestsOverview from './AdminUserRequestsOverview';
-import { DirectPhotosList } from './DirectPhotosList';
+import { SimpleUsersList } from './SimpleUsersList';
 import SimpleAgentsTab from './SimpleAgentsTab';
 import { SimpleMessagesTab } from './SimpleMessagesTab';
 import { SimpleSettingsTab } from './SimpleSettingsTab';
@@ -52,19 +52,6 @@ const SimpleMainAdminDashboard = () => {
           Bienvenue {profile?.full_name}. Gérez l'ensemble de la plateforme depuis cette interface.
         </p>
       </div>
-
-      {/* Section Photos d'identité en haut */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Eye className="w-5 h-5" />
-            Photos d'identité des utilisateurs
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DirectPhotosList />
-        </CardContent>
-      </Card>
 
       {/* Statistiques globales */}
       <AdminGlobalStats />
@@ -132,7 +119,7 @@ const SimpleMainAdminDashboard = () => {
 
         {/* Onglet Utilisateurs */}
         <TabsContent value="users">
-          <DirectPhotosList />
+          <SimpleUsersList />
         </TabsContent>
 
         {/* Onglet Agents */}
