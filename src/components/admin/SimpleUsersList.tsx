@@ -30,53 +30,68 @@ export const SimpleUsersList = () => {
 
   const loadUsers = async (isAutoRefresh = false) => {
     try {
-      console.log('🚀 DÉBUT loadUsers - isAutoRefresh:', isAutoRefresh);
+      console.log('🚀 DÉBUT loadUsers - Récupération photos id-cards');
       
       if (isAutoRefresh) {
         setRefreshing(true);
       }
       
-      console.log('📊 REQUÊTE: Chargement de TOUS les utilisateurs avec photos...');
+      // Synchroniser les photos d'identité depuis le bucket id-cards
+      console.log('🔄 Synchronisation du bucket id-cards...');
+      try {
+        await supabase.rpc('sync_agent_identity_photos');
+        console.log('✅ Synchronisation id-cards terminée');
+      } catch (syncError) {
+        console.warn('⚠️ Erreur synchronisation id-cards (continuons):', syncError);
+      }
       
-      // Requête principale pour récupérer TOUS les utilisateurs avec photos
+      console.log('📊 REQUÊTE: Chargement TOUS utilisateurs avec photos id-cards...');
+      
+      // Requête pour récupérer TOUS les utilisateurs avec leurs photos d'identité
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, balance, role, is_verified, created_at, country, address, birth_date, id_card_photo_url')
         .order('created_at', { ascending: false });
 
-      console.log('📡 RÉPONSE reçue - data:', !!data, 'error:', !!error);
+      console.log('📡 RÉPONSE profiles - data:', !!data, 'error:', !!error);
 
       if (error) {
-        console.error('❌ ERREUR lors du chargement des utilisateurs:', error);
-        console.error('❌ Code:', error.code, 'Message:', error.message);
+        console.error('❌ ERREUR chargement profiles:', error);
         throw error;
       }
       
-      console.log('✅ DONNÉES chargées:', data?.length, 'utilisateurs');
+      const totalUsers = data?.length || 0;
+      const usersWithPhotos = data?.filter(u => u.id_card_photo_url && u.id_card_photo_url.trim() !== '').length || 0;
       
-      // Compter nouveaux vs anciens utilisateurs avec photos
+      console.log('📊 STATISTIQUES CHARGEMENT:');
+      console.log('   👥 Total utilisateurs:', totalUsers);
+      console.log('   📸 Avec photos id-cards:', usersWithPhotos);
+      
+      // Séparer nouveaux et anciens utilisateurs
       const cutoffDate = new Date('2025-08-20');
-      const nouveauxAvecPhotos = data?.filter(u => 
-        u.id_card_photo_url && new Date(u.created_at) >= cutoffDate
-      ).length || 0;
+      const nouveauxUtilisateurs = data?.filter(u => new Date(u.created_at) >= cutoffDate) || [];
+      const anciensUtilisateurs = data?.filter(u => new Date(u.created_at) < cutoffDate) || [];
       
-      const anciensAvecPhotos = data?.filter(u => 
-        u.id_card_photo_url && new Date(u.created_at) < cutoffDate
-      ).length || 0;
+      const nouveauxAvecPhotos = nouveauxUtilisateurs.filter(u => u.id_card_photo_url).length;
+      const anciensAvecPhotos = anciensUtilisateurs.filter(u => u.id_card_photo_url).length;
       
-      console.log('📸 STATISTIQUES PHOTOS:');
-      console.log('   📈 Nouveaux utilisateurs avec photos:', nouveauxAvecPhotos);
-      console.log('   📊 Anciens utilisateurs avec photos:', anciensAvecPhotos);
-      console.log('   🔢 Total avec photos:', nouveauxAvecPhotos + anciensAvecPhotos);
+      console.log('📈 NOUVEAUX utilisateurs (≥2025-08-20):', nouveauxUtilisateurs.length);
+      console.log('   📷 Nouveaux avec photos:', nouveauxAvecPhotos);
+      console.log('📊 ANCIENS utilisateurs (<2025-08-20):', anciensUtilisateurs.length);
+      console.log('   📷 Anciens avec photos:', anciensAvecPhotos);
       
-      // Afficher le détail des utilisateurs avec photos
+      // Afficher les détails de chaque utilisateur avec photo
+      console.log('🔍 DÉTAIL DES PHOTOS:');
       data?.forEach((user, index) => {
         const isNouveau = new Date(user.created_at) >= cutoffDate;
         const typeUser = isNouveau ? '🆕 NOUVEAU' : '📅 ANCIEN';
         
         if (user.id_card_photo_url) {
-          console.log(`👤 [${index}] ${typeUser} ${user.full_name}`);
-          console.log(`   📷 Photo URL: ${user.id_card_photo_url}`);
+          console.log(`${typeUser} [${index}] ${user.full_name}`);
+          console.log(`   📷 URL: ${user.id_card_photo_url}`);
+          console.log(`   📅 Créé: ${user.created_at}`);
+        } else {
+          console.log(`${typeUser} [${index}] ${user.full_name} - ❌ PAS DE PHOTO`);
         }
       });
       
