@@ -17,8 +17,8 @@ type StepType = 'operation' | 'details' | 'confirmation';
 // Configuration des numéros de paiement par pays
 const PAYMENT_CONFIG = {
   'Congo Brazzaville': {
-    'Mobile Money': { number: '+242066164686', ussd: '*126#', appUrl: null },
-    'Airtel Money': { number: '+242055524407', ussd: '*177#', appUrl: null }
+    'Mobile Money': { number: '066164686', ussd: '*105*1*1*066164686#', appUrl: null },
+    'Airtel Money': { number: '055524407', ussd: '*128*2*1*1*055524407#', appUrl: null }
   },
   'Sénégal': {
     'Wave': { number: '780192989', ussd: null, appUrl: 'wave://send' },
@@ -65,14 +65,28 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
     return countryConfig[paymentMethod as keyof typeof countryConfig] || null;
   };
 
-  // Copy phone number to clipboard
+  // Copy phone number to clipboard and auto-copy on load
   const copyPhoneNumber = async () => {
     const config = getPaymentConfig();
     if (config?.number) {
-      await navigator.clipboard.writeText(config.number);
-      toast.success('Numéro copié dans le presse-papiers');
+      try {
+        await navigator.clipboard.writeText(config.number);
+        toast.success('Numéro copié automatiquement dans le presse-papiers!');
+      } catch (error) {
+        console.error('Erreur lors de la copie:', error);
+        toast.info(`Numéro: ${config.number}`);
+      }
     }
   };
+
+  // Auto-copy number when payment method changes
+  React.useEffect(() => {
+    if (paymentMethod && currentStep === 'details') {
+      setTimeout(() => {
+        copyPhoneNumber();
+      }, 500);
+    }
+  }, [paymentMethod, currentStep]);
 
   // Redirect to operator app/USSD
   const redirectToOperator = () => {
@@ -242,12 +256,13 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
               
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
                 <p className="text-sm text-yellow-800 font-medium">
-                  💡 <strong>Instructions:</strong>
+                  💡 <strong>Instructions de paiement:</strong>
                 </p>
                 <p className="text-sm text-yellow-700 mt-1">
-                  1. Le numéro est automatiquement copié<br/>
-                  2. Faites un dépôt de <strong>{amount || '0'} FCFA</strong> vers ce numéro<br/>
-                  3. Confirmez votre demande ci-dessous
+                  1. ✅ Le numéro est automatiquement copié<br/>
+                  2. 💰 Faites un dépôt de <strong>{amount || '0'} FCFA</strong> vers ce numéro<br/>
+                  3. 📱 Cliquez sur "Ouvrir {paymentMethod}" pour être redirigé<br/>
+                  4. ✅ Confirmez votre demande ci-dessous
                 </p>
               </div>
 
@@ -324,8 +339,8 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <h4 className="font-semibold text-green-900 mb-2">🚀 Après confirmation</h4>
           <p className="text-sm text-green-800">
-            Vous serez automatiquement redirigé vers votre application {paymentMethod} 
-            pour finaliser le paiement si nécessaire.
+            Vous serez automatiquement redirigé vers votre opérateur ({paymentMethod}) 
+            pour composer le code USSD ou ouvrir l'application et finaliser le paiement.
           </p>
         </div>
 
