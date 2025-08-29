@@ -19,7 +19,7 @@ import AdminGlobalStats from './AdminGlobalStats';
 import SubAdminRechargeTab from './SubAdminRechargeTab';
 import UserRequestsManagement from './UserRequestsManagement';
 import AdminUserRequestsOverview from './AdminUserRequestsOverview';
-import { SimpleUsersList } from './SimpleUsersList';
+import { DirectPhotosList } from './DirectPhotosList';
 import SimpleAgentsTab from './SimpleAgentsTab';
 import { SimpleMessagesTab } from './SimpleMessagesTab';
 import { SimpleSettingsTab } from './SimpleSettingsTab';
@@ -62,14 +62,7 @@ const SimpleMainAdminDashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div style={{ padding: '10px', backgroundColor: '#e8f5e8', border: '2px solid #4CAF50', borderRadius: '8px', marginBottom: '15px' }}>
-            <h3 style={{ margin: '0 0 10px 0', color: '#2E7D32' }}>✅ Photos d'identité synchronisées !</h3>
-            <p style={{ margin: '0', fontSize: '14px', color: '#2E7D32' }}>
-              Les photos sont maintenant visibles dans le tableau ci-dessous. 
-              Les utilisateurs créés après le 2025-08-20 sont marqués "NOUVEAU", les autres "ANCIEN".
-            </p>
-          </div>
-          <SimpleUsersList />
+          <DirectPhotosList />
         </CardContent>
       </Card>
 
@@ -139,14 +132,7 @@ const SimpleMainAdminDashboard = () => {
 
         {/* Onglet Utilisateurs */}
         <TabsContent value="users">
-          <div style={{ padding: '10px', backgroundColor: '#e8f5e8', border: '2px solid #4CAF50', borderRadius: '8px', marginBottom: '15px' }}>
-            <h3 style={{ margin: '0 0 10px 0', color: '#2E7D32' }}>✅ Photos d'identité synchronisées !</h3>
-            <p style={{ margin: '0', fontSize: '14px', color: '#2E7D32' }}>
-              Les photos sont maintenant visibles dans le tableau ci-dessous. 
-              Les utilisateurs créés après le 2025-08-20 sont marqués "NOUVEAU", les autres "ANCIEN".
-            </p>
-          </div>
-          <SimpleUsersList />
+          <DirectPhotosList />
         </TabsContent>
 
         {/* Onglet Agents */}
