@@ -45,6 +45,13 @@ const AdminUsers = () => {
       return;
     }
     fetchUsers();
+    
+    // Rafraîchissement automatique toutes les 5 secondes
+    const interval = setInterval(() => {
+      fetchUsers();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, [profile, navigate]);
 
   const fetchUsers = async (showToast = false) => {
