@@ -132,17 +132,25 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
     
     try {
       // Upload de la photo d'identité
-      let identityPhotoUrl = null;
+      let identityPhotoPath = null;
       if (identityPhoto) {
         const identityPath = `agent_identity/${agent.user_id}_${Date.now()}.${identityPhoto.name.split('.').pop()}`;
-        identityPhotoUrl = await uploadFile(identityPhoto, 'id-cards', identityPath);
+        const { data, error: uploadError } = await supabase.storage
+          .from('id-cards')
+          .upload(identityPath, identityPhoto, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (uploadError) throw uploadError;
+        identityPhotoPath = data.path; // Stocker seulement le chemin, pas l'URL publique
       }
 
       // Mettre à jour les informations de l'agent
       const { error } = await supabase
         .from('agents')
         .update({
-          identity_photo: identityPhotoUrl
+          identity_photo: identityPhotoPath
         })
         .eq('id', agent.id);
 
