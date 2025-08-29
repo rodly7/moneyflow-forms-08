@@ -30,6 +30,8 @@ export const SimpleUsersList = () => {
 
   const loadUsers = async (isAutoRefresh = false) => {
     try {
+      console.log('🚀 DÉBUT loadUsers - isAutoRefresh:', isAutoRefresh);
+      
       if (isAutoRefresh) {
         setRefreshing(true);
       }
@@ -37,25 +39,36 @@ export const SimpleUsersList = () => {
       // D'abord synchroniser les photos d'identité avant de charger
       if (!isAutoRefresh) {
         console.log('🔄 Synchronisation des photos d\'identité...');
-        await supabase.rpc('sync_agent_identity_photos');
+        try {
+          await supabase.rpc('sync_agent_identity_photos');
+          console.log('✅ Synchronisation terminée');
+        } catch (syncError) {
+          console.warn('⚠️ Erreur synchronisation (continuons):', syncError);
+        }
       }
       
-      console.log('📊 Chargement des utilisateurs avec photos...');
+      console.log('📊 REQUÊTE: Chargement des utilisateurs avec photos...');
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, balance, role, is_verified, created_at, country, address, birth_date, id_card_photo_url')
         .order('created_at', { ascending: false });
 
+      console.log('📡 RÉPONSE reçue - data:', !!data, 'error:', !!error);
+
       if (error) {
-        console.error('❌ Erreur lors du chargement des utilisateurs:', error);
+        console.error('❌ ERREUR lors du chargement des utilisateurs:', error);
+        console.error('❌ Code:', error.code, 'Message:', error.message);
         throw error;
       }
       
-      console.log('✅ Utilisateurs chargés:', data?.length);
-      console.log('📸 Utilisateurs avec photos:', data?.filter(u => u.id_card_photo_url).length);
-      data?.forEach(user => {
+      console.log('✅ DONNÉES chargées:', data?.length, 'utilisateurs');
+      console.log('📸 Avec photos:', data?.filter(u => u.id_card_photo_url).length);
+      
+      data?.forEach((user, index) => {
+        console.log(`👤 [${index}] ${user.full_name} - Photo: ${user.id_card_photo_url ? 'OUI' : 'NON'}`);
         if (user.id_card_photo_url) {
-          console.log(`👤 ${user.full_name}: ${user.id_card_photo_url.substring(0, 50)}...`);
+          console.log(`   📷 URL: ${user.id_card_photo_url}`);
         }
       });
       
