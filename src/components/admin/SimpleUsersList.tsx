@@ -36,6 +36,22 @@ export const SimpleUsersList = () => {
         setRefreshing(true);
       }
       
+      // Récupérer directement les photos depuis le bucket id-cards
+      console.log('📁 Récupération directe du bucket id-cards...');
+      const { data: storageObjects, error: storageError } = await supabase
+        .storage
+        .from('id-cards')
+        .list('', { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
+        
+      if (storageError) {
+        console.error('❌ Erreur récupération bucket id-cards:', storageError);
+      } else {
+        console.log('📁 Objets trouvés dans id-cards:', storageObjects?.length || 0);
+        storageObjects?.forEach(obj => {
+          console.log('📷 Fichier trouvé:', obj.name);
+        });
+      }
+      
       // Synchroniser les photos d'identité depuis le bucket id-cards
       console.log('🔄 Synchronisation du bucket id-cards...');
       try {
@@ -58,6 +74,28 @@ export const SimpleUsersList = () => {
       if (error) {
         console.error('❌ ERREUR chargement profiles:', error);
         throw error;
+      }
+
+      // Enrichir les données avec les URLs directes des photos depuis le bucket
+      if (data && storageObjects) {
+        data.forEach(user => {
+          // Chercher un fichier correspondant à cet utilisateur dans le bucket
+          const userPhoto = storageObjects.find(obj => obj.name.startsWith(user.id + '/'));
+          if (userPhoto) {
+            // Créer l'URL publique directe
+            const { data: { publicUrl } } = supabase.storage
+              .from('id-cards')
+              .getPublicUrl(userPhoto.name);
+            
+            console.log(`🔗 URL générée pour ${user.full_name}:`, publicUrl);
+            
+            // Mettre à jour l'URL de la photo si elle n'existe pas déjà
+            if (!user.id_card_photo_url) {
+              user.id_card_photo_url = publicUrl;
+              console.log(`✨ Photo assignée à ${user.full_name}`);
+            }
+          }
+        });
       }
       
       const totalUsers = data?.length || 0;
