@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { storageService } from '@/services/storageService';
 import { Camera, Upload, Trash2, Eye, User, FileImage } from 'lucide-react';
 
 interface Agent {
@@ -24,14 +25,27 @@ interface AgentPhotoManagerProps {
 }
 
 const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) => {
-  const { toast } = useToast();
   const [identityPhoto, setIdentityPhoto] = useState<File | null>(null);
-  const [identityPreviewUrl, setIdentityPreviewUrl] = useState<string | null>(agent.identity_photo);
+  const [identityPreviewUrl, setIdentityPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const { toast } = useToast();
 
+  // Charger l'URL signée pour l'image d'identité au montage
   useEffect(() => {
-    setIdentityPreviewUrl(agent.identity_photo);
+    const loadSignedUrl = async () => {
+      if (agent.identity_photo) {
+        try {
+          const signedUrl = await storageService.getSignedUrl('id-cards', agent.identity_photo);
+          setIdentityPreviewUrl(signedUrl);
+        } catch (error) {
+          console.error('Erreur lors du chargement de l\'URL signée:', error);
+          setIdentityPreviewUrl(agent.identity_photo); // Fallback
+        }
+      }
+    };
+
+    loadSignedUrl();
   }, [agent.identity_photo]);
 
   const ensureBucketsExist = async () => {

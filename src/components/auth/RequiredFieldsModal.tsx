@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +19,25 @@ const RequiredFieldsModal = ({ isOpen, profile, onComplete }: RequiredFieldsModa
   const [idCardPreviewUrl, setIdCardPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { handlePermissionError } = useAuthSession();
+
+  // Charger l'URL signée pour la carte d'identité au montage
+  useEffect(() => {
+    const loadSignedUrl = async () => {
+      if (profile?.id_card_url) {
+        try {
+          const signedUrl = await storageService.getSignedUrl('id-cards', profile.id_card_url);
+          setIdCardPreviewUrl(signedUrl);
+        } catch (error) {
+          console.error('Erreur lors du chargement de l\'URL signée:', error);
+          setIdCardPreviewUrl(profile.id_card_url); // Fallback
+        }
+      }
+    };
+
+    if (isOpen) {
+      loadSignedUrl();
+    }
+  }, [isOpen, profile?.id_card_url]);
 
   const handleIdCardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
