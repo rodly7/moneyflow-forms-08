@@ -17,12 +17,12 @@ type StepType = 'operation' | 'details' | 'confirmation';
 // Configuration des numéros de paiement par pays
 const PAYMENT_CONFIG = {
   'Congo Brazzaville': {
-    'Mobile Money': { number: '066164686', ussd: '*105*1*1*066164686#', appUrl: null },
-    'Airtel Money': { number: '055524407', ussd: '*128*2*1*1*055524407#', appUrl: null }
+    'Mobile Money': { number: '066164686', ussd: '*105#', appUrl: null },
+    'Airtel Money': { number: '055524407', ussd: '*128#', appUrl: null }
   },
   'Sénégal': {
-    'Wave': { number: '780192989', ussd: null, appUrl: 'wave://send' },
-    'Orange Money': { number: '774596609', ussd: '#150#', appUrl: null }
+    'Wave': { number: '+221780192989', ussd: null, appUrl: 'wave://send' },
+    'Orange Money': { number: '774596609', ussd: '#144#', appUrl: null }
   }
 };
 
