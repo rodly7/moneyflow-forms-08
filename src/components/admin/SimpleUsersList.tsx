@@ -36,15 +36,29 @@ export const SimpleUsersList = () => {
       
       // D'abord synchroniser les photos d'identité avant de charger
       if (!isAutoRefresh) {
+        console.log('🔄 Synchronisation des photos d\'identité...');
         await supabase.rpc('sync_agent_identity_photos');
       }
       
+      console.log('📊 Chargement des utilisateurs avec photos...');
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, balance, role, is_verified, created_at, country, address, birth_date, id_card_photo_url')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur lors du chargement des utilisateurs:', error);
+        throw error;
+      }
+      
+      console.log('✅ Utilisateurs chargés:', data?.length);
+      console.log('📸 Utilisateurs avec photos:', data?.filter(u => u.id_card_photo_url).length);
+      data?.forEach(user => {
+        if (user.id_card_photo_url) {
+          console.log(`👤 ${user.full_name}: ${user.id_card_photo_url.substring(0, 50)}...`);
+        }
+      });
+      
       setUsers(data || []);
       setLastUpdate(new Date());
       
@@ -52,7 +66,7 @@ export const SimpleUsersList = () => {
         console.log('🔄 Auto-refresh utilisateurs:', new Date().toLocaleTimeString());
       }
     } catch (error) {
-      console.error('Erreur chargement utilisateurs:', error);
+      console.error('❌ Erreur chargement utilisateurs:', error);
     } finally {
       setLoading(false);
       if (isAutoRefresh) {
