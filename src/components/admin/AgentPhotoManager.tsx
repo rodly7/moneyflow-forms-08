@@ -37,13 +37,18 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
       if (agent.identity_photo) {
         console.log('🔍 Chargement de l\'URL signée pour:', agent.identity_photo);
         try {
+          // Essayer d'abord l'URL signée
           const signedUrl = await storageService.getSignedUrl('id-cards', agent.identity_photo);
           console.log('✅ URL signée générée:', signedUrl);
           setIdentityPreviewUrl(signedUrl);
         } catch (error) {
           console.error('❌ Erreur lors du chargement de l\'URL signée:', error);
-          console.log('🔄 Utilisation fallback:', agent.identity_photo);
-          setIdentityPreviewUrl(agent.identity_photo); // Fallback
+          // Fallback vers l'URL publique directe
+          const { data: publicUrl } = supabase.storage
+            .from('id-cards')
+            .getPublicUrl(agent.identity_photo);
+          console.log('🔄 Utilisation fallback public URL:', publicUrl.publicUrl);
+          setIdentityPreviewUrl(publicUrl.publicUrl);
         }
       } else {
         console.log('ℹ️ Aucune photo d\'identité pour cet agent');
@@ -337,21 +342,39 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
 
         {/* Modal de prévisualisation */}
         {showPreview && identityPreviewUrl && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-            <div className="relative max-w-4xl max-h-[90vh] p-4">
-              <img 
-                src={identityPreviewUrl} 
-                alt="Pièce d'identité - Prévisualisation" 
-                className="max-w-full max-h-full object-contain rounded-lg"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowPreview(false)}
-                className="absolute top-2 right-2 bg-white/90 hover:bg-white"
-              >
-                ✕
-              </Button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+            <div className="relative max-w-5xl max-h-[95vh] p-6">
+              <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Pièce d'identité - {agent.full_name}</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPreview(false)}
+                    className="text-white hover:bg-white/20"
+                  >
+                    ✕ Fermer
+                  </Button>
+                </div>
+                <div className="p-6 bg-gray-50">
+                  <img 
+                    src={identityPreviewUrl} 
+                    alt={`Pièce d'identité de ${agent.full_name}`}
+                    className="w-full max-h-[70vh] object-contain rounded-lg border shadow-sm bg-white"
+                    onError={(e) => {
+                      console.error('Erreur de chargement de l\'image:', e);
+                      e.currentTarget.src = '/placeholder.svg';
+                    }}
+                  />
+                </div>
+                <div className="bg-white px-6 py-4 border-t">
+                  <div className="flex gap-4 text-sm text-gray-600">
+                    <span><strong>Agent:</strong> {agent.agent_id}</span>
+                    <span><strong>Téléphone:</strong> {agent.phone}</span>
+                    <span><strong>Pays:</strong> {agent.country}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
