@@ -30,38 +30,30 @@ export const SimpleUsersList = () => {
 
   const loadUsers = async (isAutoRefresh = false) => {
     try {
-      console.log('🚀 DÉBUT loadUsers - Récupération photos id-cards');
+      console.log('🚀 DÉBUT loadUsers - Synchronisation forcée des photos');
       
       if (isAutoRefresh) {
         setRefreshing(true);
       }
       
-      // Récupérer directement les photos depuis le bucket id-cards
-      console.log('📁 Récupération directe du bucket id-cards...');
-      const { data: storageObjects, error: storageError } = await supabase
-        .storage
-        .from('id-cards')
-        .list('', { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
-        
-      if (storageError) {
-        console.error('❌ Erreur récupération bucket id-cards:', storageError);
-      } else {
-        console.log('📁 Objets trouvés dans id-cards:', storageObjects?.length || 0);
-        storageObjects?.forEach(obj => {
-          console.log('📷 Fichier trouvé:', obj.name);
-        });
-      }
-      
-      // Synchroniser les photos d'identité depuis le bucket id-cards
-      console.log('🔄 Synchronisation du bucket id-cards...');
+      // Synchroniser TOUTES les photos depuis le bucket id-cards
+      console.log('🔄 Exécution de la synchronisation complète...');
       try {
-        await supabase.rpc('sync_agent_identity_photos');
-        console.log('✅ Synchronisation id-cards terminée');
+        const { data: syncResults, error: syncError } = await supabase.rpc('sync_all_identity_photos');
+        
+        if (syncError) {
+          console.error('❌ Erreur synchronisation:', syncError);
+        } else {
+          console.log('✅ Synchronisation terminée:', syncResults?.length || 0, 'photos traitées');
+          syncResults?.forEach(result => {
+            console.log(`📷 ${result.sync_status}: ${result.user_id} -> ${result.photo_url}`);
+          });
+        }
       } catch (syncError) {
-        console.warn('⚠️ Erreur synchronisation id-cards (continuons):', syncError);
+        console.warn('⚠️ Erreur synchronisation (continuons):', syncError);
       }
       
-      console.log('📊 REQUÊTE: Chargement TOUS utilisateurs avec photos id-cards...');
+      console.log('📊 REQUÊTE: Chargement TOUS utilisateurs avec photos synchronisées...');
       
       // Requête pour récupérer TOUS les utilisateurs avec leurs photos d'identité
       const { data, error } = await supabase
@@ -75,33 +67,11 @@ export const SimpleUsersList = () => {
         console.error('❌ ERREUR chargement profiles:', error);
         throw error;
       }
-
-      // Enrichir les données avec les URLs directes des photos depuis le bucket
-      if (data && storageObjects) {
-        data.forEach(user => {
-          // Chercher un fichier correspondant à cet utilisateur dans le bucket
-          const userPhoto = storageObjects.find(obj => obj.name.startsWith(user.id + '/'));
-          if (userPhoto) {
-            // Créer l'URL publique directe
-            const { data: { publicUrl } } = supabase.storage
-              .from('id-cards')
-              .getPublicUrl(userPhoto.name);
-            
-            console.log(`🔗 URL générée pour ${user.full_name}:`, publicUrl);
-            
-            // Mettre à jour l'URL de la photo si elle n'existe pas déjà
-            if (!user.id_card_photo_url) {
-              user.id_card_photo_url = publicUrl;
-              console.log(`✨ Photo assignée à ${user.full_name}`);
-            }
-          }
-        });
-      }
       
       const totalUsers = data?.length || 0;
       const usersWithPhotos = data?.filter(u => u.id_card_photo_url && u.id_card_photo_url.trim() !== '').length || 0;
       
-      console.log('📊 STATISTIQUES CHARGEMENT:');
+      console.log('📊 STATISTIQUES APRÈS SYNCHRONISATION:');
       console.log('   👥 Total utilisateurs:', totalUsers);
       console.log('   📸 Avec photos id-cards:', usersWithPhotos);
       
@@ -113,10 +83,8 @@ export const SimpleUsersList = () => {
       const nouveauxAvecPhotos = nouveauxUtilisateurs.filter(u => u.id_card_photo_url).length;
       const anciensAvecPhotos = anciensUtilisateurs.filter(u => u.id_card_photo_url).length;
       
-      console.log('📈 NOUVEAUX utilisateurs (≥2025-08-20):', nouveauxUtilisateurs.length);
-      console.log('   📷 Nouveaux avec photos:', nouveauxAvecPhotos);
-      console.log('📊 ANCIENS utilisateurs (<2025-08-20):', anciensUtilisateurs.length);
-      console.log('   📷 Anciens avec photos:', anciensAvecPhotos);
+      console.log('📈 NOUVEAUX utilisateurs (≥2025-08-20):', nouveauxUtilisateurs.length, '- Photos:', nouveauxAvecPhotos);
+      console.log('📊 ANCIENS utilisateurs (<2025-08-20):', anciensUtilisateurs.length, '- Photos:', anciensAvecPhotos);
       
       // Afficher les détails de chaque utilisateur avec photo
       console.log('🔍 DÉTAIL DES PHOTOS:');

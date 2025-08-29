@@ -2331,6 +2331,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      sync_all_identity_photos: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          photo_url: string
+          sync_status: string
+          user_id: string
+        }[]
+      }
       transfer_monthly_commissions_to_balance: {
         Args: {
           agent_id_param: string
