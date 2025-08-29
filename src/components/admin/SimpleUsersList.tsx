@@ -34,6 +34,11 @@ export const SimpleUsersList = () => {
         setRefreshing(true);
       }
       
+      // D'abord synchroniser les photos d'identité avant de charger
+      if (!isAutoRefresh) {
+        await supabase.rpc('sync_agent_identity_photos');
+      }
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, balance, role, is_verified, created_at, country, address, birth_date, id_card_photo_url')

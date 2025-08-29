@@ -2327,6 +2327,10 @@ export type Database = {
         Args: { p_ip_address?: unknown; p_user_agent?: string }
         Returns: string
       }
+      sync_agent_identity_photos: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       transfer_monthly_commissions_to_balance: {
         Args: {
           agent_id_param: string
