@@ -33,7 +33,9 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
 
   // Charger l'URL de l'image d'identité au montage
   useEffect(() => {
-    const loadImageUrl = async () => {
+    const loadImageUrl = () => {
+      console.log('🔍 Agent data:', agent);
+      
       if (agent.identity_photo) {
         console.log('🔍 Chargement de l\'image pour:', agent.identity_photo);
         
@@ -45,13 +47,16 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
         console.log('✅ URL publique générée:', publicUrl.publicUrl);
         setIdentityPreviewUrl(publicUrl.publicUrl);
       } else {
-        console.log('ℹ️ Aucune photo d\'identité pour cet agent');
+        console.log('ℹ️ Aucune photo d\'identité pour cet agent:', agent.full_name);
         setIdentityPreviewUrl(null);
       }
     };
 
-    loadImageUrl();
-  }, [agent.identity_photo]);
+    // Ajouter un délai pour s'assurer que les données sont chargées
+    const timeoutId = setTimeout(loadImageUrl, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [agent.identity_photo, agent.full_name]);
 
   const ensureBucketsExist = async () => {
     try {
