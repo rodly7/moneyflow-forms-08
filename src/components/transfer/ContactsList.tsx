@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Users, Phone, MapPin, Clock } from "lucide-react";
+import { Users, Phone, MapPin, Clock, Contact2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Contact {
@@ -28,40 +28,120 @@ export const ContactsList = ({ selectedCountry, onContactSelect }: ContactsListP
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [hasContactsPermission, setHasContactsPermission] = useState(false);
 
-  const fetchContacts = async () => {
+  // Fonction pour demander l'accès aux contacts
+  const requestContactsAccess = async () => {
+    try {
+      if ('contacts' in navigator && 'ContactsManager' in window) {
+        // API Contacts moderne (limitée à quelques navigateurs)
+        const contacts = await (navigator as any).contacts.select(['name', 'tel'], { multiple: true });
+        return contacts;
+      } else {
+        // Fallback: utiliser input file pour sélectionner un fichier de contacts
+        console.log("API Contacts non supportée, utilisation d'un fallback");
+        return null;
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'accès aux contacts:", error);
+      return null;
+    }
+  };
+
+  // Fonction pour normaliser les numéros de téléphone
+  const normalizePhoneNumber = (phone: string): string => {
+    return phone.replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
+  };
+
+  // Fonction pour récupérer les contacts du téléphone et vérifier lesquels ont un compte
+  const fetchPhoneContacts = async () => {
     if (!selectedCountry || !profile?.id) return;
 
     setLoading(true);
     try {
-      console.log("🔍 Recherche des contacts pour le pays:", selectedCountry);
+      console.log("📱 Demande d'accès aux contacts du téléphone...");
+
+      // Demander l'accès aux contacts
+      const phoneContacts = await requestContactsAccess();
       
-      // Récupérer les utilisateurs du pays sélectionné (excluant l'utilisateur actuel)
+      if (!phoneContacts || phoneContacts.length === 0) {
+        console.log("Aucun contact trouvé ou accès refusé");
+        // Fallback: afficher tous les utilisateurs du pays comme avant
+        await fetchAllContacts();
+        return;
+      }
+
+      console.log(`📱 ${phoneContacts.length} contacts trouvés dans le téléphone`);
+
+      // Extraire les numéros de téléphone des contacts
+      const phoneNumbers = phoneContacts
+        .filter((contact: any) => contact.tel && contact.tel.length > 0)
+        .map((contact: any) => normalizePhoneNumber(contact.tel[0]))
+        .filter((phone: string) => phone.length >= 8);
+
+      if (phoneNumbers.length === 0) {
+        console.log("Aucun numéro de téléphone valide trouvé");
+        await fetchAllContacts();
+        return;
+      }
+
+      console.log(`🔍 Vérification de ${phoneNumbers.length} numéros dans la base de données...`);
+
+      // Vérifier quels contacts ont un compte dans la base de données
+      const { data: existingUsers, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, country, avatar_url, balance, created_at')
+        .eq('country', selectedCountry)
+        .neq('id', profile.id)
+        .in('phone', phoneNumbers.map(phone => `+${phone}`)); // Ajouter le préfixe +
+
+      if (error) {
+        console.error("❌ Erreur lors de la vérification des contacts:", error);
+        return;
+      }
+
+      console.log(`✅ ${existingUsers?.length || 0} contacts trouvés avec un compte`);
+      setContacts(existingUsers || []);
+      setHasContactsPermission(true);
+    } catch (error) {
+      console.error("❌ Erreur:", error);
+      // En cas d'erreur, utiliser la méthode de fallback
+      await fetchAllContacts();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fonction de fallback pour afficher tous les contacts du pays
+  const fetchAllContacts = async () => {
+    if (!selectedCountry || !profile?.id) return;
+
+    try {
+      console.log("🔍 Recherche de tous les utilisateurs du pays:", selectedCountry);
+      
       const { data: contactsData, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, country, avatar_url, balance, created_at')
         .eq('country', selectedCountry)
-        .neq('id', profile.id) // Exclure l'utilisateur actuel
+        .neq('id', profile.id)
         .order('full_name', { ascending: true })
-        .limit(10); // Limiter à 10 contacts pour la performance
+        .limit(20);
 
       if (error) {
         console.error("❌ Erreur lors de la récupération des contacts:", error);
         return;
       }
 
-      console.log("✅ Contacts trouvés:", contactsData?.length || 0);
+      console.log("✅ Tous les contacts trouvés:", contactsData?.length || 0);
       setContacts(contactsData || []);
     } catch (error) {
       console.error("❌ Erreur:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
     if (selectedCountry) {
-      fetchContacts();
+      fetchPhoneContacts();
     }
   }, [selectedCountry, profile?.id]);
 
@@ -125,10 +205,23 @@ export const ContactsList = ({ selectedCountry, onContactSelect }: ContactsListP
 
         {!loading && contacts.length === 0 && (
           <div className="text-center py-4">
-            <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+            <Contact2 className="w-8 h-8 text-gray-400 mx-auto mb-2" />
             <p className="text-sm text-gray-500">
-              Aucun contact trouvé dans {selectedCountry}
+              {hasContactsPermission 
+                ? "Aucun de vos contacts n'a de compte dans ce pays"
+                : "Aucun utilisateur trouvé dans ce pays"
+              }
             </p>
+            {!hasContactsPermission && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchPhoneContacts}
+                className="mt-2 text-xs"
+              >
+                Vérifier mes contacts
+              </Button>
+            )}
           </div>
         )}
 
