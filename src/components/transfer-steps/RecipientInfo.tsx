@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TransferData } from "@/types/transfer";
 import { UnifiedRecipientSearch } from "@/components/shared/UnifiedRecipientSearch";
+import { ContactsList } from "@/components/transfer/ContactsList";
 import { useState } from "react";
 
 type RecipientInfoProps = TransferData & {
@@ -34,6 +35,19 @@ const RecipientInfo = ({ recipient, updateFields }: RecipientInfoProps) => {
     }
   };
 
+  // Handle contact selection from contacts list
+  const handleContactSelect = (contact: any) => {
+    updateFields({
+      recipient: {
+        ...recipient,
+        fullName: contact.full_name,
+        phone: contact.phone,
+        country: contact.country
+      }
+    });
+    setPhoneInput(contact.phone.replace(/^\+\d+/, '')); // Remove country code for display
+  };
+
   // Handle country change
   const handleCountryChange = (countryName: string) => {
     updateFields({
@@ -47,7 +61,7 @@ const RecipientInfo = ({ recipient, updateFields }: RecipientInfoProps) => {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       {/* Unified Recipient Search */}
       <UnifiedRecipientSearch
         phoneInput={phoneInput}
@@ -59,6 +73,14 @@ const RecipientInfo = ({ recipient, updateFields }: RecipientInfoProps) => {
         showCountrySelector={true}
         required={true}
       />
+
+      {/* Contacts List - Show when country is selected */}
+      {recipient.country && (
+        <ContactsList
+          selectedCountry={recipient.country}
+          onContactSelect={handleContactSelect}
+        />
+      )}
 
       {/* Manual Name Entry if user not found */}
       {phoneInput.length >= 8 && !recipient.fullName && (
