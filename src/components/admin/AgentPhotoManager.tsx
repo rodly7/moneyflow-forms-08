@@ -43,12 +43,23 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
           setIdentityPreviewUrl(signedUrl);
         } catch (error) {
           console.error('❌ Erreur lors du chargement de l\'URL signée:', error);
-          // Fallback vers l'URL publique directe
-          const { data: publicUrl } = supabase.storage
-            .from('id-cards')
-            .getPublicUrl(agent.identity_photo);
-          console.log('🔄 Utilisation fallback public URL:', publicUrl.publicUrl);
-          setIdentityPreviewUrl(publicUrl.publicUrl);
+          try {
+            // Fallback vers l'URL publique directe
+            const { data: publicUrl } = supabase.storage
+              .from('id-cards')
+              .getPublicUrl(agent.identity_photo);
+            console.log('🔄 Utilisation fallback public URL:', publicUrl.publicUrl);
+            setIdentityPreviewUrl(publicUrl.publicUrl);
+          } catch (fallbackError) {
+            console.error('❌ Erreur fallback:', fallbackError);
+            // Si c'est déjà une URL complète, l'utiliser directement
+            if (agent.identity_photo.startsWith('http')) {
+              console.log('🔄 Utilisation URL directe:', agent.identity_photo);
+              setIdentityPreviewUrl(agent.identity_photo);
+            } else {
+              setIdentityPreviewUrl(null);
+            }
+          }
         }
       } else {
         console.log('ℹ️ Aucune photo d\'identité pour cet agent');
@@ -270,6 +281,21 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
                   src={identityPreviewUrl} 
                   alt="Pièce d'identité" 
                   className="w-full max-w-md h-48 object-cover rounded-lg border-2 border-gray-200 shadow-sm"
+                  onError={(e) => {
+                    console.error('Erreur de chargement de l\'image:', e);
+                    e.currentTarget.style.display = 'none';
+                    // Essayer de recharger avec une URL différente si possible
+                    if (agent.identity_photo && !agent.identity_photo.startsWith('http')) {
+                      const { data: publicUrl } = supabase.storage
+                        .from('id-cards')
+                        .getPublicUrl(agent.identity_photo);
+                      e.currentTarget.src = publicUrl.publicUrl;
+                      e.currentTarget.style.display = 'block';
+                    }
+                  }}
+                  onLoad={() => {
+                    console.log('✅ Image chargée avec succès');
+                  }}
                 />
                 <div className="absolute top-2 right-2 flex gap-2">
                   <Button
