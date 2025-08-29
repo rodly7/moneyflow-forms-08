@@ -35,13 +35,19 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
   useEffect(() => {
     const loadSignedUrl = async () => {
       if (agent.identity_photo) {
+        console.log('🔍 Chargement de l\'URL signée pour:', agent.identity_photo);
         try {
           const signedUrl = await storageService.getSignedUrl('id-cards', agent.identity_photo);
+          console.log('✅ URL signée générée:', signedUrl);
           setIdentityPreviewUrl(signedUrl);
         } catch (error) {
-          console.error('Erreur lors du chargement de l\'URL signée:', error);
+          console.error('❌ Erreur lors du chargement de l\'URL signée:', error);
+          console.log('🔄 Utilisation fallback:', agent.identity_photo);
           setIdentityPreviewUrl(agent.identity_photo); // Fallback
         }
+      } else {
+        console.log('ℹ️ Aucune photo d\'identité pour cet agent');
+        setIdentityPreviewUrl(null);
       }
     };
 
