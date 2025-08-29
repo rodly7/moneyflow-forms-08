@@ -25,9 +25,15 @@ export const SimpleUsersList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUserPhoto, setSelectedUserPhoto] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  const loadUsers = async () => {
+  const loadUsers = async (isAutoRefresh = false) => {
     try {
+      if (isAutoRefresh) {
+        setRefreshing(true);
+      }
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, balance, role, is_verified, created_at, country, address, birth_date, id_card_photo_url')
@@ -35,10 +41,18 @@ export const SimpleUsersList = () => {
 
       if (error) throw error;
       setUsers(data || []);
+      setLastUpdate(new Date());
+      
+      if (isAutoRefresh) {
+        console.log('🔄 Auto-refresh utilisateurs:', new Date().toLocaleTimeString());
+      }
     } catch (error) {
       console.error('Erreur chargement utilisateurs:', error);
     } finally {
       setLoading(false);
+      if (isAutoRefresh) {
+        setRefreshing(false);
+      }
     }
   };
 
@@ -65,7 +79,7 @@ export const SimpleUsersList = () => {
     
     // Rafraîchissement automatique toutes les 5 secondes
     const interval = setInterval(() => {
-      loadUsers();
+      loadUsers(true);
     }, 5000);
     
     return () => clearInterval(interval);
@@ -97,7 +111,7 @@ export const SimpleUsersList = () => {
           }}
         />
         <button
-          onClick={loadUsers}
+          onClick={() => loadUsers()}
           style={{
             padding: '10px 15px',
             backgroundColor: '#0066cc',
@@ -109,6 +123,17 @@ export const SimpleUsersList = () => {
         >
           Actualiser
         </button>
+        <div style={{ 
+          fontSize: '12px', 
+          color: refreshing ? '#ff6600' : '#666',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '5px'
+        }}>
+          {refreshing && <span>🔄</span>}
+          Dernière MAJ: {lastUpdate.toLocaleTimeString()}
+          <span style={{ color: '#009900' }}>• Auto-refresh 5s</span>
+        </div>
       </div>
 
       <table style={{ 
