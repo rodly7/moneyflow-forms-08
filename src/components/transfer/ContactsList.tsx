@@ -30,25 +30,77 @@ export const ContactsList = ({ selectedCountry, onContactSelect }: ContactsListP
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasContactsPermission, setHasContactsPermission] = useState(false);
 
-  // Fonction pour demander l'accès aux contacts du téléphone
+  // Fonction pour importer contacts via fichier
+  const importContactsFromFile = () => {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.vcf,.csv';
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const content = event.target?.result as string;
+            const contacts = parseContactsFile(content, file.type);
+            resolve(contacts);
+          };
+          reader.readAsText(file);
+        } else {
+          resolve([]);
+        }
+      };
+      input.click();
+    });
+  };
+
+  // Fonction pour parser le fichier de contacts
+  const parseContactsFile = (content: string, fileType: string) => {
+    const contacts: any[] = [];
+    
+    if (fileType.includes('vcf') || content.includes('BEGIN:VCARD')) {
+      // Parser VCF
+      const vcards = content.split('BEGIN:VCARD');
+      vcards.forEach(vcard => {
+        if (vcard.includes('FN:') && vcard.includes('TEL:')) {
+          const nameMatch = vcard.match(/FN:(.*)/);
+          const telMatch = vcard.match(/TEL[^:]*:(.*)/);
+          if (nameMatch && telMatch) {
+            contacts.push({
+              name: [nameMatch[1].trim()],
+              tel: [telMatch[1].trim()]
+            });
+          }
+        }
+      });
+    }
+    
+    return contacts;
+  };
+
+  // Fonction pour demander l'accès aux contacts
   const requestContactsAccess = async () => {
     try {
-      // Vérifier si l'API Contacts est disponible
+      // 1. Essayer l'API Contacts native (très limitée)
       if ('contacts' in navigator && 'ContactsManager' in window) {
         console.log("📱 API Contacts disponible, demande d'accès...");
-        const contacts = await (navigator as any).contacts.select(['name', 'tel'], { multiple: true });
-        return contacts;
-      } else {
-        console.log("📱 API Contacts non supportée dans ce navigateur");
-        // Pour les navigateurs qui ne supportent pas l'API Contacts
-        // On peut demander à l'utilisateur d'importer manuellement ses contacts
-        return null;
+        try {
+          const contacts = await (navigator as any).contacts.select(['name', 'tel'], { multiple: true });
+          if (contacts && contacts.length > 0) {
+            return contacts;
+          }
+        } catch (error) {
+          console.log("❌ API Contacts échouée:", error);
+        }
       }
+      
+      // 2. Fallback: importer depuis un fichier
+      console.log("📱 Ouverture de l'importation de fichier...");
+      const contacts = await importContactsFromFile();
+      return contacts;
+      
     } catch (error) {
       console.error("❌ Erreur lors de l'accès aux contacts:", error);
-      if (error.name === 'NotAllowedError') {
-        console.log("❌ Accès aux contacts refusé par l'utilisateur");
-      }
       return null;
     }
   };
@@ -211,21 +263,26 @@ export const ContactsList = ({ selectedCountry, onContactSelect }: ContactsListP
         {!loading && contacts.length === 0 && (
           <div className="text-center py-4">
             <Contact2 className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 mb-3">
               {hasContactsPermission 
                 ? "Aucun de vos contacts n'a de compte dans ce pays"
-                : "Aucun utilisateur trouvé dans ce pays"
+                : "Trouvez vos contacts qui ont déjà un compte"
               }
             </p>
             {!hasContactsPermission && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchPhoneContacts}
-                className="mt-2 text-xs"
-              >
-                Vérifier mes contacts
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchPhoneContacts}
+                  className="text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                >
+                  📱 Importer mes contacts
+                </Button>
+                <p className="text-xs text-gray-400">
+                  Importez vos contacts (.vcf) pour voir lesquels ont un compte
+                </p>
+              </div>
             )}
           </div>
         )}
