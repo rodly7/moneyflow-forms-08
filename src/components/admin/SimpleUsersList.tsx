@@ -176,12 +176,27 @@ export const SimpleUsersList = () => {
                     <img 
                       src={user.id_card_photo_url} 
                       alt="Pièce d'identité" 
-                      style={{ width: '40px', height: '30px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
+                      style={{ 
+                        width: '40px', 
+                        height: '30px', 
+                        objectFit: 'cover', 
+                        borderRadius: '4px', 
+                        cursor: 'pointer',
+                        border: '1px solid #ddd'
+                      }}
                       onClick={() => setSelectedUserPhoto({
                         url: user.id_card_photo_url,
                         name: user.full_name || 'Utilisateur',
                         type: 'Pièce d\'identité'
                       })}
+                      onError={(e) => {
+                        console.error('Erreur chargement image:', user.id_card_photo_url);
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling.textContent = '❌ Erreur';
+                      }}
+                      onLoad={() => {
+                        console.log('✅ Image chargée:', user.id_card_photo_url);
+                      }}
                     />
                     <button
                       onClick={() => setSelectedUserPhoto({
@@ -200,6 +215,9 @@ export const SimpleUsersList = () => {
                     >
                       👁️ Voir
                     </button>
+                    <span style={{ fontSize: '10px', color: '#666', display: 'block' }}>
+                      ✅ Photo OK
+                    </span>
                   </div>
                 ) : (
                   <span style={{ fontSize: '11px', color: '#999' }}>Non fournie</span>
