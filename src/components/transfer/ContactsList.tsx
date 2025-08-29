@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Users, Phone, MapPin, Clock, Contact2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Users, Phone, MapPin, Clock, Contact2, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Contact {
@@ -28,153 +29,55 @@ export const ContactsList = ({ selectedCountry, onContactSelect }: ContactsListP
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [hasContactsPermission, setHasContactsPermission] = useState(false);
+  const [searchPhone, setSearchPhone] = useState("");
+  const [searchResults, setSearchResults] = useState<Contact[]>([]);
 
-  // Fonction pour importer contacts via fichier
-  const importContactsFromFile = () => {
-    return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.vcf,.csv';
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const content = event.target?.result as string;
-            const contacts = parseContactsFile(content, file.type);
-            resolve(contacts);
-          };
-          reader.readAsText(file);
-        } else {
-          resolve([]);
-        }
-      };
-      input.click();
-    });
-  };
-
-  // Fonction pour parser le fichier de contacts
-  const parseContactsFile = (content: string, fileType: string) => {
-    const contacts: any[] = [];
-    
-    if (fileType.includes('vcf') || content.includes('BEGIN:VCARD')) {
-      // Parser VCF
-      const vcards = content.split('BEGIN:VCARD');
-      vcards.forEach(vcard => {
-        if (vcard.includes('FN:') && vcard.includes('TEL:')) {
-          const nameMatch = vcard.match(/FN:(.*)/);
-          const telMatch = vcard.match(/TEL[^:]*:(.*)/);
-          if (nameMatch && telMatch) {
-            contacts.push({
-              name: [nameMatch[1].trim()],
-              tel: [telMatch[1].trim()]
-            });
-          }
-        }
-      });
-    }
-    
-    return contacts;
-  };
-
-  // Fonction pour demander l'accès aux contacts
-  const requestContactsAccess = async () => {
-    try {
-      // 1. Essayer l'API Contacts native (très limitée)
-      if ('contacts' in navigator && 'ContactsManager' in window) {
-        console.log("📱 API Contacts disponible, demande d'accès...");
-        try {
-          const contacts = await (navigator as any).contacts.select(['name', 'tel'], { multiple: true });
-          if (contacts && contacts.length > 0) {
-            return contacts;
-          }
-        } catch (error) {
-          console.log("❌ API Contacts échouée:", error);
-        }
-      }
-      
-      // 2. Fallback: importer depuis un fichier
-      console.log("📱 Ouverture de l'importation de fichier...");
-      const contacts = await importContactsFromFile();
-      return contacts;
-      
-    } catch (error) {
-      console.error("❌ Erreur lors de l'accès aux contacts:", error);
-      return null;
-    }
-  };
-
-  // Fonction pour normaliser les numéros de téléphone
-  const normalizePhoneNumber = (phone: string): string => {
-    return phone.replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
-  };
-
-  // Fonction pour récupérer les contacts du téléphone et vérifier lesquels ont un compte
-  const fetchPhoneContacts = async () => {
-    if (!selectedCountry || !profile?.id) return;
+  // Fonction pour rechercher un contact par numéro
+  const searchContactByPhone = async (phone: string) => {
+    if (!phone || phone.length < 8 || !selectedCountry || !profile?.id) return;
 
     setLoading(true);
     try {
-      console.log("📱 Demande d'accès aux contacts du téléphone...");
-
-      // Demander l'accès aux contacts
-      const phoneContacts = await requestContactsAccess();
+      console.log("🔍 Recherche du contact avec le numéro:", phone);
       
-      if (!phoneContacts || phoneContacts.length === 0) {
-        console.log("Aucun contact trouvé ou accès refusé");
-        // Fallback: afficher tous les utilisateurs du pays comme avant
-        await fetchAllContacts();
-        return;
-      }
+      // Normaliser le numéro (enlever espaces, tirets, etc.)
+      const normalizedPhone = phone.replace(/[\s\-\(\)]/g, '');
+      
+      // Rechercher avec et sans le préfixe +
+      const phoneVariants = [
+        normalizedPhone,
+        `+${normalizedPhone}`,
+        normalizedPhone.startsWith('+') ? normalizedPhone.substring(1) : `+${normalizedPhone}`
+      ];
 
-      console.log(`📱 ${phoneContacts.length} contacts trouvés dans le téléphone`);
-
-      // Extraire les numéros de téléphone des contacts
-      const phoneNumbers = phoneContacts
-        .filter((contact: any) => contact.tel && contact.tel.length > 0)
-        .map((contact: any) => normalizePhoneNumber(contact.tel[0]))
-        .filter((phone: string) => phone.length >= 8);
-
-      if (phoneNumbers.length === 0) {
-        console.log("Aucun numéro de téléphone valide trouvé");
-        await fetchAllContacts();
-        return;
-      }
-
-      console.log(`🔍 Vérification de ${phoneNumbers.length} numéros dans la base de données...`);
-
-      // Vérifier quels contacts ont un compte dans la base de données
-      const { data: existingUsers, error } = await supabase
+      const { data: foundContacts, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, country, avatar_url, balance, created_at')
         .eq('country', selectedCountry)
         .neq('id', profile.id)
-        .in('phone', phoneNumbers.map(phone => `+${phone}`)); // Ajouter le préfixe +
+        .in('phone', phoneVariants);
 
       if (error) {
-        console.error("❌ Erreur lors de la vérification des contacts:", error);
+        console.error("❌ Erreur lors de la recherche:", error);
         return;
       }
 
-      console.log(`✅ ${existingUsers?.length || 0} contacts trouvés avec un compte`);
-      setContacts(existingUsers || []);
-      setHasContactsPermission(true);
+      console.log(`✅ ${foundContacts?.length || 0} contact(s) trouvé(s)`);
+      setSearchResults(foundContacts || []);
     } catch (error) {
       console.error("❌ Erreur:", error);
-      // En cas d'erreur, utiliser la méthode de fallback
-      await fetchAllContacts();
     } finally {
       setLoading(false);
     }
   };
 
-  // Fonction de fallback pour afficher tous les contacts du pays
+  // Fonction pour récupérer tous les utilisateurs du pays
   const fetchAllContacts = async () => {
     if (!selectedCountry || !profile?.id) return;
 
+    setLoading(true);
     try {
-      console.log("🔍 Recherche de tous les utilisateurs du pays:", selectedCountry);
+      console.log("🔍 Chargement des utilisateurs du pays:", selectedCountry);
       
       const { data: contactsData, error } = await supabase
         .from('profiles')
@@ -189,16 +92,31 @@ export const ContactsList = ({ selectedCountry, onContactSelect }: ContactsListP
         return;
       }
 
-      console.log("✅ Tous les contacts trouvés:", contactsData?.length || 0);
+      console.log("✅ Contacts chargés:", contactsData?.length || 0);
       setContacts(contactsData || []);
     } catch (error) {
       console.error("❌ Erreur:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Gérer la recherche en temps réel
+  useEffect(() => {
+    if (searchPhone.length >= 8) {
+      const timeoutId = setTimeout(() => {
+        searchContactByPhone(searchPhone);
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchPhone, selectedCountry, profile?.id]);
+
+  // Charger les contacts par défaut
   useEffect(() => {
     if (selectedCountry) {
-      fetchPhoneContacts();
+      fetchAllContacts();
     }
   }, [selectedCountry, profile?.id]);
 
@@ -253,6 +171,25 @@ export const ContactsList = ({ selectedCountry, onContactSelect }: ContactsListP
       </CardHeader>
 
       <CardContent className="pt-0">
+        {/* Barre de recherche par numéro */}
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <Input
+              type="tel"
+              placeholder="Rechercher par numéro (ex: +221773637752)"
+              value={searchPhone}
+              onChange={(e) => setSearchPhone(e.target.value)}
+              className="pl-10 text-sm border-blue-200 focus:border-blue-400 focus:ring-blue-200"
+            />
+          </div>
+          {searchPhone.length > 0 && searchPhone.length < 8 && (
+            <p className="text-xs text-gray-500 mt-1">
+              Entrez au moins 8 chiffres pour rechercher
+            </p>
+          )}
+        </div>
+
         {loading && (
           <div className="flex items-center justify-center py-4">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -260,100 +197,147 @@ export const ContactsList = ({ selectedCountry, onContactSelect }: ContactsListP
           </div>
         )}
 
-        {!loading && contacts.length === 0 && (
+        {/* Résultats de recherche */}
+        {searchPhone.length >= 8 && !loading && (
+          <div className="mb-4">
+            <h4 className="text-sm font-medium text-blue-900 mb-2">
+              Résultats de recherche
+            </h4>
+            {searchResults.length === 0 ? (
+              <div className="text-center py-3 text-sm text-gray-500 bg-gray-50 rounded-lg">
+                Aucun contact trouvé avec ce numéro
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {searchResults.map((contact) => (
+                  <div 
+                    key={contact.id}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-200 hover:bg-green-100 cursor-pointer transition-all duration-200 group"
+                    onClick={() => onContactSelect(contact)}
+                  >
+                    <Avatar className="h-10 w-10 border-2 border-green-300">
+                      <AvatarImage src={contact.avatar_url} />
+                      <AvatarFallback className="bg-green-100 text-green-700 text-sm font-medium">
+                        {getInitials(contact.full_name || "User")}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-green-900 text-sm">
+                        {contact.full_name || "Utilisateur"}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1 text-xs text-green-700">
+                          <Phone className="w-3 h-3" />
+                          {formatPhone(contact.phone)}
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-green-600">
+                          <MapPin className="w-3 h-3" />
+                          {contact.country}
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="text-xs h-7 px-3 border-green-300 text-green-700 hover:bg-green-100"
+                    >
+                      Sélectionner
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Separator className="my-4 bg-blue-100" />
+          </div>
+        )}
+
+        {/* Liste des contacts du pays */}
+        {!loading && contacts.length === 0 && searchPhone.length < 8 && (
           <div className="text-center py-4">
             <Contact2 className="w-8 h-8 text-gray-400 mx-auto mb-2" />
             <p className="text-sm text-gray-500 mb-3">
-              {hasContactsPermission 
-                ? "Aucun de vos contacts n'a de compte dans ce pays"
-                : "Trouvez vos contacts qui ont déjà un compte"
-              }
+              Aucun utilisateur trouvé dans ce pays
             </p>
-            {!hasContactsPermission && (
-              <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={fetchPhoneContacts}
-                  className="text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                >
-                  📱 Importer mes contacts
-                </Button>
-                <p className="text-xs text-gray-400">
-                  Importez vos contacts (.vcf) pour voir lesquels ont un compte
-                </p>
-              </div>
-            )}
+            <p className="text-xs text-gray-400">
+              Utilisez la recherche ci-dessus pour trouver un contact spécifique
+            </p>
           </div>
         )}
 
         {!loading && contacts.length > 0 && (
-          <div className="space-y-2">
-            {displayedContacts.map((contact, index) => (
-              <div key={contact.id}>
-                <div 
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/80 cursor-pointer transition-all duration-200 group border border-transparent hover:border-blue-200"
-                  onClick={() => onContactSelect(contact)}
-                >
-                  <Avatar className="h-10 w-10 border-2 border-blue-200">
-                    <AvatarImage src={contact.avatar_url} />
-                    <AvatarFallback className="bg-blue-100 text-blue-700 text-sm font-medium">
-                      {getInitials(contact.full_name || "User")}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-gray-900 text-sm truncate group-hover:text-blue-700 transition-colors">
-                        {contact.full_name || "Utilisateur"}
-                      </h4>
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <Clock className="w-3 h-3" />
-                        {getRelativeTime(contact.created_at)}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex items-center gap-1 text-xs text-gray-600">
-                        <Phone className="w-3 h-3" />
-                        {formatPhone(contact.phone)}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <MapPin className="w-3 h-3" />
-                        {contact.country}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-xs h-7 px-3 border-blue-200 text-blue-600 hover:bg-blue-50"
+          <div>
+            <h4 className="text-sm font-medium text-blue-900 mb-3">
+              Autres utilisateurs dans {selectedCountry}
+            </h4>
+            <div className="space-y-2">
+              {(isExpanded ? contacts : contacts.slice(0, 3)).map((contact, index) => (
+                <div key={contact.id}>
+                  <div 
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/80 cursor-pointer transition-all duration-200 group border border-transparent hover:border-blue-200"
+                    onClick={() => onContactSelect(contact)}
                   >
-                    Sélectionner
+                    <Avatar className="h-10 w-10 border-2 border-blue-200">
+                      <AvatarImage src={contact.avatar_url} />
+                      <AvatarFallback className="bg-blue-100 text-blue-700 text-sm font-medium">
+                        {getInitials(contact.full_name || "User")}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-gray-900 text-sm truncate group-hover:text-blue-700 transition-colors">
+                          {contact.full_name || "Utilisateur"}
+                        </h4>
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <Clock className="w-3 h-3" />
+                          {getRelativeTime(contact.created_at)}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1 text-xs text-gray-600">
+                          <Phone className="w-3 h-3" />
+                          {formatPhone(contact.phone)}
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <MapPin className="w-3 h-3" />
+                          {contact.country}
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-xs h-7 px-3 border-blue-200 text-blue-600 hover:bg-blue-50"
+                    >
+                      Sélectionner
+                    </Button>
+                  </div>
+                  {index < (isExpanded ? contacts : contacts.slice(0, 3)).length - 1 && (
+                    <Separator className="my-2 bg-blue-100" />
+                  )}
+                </div>
+              ))}
+
+              {contacts.length > 3 && (
+                <div className="pt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="w-full text-blue-600 hover:bg-blue-50 text-xs h-8"
+                  >
+                    {isExpanded 
+                      ? `Voir moins` 
+                      : `Voir ${contacts.length - 3} autres contacts`
+                    }
                   </Button>
                 </div>
-                {index < displayedContacts.length - 1 && (
-                  <Separator className="my-2 bg-blue-100" />
-                )}
-              </div>
-            ))}
-
-            {contacts.length > 3 && (
-              <div className="pt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="w-full text-blue-600 hover:bg-blue-50 text-xs h-8"
-                >
-                  {isExpanded 
-                    ? `Voir moins` 
-                    : `Voir ${contacts.length - 3} autres contacts`
-                  }
-                </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </CardContent>
