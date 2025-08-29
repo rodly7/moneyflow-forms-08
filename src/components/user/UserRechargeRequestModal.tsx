@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Wallet, CreditCard, Send, ArrowLeft } from 'lucide-react';
+import { Wallet, CreditCard, Send, ArrowLeft, Copy, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 type OperationType = 'recharge' | 'withdrawal';
@@ -17,12 +17,12 @@ type StepType = 'operation' | 'details' | 'confirmation';
 // Configuration des numéros de paiement par pays
 const PAYMENT_CONFIG = {
   'Congo Brazzaville': {
-    'Mobile Money': '+242066164686',
-    'Airtel Money': '+242055524407'
+    'Mobile Money': { number: '+242066164686', ussd: '*126#', appUrl: null },
+    'Airtel Money': { number: '+242055524407', ussd: '*177#', appUrl: null }
   },
   'Sénégal': {
-    'Wave': '780192989',
-    'Orange Money': '774596609'
+    'Wave': { number: '780192989', ussd: null, appUrl: 'wave://send' },
+    'Orange Money': { number: '774596609', ussd: '#150#', appUrl: null }
   }
 };
 
@@ -55,14 +55,43 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
     return Object.keys(PAYMENT_CONFIG[userCountry as keyof typeof PAYMENT_CONFIG]);
   };
 
-  // Get payment phone number based on country and method
-  const getPaymentPhone = () => {
+  // Get payment config based on country and method
+  const getPaymentConfig = () => {
     const userCountry = profile?.country;
     if (!userCountry || !paymentMethod || !PAYMENT_CONFIG[userCountry as keyof typeof PAYMENT_CONFIG]) {
-      return '';
+      return null;
     }
     const countryConfig = PAYMENT_CONFIG[userCountry as keyof typeof PAYMENT_CONFIG];
-    return countryConfig[paymentMethod as keyof typeof countryConfig] || '';
+    return countryConfig[paymentMethod as keyof typeof countryConfig] || null;
+  };
+
+  // Copy phone number to clipboard
+  const copyPhoneNumber = async () => {
+    const config = getPaymentConfig();
+    if (config?.number) {
+      await navigator.clipboard.writeText(config.number);
+      toast.success('Numéro copié dans le presse-papiers');
+    }
+  };
+
+  // Redirect to operator app/USSD
+  const redirectToOperator = () => {
+    const config = getPaymentConfig();
+    if (!config) return;
+
+    if (config.appUrl) {
+      // Ouvrir l'application (Wave)
+      window.open(config.appUrl, '_blank');
+      toast.success('Redirection vers l\'application...');
+    } else if (config.ussd) {
+      // Composer le code USSD
+      window.location.href = `tel:${config.ussd}`;
+      toast.success('Redirection vers le code USSD...');
+    } else {
+      // Fallback: composer le numéro
+      window.location.href = `tel:${config.number}`;
+      toast.success('Redirection vers l\'appel...');
+    }
   };
 
   const handleOperationSelect = (operation: OperationType) => {
@@ -76,8 +105,8 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
       return;
     }
 
-    const paymentPhone = getPaymentPhone();
-    if (!paymentPhone) {
+    const config = getPaymentConfig();
+    if (!config?.number) {
       toast.error('Numéro de paiement non configuré pour ce mode de paiement');
       return;
     }
@@ -92,13 +121,19 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
           operation_type: selectedOperation,
           amount: parseFloat(amount),
           payment_method: paymentMethod,
-          payment_phone: paymentPhone,
+          payment_phone: config.number,
           status: 'pending'
         });
 
       if (error) throw error;
 
       toast.success(`Demande de ${selectedOperation === 'recharge' ? 'recharge' : 'retrait'} envoyée avec succès`);
+      
+      // Rediriger vers l'opérateur après envoi de la demande
+      setTimeout(() => {
+        redirectToOperator();
+      }, 1000);
+      
       setIsOpen(false);
     } catch (error) {
       console.error('Erreur lors de l\'envoi de la demande:', error);
@@ -141,7 +176,7 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
 
   const renderDetailsForm = () => {
     const paymentMethods = getPaymentMethods();
-    const selectedPaymentPhone = getPaymentPhone();
+    const config = getPaymentConfig();
     
     return (
       <div className="space-y-4">
@@ -184,22 +219,55 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
             </Select>
           </div>
 
-          {selectedPaymentPhone && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-900 mb-2">📱 Numéro de paiement</h4>
-              <p className="text-blue-800 font-mono text-lg">{selectedPaymentPhone}</p>
-              <p className="text-sm text-blue-600 mt-1">
-                Utilisez ce numéro pour votre {paymentMethod}
-              </p>
+          {config && (
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-green-900">📱 Numéro de paiement</h4>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={copyPhoneNumber}
+                  className="h-8"
+                >
+                  <Copy className="w-3 h-3 mr-1" />
+                  Copier
+                </Button>
+              </div>
+              
+              <div className="bg-white rounded-lg p-3 mb-3">
+                <p className="text-center font-mono text-xl font-bold text-green-800">
+                  {config.number}
+                </p>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                <p className="text-sm text-yellow-800 font-medium">
+                  💡 <strong>Instructions:</strong>
+                </p>
+                <p className="text-sm text-yellow-700 mt-1">
+                  1. Le numéro est automatiquement copié<br/>
+                  2. Faites un dépôt de <strong>{amount || '0'} FCFA</strong> vers ce numéro<br/>
+                  3. Confirmez votre demande ci-dessous
+                </p>
+              </div>
+
+              <Button 
+                variant="outline" 
+                onClick={redirectToOperator}
+                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Ouvrir {paymentMethod}
+              </Button>
             </div>
           )}
 
           <Button 
             onClick={() => setCurrentStep('confirmation')}
-            className="w-full"
+            className="w-full bg-green-600 hover:bg-green-700"
             disabled={!amount || !paymentMethod}
           >
-            Continuer
+            Continuer vers la confirmation
           </Button>
         </div>
       </div>
@@ -207,7 +275,7 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
   };
 
   const renderConfirmation = () => {
-    const selectedPaymentPhone = getPaymentPhone();
+    const config = getPaymentConfig();
     
     return (
       <div className="space-y-4">
@@ -238,29 +306,36 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
               </div>
               <div className="flex justify-between">
                 <span>Numéro:</span>
-                <span className="font-medium font-mono">{selectedPaymentPhone}</span>
+                <span className="font-medium font-mono">{config?.number}</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-semibold text-blue-900 mb-2">💡 Information importante</h4>
-          <p className="text-sm text-blue-800">
-            {selectedOperation === 'recharge' 
-              ? `Votre demande de recharge sera traitée par un administrateur. Effectuez le paiement au numéro ${selectedPaymentPhone} et vous serez notifié une fois la transaction validée.`
-              : `Assurez-vous d'avoir suffisamment de solde sur votre compte pour effectuer ce retrait. L'argent sera envoyé au numéro ${selectedPaymentPhone}.`
-            }
+        <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4">
+          <h4 className="font-semibold text-orange-900 mb-2">⚠️ Avant de confirmer</h4>
+          <div className="text-sm text-orange-800 space-y-1">
+            <p>✅ J'ai fait le dépôt de <strong>{parseFloat(amount).toLocaleString()} FCFA</strong></p>
+            <p>✅ Le numéro utilisé est: <strong>{config?.number}</strong></p>
+            <p>✅ Ma demande sera traitée par un administrateur</p>
+          </div>
+        </div>
+
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <h4 className="font-semibold text-green-900 mb-2">🚀 Après confirmation</h4>
+          <p className="text-sm text-green-800">
+            Vous serez automatiquement redirigé vers votre application {paymentMethod} 
+            pour finaliser le paiement si nécessaire.
           </p>
         </div>
 
         <Button 
           onClick={handleSubmitRequest}
-          className="w-full"
+          className="w-full bg-green-600 hover:bg-green-700"
           disabled={isSubmitting}
         >
           <Send className="w-4 h-4 mr-2" />
-          {isSubmitting ? 'Envoi en cours...' : 'Envoyer la demande'}
+          {isSubmitting ? 'Envoi en cours...' : 'Confirmer et rediriger'}
         </Button>
       </div>
     );
