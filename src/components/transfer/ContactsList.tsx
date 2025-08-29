@@ -154,9 +154,6 @@ export const ContactsList = ({ selectedCountry, onContactSelect }: ContactsListP
               <Users className="w-4 h-4 text-blue-600" />
             </div>
             <div>
-              <CardTitle className="text-sm font-semibold text-blue-900">
-                Contacts disponibles
-              </CardTitle>
               <p className="text-xs text-blue-600">
                 Utilisateurs dans {selectedCountry}
               </p>
