@@ -31,43 +31,26 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
   const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
 
-  // Charger l'URL signée pour l'image d'identité au montage
+  // Charger l'URL de l'image d'identité au montage
   useEffect(() => {
-    const loadSignedUrl = async () => {
+    const loadImageUrl = async () => {
       if (agent.identity_photo) {
-        console.log('🔍 Chargement de l\'URL signée pour:', agent.identity_photo);
-        try {
-          // Essayer d'abord l'URL signée
-          const signedUrl = await storageService.getSignedUrl('id-cards', agent.identity_photo);
-          console.log('✅ URL signée générée:', signedUrl);
-          setIdentityPreviewUrl(signedUrl);
-        } catch (error) {
-          console.error('❌ Erreur lors du chargement de l\'URL signée:', error);
-          try {
-            // Fallback vers l'URL publique directe
-            const { data: publicUrl } = supabase.storage
-              .from('id-cards')
-              .getPublicUrl(agent.identity_photo);
-            console.log('🔄 Utilisation fallback public URL:', publicUrl.publicUrl);
-            setIdentityPreviewUrl(publicUrl.publicUrl);
-          } catch (fallbackError) {
-            console.error('❌ Erreur fallback:', fallbackError);
-            // Si c'est déjà une URL complète, l'utiliser directement
-            if (agent.identity_photo.startsWith('http')) {
-              console.log('🔄 Utilisation URL directe:', agent.identity_photo);
-              setIdentityPreviewUrl(agent.identity_photo);
-            } else {
-              setIdentityPreviewUrl(null);
-            }
-          }
-        }
+        console.log('🔍 Chargement de l\'image pour:', agent.identity_photo);
+        
+        // Maintenant que le bucket est public, utiliser directement l'URL publique
+        const { data: publicUrl } = supabase.storage
+          .from('id-cards')
+          .getPublicUrl(agent.identity_photo);
+        
+        console.log('✅ URL publique générée:', publicUrl.publicUrl);
+        setIdentityPreviewUrl(publicUrl.publicUrl);
       } else {
         console.log('ℹ️ Aucune photo d\'identité pour cet agent');
         setIdentityPreviewUrl(null);
       }
     };
 
-    loadSignedUrl();
+    loadImageUrl();
   }, [agent.identity_photo]);
 
   const ensureBucketsExist = async () => {
@@ -279,22 +262,18 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
               <div className="relative">
                 <img 
                   src={identityPreviewUrl} 
-                  alt="Pièce d'identité" 
+                  alt={`Pièce d'identité de ${agent.full_name}`}
                   className="w-full max-w-md h-48 object-cover rounded-lg border-2 border-gray-200 shadow-sm"
                   onError={(e) => {
-                    console.error('Erreur de chargement de l\'image:', e);
-                    e.currentTarget.style.display = 'none';
-                    // Essayer de recharger avec une URL différente si possible
-                    if (agent.identity_photo && !agent.identity_photo.startsWith('http')) {
-                      const { data: publicUrl } = supabase.storage
-                        .from('id-cards')
-                        .getPublicUrl(agent.identity_photo);
-                      e.currentTarget.src = publicUrl.publicUrl;
-                      e.currentTarget.style.display = 'block';
-                    }
+                    console.error('❌ Erreur de chargement de l\'image:', e);
+                    console.error('URL qui a échoué:', e.currentTarget.src);
+                    
+                    // Afficher une image de placeholder à la place
+                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vbiBkaXNwb25pYmxlPC90ZXh0Pjwvc3ZnPg==';
+                    e.currentTarget.className = "w-full max-w-md h-48 object-contain rounded-lg border-2 border-red-200 shadow-sm bg-gray-100";
                   }}
                   onLoad={() => {
-                    console.log('✅ Image chargée avec succès');
+                    console.log('✅ Image chargée avec succès pour:', agent.full_name);
                   }}
                 />
                 <div className="absolute top-2 right-2 flex gap-2">
@@ -317,6 +296,14 @@ const AgentPhotoManager = ({ agent, onPhotoUpdated }: AgentPhotoManagerProps) =>
                   </Button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Message si pas de photo */}
+          {!identityPreviewUrl && (
+            <div className="text-center py-8 text-gray-500">
+              <FileImage className="w-16 h-16 mx-auto mb-2 text-gray-300" />
+              <p>Aucune pièce d'identité disponible pour cet agent</p>
             </div>
           )}
 
