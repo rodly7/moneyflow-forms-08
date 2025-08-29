@@ -107,20 +107,32 @@ export const SimpleUsersList = () => {
   };
 
   useEffect(() => {
+    console.log('🎯 SimpleUsersList - useEffect MOUNT');
     loadUsers();
     
     // Rafraîchissement automatique toutes les 5 secondes
     const interval = setInterval(() => {
+      console.log('⏰ Auto-refresh déclenché');
       loadUsers(true);
     }, 5000);
     
-    return () => clearInterval(interval);
+    return () => {
+      console.log('🎯 SimpleUsersList - useEffect UNMOUNT');
+      clearInterval(interval);
+    };
   }, []);
 
   const filteredUsers = users.filter(user => 
     user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.phone?.includes(searchTerm)
   );
+
+  console.log('🔍 FILTRAGE:', {
+    totalUsers: users.length,
+    filteredUsers: filteredUsers.length,
+    searchTerm,
+    usersWithPhotos: filteredUsers.filter(u => u.id_card_photo_url).length
+  });
 
   if (loading) {
     return <div style={{ padding: '20px' }}>Chargement des utilisateurs...</div>;
