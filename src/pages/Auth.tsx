@@ -135,7 +135,7 @@ const Auth = () => {
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="+221 XX XXX XX XX"
+                  placeholder="XX XXX XX XX"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   required
