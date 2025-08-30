@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Phone, Clock, Navigation } from 'lucide-react';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useActiveAgentLocations } from '@/hooks/useAgentLocations';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -19,6 +20,7 @@ interface NearbyAgent {
 }
 
 const NearbyAgents: React.FC = () => {
+  const { profile } = useAuth();
   const { location, startTracking, isTracking, error } = useGeolocation();
   const { data: agents = [], isLoading } = useActiveAgentLocations();
   const [nearbyAgents, setNearbyAgents] = useState<NearbyAgent[]>([]);
@@ -84,6 +86,11 @@ const NearbyAgents: React.FC = () => {
     }
     return `${distance.toFixed(1)}km`;
   };
+
+  // Ne pas afficher pour les agents (ils ont leur propre interface)
+  if (profile?.role === 'agent') {
+    return null;
+  }
 
   if (!isTracking && !location) {
     return (

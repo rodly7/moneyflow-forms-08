@@ -13,7 +13,7 @@ import CompactActionGrid from '@/components/dashboard/CompactActionGrid';
 import CompactStatsGrid from '@/components/dashboard/CompactStatsGrid';
 import ReliableTransactionsCard from '@/components/dashboard/ReliableTransactionsCard';
 import MobileDashboard from '@/components/mobile/MobileDashboard';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { User, Wallet, Plus, Minus, QrCode, History, CreditCard, PiggyBank } from 'lucide-react';
 // import { useTransferNotifications } from '@/hooks/useTransferNotifications'; // Désactivé - utilise UnifiedNotificationBell à la place
 
@@ -129,22 +129,23 @@ const Dashboard = () => {
     await Promise.all([refetchProfile(), refetchBalance()]);
   };
 
-  const isLoading = isProfileLoading || isBalanceLoading;
-
   // NOW we can do conditional returns after ALL hooks have been called
   // Check user role and redirect to appropriate dashboard if needed
-  if (profile?.role === 'admin') {
-    navigate('/admin-dashboard');
-    return null;
-  }
   
-  if (profile?.role === 'sub_admin') {
-    navigate('/sub-admin-dashboard');
-    return null;
-  }
+  // Force immediate navigation for agents to their dashboard
+  useEffect(() => {
+    if (profile?.role === 'agent') {
+      console.log('🚀 Agent détecté - Redirection vers agent-dashboard');
+      navigate('/agent-dashboard', { replace: true });
+    } else if (profile?.role === 'admin') {
+      navigate('/admin-dashboard', { replace: true });
+    } else if (profile?.role === 'sub_admin') {
+      navigate('/sub-admin-dashboard', { replace: true });
+    }
+  }, [profile?.role, navigate]);
   
-  if (profile?.role === 'agent') {
-    navigate('/agent-dashboard');
+  // Don't render anything if we need to redirect
+  if (profile?.role === 'admin' || profile?.role === 'sub_admin' || profile?.role === 'agent') {
     return null;
   }
 
