@@ -17,15 +17,12 @@ const AgentDailyQuota: React.FC = () => {
   useEffect(() => {
     const fetchQuotaStatus = async () => {
       if (!user?.id) {
-        console.log('AgentDailyQuota: Pas d\'ID utilisateur');
         return;
       }
       
       try {
         setLoading(true);
-        console.log('AgentDailyQuota: Récupération du quota pour l\'agent:', user.id);
         const data = await getAgentQuotaStatus(user.id);
-        console.log('AgentDailyQuota: Données quota reçues:', data);
         setQuotaData(data);
       } catch (error) {
         console.error('AgentDailyQuota: Erreur lors de la récupération du quota:', error);
@@ -35,7 +32,7 @@ const AgentDailyQuota: React.FC = () => {
     };
 
     fetchQuotaStatus();
-  }, [user?.id, getAgentQuotaStatus]);
+  }, [user?.id]);
 
   if (loading) {
     return (
