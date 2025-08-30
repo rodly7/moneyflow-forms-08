@@ -25,6 +25,8 @@ const Auth = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPWAInstall, setShowPWAInstall] = useState(false);
   const [pwaInstallComplete, setPWAInstallComplete] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
     // Vérifier si l'application doit être installée sur mobile
@@ -56,17 +58,35 @@ const Auth = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isBlocked) {
+      toast.error('Trop de tentatives échouées. Veuillez vous rendre en agence avec votre pièce d\'identité pour réinitialiser votre mot de passe.');
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
       await signIn(phone, password);
+      
+      // Réinitialiser les tentatives échouées en cas de succès
+      setFailedAttempts(0);
+      setIsBlocked(false);
       
       // Stocker le numéro de téléphone après connexion réussie
       authStorageService.storePhoneNumber(phone);
       
       toast.success('Connexion réussie !');
     } catch (error: any) {
-      toast.error(error.message || 'Erreur de connexion');
+      const newFailedAttempts = failedAttempts + 1;
+      setFailedAttempts(newFailedAttempts);
+      
+      if (newFailedAttempts >= 3) {
+        setIsBlocked(true);
+        toast.error('Trop de tentatives échouées. Veuillez vous rendre en agence avec votre pièce d\'identité pour réinitialiser votre mot de passe.');
+      } else {
+        toast.error(`${error.message || 'Erreur de connexion'} (Tentative ${newFailedAttempts}/3)`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -131,12 +151,22 @@ const Auth = () => {
                   required
                 />
               </div>
+              {isBlocked && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                  <p className="text-red-800 text-sm font-medium">
+                    Accès temporairement bloqué
+                  </p>
+                  <p className="text-red-700 text-sm mt-1">
+                    Veuillez vous rendre en agence avec votre pièce d'identité pour réinitialiser votre mot de passe.
+                  </p>
+                </div>
+              )}
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isSubmitting}
+                disabled={isSubmitting || isBlocked}
               >
-                {isSubmitting ? 'Connexion...' : 'Se connecter'}
+                {isSubmitting ? 'Connexion...' : isBlocked ? 'Compte bloqué' : 'Se connecter'}
               </Button>
             </form>
           ) : (
