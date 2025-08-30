@@ -21,6 +21,7 @@ import { UserSettingsModal } from "@/components/settings/UserSettingsModal";
 import { useAutoBalanceRefresh } from "@/hooks/useAutoBalanceRefresh";
 import { toast } from "sonner";
 import RechargeAccountButton from "@/components/dashboard/RechargeAccountButton";
+import NearbyAgents from "@/components/user/NearbyAgents";
 
 const MobileDashboard: React.FC = () => {
   const { user, profile, signOut } = useAuth();
@@ -203,6 +204,11 @@ const MobileDashboard: React.FC = () => {
       {/* Transactions récentes */}
       <div className="px-6 mt-6">
         <EnhancedTransactionsCard />
+      </div>
+
+      {/* Agents à proximité */}
+      <div className="px-6 mt-6">
+        <NearbyAgents />
       </div>
 
       {/* Section Paramètres - S'étend jusqu'en bas */}
