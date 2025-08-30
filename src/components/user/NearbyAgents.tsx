@@ -41,22 +41,34 @@ const NearbyAgents: React.FC = () => {
   };
 
   useEffect(() => {
+    console.log('🗺️ NearbyAgents - Calcul des distances:', {
+      hasLocation: !!location,
+      agentsCount: agents.length,
+      location: location ? { lat: location.latitude, lng: location.longitude } : null
+    });
+    
     if (location && agents.length > 0) {
+      console.log('📏 Calcul des distances pour', agents.length, 'agents');
+      
       const agentsWithDistance = agents
-        .map(agent => ({
-          ...agent,
-          distance: calculateDistance(
+        .map(agent => {
+          const distance = calculateDistance(
             location.latitude,
             location.longitude,
             agent.latitude,
             agent.longitude
-          )
-        }))
+          );
+          console.log(`📍 Agent ${agent.agent_name || 'Anonyme'}: ${distance.toFixed(2)}km`);
+          return { ...agent, distance };
+        })
         .filter(agent => agent.distance <= 10) // Agents dans un rayon de 10km
         .sort((a, b) => a.distance - b.distance) // Trier par distance croissante
         .slice(0, 5); // Limiter à 5 agents
 
+      console.log('✅ Agents proches trouvés:', agentsWithDistance.length);
       setNearbyAgents(agentsWithDistance);
+    } else {
+      console.log('❌ Pas de calcul possible:', { hasLocation: !!location, agentsCount: agents.length });
     }
   }, [location, agents]);
 

@@ -105,11 +105,16 @@ export const useGeolocation = (): UseGeolocationReturn => {
   };
 
   const updateLocation = async () => {
+    console.log('📍 Tentative de récupération de la position...');
+    
     try {
       const position = await getCurrentPosition();
       const { latitude, longitude } = position.coords;
       
+      console.log('✅ Position obtenue:', { latitude, longitude });
+      
       const address = await getAddressFromCoordinates(latitude, longitude);
+      console.log('🏠 Adresse récupérée:', address);
       
       const locationData: LocationData = {
         latitude,
@@ -123,27 +128,35 @@ export const useGeolocation = (): UseGeolocationReturn => {
 
       // Save to database if user is an agent
       if (profile?.role === 'agent') {
+        console.log('👮‍♂️ Agent détecté - Sauvegarde en base de données');
         await saveLocationToDatabase(locationData);
+      } else {
+        console.log('👤 Utilisateur non-agent, pas de sauvegarde');
       }
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error('❌ Erreur géolocalisation:', err);
       setError(errorMessage);
-      console.error('Geolocation error:', err);
     }
   };
 
   const startTracking = () => {
+    console.log('🎯 Début de startTracking - Vérification du navigateur');
+    
     if (!navigator.geolocation) {
-      setError('Geolocation is not supported by this browser.');
+      const errorMsg = 'La géolocalisation n\'est pas supportée par ce navigateur';
+      console.error('❌', errorMsg);
+      setError(errorMsg);
       toast({
         title: "Erreur",
-        description: "La géolocalisation n'est pas supportée par ce navigateur",
+        description: errorMsg,
         variant: "destructive"
       });
       return;
     }
 
+    console.log('✅ Navigateur supporte la géolocalisation - Activation du tracking');
     setIsTracking(true);
     updateLocation(); // Get initial position
 
@@ -179,10 +192,17 @@ export const useGeolocation = (): UseGeolocationReturn => {
 
   // Auto-start tracking for agents
   useEffect(() => {
+    console.log('🔍 Géolocalisation - Vérification du profil:', { 
+      role: profile?.role, 
+      isTracking, 
+      user: user?.id 
+    });
+    
     if (profile?.role === 'agent' && !isTracking) {
+      console.log('🚀 Agent détecté - Démarrage automatique de la géolocalisation');
       startTracking();
     }
-  }, [profile?.role]);
+  }, [profile?.role, isTracking]);
 
   return {
     location,
