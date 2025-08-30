@@ -7,6 +7,7 @@ import { authService } from '@/services/authService';
 import { useUserSession } from '@/hooks/useUserSession';
 import SessionManager from '@/components/SessionManager';
 import RequiredFieldsModal from '@/components/auth/RequiredFieldsModal';
+import { PinSetupModal } from '@/components/auth/PinSetupModal';
 import { toast } from 'sonner';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,6 +17,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showRequiredFieldsModal, setShowRequiredFieldsModal] = useState(false);
+  const [showPinSetupModal, setShowPinSetupModal] = useState(false);
 
   // Vérifier si les champs obligatoires sont manquants
   const hasRequiredFields = useCallback((profile: Profile | null) => {
@@ -61,6 +63,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!hasRequiredFields(profileData)) {
         setShowRequiredFieldsModal(true);
       }
+      
+      // Vérifier si l'utilisateur doit configurer un PIN
+      if (profileData.requires_pin_setup) {
+        setShowPinSetupModal(true);
+      }
     } catch (error) {
       console.error('Erreur lors du rafraîchissement du profil:', error);
     }
@@ -82,6 +89,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Vérifier si les champs obligatoires sont manquants
         if (!hasRequiredFields(typedProfile)) {
           setShowRequiredFieldsModal(true);
+        }
+        
+        // Vérifier si l'utilisateur doit configurer un PIN
+        if (typedProfile.requires_pin_setup) {
+          setShowPinSetupModal(true);
         }
         
         return true;
@@ -146,6 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
           setProfile(null);
           setShowRequiredFieldsModal(false);
+          setShowPinSetupModal(false);
           setLoading(false);
           return;
         }
@@ -194,6 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setProfile(null);
       setShowRequiredFieldsModal(false);
+      setShowPinSetupModal(false);
       
       // Nettoyer le localStorage
       localStorage.removeItem('supabase.auth.token');
@@ -214,6 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setProfile(null);
       setShowRequiredFieldsModal(false);
+      setShowPinSetupModal(false);
       setLoading(false);
       
       // Redirection forcée
@@ -232,6 +247,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleRequiredFieldsComplete = useCallback(() => {
     setShowRequiredFieldsModal(false);
+    refreshProfile();
+  }, [refreshProfile]);
+
+  const handlePinSetupComplete = useCallback(() => {
+    setShowPinSetupModal(false);
     refreshProfile();
   }, [refreshProfile]);
 
@@ -270,6 +290,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isOpen={showRequiredFieldsModal}
         profile={profile}
         onComplete={handleRequiredFieldsComplete}
+      />
+      <PinSetupModal
+        open={showPinSetupModal}
+        onClose={() => setShowPinSetupModal(false)}
+        onSuccess={handlePinSetupComplete}
       />
     </AuthContext.Provider>
   );

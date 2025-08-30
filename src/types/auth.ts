@@ -11,9 +11,12 @@ export interface Profile {
   is_verified: boolean | null;
   birth_date: string | null;
   id_card_url: string | null;
-  kyc_status: string | null; // Changé pour être plus flexible
+  kyc_status: string | null;
   kyc_completed_at: string | null;
   requires_kyc: boolean | null;
+  pin_code: string | null;
+  pin_created_at: string | null;
+  requires_pin_setup: boolean | null;
 }
 
 export interface AuthContextType {

@@ -1403,7 +1403,10 @@ export type Database = {
           kyc_completed_at: string | null
           kyc_status: string | null
           phone: string
+          pin_code: string | null
+          pin_created_at: string | null
           requires_kyc: boolean | null
+          requires_pin_setup: boolean | null
           role: Database["public"]["Enums"]["user_role"]
           selfie_url: string | null
           verified_at: string | null
@@ -1427,7 +1430,10 @@ export type Database = {
           kyc_completed_at?: string | null
           kyc_status?: string | null
           phone: string
+          pin_code?: string | null
+          pin_created_at?: string | null
           requires_kyc?: boolean | null
+          requires_pin_setup?: boolean | null
           role?: Database["public"]["Enums"]["user_role"]
           selfie_url?: string | null
           verified_at?: string | null
@@ -1451,7 +1457,10 @@ export type Database = {
           kyc_completed_at?: string | null
           kyc_status?: string | null
           phone?: string
+          pin_code?: string | null
+          pin_created_at?: string | null
           requires_kyc?: boolean | null
+          requires_pin_setup?: boolean | null
           role?: Database["public"]["Enums"]["user_role"]
           selfie_url?: string | null
           verified_at?: string | null
@@ -2323,9 +2332,25 @@ export type Database = {
         }
         Returns: number
       }
+      set_user_pin: {
+        Args: { pin_param: string; user_id_param: string }
+        Returns: boolean
+      }
       start_user_session: {
         Args: { p_ip_address?: unknown; p_user_agent?: string }
         Returns: string
+      }
+      sync_agent_identity_photos: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      sync_all_identity_photos: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          photo_url: string
+          sync_status: string
+          user_id: string
+        }[]
       }
       transfer_monthly_commissions_to_balance: {
         Args: {
@@ -2352,6 +2377,10 @@ export type Database = {
       update_session_activity: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      verify_user_pin: {
+        Args: { pin_param: string; user_id_param: string }
+        Returns: boolean
       }
     }
     Enums: {
