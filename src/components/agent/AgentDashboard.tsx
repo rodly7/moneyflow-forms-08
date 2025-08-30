@@ -165,30 +165,6 @@ const AgentDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Commissions - Total (Dépôt 1% + Retrait 0,5%) */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Commissions Totales
-              </CardTitle>
-              <Wallet className="w-4 h-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900 mb-3">
-                {formatBalanceDisplay(agentCommissionBalance || 0)}
-              </div>
-              <div className="text-xs text-gray-500 mb-3">
-                Dépôt: 1% | Retrait: 0,5%
-              </div>
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => navigate('/agent-commission-withdrawal')}
-              >
-                Retirer Commissions
-              </Button>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Quick Actions - Moved after commissions */}
