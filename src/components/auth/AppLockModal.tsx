@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Fingerprint } from 'lucide-react';
 
 interface AppLockModalProps {
   isOpen: boolean;
@@ -14,7 +15,21 @@ interface AppLockModalProps {
 export const AppLockModal = ({ isOpen, onUnlock }: AppLockModalProps) => {
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
   const { signOut } = useAuth();
+
+  useEffect(() => {
+    // Vérifier si l'authentification biométrique est disponible
+    const checkBiometricAvailability = async () => {
+      if (window.PublicKeyCredential && 
+          await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()) {
+        setIsBiometricAvailable(true);
+      }
+    };
+    
+    checkBiometricAvailability();
+  }, []);
 
   const handleVerifyPin = async () => {
     if (pin.length !== 4) {
@@ -58,6 +73,47 @@ export const AppLockModal = ({ isOpen, onUnlock }: AppLockModalProps) => {
     }
   };
 
+  const handleBiometricAuth = async () => {
+    if (!isBiometricAvailable) {
+      toast.error('Authentification biométrique non disponible');
+      return;
+    }
+
+    setBiometricLoading(true);
+    try {
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge: new Uint8Array(32),
+          rp: {
+            name: "MoneyFlow",
+            id: window.location.hostname,
+          },
+          user: {
+            id: new TextEncoder().encode("user-id"),
+            name: "user@example.com",
+            displayName: "User",
+          },
+          pubKeyCredParams: [{alg: -7, type: "public-key"}],
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            userVerification: "required"
+          },
+          timeout: 60000,
+        }
+      });
+
+      if (credential) {
+        toast.success('Authentification biométrique réussie');
+        onUnlock();
+      }
+    } catch (error) {
+      console.error('Erreur authentification biométrique:', error);
+      toast.error('Échec de l\'authentification biométrique');
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
   };
@@ -89,12 +145,24 @@ export const AppLockModal = ({ isOpen, onUnlock }: AppLockModalProps) => {
           </div>
           
           <div className="flex flex-col gap-3">
+            {isBiometricAvailable && (
+              <Button 
+                onClick={handleBiometricAuth}
+                disabled={biometricLoading}
+                className="w-full"
+                variant="secondary"
+              >
+                <Fingerprint className="w-4 h-4 mr-2" />
+                {biometricLoading ? 'Authentification...' : 'Déverrouiller avec Face ID/Touch ID'}
+              </Button>
+            )}
+            
             <Button 
               onClick={handleVerifyPin}
               disabled={pin.length !== 4 || loading}
               className="w-full"
             >
-              {loading ? 'Vérification...' : 'Déverrouiller'}
+              {loading ? 'Vérification...' : 'Déverrouiller avec PIN'}
             </Button>
             
             <Button 
