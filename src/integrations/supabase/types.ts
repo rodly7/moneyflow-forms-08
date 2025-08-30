@@ -2226,10 +2226,10 @@ export type Database = {
       get_agent_quota_status: {
         Args: { p_agent_id: string; p_date?: string }
         Returns: {
-          commission_rate: number
+          agent_id: string
+          date: string
           quota_achieved: boolean
           quota_reached_at: string
-          reached_before_19h: boolean
           total_deposits: number
         }[]
       }

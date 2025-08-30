@@ -21,6 +21,7 @@ import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotif
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
 import { AgentRealTimePerformance } from "@/components/agent/AgentRealTimePerformance";
 import AgentTransactionHistory from "@/components/agent/AgentTransactionHistory";
+import AgentDailyQuota from "@/components/agent/AgentDailyQuota";
 import { toast } from "sonner";
 
 const AgentDashboard: React.FC = () => {
@@ -165,6 +166,8 @@ const AgentDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* Quota Journalier */}
+          <AgentDailyQuota />
         </div>
 
         {/* Quick Actions - Moved after commissions */}
