@@ -26,12 +26,13 @@ import SubAdminBalanceRecharge from './SubAdminBalanceRecharge';
 import SubAdminAgentRecharge from './SubAdminAgentRecharge';
 import SubAdminMessagesTab from './SubAdminMessagesTab';
 import SubAdminSettingsTab from './SubAdminSettingsTab';
+import UserRequestsManagement from './UserRequestsManagement';
 import { UnifiedNotificationBell } from '@/components/notifications/UnifiedNotificationBell';
 
 const MobileSubAdminDashboard: React.FC = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('requests');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleSignOut = async () => {
@@ -44,16 +45,19 @@ const MobileSubAdminDashboard: React.FC = () => {
   };
 
   const tabs = [
+    { id: 'requests', label: 'Demandes', icon: UserCheck },
     { id: 'overview', label: 'Vue d\'ensemble', icon: BarChart3 },
     { id: 'users', label: 'Utilisateurs', icon: Users },
     { id: 'recharge', label: 'Recharge', icon: CreditCard },
-    { id: 'agents', label: 'Agents', icon: UserCheck },
+    { id: 'agents', label: 'Agents', icon: Wallet },
     { id: 'messages', label: 'Messages', icon: Bell },
     { id: 'settings', label: 'Paramètres', icon: Settings },
   ];
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'requests':
+        return <UserRequestsManagement />;
       case 'overview':
         return <SubAdminStatsDisplay />;
       case 'users':
@@ -74,7 +78,7 @@ const MobileSubAdminDashboard: React.FC = () => {
       case 'settings':
         return <SubAdminSettingsTab />;
       default:
-        return <SubAdminStatsDisplay />;
+        return <UserRequestsManagement />;
     }
   };
 
