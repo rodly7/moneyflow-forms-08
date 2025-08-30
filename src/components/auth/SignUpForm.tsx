@@ -94,9 +94,9 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
       <div className="text-center">
         <div className="flex justify-center mb-4">
           <img 
-            src="/sendflow-logo.png" 
+            src="/icons/icon-192x192.png" 
             alt="SendFlow Logo" 
-            className="h-16 w-auto"
+            className="h-16 w-16"
           />
         </div>
         <h2 className="text-2xl font-bold">Inscription</h2>
