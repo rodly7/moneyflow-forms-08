@@ -2170,6 +2170,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      create_pin_session: {
+        Args: { user_phone: string }
+        Returns: Json
+      }
       deactivate_agent_location: {
         Args: { p_agent_id: string }
         Returns: undefined
