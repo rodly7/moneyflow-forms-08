@@ -93,10 +93,16 @@ const Auth = () => {
 
     setIsSubmitting(true);
     try {
-      await authService.signInWithPin(phone, pin);
+      const result = await authService.signInWithPin(phone, pin);
       toast.success('Connexion par PIN réussie !');
+      authStorageService.storePhoneNumber(phone);
       
-      // Rediriger manuellement car nous n'utilisons pas le contexte auth ici
+      // Stocker les informations utilisateur temporairement
+      if (result.user) {
+        localStorage.setItem('pin_session_user', JSON.stringify(result.user));
+      }
+      
+      // Redirection forcée vers le tableau de bord
       window.location.href = '/';
     } catch (error: any) {
       toast.error(error.message || 'PIN incorrect');

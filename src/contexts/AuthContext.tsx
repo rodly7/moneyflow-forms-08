@@ -34,6 +34,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
       
       if (authError || !currentUser) {
+        // Vérifier s'il y a une session PIN stockée
+        const pinSessionUser = localStorage.getItem('pin_session_user');
+        if (pinSessionUser) {
+          console.log('🔐 Session PIN trouvée, restauration...');
+          const storedUser = JSON.parse(pinSessionUser);
+          setUser({
+            id: storedUser.id,
+            email: storedUser.email || `${storedUser.phone}@sendflow.app`,
+            phone: storedUser.phone
+          } as User);
+          
+          // Récupérer le profil pour cette session PIN
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', storedUser.id)
+            .single();
+          
+          if (!profileError && profileData) {
+            setProfile(profileData as Profile);
+          }
+          return;
+        }
+        
         console.log('🔒 Session invalide lors du refresh profil, déconnexion');
         await signOut();
         return;
@@ -125,6 +149,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) {
           console.error('Erreur lors de la récupération de la session:', error);
+          
+          // Vérifier s'il y a une session PIN stockée comme fallback
+          const pinSessionUser = localStorage.getItem('pin_session_user');
+          if (pinSessionUser && mounted) {
+            console.log('🔐 Session PIN trouvée au démarrage');
+            const storedUser = JSON.parse(pinSessionUser);
+            setUser({
+              id: storedUser.id,
+              email: storedUser.email || `${storedUser.phone}@sendflow.app`,
+              phone: storedUser.phone
+            } as User);
+            await loadProfile(storedUser.id);
+          }
+          
           if (mounted) setLoading(false);
           return;
         }
@@ -132,6 +170,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user && mounted) {
           setUser(session.user);
           await loadProfile(session.user.id);
+        } else {
+          // Pas de session Supabase, vérifier s'il y a une session PIN
+          const pinSessionUser = localStorage.getItem('pin_session_user');
+          if (pinSessionUser && mounted) {
+            console.log('🔐 Session PIN trouvée au démarrage (pas de session Supabase)');
+            const storedUser = JSON.parse(pinSessionUser);
+            setUser({
+              id: storedUser.id,
+              email: storedUser.email || `${storedUser.phone}@sendflow.app`,
+              phone: storedUser.phone
+            } as User);
+            await loadProfile(storedUser.id);
+          }
         }
         
         if (mounted) {
@@ -213,8 +264,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setShowRequiredFieldsModal(false);
       setShowPinSetupModal(false);
       
-      // Nettoyer le localStorage incluant le numéro de téléphone stocké
+      // Nettoyer le localStorage incluant les sessions PIN
       localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('pin_session_user');
+      localStorage.removeItem('pin_verified_user');
       
       // Puis appeler Supabase pour la déconnexion (inclut le nettoyage du numéro stocké)
       await authService.signOut();
@@ -233,6 +286,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(null);
       setShowRequiredFieldsModal(false);
       setShowPinSetupModal(false);
+      localStorage.removeItem('pin_session_user');
+      localStorage.removeItem('pin_verified_user');
       setLoading(false);
       
       // Redirection forcée
