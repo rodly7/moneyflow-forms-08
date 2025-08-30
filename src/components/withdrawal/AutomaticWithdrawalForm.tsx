@@ -84,9 +84,9 @@ export const AutomaticWithdrawalForm = () => {
               <Smartphone className="w-5 h-5 text-green-600" />
               <span className="font-medium text-green-800">Numéro Mobile Money</span>
             </div>
-            <div className="text-lg font-bold text-green-900">+242066164686</div>
+            <div className="text-lg font-bold text-green-900">****164686</div>
             <p className="text-sm text-green-700 mt-1">
-              Les retraits seront envoyés depuis ce numéro
+              Votre numéro Mobile Money va être rechargé dans 2-5 minutes
             </p>
           </div>
 
@@ -106,7 +106,7 @@ export const AutomaticWithdrawalForm = () => {
             disabled={isProcessing || !amount || !phoneNumber}
             className="w-full"
           >
-            {isProcessing ? "Traitement en cours..." : "Effectuer le retrait"}
+            {isProcessing ? "Traitement en cours..." : "Demande de retrait"}
           </Button>
         </form>
       </CardContent>
