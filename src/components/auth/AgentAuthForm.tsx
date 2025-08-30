@@ -10,6 +10,10 @@ import { Icons } from "@/components/ui/icons";
 import { Shield, Users, Phone, Lock, Eye, EyeOff, CheckCircle2, Crown, Sparkles, Star, KeyRound } from "lucide-react";
 import { ForgotPasswordForm } from "@/components/auth/ForgotPasswordForm";
 import { useNavigate } from "react-router-dom";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { authService } from '@/services/authService';
+import { authStorageService } from '@/services/authStorageService';
 
 const AgentAuthForm = () => {
   const [loading, setLoading] = useState(false);
@@ -19,7 +23,10 @@ const AgentAuthForm = () => {
   
   const [loginPhone, setLoginPhone] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [pin, setPin] = useState("");
+  const [loginMethod, setLoginMethod] = useState<'password' | 'pin'>('password');
   const [showPassword, setShowPassword] = useState(false);
+  const [storedPhone, setStoredPhone] = useState<string | null>(null);
 
   // Fonction pour normaliser les numéros de téléphone
   const normalizePhoneNumber = (phoneInput: string) => {
@@ -74,6 +81,35 @@ const AgentAuthForm = () => {
     }
   };
 
+  const handlePinLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin.length !== 4) {
+      toast.error('Le PIN doit contenir 4 chiffres');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await authService.signInWithPin(loginPhone, pin);
+      toast.success('Connexion par PIN réussie !');
+      authStorageService.storePhoneNumber(loginPhone);
+      navigate('/agent-dashboard');
+    } catch (error: any) {
+      toast.error(error.message || 'PIN incorrect');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPin = () => {
+    authStorageService.clearStoredPhoneNumber();
+    setStoredPhone(null);
+    setLoginMethod('password');
+    setPin('');
+    setLoginPhone('');
+    toast.info('Vous devez maintenant vous connecter avec vos identifiants complets');
+  };
+
   if (showForgotPassword) {
     return <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />;
   }
@@ -101,74 +137,150 @@ const AgentAuthForm = () => {
       </CardHeader>
       
       <CardContent className="space-y-8 relative z-10 px-8 pb-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <Label htmlFor="loginPhone" className="text-white font-semibold flex items-center gap-3 text-base">
-              <Phone className="w-5 h-5 text-emerald-300" />
-              Numéro de téléphone professionnel
-            </Label>
-            <Input
-              id="loginPhone"
-              type="text"
-              placeholder="Exemple: +242061043340 ou +221773637752"
-              value={loginPhone}
-              onChange={(e) => setLoginPhone(e.target.value)}
-              required
-              className="h-14 bg-white/15 border-white/30 text-white placeholder:text-white/70 focus:border-emerald-400 focus:ring-emerald-400/30 backdrop-blur-md rounded-xl text-base form-field-stable"
-              disabled={loading}
-            />
-            <div className="flex items-center gap-2 text-sm text-emerald-200 font-medium bg-emerald-500/20 p-4 rounded-xl backdrop-blur-sm border border-emerald-400/30">
-              <CheckCircle2 className="w-5 h-5" />
-              <span>💡 Utilisez le format complet avec le code pays (ex: +242...)</span>
-            </div>
-          </div>
+        <Tabs value={loginMethod} onValueChange={(value) => setLoginMethod(value as 'password' | 'pin')} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2 bg-white/10 backdrop-blur-md border border-white/20">
+            <TabsTrigger value="password" className="flex items-center gap-2 data-[state=active]:bg-emerald-500/30">
+              <Phone className="h-4 w-4" />
+              Mot de passe
+            </TabsTrigger>
+            <TabsTrigger value="pin" className="flex items-center gap-2 data-[state=active]:bg-emerald-500/30">
+              <Lock className="h-4 w-4" />
+              PIN
+            </TabsTrigger>
+          </TabsList>
 
-          <div className="space-y-4">
-            <Label htmlFor="loginPassword" className="text-white font-semibold flex items-center gap-3 text-base">
-              <Lock className="w-5 h-5 text-emerald-300" />
-              Mot de passe sécurisé
-            </Label>
-            <div className="relative">
-              <Input
-                id="loginPassword"
-                type={showPassword ? "text" : "password"}
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                required
-                className="h-14 bg-white/15 border-white/30 text-white placeholder:text-white/70 focus:border-emerald-400 focus:ring-emerald-400/30 backdrop-blur-md rounded-xl text-base pr-12 form-field-stable"
-                disabled={loading}
-                minLength={6}
-                placeholder="Votre mot de passe professionnel"
-              />
+          <TabsContent value="password" className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-4">
+                <Label htmlFor="loginPhone" className="text-white font-semibold flex items-center gap-3 text-base">
+                  <Phone className="w-5 h-5 text-emerald-300" />
+                  Numéro de téléphone professionnel
+                </Label>
+                <Input
+                  id="loginPhone"
+                  type="text"
+                  placeholder="Exemple: +242061043340 ou +221773637752"
+                  value={loginPhone}
+                  onChange={(e) => setLoginPhone(e.target.value)}
+                  required
+                  className="h-14 bg-white/15 border-white/30 text-white placeholder:text-white/70 focus:border-emerald-400 focus:ring-emerald-400/30 backdrop-blur-md rounded-xl text-base form-field-stable"
+                  disabled={loading}
+                />
+                <div className="flex items-center gap-2 text-sm text-emerald-200 font-medium bg-emerald-500/20 p-4 rounded-xl backdrop-blur-sm border border-emerald-400/30">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>💡 Utilisez le format complet avec le code pays (ex: +242...)</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <Label htmlFor="loginPassword" className="text-white font-semibold flex items-center gap-3 text-base">
+                  <Lock className="w-5 h-5 text-emerald-300" />
+                  Mot de passe sécurisé
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="loginPassword"
+                    type={showPassword ? "text" : "password"}
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
+                    className="h-14 bg-white/15 border-white/30 text-white placeholder:text-white/70 focus:border-emerald-400 focus:ring-emerald-400/30 backdrop-blur-md rounded-xl text-base pr-12 form-field-stable"
+                    disabled={loading}
+                    minLength={6}
+                    placeholder="Votre mot de passe professionnel"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </Button>
+                </div>
+              </div>
+
               <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg"
-                onClick={() => setShowPassword(!showPassword)}
+                type="submit"
+                className="w-full h-16 bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 text-white font-bold shadow-2xl text-lg rounded-xl form-field-stable"
+                disabled={loading}
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {loading && (
+                  <Icons.spinner className="mr-3 h-6 w-6 animate-spin" />
+                )}
+                {loading ? (
+                  "⏳ Connexion en cours..."
+                ) : (
+                  <>
+                    <Shield className="mr-3 h-6 w-6" />
+                    🔐 Accéder à l'espace agent
+                  </>
+                )}
               </Button>
-            </div>
-          </div>
+            </form>
+          </TabsContent>
 
-          <Button
-            type="submit"
-            className="w-full h-16 bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 text-white font-bold shadow-2xl text-lg rounded-xl form-field-stable"
-            disabled={loading}
-          >
-            {loading && (
-              <Icons.spinner className="mr-3 h-6 w-6 animate-spin" />
-            )}
-            {loading ? (
-              "⏳ Connexion en cours..."
-            ) : (
-              <>
-                <Shield className="mr-3 h-6 w-6" />
-                🔐 Accéder à l'espace agent
-              </>
-            )}
-          </Button>
+          <TabsContent value="pin" className="space-y-6">
+            <form onSubmit={handlePinLogin} className="space-y-6">
+              <div className="space-y-4">
+                <Label htmlFor="phone-pin" className="text-white font-semibold flex items-center gap-3 text-base">
+                  <Phone className="w-5 h-5 text-emerald-300" />
+                  Numéro de téléphone professionnel
+                </Label>
+                <Input
+                  id="phone-pin"
+                  type="text"
+                  placeholder="Exemple: +242061043340 ou +221773637752"
+                  value={loginPhone}
+                  onChange={(e) => setLoginPhone(e.target.value)}
+                  required
+                  className="h-14 bg-white/15 border-white/30 text-white placeholder:text-white/70 focus:border-emerald-400 focus:ring-emerald-400/30 backdrop-blur-md rounded-xl text-base form-field-stable"
+                  disabled={loading}
+                />
+              </div>
+              
+              <div className="space-y-4">
+                <Label className="text-white font-semibold flex items-center gap-3 text-base">
+                  <Lock className="w-5 h-5 text-emerald-300" />
+                  Code PIN (4 chiffres)
+                </Label>
+                <div className="flex justify-center">
+                  <InputOTP
+                    maxLength={4}
+                    value={pin}
+                    onChange={setPin}
+                    pattern="^[0-9]*$"
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} masked className="bg-white/15 border-white/30 text-white" />
+                      <InputOTPSlot index={1} masked className="bg-white/15 border-white/30 text-white" />
+                      <InputOTPSlot index={2} masked className="bg-white/15 border-white/30 text-white" />
+                      <InputOTPSlot index={3} masked className="bg-white/15 border-white/30 text-white" />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+              </div>
+              
+              <Button
+                type="submit"
+                className="w-full h-16 bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 text-white font-bold shadow-2xl text-lg rounded-xl form-field-stable"
+                disabled={loading || pin.length !== 4}
+              >
+                {loading && (
+                  <Icons.spinner className="mr-3 h-6 w-6 animate-spin" />
+                )}
+                {loading ? (
+                  "⏳ Connexion en cours..."
+                ) : (
+                  <>
+                    <Shield className="mr-3 h-6 w-6" />
+                    🔐 Se connecter avec PIN
+                  </>
+                )}
+              </Button>
+            </form>
+          </TabsContent>
 
           <Button
             type="button"
@@ -180,41 +292,41 @@ const AgentAuthForm = () => {
             <KeyRound className="mr-2 h-4 w-4" />
             Mot de passe oublié ?
           </Button>
+        </Tabs>
 
-          <div className="bg-gradient-to-r from-emerald-50/10 to-teal-50/10 backdrop-blur-md p-6 rounded-2xl border border-emerald-400/30 mt-8">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-emerald-500/20 rounded-full">
-                <Star className="w-5 h-5 text-emerald-300" />
-              </div>
-              <h3 className="text-white font-bold text-lg">👑 Privilèges Agent Elite</h3>
+        <div className="bg-gradient-to-r from-emerald-50/10 to-teal-50/10 backdrop-blur-md p-6 rounded-2xl border border-emerald-400/30 mt-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-emerald-500/20 rounded-full">
+              <Star className="w-5 h-5 text-emerald-300" />
             </div>
-            <div className="space-y-3 text-sm text-emerald-100">
-              <div className="flex items-start gap-3">
-                <span className="text-emerald-400 mt-1">•</span>
-                <span>Accès exclusif aux outils de gestion avancés</span>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-emerald-400 mt-1">•</span>
-                <span>Commissions privilégiées sur toutes vos opérations</span>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-emerald-400 mt-1">•</span>
-                <span>Interface professionnelle dédiée aux agents</span>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-emerald-400 mt-1">•</span>
-                <span>Support prioritaire et assistance technique</span>
-              </div>
+            <h3 className="text-white font-bold text-lg">👑 Privilèges Agent Elite</h3>
+          </div>
+          <div className="space-y-3 text-sm text-emerald-100">
+            <div className="flex items-start gap-3">
+              <span className="text-emerald-400 mt-1">•</span>
+              <span>Accès exclusif aux outils de gestion avancés</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-emerald-400 mt-1">•</span>
+              <span>Commissions privilégiées sur toutes vos opérations</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-emerald-400 mt-1">•</span>
+              <span>Interface professionnelle dédiée aux agents</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-emerald-400 mt-1">•</span>
+              <span>Support prioritaire et assistance technique</span>
             </div>
           </div>
+        </div>
 
-          <div className="text-center pt-4">
-            <p className="text-sm text-emerald-200 font-medium bg-emerald-500/10 p-3 rounded-xl backdrop-blur-sm border border-emerald-400/20">
-              <Shield className="w-4 h-4 inline mr-2" />
-              Accès réservé aux agents autorisés uniquement
-            </p>
-          </div>
-        </form>
+        <div className="text-center pt-4">
+          <p className="text-sm text-emerald-200 font-medium bg-emerald-500/10 p-3 rounded-xl backdrop-blur-sm border border-emerald-400/20">
+            <Shield className="w-4 h-4 inline mr-2" />
+            Accès réservé aux agents autorisés uniquement
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

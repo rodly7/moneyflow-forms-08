@@ -42,47 +42,54 @@ export const authService = {
     
     const normalizedPhone = phone.replace(/[^\d+]/g, '');
     
-    const { data, error } = await supabase.rpc('verify_user_pin', {
-      user_id_param: normalizedPhone,
-      pin_param: pin
-    });
-
-    if (error) {
-      console.error('❌ Erreur de connexion PIN:', error);
-      throw new Error('PIN incorrect ou utilisateur non trouvé.');
-    }
-
-    if (!data) {
-      throw new Error('PIN incorrect.');
-    }
-
-    // Récupérer l'utilisateur et créer une session
-    const email = `${normalizedPhone}@sendflow.app`;
-    const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
-      email: email,
-      options: {
-        shouldCreateUser: false
-      }
-    });
-
-    if (authError) {
-      // Fallback: essayer de récupérer l'utilisateur directement
-      const { data: userData, error: userError } = await supabase
+    try {
+      // Vérifier le PIN directement depuis la table profiles
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, pin_code')
         .eq('phone', normalizedPhone)
         .single();
 
-      if (userError || !userData) {
+      if (profileError || !profile) {
         throw new Error('Utilisateur non trouvé.');
       }
 
-      console.log('✅ Connexion PIN réussie pour:', userData.id);
-      return { user: { id: userData.id, phone: normalizedPhone } };
-    }
+      if (!profile.pin_code) {
+        throw new Error('PIN non configuré. Veuillez vous connecter avec votre mot de passe pour créer un PIN.');
+      }
 
-    console.log('✅ Connexion PIN réussie');
-    return authData;
+      // Importer le service de chiffrement pour vérifier le PIN
+      const { pinEncryptionService } = await import('./pinEncryptionService');
+      const isValid = pinEncryptionService.verifyPin(pin, profile.pin_code, profile.id);
+
+      if (!isValid) {
+        throw new Error('PIN incorrect.');
+      }
+
+      // Créer une session temporaire en utilisant l'OTP
+      const email = `${normalizedPhone}@sendflow.app`;
+      const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: false
+        }
+      });
+
+      if (authError) {
+        // Alternative: utiliser une session via le service d'authentification personnalisé
+        console.log('⚠️ OTP non disponible, utilisation d\'une session simulée');
+        
+        // Ici on pourrait implémenter une logique de session personnalisée
+        // Pour l'instant, on simule une connexion réussie
+        throw new Error('Connexion PIN temporairement indisponible. Utilisez votre mot de passe.');
+      }
+
+      console.log('✅ Connexion PIN réussie pour:', profile.id);
+      return authData;
+    } catch (error: any) {
+      console.error('❌ Erreur de connexion PIN:', error);
+      throw error;
+    }
   },
 
   async signUp(phone: string, password: string, metadata: SignUpMetadata & { id_card_file?: File }) {
