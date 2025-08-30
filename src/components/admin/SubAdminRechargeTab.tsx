@@ -2,156 +2,95 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CreditCard, Clock, CheckCircle, XCircle, User, Phone } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CreditCard, Clock, CheckCircle, XCircle, User, Phone, Wallet } from 'lucide-react';
 import { formatCurrency } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-
-// Types simplifiés basés sur les vraies tables
-type RechargeData = {
-  id: string;
-  user_id: string;
-  amount: number;
-  status: string;
-  payment_method: string;
-  payment_phone: string;
-  created_at: string;
-  updated_at: string;
-  country: string;
-  transaction_reference: string;
-  payment_provider: string;
-  provider_transaction_id: string | null;
-};
-
-type WithdrawalData = {
-  id: string;
-  user_id: string;
-  amount: number;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  withdrawal_phone: string;
-  verification_code: string;
-  is_deleted: boolean;
-};
-
-type ProfileData = {
-  id: string;
-  full_name: string | null;
-  phone: string;
-  country: string | null;
-};
+import { useSubAdminQuota } from '@/hooks/useSubAdminQuota';
 
 type UserRequest = {
   id: string;
   user_id: string;
+  operation_type: string;
   amount: number;
-  status: string;
   payment_method: string;
   payment_phone: string;
+  status: string;
   created_at: string;
-  updated_at: string;
-  operation_type: 'recharge' | 'withdrawal';
-  profile?: ProfileData | null;
+  processed_by?: string | null;
+  processed_at?: string | null;
+  rejection_reason?: string | null;
+  profiles?: {
+    full_name: string;
+    phone: string;
+    country: string;
+  } | null;
 };
 
 const SubAdminRechargeTab = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { checkAmountAndQuota, recordRequest } = useSubAdminQuota();
   const [userRequests, setUserRequests] = useState<UserRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
-  const [processedIds, setProcessedIds] = useState<Set<string>>(new Set());
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<UserRequest | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
-  // Fonction pour charger les demandes
+  // Fonction pour charger les demandes utilisateurs
   const fetchUserRequests = async () => {
     try {
-      console.log('🔄 Chargement des recharges et retraits...');
+      console.log('🔄 Chargement des demandes utilisateurs...');
 
-      // Fetch recharges
-      const { data: rechargesData, error: rechargesError } = await supabase
-        .from('recharges')
-        .select('*')
+      const { data: requests, error } = await supabase
+        .from('user_requests')
+        .select(`
+          id,
+          user_id,
+          operation_type,
+          amount,
+          payment_method,
+          payment_phone,
+          status,
+          created_at,
+          processed_by,
+          processed_at,
+          rejection_reason
+        `)
         .order('created_at', { ascending: false });
 
-      if (rechargesError) {
-        console.error('Erreur lors du chargement des recharges:', rechargesError);
-        throw rechargesError;
+      if (error) {
+        console.error('Erreur lors du chargement des demandes:', error);
+        throw error;
       }
 
-      // Fetch withdrawals
-      const { data: withdrawalsData, error: withdrawalsError } = await supabase
-        .from('withdrawals')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Fetch profile data separately for each request
+      const requestsWithProfiles = await Promise.all(
+        (requests || []).map(async (request) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, phone, country')
+            .eq('id', request.user_id)
+            .single();
+          
+          return {
+            ...request,
+            profiles: profile
+          };
+        })
+      );
 
-      if (withdrawalsError) {
-        console.error('Erreur lors du chargement des retraits:', withdrawalsError);
-        throw withdrawalsError;
-      }
-
-      // Get unique user IDs
-      const userIds = [
-        ...(rechargesData || []).map(r => r.user_id),
-        ...(withdrawalsData || []).map(w => w.user_id)
-      ].filter((id, index, arr) => arr.indexOf(id) === index);
-
-      // Fetch profiles for all users
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, country')
-        .in('id', userIds);
-
-      if (profilesError) {
-        console.error('Erreur lors du chargement des profils:', profilesError);
-      }
-
-      // Create a map for quick profile lookup
-      const profilesMap = new Map<string, ProfileData>();
-      (profilesData || []).forEach(profile => {
-        profilesMap.set(profile.id, profile);
-      });
-
-      // Transform recharges data
-      const transformedRecharges: UserRequest[] = (rechargesData || []).map((recharge) => ({
-        id: recharge.id,
-        user_id: recharge.user_id,
-        amount: recharge.amount,
-        status: recharge.status,
-        payment_method: recharge.payment_method,
-        payment_phone: recharge.payment_phone,
-        created_at: recharge.created_at,
-        updated_at: recharge.updated_at,
-        operation_type: 'recharge' as const,
-        profile: profilesMap.get(recharge.user_id) || null
-      }));
-
-      // Transform withdrawals data
-      const transformedWithdrawals: UserRequest[] = (withdrawalsData || []).map((withdrawal) => ({
-        id: withdrawal.id,
-        user_id: withdrawal.user_id,
-        amount: withdrawal.amount,
-        status: withdrawal.status,
-        payment_method: 'mobile_money',
-        payment_phone: withdrawal.withdrawal_phone || '',
-        created_at: withdrawal.created_at,
-        updated_at: withdrawal.updated_at,
-        operation_type: 'withdrawal' as const,
-        profile: profilesMap.get(withdrawal.user_id) || null
-      }));
-
-      const allRequests = [...transformedRecharges, ...transformedWithdrawals]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      console.log('✅ Demandes chargées:', allRequests);
-      
-      setUserRequests(allRequests);
+      console.log('✅ Demandes chargées:', requestsWithProfiles);
+      setUserRequests(requestsWithProfiles);
     } catch (error) {
       console.error('Erreur critique:', error);
       toast({
         title: "Erreur",
-        description: "Erreur lors du chargement des données",
+        description: "Erreur lors du chargement des demandes",
         variant: "destructive"
       });
     } finally {
@@ -179,37 +118,18 @@ const SubAdminRechargeTab = () => {
   useEffect(() => {
     if (!user) return;
 
-    console.log('🔄 Configuration de l\'écoute temps réel pour recharges et retraits');
+    console.log('🔄 Configuration de l\'écoute temps réel pour user_requests');
     
-    const rechargesChannel = supabase
-      .channel('recharges_changes')
+    const channel = supabase
+      .channel('user_requests_changes')
       .on('postgres_changes', 
         { 
           event: '*', 
           schema: 'public', 
-          table: 'recharges'
+          table: 'user_requests'
         }, 
         (payload) => {
-          console.log('📨 Changement détecté dans recharges:', payload);
-          if (!isProcessing) {
-            setTimeout(() => {
-              fetchUserRequests();
-            }, 500);
-          }
-        }
-      )
-      .subscribe();
-
-    const withdrawalsChannel = supabase
-      .channel('withdrawals_changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'withdrawals'
-        }, 
-        (payload) => {
-          console.log('📨 Changement détecté dans withdrawals:', payload);
+          console.log('📨 Changement détecté dans user_requests:', payload);
           if (!isProcessing) {
             setTimeout(() => {
               fetchUserRequests();
@@ -220,19 +140,14 @@ const SubAdminRechargeTab = () => {
       .subscribe();
 
     return () => {
-      console.log('🔇 Désabonnement des canaux');
-      supabase.removeChannel(rechargesChannel);
-      supabase.removeChannel(withdrawalsChannel);
+      console.log('🔇 Désabonnement du canal user_requests');
+      supabase.removeChannel(channel);
     };
   }, [user, isProcessing]);
 
   const handleApprove = async (requestId: string) => {
     try {
       setIsProcessing(requestId);
-      
-      // Ajouter à la liste des IDs traités immédiatement
-      setProcessedIds(prev => new Set([...prev, requestId]));
-      
       console.log('🔄 Début approbation pour:', requestId);
       
       const request = userRequests.find(r => r.id === requestId);
@@ -241,51 +156,101 @@ const SubAdminRechargeTab = () => {
         return;
       }
 
-      const tableName = request.operation_type === 'recharge' ? 'recharges' : 'withdrawals';
-      console.log('📊 Mise à jour dans la table:', tableName);
-      
-      const { error } = await supabase
-        .from(tableName as any)
+      // Vérifier les quotas et montants pour les sous-administrateurs
+      if (!checkAmountAndQuota(request.amount)) {
+        return;
+      }
+
+      // 1. Mettre à jour le statut de la demande
+      const { error: updateError } = await supabase
+        .from('user_requests')
         .update({
-          status: 'completed',
-          updated_at: new Date().toISOString()
+          status: 'approved',
+          processed_by: user?.id,
+          processed_at: new Date().toISOString()
         })
         .eq('id', requestId);
 
-      if (error) {
-        console.error('❌ Erreur lors de l\'approbation:', error);
-        // Retirer de la liste des IDs traités en cas d'erreur
-        setProcessedIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(requestId);
-          return newSet;
-        });
-        
+      if (updateError) {
+        console.error('❌ Erreur lors de l\'approbation:', updateError);
         toast({
           title: "Erreur",
-          description: "Impossible d'approuver la demande: " + error.message,
+          description: "Impossible d'approuver la demande: " + updateError.message,
           variant: "destructive"
         });
         return;
       }
 
-      console.log('✅ Approbation réussie pour:', requestId);
+      // 2. Traiter automatiquement le solde selon le type d'opération
+      if (request.operation_type === 'recharge') {
+        // Pour une recharge approuvée : créditer le compte de l'utilisateur
+        const { error: creditError } = await supabase.rpc('secure_increment_balance', {
+          target_user_id: request.user_id,
+          amount: request.amount,
+          operation_type: 'sub_admin_approved_recharge',
+          performed_by: user?.id
+        });
 
+        if (creditError) {
+          console.error('❌ Erreur lors du crédit:', creditError);
+          toast({
+            title: "Erreur",
+            description: "Erreur lors du crédit automatique: " + creditError.message,
+            variant: "destructive"
+          });
+          // Annuler l'approbation en cas d'erreur
+          await supabase
+            .from('user_requests')
+            .update({ status: 'pending', processed_by: null, processed_at: null })
+            .eq('id', requestId);
+          return;
+        }
+
+        console.log(`✅ Compte crédité de ${request.amount} FCFA pour l'utilisateur`);
+      } else if (request.operation_type === 'withdrawal') {
+        // Pour un retrait approuvé : débiter le compte de l'utilisateur
+        const { error: debitError } = await supabase.rpc('secure_increment_balance', {
+          target_user_id: request.user_id,
+          amount: -request.amount,
+          operation_type: 'sub_admin_approved_withdrawal',
+          performed_by: user?.id
+        });
+
+        if (debitError) {
+          console.error('❌ Erreur lors du débit:', debitError);
+          toast({
+            title: "Erreur",
+            description: "Erreur lors du débit automatique: " + debitError.message,
+            variant: "destructive"
+          });
+          // Annuler l'approbation en cas d'erreur
+          await supabase
+            .from('user_requests')
+            .update({ status: 'pending', processed_by: null, processed_at: null })
+            .eq('id', requestId);
+          return;
+        }
+
+        console.log(`✅ Compte débité de ${request.amount} FCFA pour l'utilisateur`);
+      }
+
+      // Enregistrer l'utilisation du quota
+      await recordRequest('user_request_approval');
+
+      console.log('✅ Approbation et traitement automatique réussis pour:', requestId);
+
+      const operationText = request.operation_type === 'recharge' ? 'Recharge' : 'Retrait';
+      const balanceAction = request.operation_type === 'recharge' ? 'crédité' : 'débité';
+      
       toast({
         title: "Demande approuvée",
-        description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} approuvé avec succès`,
+        description: `${operationText} approuvé avec succès. Le compte a été ${balanceAction} automatiquement de ${request.amount.toLocaleString()} FCFA`,
       });
 
+      // Recharger les données immédiatement
+      fetchUserRequests();
     } catch (error) {
       console.error('💥 Erreur lors de l\'approbation:', error);
-      
-      // Retirer de la liste des IDs traités en cas d'erreur
-      setProcessedIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(requestId);
-        return newSet;
-      });
-      
       toast({
         title: "Erreur",
         description: "Erreur lors du traitement de la demande",
@@ -296,42 +261,32 @@ const SubAdminRechargeTab = () => {
     }
   };
 
-  const handleReject = async (requestId: string, reason = 'Demande rejetée par l\'administrateur') => {
-    try {
-      setIsProcessing(requestId);
-      
-      // Ajouter à la liste des IDs traités immédiatement
-      setProcessedIds(prev => new Set([...prev, requestId]));
-      
-      console.log('🔄 Début rejet pour:', requestId);
-      
-      const request = userRequests.find(r => r.id === requestId);
-      if (!request) {
-        console.error('Demande non trouvée:', requestId);
-        return;
-      }
+  const handleReject = async () => {
+    if (!selectedRequest || !rejectionReason.trim()) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez fournir une raison pour le rejet",
+        variant: "destructive"
+      });
+      return;
+    }
 
-      const tableName = request.operation_type === 'recharge' ? 'recharges' : 'withdrawals';
-      console.log('📊 Mise à jour dans la table:', tableName);
-      
+    try {
+      setIsProcessing(selectedRequest.id);
+      console.log('🔄 Début rejet pour:', selectedRequest.id);
+
       const { error } = await supabase
-        .from(tableName as any)
+        .from('user_requests')
         .update({
-          status: 'failed',
-          updated_at: new Date().toISOString()
+          status: 'rejected',
+          processed_by: user?.id,
+          processed_at: new Date().toISOString(),
+          rejection_reason: rejectionReason
         })
-        .eq('id', requestId);
+        .eq('id', selectedRequest.id);
 
       if (error) {
         console.error('❌ Erreur lors du rejet:', error);
-        
-        // Retirer de la liste des IDs traités en cas d'erreur
-        setProcessedIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(requestId);
-          return newSet;
-        });
-        
         toast({
           title: "Erreur",
           description: "Impossible de rejeter la demande: " + error.message,
@@ -340,23 +295,22 @@ const SubAdminRechargeTab = () => {
         return;
       }
 
-      console.log('✅ Rejet réussi pour:', requestId);
+      console.log('✅ Rejet réussi pour:', selectedRequest.id);
 
       toast({
         title: "Demande rejetée",
-        description: `${request.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} rejeté`,
+        description: `${selectedRequest.operation_type === 'recharge' ? 'Recharge' : 'Retrait'} rejeté`,
       });
 
+      // Fermer le dialogue et réinitialiser
+      setShowRejectDialog(false);
+      setSelectedRequest(null);
+      setRejectionReason('');
+      
+      // Recharger les données immédiatement
+      fetchUserRequests();
     } catch (error) {
       console.error('💥 Erreur lors du rejet:', error);
-      
-      // Retirer de la liste des IDs traités en cas d'erreur
-      setProcessedIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(requestId);
-        return newSet;
-      });
-      
       toast({
         title: "Erreur",
         description: "Erreur lors du traitement de la demande",
@@ -371,9 +325,9 @@ const SubAdminRechargeTab = () => {
     switch (status) {
       case 'pending':
         return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1" />En attente</Badge>;
-      case 'completed':
+      case 'approved':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Approuvée</Badge>;
-      case 'failed':
+      case 'rejected':
         return <Badge className="bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Rejetée</Badge>;
       default:
         return <Badge variant="secondary">Inconnu</Badge>;
@@ -386,18 +340,13 @@ const SubAdminRechargeTab = () => {
 
   const getOperationIcon = (type: string) => {
     return type === 'recharge' ? 
-      <CreditCard className="w-4 h-4 text-green-600" /> : 
+      <Wallet className="w-4 h-4 text-green-600" /> : 
       <CreditCard className="w-4 h-4 text-red-600" />;
   };
 
-  // Filtrer les demandes en attente en excluant celles qui ont été traitées
-  const pendingRequests = userRequests.filter(req => 
-    req.status === 'pending' && !processedIds.has(req.id)
-  );
-  
-  const processedRequestsList = userRequests.filter(req => 
-    req.status !== 'pending' || processedIds.has(req.id)
-  );
+  // Filtrer les demandes
+  const pendingRequests = userRequests.filter(req => req.status === 'pending');
+  const processedRequests = userRequests.filter(req => req.status !== 'pending');
 
   if (isLoading) {
     return (
@@ -492,9 +441,9 @@ const SubAdminRechargeTab = () => {
                         <h4 className="font-semibold">{getOperationTypeLabel(request.operation_type)} - {formatCurrency(request.amount, 'XAF')}</h4>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <User className="w-3 h-3" />
-                          <span>{request.profile?.full_name || 'Utilisateur inconnu'}</span>
+                          <span>{request.profiles?.full_name || 'Utilisateur inconnu'}</span>
                           <Phone className="w-3 h-3 ml-2" />
-                          <span>{request.payment_phone}</span>
+                          <span>{request.profiles?.phone || 'Téléphone inconnu'}</span>
                         </div>
                       </div>
                     </div>
@@ -525,11 +474,14 @@ const SubAdminRechargeTab = () => {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleReject(request.id)}
+                      onClick={() => {
+                        setSelectedRequest(request);
+                        setShowRejectDialog(true);
+                      }}
                       disabled={isProcessing === request.id}
                     >
                       <XCircle className="w-4 h-4 mr-1" />
-                      {isProcessing === request.id ? 'Traitement...' : 'Rejeter'}
+                      Rejeter
                     </Button>
                   </div>
                 </div>
@@ -550,8 +502,8 @@ const SubAdminRechargeTab = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {processedRequestsList.length > 0 ? (
-              processedRequestsList.slice(0, 10).map((request) => (
+            {processedRequests.length > 0 ? (
+              processedRequests.slice(0, 10).map((request) => (
                 <div key={request.id} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -560,15 +512,15 @@ const SubAdminRechargeTab = () => {
                         <h4 className="font-semibold">{getOperationTypeLabel(request.operation_type)} - {formatCurrency(request.amount, 'XAF')}</h4>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <User className="w-3 h-3" />
-                          <span>{request.profile?.full_name || 'Utilisateur inconnu'}</span>
+                          <span>{request.profiles?.full_name || 'Utilisateur inconnu'}</span>
                         </div>
                       </div>
                     </div>
                     {getStatusBadge(request.status)}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    Traité le: {new Date(request.updated_at).toLocaleDateString('fr-FR')}
-                  </div>
+                   <div className="text-xs text-muted-foreground">
+                     Traité le: {request.processed_at ? new Date(request.processed_at).toLocaleDateString('fr-FR') : 'Date inconnue'}
+                   </div>
                 </div>
               ))
             ) : (
@@ -579,6 +531,47 @@ const SubAdminRechargeTab = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog de rejet */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeter la demande</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">
+                Veuillez indiquer la raison du rejet :
+              </p>
+              <Textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Ex: Informations insuffisantes, montant incorrect..."
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRejectDialog(false);
+                  setSelectedRequest(null);
+                  setRejectionReason('');
+                }}
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleReject}
+                disabled={!rejectionReason.trim() || isProcessing === selectedRequest?.id}
+              >
+                {isProcessing === selectedRequest?.id ? 'Traitement...' : 'Confirmer le rejet'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

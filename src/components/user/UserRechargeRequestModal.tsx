@@ -134,6 +134,7 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
         .insert({
           user_id: user.id,
           operation_type: selectedOperation,
+          request_type: selectedOperation, // Ajouter request_type requis
           amount: parseFloat(amount),
           payment_method: paymentMethod,
           payment_phone: config.number,
