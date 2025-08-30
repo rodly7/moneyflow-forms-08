@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,19 +11,59 @@ import SignUpForm from '@/components/auth/SignUpForm';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Smartphone, Lock } from 'lucide-react';
+import ForcedPWAInstall from '@/components/auth/ForcedPWAInstall';
+import { authStorageService } from '@/services/authStorageService';
+import { authService } from '@/services/authService';
+import { usePWA } from '@/hooks/usePWA';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 const Auth = () => {
   const { user, signIn, loading } = useAuth();
+  const { isInstalled } = usePWA();
+  const isMobile = useIsMobile();
   const [isLogin, setIsLogin] = useState(true);
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'password' | 'pin'>('password');
+  const [showPWAInstall, setShowPWAInstall] = useState(false);
+  const [pwaInstallComplete, setPWAInstallComplete] = useState(false);
+  const [storedPhone, setStoredPhone] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Vérifier si l'application doit être installée sur mobile
+    if (isMobile && !isInstalled && !pwaInstallComplete) {
+      setShowPWAInstall(true);
+      return;
+    }
+
+    // Vérifier s'il y a un numéro stocké
+    const savedPhone = authStorageService.getStoredPhoneNumber();
+    if (savedPhone) {
+      setStoredPhone(savedPhone);
+      setPhone(savedPhone);
+      setLoginMethod('pin');
+    }
+    
+    setPWAInstallComplete(true);
+  }, [isMobile, isInstalled, pwaInstallComplete]);
 
   // Rediriger si l'utilisateur est déjà connecté
   if (user && !loading) {
     return <Navigate to="/" replace />;
+  }
+
+  // Afficher l'écran d'installation PWA obligatoire sur mobile
+  if (showPWAInstall && isMobile && !pwaInstallComplete) {
+    return (
+      <ForcedPWAInstall 
+        onInstallComplete={() => {
+          setShowPWAInstall(false);
+          setPWAInstallComplete(true);
+        }} 
+      />
+    );
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -32,6 +72,10 @@ const Auth = () => {
 
     try {
       await signIn(phone, password);
+      
+      // Stocker le numéro de téléphone après connexion réussie
+      authStorageService.storePhoneNumber(phone);
+      
       toast.success('Connexion réussie !');
     } catch (error: any) {
       toast.error(error.message || 'Erreur de connexion');
@@ -49,14 +93,26 @@ const Auth = () => {
 
     setIsSubmitting(true);
     try {
-      // For PIN login, we need to verify PIN against stored PIN
-      // This would need a specific signInWithPin method
+      await authService.signInWithPin(phone, pin);
       toast.success('Connexion par PIN réussie !');
+      
+      // Rediriger manuellement car nous n'utilisons pas le contexte auth ici
+      window.location.href = '/';
     } catch (error: any) {
-      toast.error(error.message || 'Erreur de connexion par PIN');
+      toast.error(error.message || 'PIN incorrect');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleForgotPin = () => {
+    // Supprimer le numéro stocké pour forcer la connexion complète
+    authStorageService.clearStoredPhoneNumber();
+    setStoredPhone(null);
+    setLoginMethod('password');
+    setPin('');
+    setPhone('');
+    toast.info('Vous devez maintenant vous connecter avec vos identifiants complets');
   };
 
   if (loading) {
@@ -133,17 +189,28 @@ const Auth = () => {
 
               <TabsContent value="pin" className="space-y-4">
                 <form onSubmit={handlePinLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone-pin">Numéro de téléphone</Label>
-                    <Input
-                      id="phone-pin"
-                      type="tel"
-                      placeholder="+221 XX XXX XX XX"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      required
-                    />
-                  </div>
+                  {storedPhone ? (
+                    <div className="space-y-2">
+                      <Label>Numéro de téléphone</Label>
+                      <div className="bg-secondary/50 rounded-lg p-3 text-center">
+                        <p className="text-sm text-muted-foreground">Connecté en tant que</p>
+                        <p className="font-medium">{authStorageService.formatPhoneForDisplay(storedPhone)}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="phone-pin">Numéro de téléphone</Label>
+                      <Input
+                        id="phone-pin"
+                        type="tel"
+                        placeholder="+221 XX XXX XX XX"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
+                  
                   <div className="space-y-2">
                     <Label>Code PIN (4 chiffres)</Label>
                     <div className="flex justify-center">
@@ -162,6 +229,7 @@ const Auth = () => {
                       </InputOTP>
                     </div>
                   </div>
+                  
                   <Button 
                     type="submit" 
                     className="w-full" 
@@ -169,6 +237,18 @@ const Auth = () => {
                   >
                     {isSubmitting ? 'Connexion...' : 'Se connecter avec PIN'}
                   </Button>
+                  
+                  {storedPhone && (
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={handleForgotPin}
+                        className="text-sm text-muted-foreground hover:text-primary hover:underline"
+                      >
+                        PIN oublié ? Se connecter avec le mot de passe
+                      </button>
+                    </div>
+                  )}
                 </form>
               </TabsContent>
 

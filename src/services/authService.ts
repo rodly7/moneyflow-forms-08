@@ -37,6 +37,54 @@ export const authService = {
     return data;
   },
 
+  async signInWithPin(phone: string, pin: string) {
+    console.log('🔐 Tentative de connexion avec PIN pour:', phone);
+    
+    const normalizedPhone = phone.replace(/[^\d+]/g, '');
+    
+    const { data, error } = await supabase.rpc('verify_user_pin', {
+      user_id_param: normalizedPhone,
+      pin_param: pin
+    });
+
+    if (error) {
+      console.error('❌ Erreur de connexion PIN:', error);
+      throw new Error('PIN incorrect ou utilisateur non trouvé.');
+    }
+
+    if (!data) {
+      throw new Error('PIN incorrect.');
+    }
+
+    // Récupérer l'utilisateur et créer une session
+    const email = `${normalizedPhone}@sendflow.app`;
+    const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
+      email: email,
+      options: {
+        shouldCreateUser: false
+      }
+    });
+
+    if (authError) {
+      // Fallback: essayer de récupérer l'utilisateur directement
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('phone', normalizedPhone)
+        .single();
+
+      if (userError || !userData) {
+        throw new Error('Utilisateur non trouvé.');
+      }
+
+      console.log('✅ Connexion PIN réussie pour:', userData.id);
+      return { user: { id: userData.id, phone: normalizedPhone } };
+    }
+
+    console.log('✅ Connexion PIN réussie');
+    return authData;
+  },
+
   async signUp(phone: string, password: string, metadata: SignUpMetadata & { id_card_file?: File }) {
     console.log('📝 Tentative d\'inscription avec le numéro:', phone);
     console.log('🎯 Rôle demandé:', metadata.role);
@@ -109,6 +157,13 @@ export const authService = {
 
   async signOut() {
     console.log('🚪 Déconnexion en cours...');
+    
+    // Importer le service de stockage ici pour éviter les dépendances circulaires
+    const { authStorageService } = await import('./authStorageService');
+    
+    // Supprimer le numéro stocké lors de la déconnexion
+    authStorageService.clearStoredPhoneNumber();
+    
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('❌ Erreur de déconnexion:', error);

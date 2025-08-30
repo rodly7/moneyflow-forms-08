@@ -183,6 +183,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       await authService.signIn(phone, password);
+      
+      // Stocker le numéro de téléphone après connexion réussie
+      const { authStorageService } = await import('@/services/authStorageService');
+      authStorageService.storePhoneNumber(phone);
     } catch (error) {
       setLoading(false);
       throw error;
@@ -209,10 +213,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setShowRequiredFieldsModal(false);
       setShowPinSetupModal(false);
       
-      // Nettoyer le localStorage
+      // Nettoyer le localStorage incluant le numéro de téléphone stocké
       localStorage.removeItem('supabase.auth.token');
       
-      // Puis appeler Supabase pour la déconnexion
+      // Puis appeler Supabase pour la déconnexion (inclut le nettoyage du numéro stocké)
       await authService.signOut();
       
       // Forcer un nettoyage complet de la session
