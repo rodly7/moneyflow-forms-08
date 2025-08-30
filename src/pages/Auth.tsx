@@ -88,6 +88,15 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
+          {isLogin && (
+            <div className="flex justify-center mb-6">
+              <img 
+                src="/icons/icon-192x192.png" 
+                alt="SendFlow Logo" 
+                className="h-20 w-20 rounded-2xl shadow-lg"
+              />
+            </div>
+          )}
           <CardTitle className="text-2xl text-center">
             {isLogin ? 'Connexion' : 'Inscription'}
           </CardTitle>
