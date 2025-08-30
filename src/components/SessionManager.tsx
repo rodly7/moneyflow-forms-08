@@ -20,7 +20,7 @@ const SessionManager = () => {
         setIsLocked(true);
       }
     },
-    lockDelay: 5000 // 5 secondes
+    lockDelay: 50000 // 50 secondes
   });
   
   const handleUnlock = () => {
