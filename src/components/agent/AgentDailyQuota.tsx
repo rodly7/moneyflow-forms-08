@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useAgentQuota } from "@/hooks/useAgentQuota";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency } from "@/lib/utils/currency";
+import { formatCurrency } from "@/integrations/supabase/client";
 import { Target, TrendingUp } from "lucide-react";
 
 const DAILY_QUOTA_LIMIT = 200000; // 200,000 FCFA
@@ -70,10 +70,10 @@ const AgentDailyQuota: React.FC = () => {
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className="text-2xl font-bold text-gray-900">
-              {formatCurrency(totalDeposits)}
+              {formatCurrency(totalDeposits, 'XAF')}
             </span>
             <span className="text-sm text-gray-500">
-              / {formatCurrency(DAILY_QUOTA_LIMIT)}
+              / {formatCurrency(DAILY_QUOTA_LIMIT, 'XAF')}
             </span>
           </div>
           
