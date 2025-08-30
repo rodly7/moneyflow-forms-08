@@ -8,6 +8,7 @@ const corsHeaders = {
 
 // Simple PIN verification for demo - in production, use proper encryption
 function verifyPin(inputPin: string, storedPin: string, userId: string): boolean {
+  console.log('🔍 Verification PIN:', { inputPin, storedPin, userId });
   // For now, simple comparison. In production, implement proper encryption/decryption
   return inputPin === storedPin;
 }
@@ -34,6 +35,16 @@ serve(async (req) => {
 
     // Normaliser le numéro
     const normalizedPhone = phone.replace(/[^\d+]/g, '')
+    console.log('📱 Numéro normalisé:', normalizedPhone)
+    
+    // D'abord, lister tous les numéros pour déboguer
+    const { data: allProfiles, error: debugError } = await supabaseAdmin
+      .from('profiles')
+      .select('phone, full_name, pin_code')
+      .not('pin_code', 'is', null)
+      .limit(10)
+    
+    console.log('🔍 Tous les profils avec PIN:', allProfiles)
     
     // Récupérer l'utilisateur avec son PIN
     const { data: profile, error: profileError } = await supabaseAdmin
@@ -42,9 +53,23 @@ serve(async (req) => {
       .eq('phone', normalizedPhone)
       .single()
 
+    console.log('🔍 Recherche pour:', normalizedPhone)
+    console.log('🔍 Profil trouvé:', profile)
+    console.log('🔍 Erreur profile:', profileError)
+
     if (profileError || !profile) {
-      console.error('❌ User not found:', profileError)
-      throw new Error('Utilisateur non trouvé avec ce numéro de téléphone')
+      console.error('❌ User not found:', { normalizedPhone, profileError })
+      
+      // Essayons aussi une recherche avec LIKE pour trouver des correspondances partielles
+      const { data: similarProfiles, error: similarError } = await supabaseAdmin
+        .from('profiles')
+        .select('phone, full_name')
+        .like('phone', `%${normalizedPhone.slice(-8)}%`)
+        .limit(5)
+      
+      console.log('🔍 Profils similaires:', similarProfiles)
+      
+      throw new Error(`Utilisateur non trouvé avec ce numéro de téléphone: ${normalizedPhone}`)
     }
 
     if (!profile.pin_code) {
