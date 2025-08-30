@@ -8,7 +8,6 @@ import { PWAInstallBanner } from "./components/pwa/PWAInstallBanner";
 import { PWAUpdateBanner } from "./components/pwa/PWAUpdateBanner";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 import { ForcedPWAInstall } from "./components/pwa/ForcedPWAInstall";
-import { PWANotificationManager } from "./components/notifications/PWANotificationManager";
 
 // CRITICAL: All imports must be static - NO dynamic imports whatsoever
 // Every single component is imported statically to prevent code splitting
@@ -192,9 +191,6 @@ function App() {
           <Route path="bill-payments" element={<BillPayments />} />
         </Route>
       </Routes>
-      
-      {/* Gestionnaire de notifications PWA */}
-      <PWANotificationManager />
     </TooltipProvider>
   );
 }

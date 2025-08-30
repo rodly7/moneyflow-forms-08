@@ -173,50 +173,7 @@ async function staleWhileRevalidate(request) {
   return cached || fetchPromise;
 }
 
-// Gestion du compteur de notifications
-let notificationCount = 0;
-
-// Récupérer le compteur depuis le stockage local
-async function getNotificationCount() {
-  try {
-    const stored = await caches.open('notification-count');
-    const response = await stored.match('count');
-    if (response) {
-      const data = await response.json();
-      notificationCount = data.count || 0;
-    }
-  } catch (error) {
-    console.log('Impossible de récupérer le compteur');
-  }
-  return notificationCount;
-}
-
-// Sauvegarder le compteur
-async function saveNotificationCount(count) {
-  try {
-    const cache = await caches.open('notification-count');
-    await cache.put('count', new Response(JSON.stringify({ count })));
-  } catch (error) {
-    console.log('Impossible de sauvegarder le compteur');
-  }
-}
-
-// Mettre à jour le badge de l'application
-async function updateAppBadge(count) {
-  try {
-    if ('setAppBadge' in navigator) {
-      if (count > 0) {
-        await navigator.setAppBadge(count);
-      } else {
-        await navigator.clearAppBadge();
-      }
-    }
-  } catch (error) {
-    console.log('Badge non supporté sur cet appareil');
-  }
-}
-
-// Gestion des notifications push optimisée avec son et badge
+// Gestion des notifications push optimisée
 self.addEventListener('push', (event) => {
   console.log('📱 Service Worker: Notification reçue');
   
@@ -225,19 +182,15 @@ self.addEventListener('push', (event) => {
     data = event.data ? event.data.json() : {};
   } catch (e) {
     console.log('Données de notification invalides');
-    data = { title: 'SendFlow', body: 'Nouvelle notification' };
   }
 
-  // Incrémenter le compteur
-  notificationCount++;
-  
   const options = {
     body: data.body || 'Nouvelle notification SendFlow',
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-72x72.png',
     tag: data.tag || 'sendflow-notification',
     data: data.data || {},
-    requireInteraction: data.requireInteraction || true,
+    requireInteraction: data.requireInteraction || false,
     actions: [
       {
         action: 'open',
@@ -250,24 +203,15 @@ self.addEventListener('push', (event) => {
         icon: '/icons/icon-72x72.png'
       }
     ],
-    vibrate: [200, 100, 200, 100, 200],
-    silent: false, // S'assurer que le son est activé
-    renotify: true, // Rejouer le son même si une notification similaire existe
+    vibrate: [200, 100, 200],
     timestamp: Date.now()
   };
 
   event.waitUntil(
-    Promise.all([
-      // Afficher la notification
-      self.registration.showNotification(
-        data.title || `SendFlow (${notificationCount})`, 
-        options
-      ),
-      // Sauvegarder le compteur
-      saveNotificationCount(notificationCount),
-      // Mettre à jour le badge
-      updateAppBadge(notificationCount)
-    ])
+    self.registration.showNotification(
+      data.title || 'SendFlow', 
+      options
+    )
   );
 });
 
@@ -277,20 +221,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   if (event.action === 'close') {
-    // Décrémenter le compteur quand on ferme
-    if (notificationCount > 0) {
-      notificationCount--;
-      saveNotificationCount(notificationCount);
-      updateAppBadge(notificationCount);
-    }
     return;
-  }
-
-  // Décrémenter le compteur quand on ouvre
-  if (notificationCount > 0) {
-    notificationCount--;
-    saveNotificationCount(notificationCount);
-    updateAppBadge(notificationCount);
   }
 
   const urlToOpen = event.notification.data?.url || '/dashboard';
@@ -311,44 +242,6 @@ self.addEventListener('notificationclick', (event) => {
           return clients.openWindow(urlToOpen);
         }
       })
-  );
-});
-
-// Message depuis l'application pour gérer le compteur
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'RESET_BADGE') {
-    notificationCount = 0;
-    saveNotificationCount(0);
-    updateAppBadge(0);
-  }
-  
-  if (event.data && event.data.type === 'GET_BADGE_COUNT') {
-    event.ports[0].postMessage({ count: notificationCount });
-  }
-});
-
-// Initialiser le compteur au démarrage
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    Promise.all([
-      // Nettoyer les anciens caches
-      caches.keys().then(cacheNames => {
-        return Promise.all(
-          cacheNames.map(cacheName => {
-            if (cacheName !== CACHE_NAME && cacheName !== DYNAMIC_CACHE) {
-              console.log('🗑️ Suppression du cache:', cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      }),
-      // Récupérer le compteur de notifications
-      getNotificationCount().then(count => {
-        updateAppBadge(count);
-      }),
-      // Prendre le contrôle de tous les onglets
-      self.clients.claim()
-    ])
   );
 });
 
