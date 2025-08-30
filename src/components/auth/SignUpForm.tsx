@@ -92,11 +92,11 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-center mb-6">
           <img 
             src="/icons/icon-192x192.png" 
             alt="SendFlow Logo" 
-            className="h-16 w-16"
+            className="h-20 w-20 rounded-2xl shadow-lg"
           />
         </div>
         <h2 className="text-2xl font-bold">Inscription</h2>
