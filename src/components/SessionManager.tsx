@@ -12,7 +12,8 @@ const SessionManager = () => {
   // Toujours appeler le hook, mais il gérera la logique interne
   useUserSession();
   
-  // Hook d'auto-verrouillage - seulement si l'utilisateur a un numéro de téléphone stocké
+  // Hook d'auto-verrouillage désactivé
+  /*
   useAutoLock({
     onLockRequired: () => {
       const hasStoredPhone = authStorageService.hasStoredPhoneNumber();
@@ -22,6 +23,7 @@ const SessionManager = () => {
     },
     lockDelay: 45000 // 45 secondes
   });
+  */
   
   const handleUnlock = () => {
     setIsLocked(false);
