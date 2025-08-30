@@ -89,6 +89,13 @@ const Notifications = () => {
 
       if (error) throw error;
 
+      // Marquer aussi dans localStorage pour cohérence avec le système unifié
+      const readNotificationsKey = `readNotifications_${user.id}`;
+      const stored = localStorage.getItem(readNotificationsKey);
+      const readIds = new Set(stored ? JSON.parse(stored) : []);
+      readIds.add(`admin_${notificationId}`);
+      localStorage.setItem(readNotificationsKey, JSON.stringify([...readIds]));
+
       setNotifications(prev => 
         prev.map(n => 
           n.id === notificationId 
@@ -98,6 +105,48 @@ const Notifications = () => {
       );
     } catch (error) {
       console.error('Erreur lors du marquage de la notification:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!user) return;
+
+    try {
+      // Marquer toutes les notifications non lues dans la base de données
+      const unreadNotifications = notifications.filter(n => !n.read_at);
+      if (unreadNotifications.length === 0) return;
+
+      const { error } = await supabase
+        .from('notification_recipients')
+        .update({ read_at: new Date().toISOString() })
+        .eq('user_id', user.id)
+        .in('notification_id', unreadNotifications.map(n => n.id));
+
+      if (error) throw error;
+
+      // Marquer aussi dans localStorage
+      const readNotificationsKey = `readNotifications_${user.id}`;
+      const stored = localStorage.getItem(readNotificationsKey);
+      const readIds = new Set(stored ? JSON.parse(stored) : []);
+      unreadNotifications.forEach(n => readIds.add(`admin_${n.id}`));
+      localStorage.setItem(readNotificationsKey, JSON.stringify([...readIds]));
+
+      // Mettre à jour l'état local
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, read_at: new Date().toISOString() }))
+      );
+
+      toast({
+        title: "Succès",
+        description: "Toutes les notifications ont été marquées comme lues",
+      });
+    } catch (error) {
+      console.error('Erreur lors du marquage de toutes les notifications:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de marquer toutes les notifications comme lues",
+        variant: "destructive"
+      });
     }
   };
 
@@ -160,6 +209,15 @@ const Notifications = () => {
               Mes Notifications
             </h1>
           </div>
+          {notifications.some(n => !n.read_at) && (
+            <Button
+              onClick={markAllAsRead}
+              size="sm"
+              className="text-xs sm:text-sm"
+            >
+              Tout marquer comme lu
+            </Button>
+          )}
         </div>
 
         {/* Notifications List */}

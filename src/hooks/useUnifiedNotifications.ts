@@ -524,22 +524,65 @@ export const useUnifiedNotifications = () => {
     };
   }, [user?.id, user?.phone, user?.email]);
 
-  // Marquer une notification comme lue
-  const markAsRead = (notificationId: string) => {
-    const readIds = getReadNotificationIds();
-    readIds.add(notificationId);
-    saveReadNotificationIds(readIds);
-    
-    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+  // Marquer une notification comme lue avec persistance complète
+  const markAsRead = async (notificationId: string) => {
+    try {
+      // Marquer dans localStorage
+      const readIds = getReadNotificationIds();
+      readIds.add(notificationId);
+      saveReadNotificationIds(readIds);
+      
+      // Si c'est une notification admin, marquer dans la base de données aussi
+      if (notificationId.startsWith('admin_') && user?.id) {
+        const adminNotificationId = notificationId.replace('admin_', '');
+        await supabase
+          .from('notification_recipients')
+          .update({ read_at: new Date().toISOString() })
+          .eq('user_id', user.id)
+          .eq('notification_id', adminNotificationId);
+      }
+      
+      // Retirer de la liste affichée
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      
+      console.log(`✅ Notification ${notificationId} marquée comme lue et supprimée`);
+    } catch (error) {
+      console.error('Erreur lors du marquage de la notification:', error);
+    }
   };
 
-  // Marquer toutes comme lues
-  const markAllAsRead = () => {
-    const readIds = getReadNotificationIds();
-    notifications.forEach(n => readIds.add(n.id));
-    saveReadNotificationIds(readIds);
-    
-    setNotifications([]);
+  // Marquer toutes les notifications comme lues
+  const markAllAsRead = async () => {
+    try {
+      const readIds = getReadNotificationIds();
+      const adminNotificationIds: string[] = [];
+      
+      // Collecter les IDs et marquer dans localStorage
+      notifications.forEach(notification => {
+        readIds.add(notification.id);
+        if (notification.id.startsWith('admin_')) {
+          adminNotificationIds.push(notification.id.replace('admin_', ''));
+        }
+      });
+      
+      saveReadNotificationIds(readIds);
+      
+      // Marquer les notifications admin dans la base de données
+      if (adminNotificationIds.length > 0 && user?.id) {
+        await supabase
+          .from('notification_recipients')
+          .update({ read_at: new Date().toISOString() })
+          .eq('user_id', user.id)
+          .in('notification_id', adminNotificationIds);
+      }
+      
+      // Vider la liste des notifications
+      setNotifications([]);
+      
+      console.log(`✅ Toutes les notifications marquées comme lues et supprimées`);
+    } catch (error) {
+      console.error('Erreur lors du marquage de toutes les notifications:', error);
+    }
   };
 
   // Forcer le rechargement
