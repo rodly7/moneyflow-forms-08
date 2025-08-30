@@ -15,7 +15,7 @@ import ReliableTransactionsCard from '@/components/dashboard/ReliableTransaction
 import MobileDashboard from '@/components/mobile/MobileDashboard';
 import { useState, useCallback, useMemo } from 'react';
 import { User, Wallet, Plus, Minus, QrCode, History, CreditCard, PiggyBank } from 'lucide-react';
-import { useTransferNotifications } from '@/hooks/useTransferNotifications';
+// import { useTransferNotifications } from '@/hooks/useTransferNotifications'; // Désactivé - utilise UnifiedNotificationBell à la place
 
 const Dashboard = () => {
   // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY CONDITIONAL LOGIC
@@ -24,8 +24,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // Activer les notifications de transfert
-  useTransferNotifications();
+  // Notifications gérées par UnifiedNotificationBell - pas besoin de hook séparé
+  // useTransferNotifications(); // DÉSACTIVÉ
 
   const { 
     data: profile, 
