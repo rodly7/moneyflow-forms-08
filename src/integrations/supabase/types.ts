@@ -1924,39 +1924,33 @@ export type Database = {
           amount: number
           created_at: string
           id: string
-          operation_type: string
-          payment_method: string
-          payment_phone: string
+          notes: string | null
           processed_at: string | null
-          processed_by: string | null
-          rejection_reason: string | null
+          request_type: string
           status: string
+          updated_at: string
           user_id: string
         }
         Insert: {
           amount: number
           created_at?: string
           id?: string
-          operation_type: string
-          payment_method: string
-          payment_phone: string
+          notes?: string | null
           processed_at?: string | null
-          processed_by?: string | null
-          rejection_reason?: string | null
+          request_type: string
           status?: string
+          updated_at?: string
           user_id: string
         }
         Update: {
           amount?: number
           created_at?: string
           id?: string
-          operation_type?: string
-          payment_method?: string
-          payment_phone?: string
+          notes?: string | null
           processed_at?: string | null
-          processed_by?: string | null
-          rejection_reason?: string | null
+          request_type?: string
           status?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
