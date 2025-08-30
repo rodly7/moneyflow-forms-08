@@ -1919,6 +1919,48 @@ export type Database = {
           },
         ]
       }
+      user_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          operation_type: string
+          payment_method: string
+          payment_phone: string
+          processed_at: string | null
+          processed_by: string | null
+          rejection_reason: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          operation_type: string
+          payment_method: string
+          payment_phone: string
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          operation_type?: string
+          payment_method?: string
+          payment_phone?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_sessions: {
         Row: {
           created_at: string
@@ -2072,22 +2114,6 @@ export type Database = {
           id?: string | null
           last_sign_in_at?: string | null
           raw_user_meta_data?: Json | null
-        }
-        Relationships: []
-      }
-      user_requests: {
-        Row: {
-          amount: number | null
-          created_at: string | null
-          id: string | null
-          operation_type: string | null
-          payment_method: string | null
-          payment_phone: string | null
-          processed_at: string | null
-          processed_by: string | null
-          rejection_reason: string | null
-          status: string | null
-          user_id: string | null
         }
         Relationships: []
       }
