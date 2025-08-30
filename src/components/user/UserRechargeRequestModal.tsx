@@ -335,39 +335,70 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
                 <span>Mode de paiement:</span>
                 <span className="font-medium">{paymentMethod}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Numéro:</span>
-                <span className="font-medium font-mono">{config?.number}</span>
-              </div>
+              {selectedOperation === 'recharge' && (
+                <div className="flex justify-between">
+                  <span>Numéro:</span>
+                  <span className="font-medium font-mono">{config?.number}</span>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4">
-          <h4 className="font-semibold text-orange-900 mb-2">⚠️ Avant de confirmer</h4>
-          <div className="text-sm text-orange-800 space-y-1">
-            <p>✅ J'ai fait le dépôt de <strong>{parseFloat(amount).toLocaleString()} FCFA</strong></p>
-            <p>✅ Le numéro utilisé est: <strong>{config?.number}</strong></p>
-            <p>✅ Ma demande sera traitée par un administrateur</p>
-          </div>
-        </div>
+        {selectedOperation === 'recharge' ? (
+          <>
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4">
+              <h4 className="font-semibold text-orange-900 mb-2">⚠️ Avant de confirmer</h4>
+              <div className="text-sm text-orange-800 space-y-1">
+                <p>✅ J'ai fait le dépôt de <strong>{parseFloat(amount).toLocaleString()} FCFA</strong></p>
+                <p>✅ Le numéro utilisé est: <strong>{config?.number}</strong></p>
+                <p>✅ Ma demande sera traitée par un administrateur</p>
+              </div>
+            </div>
 
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h4 className="font-semibold text-green-900 mb-2">🚀 Après confirmation</h4>
-          <p className="text-sm text-green-800">
-            Vous serez automatiquement redirigé vers votre opérateur ({paymentMethod}) 
-            pour composer le code USSD ou ouvrir l'application et finaliser le paiement.
-          </p>
-        </div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-semibold text-green-900 mb-2">🚀 Après confirmation</h4>
+              <p className="text-sm text-green-800">
+                Vous serez automatiquement redirigé vers votre opérateur ({paymentMethod}) 
+                pour composer le code USSD ou ouvrir l'application et finaliser le paiement.
+              </p>
+            </div>
 
-        <Button 
-          onClick={handleSubmitRequest}
-          className="w-full bg-green-600 hover:bg-green-700"
-          disabled={isSubmitting}
-        >
-          <Send className="w-4 h-4 mr-2" />
-          {isSubmitting ? 'Envoi en cours...' : 'Confirmer et rediriger'}
-        </Button>
+            <Button 
+              onClick={handleSubmitRequest}
+              className="w-full bg-green-600 hover:bg-green-700"
+              disabled={isSubmitting}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {isSubmitting ? 'Envoi en cours...' : 'Confirmer et rediriger'}
+            </Button>
+          </>
+        ) : (
+          <>
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4">
+              <h4 className="font-semibold text-orange-900 mb-2">⚠️ Avant de confirmer</h4>
+              <p className="text-sm text-orange-800">
+                Ma demande sera traitée par un administrateur
+              </p>
+            </div>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-semibold text-green-900 mb-2">🚀 Après confirmation</h4>
+              <p className="text-sm text-green-800">
+                Votre compte ({paymentMethod}) sera rechargé dans 2-5 minutes
+              </p>
+            </div>
+
+            <Button 
+              onClick={handleSubmitRequest}
+              className="w-full bg-green-600 hover:bg-green-700"
+              disabled={isSubmitting}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {isSubmitting ? 'Envoi en cours...' : 'Envoyer'}
+            </Button>
+          </>
+        )}
       </div>
     );
   };
