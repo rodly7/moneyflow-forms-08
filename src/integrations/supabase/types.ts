@@ -1925,7 +1925,12 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          operation_type: string
+          payment_method: string | null
+          payment_phone: string | null
           processed_at: string | null
+          processed_by: string | null
+          rejection_reason: string | null
           request_type: string
           status: string
           updated_at: string
@@ -1936,7 +1941,12 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          operation_type: string
+          payment_method?: string | null
+          payment_phone?: string | null
           processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
           request_type: string
           status?: string
           updated_at?: string
@@ -1947,7 +1957,12 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          operation_type?: string
+          payment_method?: string | null
+          payment_phone?: string | null
           processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
           request_type?: string
           status?: string
           updated_at?: string
