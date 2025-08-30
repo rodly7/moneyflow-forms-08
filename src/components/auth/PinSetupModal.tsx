@@ -5,6 +5,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Lock } from 'lucide-react';
+import { pinEncryptionService } from '@/services/pinEncryptionService';
 
 interface PinSetupModalProps {
   open: boolean;
@@ -46,9 +47,12 @@ export function PinSetupModal({ open, onClose, onSuccess }: PinSetupModalProps) 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Utilisateur non connecté');
 
+      // Chiffrer le PIN avant de le stocker
+      const encryptedPin = pinEncryptionService.encryptPin(pin, user.id);
+
       const { error } = await supabase.rpc('set_user_pin', {
         user_id_param: user.id,
-        pin_param: pin
+        pin_param: encryptedPin
       });
 
       if (error) throw error;

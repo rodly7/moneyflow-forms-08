@@ -4,6 +4,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { pinEncryptionService } from '@/services/pinEncryptionService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Fingerprint } from 'lucide-react';
 
@@ -46,18 +47,22 @@ export const AppLockModal = ({ isOpen, onUnlock }: AppLockModalProps) => {
         return;
       }
 
-      const { data, error } = await supabase.rpc('verify_user_pin', {
-        pin_param: pin,
-        user_id_param: user.id
-      });
+      // Récupérer le PIN chiffré stocké
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('pin_code')
+        .eq('id', user.id)
+        .single();
 
-      if (error) {
-        console.error('Erreur lors de la vérification du PIN:', error);
-        toast.error('Erreur lors de la vérification du PIN');
+      if (profileError || !profile?.pin_code) {
+        toast.error('PIN non configuré');
         return;
       }
 
-      if (data) {
+      // Vérifier le PIN avec le service de chiffrement
+      const isValid = pinEncryptionService.verifyPin(pin, profile.pin_code, user.id);
+
+      if (isValid) {
         toast.success('PIN vérifié avec succès');
         setPin('');
         onUnlock();

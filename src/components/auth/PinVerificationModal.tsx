@@ -5,6 +5,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Shield } from 'lucide-react';
+import { pinEncryptionService } from '@/services/pinEncryptionService';
 
 interface PinVerificationModalProps {
   open: boolean;
@@ -39,12 +40,21 @@ export function PinVerificationModal({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Utilisateur non connecté');
 
-      const { data: isValid, error } = await supabase.rpc('verify_user_pin', {
-        user_id_param: user.id,
-        pin_param: pin
-      });
+      // Récupérer le PIN chiffré stocké
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('pin_code')
+        .eq('id', user.id)
+        .single();
 
-      if (error) throw error;
+      if (profileError || !profile?.pin_code) {
+        throw new Error('PIN non configuré');
+      }
+
+      // Vérifier le PIN avec le service de chiffrement
+      const isValid = pinEncryptionService.verifyPin(pin, profile.pin_code, user.id);
+
+      // Supprimer cette ligne car nous n'utilisons plus le RPC
 
       if (!isValid) {
         toast({
