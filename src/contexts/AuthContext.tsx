@@ -7,7 +7,7 @@ import { authService } from '@/services/authService';
 import { useUserSession } from '@/hooks/useUserSession';
 import SessionManager from '@/components/SessionManager';
 import RequiredFieldsModal from '@/components/auth/RequiredFieldsModal';
-import { PinSetupModal } from '@/components/auth/PinSetupModal';
+// import { PinSetupModal } from '@/components/auth/PinSetupModal'; // Désactivé
 import { toast } from 'sonner';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,7 +17,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showRequiredFieldsModal, setShowRequiredFieldsModal] = useState(false);
-  const [showPinSetupModal, setShowPinSetupModal] = useState(false);
+  // const [showPinSetupModal, setShowPinSetupModal] = useState(false); // Désactivé
 
   // Vérifier si les champs obligatoires sont manquants
   const hasRequiredFields = useCallback((profile: Profile | null) => {
@@ -65,10 +65,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShowRequiredFieldsModal(true);
       }
       
-      // Vérifier si l'utilisateur doit configurer un PIN
-      if (profileData.requires_pin_setup) {
-        setShowPinSetupModal(true);
-      }
+      // Vérification PIN désactivée
+      // if (profileData.requires_pin_setup) {
+      //   setShowPinSetupModal(true);
+      // }
     } catch (error) {
       console.error('Erreur lors du rafraîchissement du profil:', error);
     }
@@ -92,10 +92,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setShowRequiredFieldsModal(true);
         }
         
-        // Vérifier si l'utilisateur doit configurer un PIN
-        if (typedProfile.requires_pin_setup) {
-          setShowPinSetupModal(true);
-        }
+        // Vérification PIN désactivée
+        // if (typedProfile.requires_pin_setup) {
+        //   setShowPinSetupModal(true);
+        // }
         
         return true;
       } else {
@@ -164,7 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
           setProfile(null);
           setShowRequiredFieldsModal(false);
-          setShowPinSetupModal(false);
+          // setShowPinSetupModal(false); // Désactivé
           setLoading(false);
           return;
         }
@@ -217,7 +217,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setProfile(null);
       setShowRequiredFieldsModal(false);
-      setShowPinSetupModal(false);
+      // setShowPinSetupModal(false); // Désactivé
       
       // Nettoyer le localStorage
       localStorage.removeItem('supabase.auth.token');
@@ -238,7 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setProfile(null);
       setShowRequiredFieldsModal(false);
-      setShowPinSetupModal(false);
+      // setShowPinSetupModal(false); // Désactivé
       setLoading(false);
       
       // Redirection forcée
@@ -260,10 +260,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshProfile();
   }, [refreshProfile]);
 
-  const handlePinSetupComplete = useCallback(() => {
-    setShowPinSetupModal(false);
-    refreshProfile();
-  }, [refreshProfile]);
+  // const handlePinSetupComplete = useCallback(() => {
+  //   setShowPinSetupModal(false);
+  //   refreshProfile();
+  // }, [refreshProfile]); // Désactivé
 
   // Mémoriser la valeur du contexte pour éviter les re-renders inutiles
   const contextValue = useMemo(() => ({
@@ -301,11 +301,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profile={profile}
         onComplete={handleRequiredFieldsComplete}
       />
+      {/* PIN Setup Modal désactivé
       <PinSetupModal
         open={showPinSetupModal}
         onClose={() => setShowPinSetupModal(false)}
         onSuccess={handlePinSetupComplete}
       />
+      */}
     </AuthContext.Provider>
   );
 };
