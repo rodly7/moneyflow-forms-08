@@ -80,17 +80,18 @@ export const useDepositOperations = () => {
       }
 
       const { error: transactionError } = await supabase
-        .from('recharges')
+        .from('user_requests')
         .insert({
           user_id: recipientId,
+          operation_type: 'recharge',
+          request_type: 'recharge',
           amount: amount,
-          country: agentProfile.country || "Cameroun",
           payment_method: 'agent_deposit',
           payment_phone: fullPhone,
-          payment_provider: 'agent',
-          transaction_reference: transactionReference,
-          status: 'completed',
-          provider_transaction_id: user.id
+          status: 'approved', // Directement approuvé car c'est un agent qui fait le dépôt
+          processed_by: user.id,
+          processed_at: new Date().toISOString(),
+          notes: `Agent deposit - Transaction reference: ${transactionReference}`
         });
 
       if (transactionError) {

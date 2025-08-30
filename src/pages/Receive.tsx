@@ -76,16 +76,16 @@ const Receive = () => {
       // Générer un code de recharge
       const code = generateRechargeCode();
       
-      // Enregistrer la demande de recharge en attente
-      const { error } = await supabase.from('recharges').insert({
+      // Enregistrer la demande de recharge dans la nouvelle table user_requests
+      const { error } = await supabase.from('user_requests').insert({
         user_id: user?.id,
+        operation_type: 'recharge',
+        request_type: 'recharge',
         amount: Number(amount),
-        country: profile?.country || "Congo Brazzaville",
         payment_method: "wallet",
         payment_phone: profile?.phone || "",
-        payment_provider: "agent",
         status: 'pending',
-        transaction_reference: code
+        notes: `Transaction reference: ${code}`
       });
       
       if (error) throw error;
@@ -120,12 +120,13 @@ const Receive = () => {
     setIsVerifying(true);
     
     try {
-      // Vérifier si le code existe et est valide
+      // Vérifier si le code existe et est valide dans la nouvelle table user_requests
       const { data, error } = await supabase
-        .from('recharges')
+        .from('user_requests')
         .select('*')
-        .eq('transaction_reference', verificationCode)
+        .eq('notes', `Transaction reference: ${verificationCode}`)
         .eq('status', 'pending')
+        .eq('operation_type', 'recharge')
         .single();
         
       if (error || !data) {
@@ -137,27 +138,30 @@ const Receive = () => {
         throw new Error("Vous ne pouvez pas confirmer votre propre recharge");
       }
 
-      // Mettre à jour le statut de la recharge
+      // Mettre à jour le statut de la demande de recharge
       await supabase
-        .from('recharges')
+        .from('user_requests')
         .update({ 
-          status: 'completed',
-          updated_at: new Date().toISOString()
+          status: 'approved',
+          processed_by: user?.id,
+          processed_at: new Date().toISOString()
         })
         .eq('id', data.id);
         
       // Ajouter le montant au solde de l'utilisateur
-      await supabase.rpc('increment_balance', {
-        user_id: data.user_id,
-        amount: data.amount
+      await supabase.rpc('secure_increment_balance', {
+        target_user_id: data.user_id,
+        amount: data.amount,
+        operation_type: 'agent_confirmed_recharge',
+        performed_by: user?.id
       });
       
       // Déduire le montant du compte de l'agent
-      // Nous devons utiliser increment_balance avec une valeur négative
-      // puisque decrement_balance n'existe pas
-      await supabase.rpc('increment_balance', {
-        user_id: user?.id,
-        amount: -data.amount
+      await supabase.rpc('secure_increment_balance', {
+        target_user_id: user?.id,
+        amount: -data.amount,
+        operation_type: 'agent_recharge_payment',
+        performed_by: user?.id
       });
       
       toast({
