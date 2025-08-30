@@ -1,0 +1,107 @@
+import React, { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { useAgentQuota } from "@/hooks/useAgentQuota";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency } from "@/lib/utils/currency";
+import { Target, TrendingUp } from "lucide-react";
+
+const DAILY_QUOTA_LIMIT = 200000; // 200,000 FCFA
+
+const AgentDailyQuota: React.FC = () => {
+  const { user } = useAuth();
+  const { getAgentQuotaStatus } = useAgentQuota();
+  const [quotaData, setQuotaData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchQuotaStatus = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setLoading(true);
+        const data = await getAgentQuotaStatus(user.id);
+        setQuotaData(data);
+      } catch (error) {
+        console.error('Erreur lors de la récupération du quota:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuotaStatus();
+  }, [user?.id, getAgentQuotaStatus]);
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-gray-600">
+            Quota Journalier
+          </CardTitle>
+          <Target className="w-4 h-4 text-blue-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded mb-2"></div>
+            <div className="h-2 bg-gray-200 rounded"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const totalDeposits = quotaData?.total_deposits || 0;
+  const quotaPercentage = Math.min((totalDeposits / DAILY_QUOTA_LIMIT) * 100, 100);
+  const isQuotaReached = totalDeposits >= DAILY_QUOTA_LIMIT;
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-gray-600">
+          Quota Journalier
+        </CardTitle>
+        <div className="flex items-center space-x-2">
+          {isQuotaReached && <TrendingUp className="w-4 h-4 text-green-600" />}
+          <Target className="w-4 h-4 text-blue-600" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-2xl font-bold text-gray-900">
+              {formatCurrency(totalDeposits)}
+            </span>
+            <span className="text-sm text-gray-500">
+              / {formatCurrency(DAILY_QUOTA_LIMIT)}
+            </span>
+          </div>
+          
+          <Progress 
+            value={quotaPercentage} 
+            className="h-2"
+          />
+          
+          <div className="flex justify-between items-center text-xs">
+            <span className={`${isQuotaReached ? 'text-green-600' : 'text-gray-500'}`}>
+              {quotaPercentage.toFixed(1)}% atteint
+            </span>
+            {isQuotaReached && (
+              <span className="text-green-600 font-medium">
+                🎉 Quota atteint !
+              </span>
+            )}
+          </div>
+          
+          {isQuotaReached && (
+            <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
+              Commission de 1% activée sur tous les dépôts !
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default AgentDailyQuota;
