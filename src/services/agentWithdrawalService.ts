@@ -36,7 +36,23 @@ export const processAgentWithdrawalWithCommission = async (
       throw new Error("Erreur lors du débit du compte client");
     }
 
-    // 3. Calculer et créditer la commission agent (0.5%)
+    // 3. Créditer l'agent avec l'argent du retrait
+    const { error: creditError } = await supabase.rpc('increment_balance', {
+      user_id: agentId,
+      amount: amount
+    });
+
+    if (creditError) {
+      console.error("❌ [SERVICE] Erreur crédit agent:", creditError);
+      // Rollback: recréditer le client
+      await supabase.rpc('increment_balance', {
+        user_id: clientId,
+        amount: amount
+      });
+      throw new Error("Erreur lors du crédit du compte agent");
+    }
+
+    // 4. Calculer et créditer la commission agent (0.5%)
     const agentCommission = Math.round(amount * 0.005);
     
     const { error: commissionError } = await supabase.rpc('increment_agent_commission', {
@@ -48,7 +64,7 @@ export const processAgentWithdrawalWithCommission = async (
       console.error("⚠️ [SERVICE] Erreur commission (non-critique):", commissionError);
     }
 
-    // 4. Enregistrer la transaction avec le nouveau numéro Mobile Money
+    // 5. Enregistrer la transaction avec le nouveau numéro Mobile Money
     const transactionReference = `WDR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     
     const { error: withdrawalError } = await supabase
