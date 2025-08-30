@@ -2,7 +2,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubAdmin } from '@/hooks/useSubAdmin';
-import SubAdminDashboardTabs from '@/components/admin/SubAdminDashboardTabs';
+import MobileSubAdminDashboard from '@/components/admin/MobileSubAdminDashboard';
 
 const CompactSubAdminDashboard = () => {
   const { profile, loading } = useAuth();
@@ -44,13 +44,7 @@ const CompactSubAdminDashboard = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <div className="container mx-auto">
-        <SubAdminDashboardTabs />
-      </div>
-    </div>
-  );
+  return <MobileSubAdminDashboard />;
 };
 
 export default CompactSubAdminDashboard;
