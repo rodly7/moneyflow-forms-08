@@ -65,19 +65,28 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
     return countryConfig[paymentMethod as keyof typeof countryConfig] || null;
   };
 
-  // Copy phone number to clipboard (manual only)
+  // Copy phone number to clipboard and auto-copy on load
   const copyPhoneNumber = async () => {
     const config = getPaymentConfig();
     if (config?.number) {
       try {
         await navigator.clipboard.writeText(config.number);
-        toast.success('Numéro copié dans le presse-papiers!');
+        toast.success('Numéro copié automatiquement dans le presse-papiers!');
       } catch (error) {
         console.error('Erreur lors de la copie:', error);
         toast.info(`Numéro: ${config.number}`);
       }
     }
   };
+
+  // Auto-copy number when payment method changes
+  React.useEffect(() => {
+    if (paymentMethod && currentStep === 'details') {
+      setTimeout(() => {
+        copyPhoneNumber();
+      }, 500);
+    }
+  }, [paymentMethod, currentStep]);
 
   // Redirect to operator app/USSD
   const redirectToOperator = () => {
@@ -133,6 +142,11 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
       if (error) throw error;
 
       toast.success(`Demande de ${selectedOperation === 'recharge' ? 'recharge' : 'retrait'} envoyée avec succès`);
+      
+      // Rediriger vers l'opérateur après envoi de la demande
+      setTimeout(() => {
+        redirectToOperator();
+      }, 1000);
       
       setIsOpen(false);
     } catch (error) {
@@ -236,7 +250,7 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
               
               <div className="bg-white rounded-lg p-3 mb-3">
                 <p className="text-center font-mono text-xl font-bold text-green-800">
-                  ****{config.number.slice(-6)}
+                  {config.number}
                 </p>
               </div>
               
@@ -245,9 +259,10 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
                   💡 <strong>Instructions de paiement:</strong>
                 </p>
                 <p className="text-sm text-yellow-700 mt-1">
-                  1. 💰 Faites un dépôt de <strong>{amount || '0'} FCFA</strong><br/>
-                  2. 📱 Votre numéro {paymentMethod} va être rechargé dans 2-5 minutes<br/>
-                  3. ✅ Confirmez votre demande ci-dessous
+                  1. ✅ Le numéro est automatiquement copié<br/>
+                  2. 💰 Faites un dépôt de <strong>{amount || '0'} FCFA</strong> vers ce numéro<br/>
+                  3. 📱 Cliquez sur "Ouvrir {paymentMethod}" pour être redirigé<br/>
+                  4. ✅ Confirmez votre demande ci-dessous
                 </p>
               </div>
 
@@ -329,14 +344,14 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
           </p>
         </div>
 
-          <Button 
-            onClick={handleSubmitRequest}
-            className="w-full bg-green-600 hover:bg-green-700"
-            disabled={isSubmitting}
-          >
-            <Send className="w-4 h-4 mr-2" />
-            {isSubmitting ? 'Envoi en cours...' : 'Demande de retrait'}
-          </Button>
+        <Button 
+          onClick={handleSubmitRequest}
+          className="w-full bg-green-600 hover:bg-green-700"
+          disabled={isSubmitting}
+        >
+          <Send className="w-4 h-4 mr-2" />
+          {isSubmitting ? 'Envoi en cours...' : 'Confirmer et rediriger'}
+        </Button>
       </div>
     );
   };
