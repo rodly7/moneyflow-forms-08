@@ -41,19 +41,22 @@ export const useAgentQuota = () => {
     try {
       const targetDate = date ? date.toISOString().split('T')[0] : undefined;
       
+      console.log('useAgentQuota: Appel RPC avec agentId:', agentId, 'targetDate:', targetDate);
+      
       const { data, error } = await supabase.rpc('get_agent_quota_status', {
         p_agent_id: agentId,
         p_date: targetDate
       });
 
       if (error) {
-        console.error('Erreur lors de la récupération du statut du quota:', error);
+        console.error('useAgentQuota: Erreur RPC:', error);
         return null;
       }
 
+      console.log('useAgentQuota: Données RPC reçues:', data);
       return data?.[0] || null;
     } catch (error) {
-      console.error('Erreur lors de la récupération du statut du quota:', error);
+      console.error('useAgentQuota: Erreur catch:', error);
       return null;
     }
   };
