@@ -85,29 +85,34 @@ export const AgentRealTimePerformance = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      // Récupérer les transactions aujourd'hui
-      const { data: todayData } = await supabaseClient
+      // Récupérer les dépôts effectués par l'agent (pour les clients)
+      const { data: todayDeposits } = await supabaseClient
         .from('recharges')
         .select('amount')
         .eq('provider_transaction_id', user.id)
         .gte('created_at', `${today}T00:00:00.000Z`)
-        .lt('created_at', `${today}T23:59:59.999Z`);
+        .lt('created_at', `${today}T23:59:59.999Z`)
+        .eq('status', 'completed');
 
-      // Récupérer les retraits aujourd'hui
-      const { data: withdrawalsData } = await supabaseClient
+      // Récupérer les retraits effectués par l'agent (pour les clients)
+      const { data: todayWithdrawals } = await supabaseClient
         .from('withdrawals')
         .select('amount')
         .eq('user_id', user.id)
         .gte('created_at', `${today}T00:00:00.000Z`)
-        .lt('created_at', `${today}T23:59:59.999Z`);
+        .lt('created_at', `${today}T23:59:59.999Z`)
+        .eq('status', 'completed');
 
-      // Calculs pour aujourd'hui
-      const todayDeposits = todayData || [];
-      const todayWithdrawals = withdrawalsData || [];
-      const todayTransactions = todayDeposits.length + todayWithdrawals.length;
-      const todayVolume = [...todayDeposits, ...todayWithdrawals].reduce((sum, t) => sum + Number(t.amount), 0);
-      const todayCommissions = todayDeposits.reduce((sum, t) => sum + (Number(t.amount) * 0.01), 0) + 
-                              todayWithdrawals.reduce((sum, t) => sum + (Number(t.amount) * 0.005), 0);
+      // Calculs pour aujourd'hui - dépôts et retraits uniquement
+      const deposits = todayDeposits || [];
+      const withdrawals = todayWithdrawals || [];
+      const todayTransactions = deposits.length + withdrawals.length;
+      const todayVolume = [...deposits, ...withdrawals].reduce((sum, t) => sum + Number(t.amount), 0);
+      
+      // Commissions : 0.5% sur dépôts, 0.2% sur retraits
+      const depositCommissions = deposits.reduce((sum, t) => sum + (Number(t.amount) * 0.005), 0);
+      const withdrawalCommissions = withdrawals.reduce((sum, t) => sum + (Number(t.amount) * 0.002), 0);
+      const todayCommissions = depositCommissions + withdrawalCommissions;
 
       setPerformance({
         todayTransactions,
@@ -253,13 +258,13 @@ export const AgentRealTimePerformance = () => {
               <div className="text-center">
                 <h3 className="text-sm font-medium text-blue-700 mb-2">Aujourd'hui</h3>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      Transactions
-                    </span>
-                    <span className="font-bold">{performance.todayTransactions}</span>
-                  </div>
+                   <div className="flex items-center justify-between text-sm">
+                     <span className="flex items-center gap-1">
+                       <Users className="w-3 h-3" />
+                       Dépôts + Retraits
+                     </span>
+                     <span className="font-bold">{performance.todayTransactions}</span>
+                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-1">
                       <DollarSign className="w-3 h-3" />
@@ -283,13 +288,13 @@ export const AgentRealTimePerformance = () => {
               <div className="text-center">
                 <h3 className="text-sm font-medium text-green-700 mb-2">Cette semaine</h3>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      Transactions
-                    </span>
-                    <span className="font-bold">{performance.weeklyTransactions}</span>
-                  </div>
+                   <div className="flex items-center justify-between text-sm">
+                     <span className="flex items-center gap-1">
+                       <Users className="w-3 h-3" />
+                       Dépôts + Retraits
+                     </span>
+                     <span className="font-bold">{performance.weeklyTransactions}</span>
+                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-1">
                       <DollarSign className="w-3 h-3" />
@@ -313,13 +318,13 @@ export const AgentRealTimePerformance = () => {
               <div className="text-center">
                 <h3 className="text-sm font-medium text-purple-700 mb-2">Ce mois</h3>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      Transactions
-                    </span>
-                    <span className="font-bold">{performance.monthlyTransactions}</span>
-                  </div>
+                   <div className="flex items-center justify-between text-sm">
+                     <span className="flex items-center gap-1">
+                       <Users className="w-3 h-3" />
+                       Dépôts + Retraits
+                     </span>
+                     <span className="font-bold">{performance.monthlyTransactions}</span>
+                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-1">
                       <DollarSign className="w-3 h-3" />

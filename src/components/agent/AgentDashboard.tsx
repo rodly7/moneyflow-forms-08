@@ -22,6 +22,7 @@ import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
 import { AgentRealTimePerformance } from "@/components/agent/AgentRealTimePerformance";
 import AgentTransactionHistory from "@/components/agent/AgentTransactionHistory";
 import AgentDailyQuota from "@/components/agent/AgentDailyQuota";
+import LocationTracker from "@/components/agent/LocationTracker";
 import { toast } from "sonner";
 
 const AgentDashboard: React.FC = () => {
@@ -200,6 +201,9 @@ const AgentDashboard: React.FC = () => {
 
         {/* Performances Temps Réel */}
         <AgentRealTimePerformance />
+
+        {/* Géolocalisation */}
+        <LocationTracker />
 
         {/* Services */}
         <Card>

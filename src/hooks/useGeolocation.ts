@@ -69,8 +69,19 @@ export const useGeolocation = (): UseGeolocationReturn => {
     if (!user || profile?.role !== 'agent') return;
 
     try {
-      // TODO: Implement after migration is run
-      console.log('Location would be saved:', locationData);
+      const { error } = await supabase.rpc('update_agent_location', {
+        p_agent_id: user.id,
+        p_latitude: locationData.latitude,
+        p_longitude: locationData.longitude,
+        p_address: locationData.address || '',
+        p_zone: locationData.zone
+      });
+
+      if (error) {
+        console.error('Error saving location:', error);
+      } else {
+        console.log('Location saved successfully');
+      }
     } catch (error) {
       console.error('Error in saveLocationToDatabase:', error);
     }
