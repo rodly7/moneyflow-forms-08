@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/integrations/supabase/client";
 import { Target, TrendingUp } from "lucide-react";
 
-const DAILY_QUOTA_LIMIT = 200000; // 200,000 FCFA
+const DAILY_QUOTA_LIMIT = 500000; // 500,000 FCFA
 
 const AgentDailyQuota: React.FC = () => {
   const { user } = useAuth();
@@ -16,14 +16,19 @@ const AgentDailyQuota: React.FC = () => {
 
   useEffect(() => {
     const fetchQuotaStatus = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        console.log('AgentDailyQuota: Pas d\'ID utilisateur');
+        return;
+      }
       
       try {
         setLoading(true);
+        console.log('AgentDailyQuota: Récupération du quota pour l\'agent:', user.id);
         const data = await getAgentQuotaStatus(user.id);
+        console.log('AgentDailyQuota: Données quota reçues:', data);
         setQuotaData(data);
       } catch (error) {
-        console.error('Erreur lors de la récupération du quota:', error);
+        console.error('AgentDailyQuota: Erreur lors de la récupération du quota:', error);
       } finally {
         setLoading(false);
       }
@@ -54,6 +59,8 @@ const AgentDailyQuota: React.FC = () => {
   const totalDeposits = quotaData?.total_deposits || 0;
   const quotaPercentage = Math.min((totalDeposits / DAILY_QUOTA_LIMIT) * 100, 100);
   const isQuotaReached = totalDeposits >= DAILY_QUOTA_LIMIT;
+
+  console.log('AgentDailyQuota: Affichage - totalDeposits:', totalDeposits, 'quotaPercentage:', quotaPercentage, 'isQuotaReached:', isQuotaReached);
 
   return (
     <Card>
