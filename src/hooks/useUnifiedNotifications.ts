@@ -149,13 +149,17 @@ export const useUnifiedNotifications = () => {
         console.error('Erreur chargement retraits:', withdrawalError);
       }
 
-      // Ajouter les notifications admin
+      // Ajouter les notifications admin (seulement si non lues ET non marquées comme lues en BDD)
       adminNotifications?.forEach(item => {
         if (item.notifications && !Array.isArray(item.notifications)) {
           const notification = item.notifications as any;
           const notificationId = `admin_${notification.id}`;
           
-          if (!readIds.has(notificationId)) {
+          // Ne pas ajouter si déjà marquée comme lue dans localStorage OU dans la BDD
+          const isReadInStorage = readIds.has(notificationId);
+          const isReadInDb = item.read_at !== null;
+          
+          if (!isReadInStorage && !isReadInDb) {
             allNotifications.push({
               id: notificationId,
               title: notification.title,
@@ -256,6 +260,12 @@ export const useUnifiedNotifications = () => {
 
       setNotifications(unreadNotifications);
       console.log(`✅ ${unreadNotifications.length} notifications non lues chargées`);
+      
+      if (unreadNotifications.length === 0) {
+        console.log('🔕 Aucune notification non lue trouvée');
+      } else {
+        console.log('📋 Types de notifications:', unreadNotifications.map(n => `${n.type}:${n.id}`).join(', '));
+      }
 
     } catch (error) {
       console.error('❌ Erreur lors du chargement des notifications:', error);
