@@ -28,6 +28,13 @@ export const UnifiedNotificationBell = () => {
   } = useUnifiedNotifications();
   
   const { toast } = useToast();
+  
+  // Rafraîchir les notifications lorsque l'utilisateur ouvre le menu
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      refresh();
+    }
+  };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -76,7 +83,7 @@ export const UnifiedNotificationBell = () => {
 
   return (
     <div className="relative">
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={handleOpenChange}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="relative">
             {unreadCount > 0 ? (
