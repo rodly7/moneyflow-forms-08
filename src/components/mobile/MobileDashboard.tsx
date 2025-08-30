@@ -121,7 +121,6 @@ const MobileDashboard: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <UnifiedNotificationBell />
             <Button
               onClick={handleLogout}
               variant="outline"
