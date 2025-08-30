@@ -92,6 +92,8 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-primary mb-2">Inscription</h2>
+        <p className="text-muted-foreground mb-6">Créez votre compte SendFlow</p>
         <img 
           src="/icons/icon-192x192.png" 
           alt="SendFlow Logo" 
