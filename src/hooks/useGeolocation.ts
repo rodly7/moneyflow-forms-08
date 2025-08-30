@@ -47,15 +47,15 @@ export const useGeolocation = (): UseGeolocationReturn => {
 
   const getAddressFromCoordinates = async (lat: number, lng: number): Promise<string> => {
     try {
-      // Using a simple reverse geocoding with a free service
+      // Utiliser un service de géocodage temporaire ou coordonnées par défaut
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=YOUR_MAPBOX_TOKEN&limit=1`
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`
       );
       
       if (response.ok) {
         const data = await response.json();
-        if (data.features && data.features.length > 0) {
-          return data.features[0].place_name;
+        if (data && data.display_name) {
+          return data.display_name;
         }
       }
     } catch (error) {
@@ -68,6 +68,9 @@ export const useGeolocation = (): UseGeolocationReturn => {
   const saveLocationToDatabase = async (locationData: LocationData) => {
     if (!user || profile?.role !== 'agent') return;
 
+    console.log('Attempting to save location for agent:', user.id);
+    console.log('Location data:', locationData);
+
     try {
       const { error } = await supabase.rpc('update_agent_location', {
         p_agent_id: user.id,
@@ -79,11 +82,25 @@ export const useGeolocation = (): UseGeolocationReturn => {
 
       if (error) {
         console.error('Error saving location:', error);
+        toast({
+          title: "Erreur de géolocalisation",
+          description: "Impossible de sauvegarder votre position",
+          variant: "destructive"
+        });
       } else {
-        console.log('Location saved successfully');
+        console.log('Location saved successfully for agent:', user.id);
+        toast({
+          title: "Position mise à jour",
+          description: "Votre position a été enregistrée",
+        });
       }
     } catch (error) {
       console.error('Error in saveLocationToDatabase:', error);
+      toast({
+        title: "Erreur de géolocalisation",
+        description: "Une erreur est survenue lors de la sauvegarde",
+        variant: "destructive"
+      });
     }
   };
 

@@ -88,6 +88,9 @@ const NearbyAgents: React.FC = () => {
             <p className="text-muted-foreground mb-4">
               Activez votre localisation pour voir les agents proches de vous
             </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Agents actifs disponibles: {agents.length}
+            </p>
             <Button onClick={startTracking} className="bg-primary hover:bg-primary/90 text-primary-foreground">
               <Navigation className="h-4 w-4 mr-2" />
               Activer la géolocalisation
@@ -158,12 +161,19 @@ const NearbyAgents: React.FC = () => {
         {nearbyAgents.length === 0 ? (
           <div className="text-center py-6">
             <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground mb-2">
               Aucun agent trouvé dans un rayon de 10km
             </p>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p>Agents actifs total: {agents.length}</p>
+              <p>Votre position: {location ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}` : 'Non disponible'}</p>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
+            <div className="text-center py-2 text-sm text-muted-foreground">
+              Agents actifs dans la base: {agents.length} | Position actuelle: {location ? 'Disponible' : 'Non disponible'}
+            </div>
             {nearbyAgents.map((agent) => (
               <div
                 key={agent.id}
