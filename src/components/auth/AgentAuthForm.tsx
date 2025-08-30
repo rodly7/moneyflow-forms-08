@@ -11,8 +11,6 @@ import { Shield, Users, Phone, Lock, Eye, EyeOff, CheckCircle2, Crown, Sparkles,
 import { ForgotPasswordForm } from "@/components/auth/ForgotPasswordForm";
 import { useNavigate } from "react-router-dom";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { authService } from '@/services/authService';
 import { authStorageService } from '@/services/authStorageService';
 
 const AgentAuthForm = () => {
@@ -23,10 +21,8 @@ const AgentAuthForm = () => {
   
   const [loginPhone, setLoginPhone] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [pin, setPin] = useState("");
-  const [loginMethod, setLoginMethod] = useState<'password' | 'pin'>('password');
+  const [loginMethod, setLoginMethod] = useState<'password'>('password');
   const [showPassword, setShowPassword] = useState(false);
-  const [storedPhone, setStoredPhone] = useState<string | null>(null);
 
   // Fonction pour normaliser les numéros de téléphone
   const normalizePhoneNumber = (phoneInput: string) => {
@@ -81,41 +77,6 @@ const AgentAuthForm = () => {
     }
   };
 
-  const handlePinLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pin.length !== 4) {
-      toast.error('Le PIN doit contenir 4 chiffres');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const result = await authService.signInWithPin(loginPhone, pin);
-      toast.success('Connexion par PIN réussie !');
-      authStorageService.storePhoneNumber(loginPhone);
-      
-      // Stocker les informations utilisateur temporairement
-      if (result.user) {
-        localStorage.setItem('pin_session_user', JSON.stringify(result.user));
-      }
-      
-      // Redirection forcée vers le tableau de bord agent
-      window.location.href = '/agent-dashboard';
-    } catch (error: any) {
-      toast.error(error.message || 'PIN incorrect');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPin = () => {
-    authStorageService.clearStoredPhoneNumber();
-    setStoredPhone(null);
-    setLoginMethod('password');
-    setPin('');
-    setLoginPhone('');
-    toast.info('Vous devez maintenant vous connecter avec vos identifiants complets');
-  };
 
   if (showForgotPassword) {
     return <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />;
@@ -144,20 +105,7 @@ const AgentAuthForm = () => {
       </CardHeader>
       
       <CardContent className="space-y-8 relative z-10 px-8 pb-8">
-        <Tabs value={loginMethod} onValueChange={(value) => setLoginMethod(value as 'password' | 'pin')} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 bg-white/10 backdrop-blur-md border border-white/20">
-            <TabsTrigger value="password" className="flex items-center gap-2 data-[state=active]:bg-emerald-500/30">
-              <Phone className="h-4 w-4" />
-              Mot de passe
-            </TabsTrigger>
-            <TabsTrigger value="pin" className="flex items-center gap-2 data-[state=active]:bg-emerald-500/30">
-              <Lock className="h-4 w-4" />
-              PIN
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="password" className="space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-4">
                 <Label htmlFor="loginPhone" className="text-white font-semibold flex items-center gap-3 text-base">
                   <Phone className="w-5 h-5 text-emerald-300" />
@@ -226,80 +174,17 @@ const AgentAuthForm = () => {
                 )}
               </Button>
             </form>
-          </TabsContent>
 
-          <TabsContent value="pin" className="space-y-6">
-            <form onSubmit={handlePinLogin} className="space-y-6">
-              <div className="space-y-4">
-                <Label htmlFor="phone-pin" className="text-white font-semibold flex items-center gap-3 text-base">
-                  <Phone className="w-5 h-5 text-emerald-300" />
-                  Numéro de téléphone professionnel
-                </Label>
-                <Input
-                  id="phone-pin"
-                  type="text"
-                  placeholder="Exemple: +242061043340 ou +221773637752"
-                  value={loginPhone}
-                  onChange={(e) => setLoginPhone(e.target.value)}
-                  required
-                  className="h-14 bg-white/15 border-white/30 text-white placeholder:text-white/70 focus:border-emerald-400 focus:ring-emerald-400/30 backdrop-blur-md rounded-xl text-base form-field-stable"
-                  disabled={loading}
-                />
-              </div>
-              
-              <div className="space-y-4">
-                <Label className="text-white font-semibold flex items-center gap-3 text-base">
-                  <Lock className="w-5 h-5 text-emerald-300" />
-                  Code PIN (4 chiffres)
-                </Label>
-                <div className="flex justify-center">
-                  <InputOTP
-                    maxLength={4}
-                    value={pin}
-                    onChange={setPin}
-                    pattern="^[0-9]*$"
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} masked className="bg-white/15 border-white/30 text-white" />
-                      <InputOTPSlot index={1} masked className="bg-white/15 border-white/30 text-white" />
-                      <InputOTPSlot index={2} masked className="bg-white/15 border-white/30 text-white" />
-                      <InputOTPSlot index={3} masked className="bg-white/15 border-white/30 text-white" />
-                    </InputOTPGroup>
-                  </InputOTP>
-                </div>
-              </div>
-              
-              <Button
-                type="submit"
-                className="w-full h-16 bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 text-white font-bold shadow-2xl text-lg rounded-xl form-field-stable"
-                disabled={loading || pin.length !== 4}
-              >
-                {loading && (
-                  <Icons.spinner className="mr-3 h-6 w-6 animate-spin" />
-                )}
-                {loading ? (
-                  "⏳ Connexion en cours..."
-                ) : (
-                  <>
-                    <Shield className="mr-3 h-6 w-6" />
-                    🔐 Se connecter avec PIN
-                  </>
-                )}
-              </Button>
-            </form>
-          </TabsContent>
-
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full text-emerald-200 hover:text-white hover:bg-emerald-500/20 mt-3 rounded-xl"
-            onClick={() => setShowForgotPassword(true)}
-            disabled={loading}
-          >
-            <KeyRound className="mr-2 h-4 w-4" />
-            Mot de passe oublié ?
-          </Button>
-        </Tabs>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-emerald-200 hover:text-white hover:bg-emerald-500/20 mt-3 rounded-xl"
+              onClick={() => setShowForgotPassword(true)}
+              disabled={loading}
+            >
+              <KeyRound className="mr-2 h-4 w-4" />
+              Mot de passe oublié ?
+            </Button>
 
         <div className="bg-gradient-to-r from-emerald-50/10 to-teal-50/10 backdrop-blur-md p-6 rounded-2xl border border-emerald-400/30 mt-8">
           <div className="flex items-center gap-3 mb-4">

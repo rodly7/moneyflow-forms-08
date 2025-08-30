@@ -93,19 +93,7 @@ const Auth = () => {
 
     setIsSubmitting(true);
     try {
-      console.log('🔑 Tentative de connexion PIN...');
-      const result = await authService.signInWithPin(phone, pin);
-      console.log('✅ Résultat connexion PIN:', result);
-      
-      toast.success('Connexion par PIN réussie !');
-      authStorageService.storePhoneNumber(phone);
-      
-      console.log('🔄 Redirection vers tableau de bord...');
-      
-      // Attendre un peu avant de rediriger pour s'assurer que tout est stocké
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 500);
+      toast.error('L\'authentification par PIN a été désactivée. Utilisez votre mot de passe.');
       
     } catch (error: any) {
       console.error('❌ Erreur PIN:', error);
