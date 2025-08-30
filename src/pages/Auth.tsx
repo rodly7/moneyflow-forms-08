@@ -93,18 +93,22 @@ const Auth = () => {
 
     setIsSubmitting(true);
     try {
+      console.log('🔑 Tentative de connexion PIN...');
       const result = await authService.signInWithPin(phone, pin);
+      console.log('✅ Résultat connexion PIN:', result);
+      
       toast.success('Connexion par PIN réussie !');
       authStorageService.storePhoneNumber(phone);
       
-      // Stocker les informations utilisateur temporairement
-      if (result.user) {
-        localStorage.setItem('pin_session_user', JSON.stringify(result.user));
-      }
+      console.log('🔄 Redirection vers tableau de bord...');
       
-      // Redirection forcée vers le tableau de bord
-      window.location.href = '/';
+      // Attendre un peu avant de rediriger pour s'assurer que tout est stocké
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
+      
     } catch (error: any) {
+      console.error('❌ Erreur PIN:', error);
       toast.error(error.message || 'PIN incorrect');
     } finally {
       setIsSubmitting(false);

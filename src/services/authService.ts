@@ -44,46 +44,59 @@ export const authService = {
     console.log('📱 Numéro normalisé pour recherche PIN:', normalizedPhone);
     
     try {
-      // D'abord vérifier le PIN via la fonction edge
-      const { data, error } = await supabase.functions.invoke('pin-auth', {
-        body: {
-          phone: normalizedPhone,
-          pin: pin
-        }
-      });
+      // Vérification directe dans la base de données
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, pin_code, phone, full_name, role')
+        .eq('phone', normalizedPhone)
+        .maybeSingle();
 
-      if (error) {
-        console.error('❌ Erreur fonction PIN:', error);
-        throw new Error('Erreur lors de la vérification du PIN');
+      console.log('🔍 Profil trouvé:', profile);
+      console.log('🔍 Erreur profile:', profileError);
+
+      if (profileError) {
+        console.error('❌ Erreur lors de la recherche:', profileError);
+        throw new Error('Erreur lors de la recherche de l\'utilisateur.');
       }
 
-      if (!data?.success) {
-        throw new Error(data?.error || 'PIN incorrect');
+      if (!profile) {
+        console.error('❌ Utilisateur non trouvé avec le numéro:', normalizedPhone);
+        throw new Error('Utilisateur non trouvé. Vérifiez votre numéro de téléphone.');
       }
 
-      console.log('✅ PIN vérifié, création de session...');
+      if (!profile.pin_code) {
+        throw new Error('PIN non configuré. Veuillez vous connecter avec votre mot de passe pour créer un PIN.');
+      }
+
+      // Vérification simple du PIN (en attendant le chiffrement)
+      console.log('🔑 Vérification PIN:', { pin, storedPin: profile.pin_code });
       
-      // Après vérification du PIN, créer une vraie session d'authentification
-      // Utiliser l'email généré et essayer de se connecter avec un mot de passe factice
-      const email = `${normalizedPhone}@sendflow.app`;
+      if (profile.pin_code !== pin) {
+        throw new Error('PIN incorrect.');
+      }
+
+      console.log('✅ PIN correct, création de session simulée...');
       
-      // Stocker temporairement que le PIN a été vérifié
-      localStorage.setItem('pin_verified_user', JSON.stringify(data.user));
+      // Stocker les informations d'authentification dans localStorage
+      const userData = {
+        id: profile.id,
+        phone: profile.phone,
+        full_name: profile.full_name,
+        role: profile.role,
+        email: `${normalizedPhone}@sendflow.app`
+      };
       
-      // Essayer de récupérer les informations d'authentification depuis le stockage local
-      // ou rediriger vers le tableau de bord directement
-      console.log('🔄 Redirection vers le tableau de bord après vérification PIN');
+      // Stocker la session PIN
+      localStorage.setItem('pin_session_user', JSON.stringify(userData));
+      localStorage.setItem('pin_authenticated', 'true');
       
-      // Simuler une session d'authentification réussie
+      console.log('💾 Session PIN stockée:', userData);
+      
       return { 
-        user: {
-          id: data.user.id,
-          phone: data.user.phone,
-          email: email
-        },
+        user: userData,
         session: {
-          access_token: 'pin-verified-session',
-          user: data.user
+          access_token: 'pin-session-token',
+          user: userData
         }
       };
     } catch (error: any) {

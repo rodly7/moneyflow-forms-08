@@ -145,44 +145,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initAuth = async () => {
       try {
+        console.log('🚀 Initialisation de l\'authentification...');
+        
+        // D'abord vérifier s'il y a une session PIN active
+        const pinSessionUser = localStorage.getItem('pin_session_user');
+        const pinAuthenticated = localStorage.getItem('pin_authenticated');
+        
+        if (pinSessionUser && pinAuthenticated === 'true') {
+          console.log('🔐 Session PIN trouvée au démarrage');
+          const storedUser = JSON.parse(pinSessionUser);
+          console.log('👤 Utilisateur PIN restauré:', storedUser);
+          
+          if (mounted) {
+            setUser({
+              id: storedUser.id,
+              email: storedUser.email,
+              phone: storedUser.phone
+            } as User);
+            await loadProfile(storedUser.id);
+            setLoading(false);
+          }
+          return;
+        }
+        
+        // Sinon, vérifier la session Supabase normale
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Erreur lors de la récupération de la session:', error);
-          
-          // Vérifier s'il y a une session PIN stockée comme fallback
-          const pinSessionUser = localStorage.getItem('pin_session_user');
-          if (pinSessionUser && mounted) {
-            console.log('🔐 Session PIN trouvée au démarrage');
-            const storedUser = JSON.parse(pinSessionUser);
-            setUser({
-              id: storedUser.id,
-              email: storedUser.email || `${storedUser.phone}@sendflow.app`,
-              phone: storedUser.phone
-            } as User);
-            await loadProfile(storedUser.id);
-          }
-          
           if (mounted) setLoading(false);
           return;
         }
         
         if (session?.user && mounted) {
+          console.log('📧 Session Supabase trouvée:', session.user.email);
           setUser(session.user);
           await loadProfile(session.user.id);
-        } else {
-          // Pas de session Supabase, vérifier s'il y a une session PIN
-          const pinSessionUser = localStorage.getItem('pin_session_user');
-          if (pinSessionUser && mounted) {
-            console.log('🔐 Session PIN trouvée au démarrage (pas de session Supabase)');
-            const storedUser = JSON.parse(pinSessionUser);
-            setUser({
-              id: storedUser.id,
-              email: storedUser.email || `${storedUser.phone}@sendflow.app`,
-              phone: storedUser.phone
-            } as User);
-            await loadProfile(storedUser.id);
-          }
         }
         
         if (mounted) {
@@ -268,6 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('supabase.auth.token');
       localStorage.removeItem('pin_session_user');
       localStorage.removeItem('pin_verified_user');
+      localStorage.removeItem('pin_authenticated');
       
       // Puis appeler Supabase pour la déconnexion (inclut le nettoyage du numéro stocké)
       await authService.signOut();
@@ -288,6 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setShowPinSetupModal(false);
       localStorage.removeItem('pin_session_user');
       localStorage.removeItem('pin_verified_user');
+      localStorage.removeItem('pin_authenticated');
       setLoading(false);
       
       // Redirection forcée
