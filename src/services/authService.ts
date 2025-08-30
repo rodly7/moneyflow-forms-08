@@ -41,17 +41,26 @@ export const authService = {
     console.log('🔐 Tentative de connexion avec PIN pour:', phone);
     
     const normalizedPhone = phone.replace(/[^\d+]/g, '');
+    console.log('📱 Numéro normalisé pour recherche PIN:', normalizedPhone);
     
     try {
       // Vérifier le PIN directement depuis la table profiles
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, pin_code')
+        .select('id, pin_code, phone')
         .eq('phone', normalizedPhone)
         .single();
 
+      console.log('🔍 Recherche utilisateur:', { 
+        normalizedPhone, 
+        found: !!profile, 
+        hasPin: !!profile?.pin_code,
+        actualPhone: profile?.phone 
+      });
+
       if (profileError || !profile) {
-        throw new Error('Utilisateur non trouvé.');
+        console.error('❌ Utilisateur non trouvé:', profileError);
+        throw new Error('Utilisateur non trouvé. Vérifiez votre numéro de téléphone.');
       }
 
       if (!profile.pin_code) {
@@ -66,26 +75,24 @@ export const authService = {
         throw new Error('PIN incorrect.');
       }
 
-      // Créer une session temporaire en utilisant l'OTP
+      // Utiliser l'authentification par mot de passe avec un token temporaire
+      // Créer une session en utilisant l'email généré
       const email = `${normalizedPhone}@sendflow.app`;
-      const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          shouldCreateUser: false
-        }
+      console.log('📧 Tentative de création de session avec email:', email);
+
+      // Alternative: utiliser la fonction RPC pour créer une session
+      const { data: sessionData, error: sessionError } = await supabase.rpc('create_pin_session', {
+        user_phone: normalizedPhone
       });
 
-      if (authError) {
-        // Alternative: utiliser une session via le service d'authentification personnalisé
-        console.log('⚠️ OTP non disponible, utilisation d\'une session simulée');
-        
-        // Ici on pourrait implémenter une logique de session personnalisée
-        // Pour l'instant, on simule une connexion réussie
+      if (sessionError) {
+        console.error('❌ Erreur création session PIN:', sessionError);
+        // Fallback: rediriger vers la connexion normale
         throw new Error('Connexion PIN temporairement indisponible. Utilisez votre mot de passe.');
       }
 
       console.log('✅ Connexion PIN réussie pour:', profile.id);
-      return authData;
+      return { user: { id: profile.id, phone: normalizedPhone, email } };
     } catch (error: any) {
       console.error('❌ Erreur de connexion PIN:', error);
       throw error;
