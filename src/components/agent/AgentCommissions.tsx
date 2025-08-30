@@ -159,12 +159,6 @@ const AgentCommissions = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="font-medium text-gray-700">{item.date}</span>
-              <div className="flex items-center gap-2">
-                <Percent className="w-4 h-4 text-green-600" />
-                <span className="font-bold text-green-700">
-                  {formatCurrency(item.totalCommission, 'XAF')}
-                </span>
-              </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4 text-sm">
