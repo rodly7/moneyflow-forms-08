@@ -64,16 +64,6 @@ const SubAdminDashboardTabs = () => {
       hasNew: notifications['users']?.hasNew || false
     },
     {
-      value: 'recharge',
-      label: 'Recharge Agents',
-      icon: CreditCard,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50 border-emerald-200',
-      hoverColor: 'hover:bg-emerald-100',
-      count: 0,
-      hasNew: false
-    },
-    {
       value: 'stats',
       label: 'Statistiques',
       icon: BarChart3,
@@ -131,7 +121,7 @@ const SubAdminDashboardTabs = () => {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 bg-gray-50 p-2 gap-1 h-auto">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 bg-gray-50 p-2 gap-1 h-auto">
             {tabConfig.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.value;
@@ -186,13 +176,6 @@ const SubAdminDashboardTabs = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="recharge" className="space-y-0">
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-6">
-                <SubAdminRechargeTab />
-              </div>
-            </div>
-          </TabsContent>
 
           <TabsContent value="stats" className="space-y-0">
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
