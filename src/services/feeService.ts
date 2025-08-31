@@ -8,6 +8,30 @@ interface FeeResult {
   moneyFlowCommission?: number;
 }
 
+// Définitions des régions par pays
+const centralAfricaCountries = [
+  'Congo Brazzaville', 'Gabon', 'Cameroun', 'Guinée Équatoriale', 
+  'République Centrafricaine', 'Tchad'
+];
+
+const westAfricaCountries = [
+  'Sénégal', 'Côte d\'Ivoire', 'Mali', 'Burkina Faso', 'Niger', 
+  'Guinée', 'Mauritanie', 'Gambie', 'Sierra Leone', 'Libéria'
+];
+
+const europeCountries = [
+  'France', 'Italie', 'Espagne', 'Allemagne', 'Belgique', 
+  'Pays-Bas', 'Suisse', 'Royaume-Uni'
+];
+
+// Fonction pour déterminer la région d'un pays
+const getCountryRegion = (country: string): 'central_africa' | 'west_africa' | 'europe' | 'other' => {
+  if (centralAfricaCountries.includes(country)) return 'central_africa';
+  if (westAfricaCountries.includes(country)) return 'west_africa';
+  if (europeCountries.includes(country)) return 'europe';
+  return 'other';
+};
+
 /**
  * Calcule les frais de transfert en fonction du montant, des pays et du type d'utilisateur.
  * @param amount Montant du transfert.
@@ -29,18 +53,37 @@ export const calculateTransferFee = (
   let moneyFlowCommission = 0;
 
   if (isNational) {
-    // Transfert national : 1%
-    rate = 1;
-    fee = amount * 0.01;
+    // Transfert national : 0,6%
+    rate = 0.6;
+    fee = amount * 0.006;
     moneyFlowCommission = fee; // Tout pour SendFlow
   } else {
-    // Transfert international : 6,5% si < 800,000 FCFA, sinon 5%
-    if (amount < 800000) {
-      rate = 6.5;
-      fee = amount * 0.065;
+    // Transfert international selon les régions
+    const senderRegion = getCountryRegion(senderCountry);
+    const recipientRegion = getCountryRegion(recipientCountry);
+
+    if (senderRegion === 'central_africa' && recipientRegion === 'central_africa') {
+      // Afrique Centrale vers Afrique Centrale : 3%
+      rate = 3;
+      fee = amount * 0.03;
+    } else if (senderRegion === 'west_africa' && recipientRegion === 'west_africa') {
+      // Afrique Ouest vers Afrique Ouest : 3%
+      rate = 3;
+      fee = amount * 0.03;
+    } else if ((senderRegion === 'central_africa' && recipientRegion === 'west_africa') ||
+               (senderRegion === 'west_africa' && recipientRegion === 'central_africa')) {
+      // Afrique Centrale ↔ Afrique Ouest : 6%
+      rate = 6;
+      fee = amount * 0.06;
+    } else if ((senderRegion === 'europe' && (recipientRegion === 'central_africa' || recipientRegion === 'west_africa')) ||
+               ((senderRegion === 'central_africa' || senderRegion === 'west_africa') && recipientRegion === 'europe')) {
+      // Europe ↔ Afrique : 3%
+      rate = 3;
+      fee = amount * 0.03;
     } else {
-      rate = 5;
-      fee = amount * 0.05;
+      // Taux international par défaut : 6%
+      rate = 6;
+      fee = amount * 0.06;
     }
     
     // Pour les transferts internationaux, commission agent selon le type d'utilisateur
