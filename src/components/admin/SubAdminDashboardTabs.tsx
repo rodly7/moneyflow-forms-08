@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Settings, MessageCircle, BarChart3, Package, History, UserCheck } from 'lucide-react';
+import { Users, Settings, MessageCircle, BarChart3, Package, History, UserCheck, CreditCard } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import SubAdminUsersTab from './SubAdminUsersTab';
 import SubAdminSettingsTab from './SubAdminSettingsTab';
@@ -10,6 +10,7 @@ import SubAdminStatsTab from './SubAdminStatsTab';
 import SubAdminInventoryTab from './SubAdminInventoryTab';
 import SubAdminLogsTab from './SubAdminLogsTab';
 import UserRequestsManagement from './UserRequestsManagement';
+import SubAdminRechargeTab from './SubAdminRechargeTab';
 import SubAdminHeader from './SubAdminHeader';
 import { useSubAdminTabNotifications } from '@/hooks/useSubAdminTabNotifications';
 
@@ -61,6 +62,16 @@ const SubAdminDashboardTabs = () => {
       hoverColor: 'hover:bg-blue-100',
       count: notifications['users']?.count || 0,
       hasNew: notifications['users']?.hasNew || false
+    },
+    {
+      value: 'recharge',
+      label: 'Recharge Agents',
+      icon: CreditCard,
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-50 border-emerald-200',
+      hoverColor: 'hover:bg-emerald-100',
+      count: 0,
+      hasNew: false
     },
     {
       value: 'stats',
@@ -120,7 +131,7 @@ const SubAdminDashboardTabs = () => {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 bg-gray-50 p-2 gap-1 h-auto">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 bg-gray-50 p-2 gap-1 h-auto">
             {tabConfig.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.value;
@@ -171,6 +182,14 @@ const SubAdminDashboardTabs = () => {
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="p-6">
                 <SubAdminUsersTab />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="recharge" className="space-y-0">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-6">
+                <SubAdminRechargeTab />
               </div>
             </div>
           </TabsContent>
