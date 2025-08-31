@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Wallet, CreditCard, Send, ArrowLeft, Copy, ExternalLink } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 type OperationType = 'recharge' | 'withdrawal';
 type StepType = 'operation' | 'details' | 'confirmation';
@@ -28,6 +28,7 @@ const PAYMENT_CONFIG = {
 
 const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) => {
   const { user, profile } = useAuth();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<StepType>('operation');
   const [selectedOperation, setSelectedOperation] = useState<OperationType | null>(null);
@@ -71,10 +72,16 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
     if (config?.number) {
       try {
         await navigator.clipboard.writeText(config.number);
-        toast.success('Numéro copié automatiquement dans le presse-papiers!');
+        toast({
+          title: "Numéro copié",
+          description: "Numéro copié automatiquement dans le presse-papiers!"
+        });
       } catch (error) {
         console.error('Erreur lors de la copie:', error);
-        toast.info(`Numéro: ${config.number}`);
+        toast({
+          title: "Numéro",
+          description: config.number
+        });
       }
     }
   };
@@ -97,15 +104,24 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
     if (config.appUrl) {
       // Ouvrir l'application (Wave)
       window.open(config.appUrl, '_blank');
-      toast.success('Redirection vers l\'application...');
+      toast({
+        title: "Redirection",
+        description: "Redirection vers l'application..."
+      });
     } else if (config.ussd) {
       // Composer le code USSD
       window.location.href = `tel:${config.ussd}`;
-      toast.success('Redirection vers le code USSD...');
+      toast({
+        title: "Redirection",
+        description: "Redirection vers le code USSD..."
+      });
     } else {
       // Fallback: composer le numéro
       window.location.href = `tel:${config.number}`;
-      toast.success('Redirection vers l\'appel...');
+      toast({
+        title: "Redirection",
+        description: "Redirection vers l'appel..."
+      });
     }
   };
 
@@ -116,13 +132,21 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
 
   const handleSubmitRequest = async () => {
     if (!user?.id || !selectedOperation || !amount || !paymentMethod) {
-      toast.error('Veuillez remplir tous les champs requis');
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs requis",
+        variant: "destructive"
+      });
       return;
     }
 
     const config = getPaymentConfig();
     if (!config?.number) {
-      toast.error('Numéro de paiement non configuré pour ce mode de paiement');
+      toast({
+        title: "Erreur",
+        description: "Numéro de paiement non configuré pour ce mode de paiement",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -143,7 +167,10 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
 
       if (error) throw error;
 
-      toast.success(`Demande de ${selectedOperation === 'recharge' ? 'recharge' : 'retrait'} envoyée avec succès`);
+      toast({
+        title: "Demande envoyée",
+        description: `Demande de ${selectedOperation === 'recharge' ? 'recharge' : 'retrait'} envoyée avec succès`
+      });
       
       // Rediriger vers l'opérateur après envoi de la demande seulement pour les recharges
       if (selectedOperation === 'recharge') {
@@ -155,7 +182,11 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
       setIsOpen(false);
     } catch (error) {
       console.error('Erreur lors de l\'envoi de la demande:', error);
-      toast.error('Erreur lors de l\'envoi de la demande');
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de l'envoi de la demande",
+        variant: "destructive"
+      });
     } finally {
       setIsSubmitting(false);
     }
