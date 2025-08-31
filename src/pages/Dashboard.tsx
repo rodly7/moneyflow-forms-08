@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency, getCurrencyForCountry, convertCurrency } from '@/integrations/supabase/client';
+import { formatCurrency, getCurrencyForCountry, convertCurrency } from '@/lib/utils/currency';
 import { ScrollableContainer } from '@/components/shared/ScrollableContainer';
 import CompactHeader from '@/components/dashboard/CompactHeader';
 import CompactInfoCard from '@/components/dashboard/CompactInfoCard';

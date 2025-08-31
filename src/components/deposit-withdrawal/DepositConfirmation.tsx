@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Shield, Fingerprint, Lock, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 import { AuthErrorHandler } from "@/services/authErrorHandler";
 
 interface DepositConfirmationProps {

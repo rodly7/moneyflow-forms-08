@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAutomaticWithdrawal } from '@/hooks/useAutomaticWithdrawal';
-import { formatCurrency } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/utils/currency';
 import { Smartphone, AlertCircle } from 'lucide-react';
 
 export const AutomaticWithdrawalForm = () => {

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminUserService } from '@/services/adminUserService';
-import { formatCurrency } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/utils/currency';
 import { Search, CreditCard, DollarSign, AlertCircle, Users } from 'lucide-react';
 
 const CustomDepositSystem = () => {

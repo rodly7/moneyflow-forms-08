@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, TrendingUp, Users, RefreshCw, Calendar, DollarSign, Activity, BarChart3, Download } from "lucide-react";
 import { useAgentReports } from "@/hooks/useAgentReports";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 

@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { findUserByPhone } from "@/services/withdrawalService";
-import { formatCurrency, supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 import { processAgentWithdrawalWithCommission } from "@/services/agentWithdrawalService";
 
 interface ClientData {

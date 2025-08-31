@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Shield, Ban, UserCheck, Crown, User, Globe, Edit, Trash2 } from 'lucide-react';
-import { formatCurrency } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/utils/currency';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import SimpleUserManagementActions from './SimpleUserManagementActions';
 

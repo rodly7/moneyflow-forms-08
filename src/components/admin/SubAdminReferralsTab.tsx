@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { UserPlus, Gift, TrendingUp, Users } from 'lucide-react';
-import { formatCurrency } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/utils/currency';
 
 interface ReferralStats {
   totalReferrals: number;

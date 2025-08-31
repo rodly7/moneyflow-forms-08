@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useAgentQuota } from "@/hooks/useAgentQuota";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 import { Target, TrendingUp } from "lucide-react";
 
 const DAILY_QUOTA_LIMIT = 500000; // 500,000 FCFA

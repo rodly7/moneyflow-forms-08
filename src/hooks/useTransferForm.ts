@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { calculateFee } from "@/integrations/supabase/client";
+import { calculateFee } from "@/lib/utils/currency";
 import { useReceiptGeneration } from "./useReceiptGeneration";
 import { transactionLimitService } from "@/services/transactionLimitService";
 

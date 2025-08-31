@@ -2,7 +2,7 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/utils/currency';
 import { Shield, User, UserCheck } from 'lucide-react';
 
 interface UserData {

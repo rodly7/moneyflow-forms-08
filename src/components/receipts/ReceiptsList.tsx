@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, Calendar } from "lucide-react";
 import { generateReceipt, downloadReceipt } from "./ReceiptGenerator";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 import { useToast } from "@/hooks/use-toast";
 
 interface Receipt {

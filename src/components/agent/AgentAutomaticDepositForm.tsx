@@ -8,7 +8,7 @@ import { Download, AlertCircle, Loader2, User, Wallet, QrCode } from "lucide-rea
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { findUserByPhone } from "@/services/withdrawalService";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 import { useAgentAutomaticDeposit } from "@/hooks/useAgentAutomaticDeposit";
 import QRScanner from "@/components/agent/QRScanner";
 import { ClientSearchForm } from "@/components/agent/ClientSearchForm";

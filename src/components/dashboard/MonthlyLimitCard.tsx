@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import { transactionLimitService } from "@/services/transactionLimitService";
 import { useQuery } from "@tanstack/react-query";

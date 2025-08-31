@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, calculateFee } from "@/integrations/supabase/client";
+import { formatCurrency, calculateFee } from "@/lib/utils/currency";
 import { AuthErrorHandler } from "@/services/authErrorHandler";
 
 interface SimpleHtmlTransferConfirmationProps {

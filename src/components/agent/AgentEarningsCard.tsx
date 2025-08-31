@@ -12,7 +12,7 @@ import {
   ArrowUp
 } from "lucide-react";
 import { useAgentEarnings } from "@/hooks/useAgentEarnings";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 
 const AgentEarningsCard = () => {
   const { 

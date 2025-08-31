@@ -1,6 +1,6 @@
 import { useState, memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/integrations/supabase/client";
+import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/lib/utils/currency";
 import { Eye, EyeOff, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";

@@ -10,7 +10,7 @@ import {
   TrendingUp, Users, DollarSign, BarChart3
 } from 'lucide-react';
 import { AdminReportService, WeeklyReport, MonthlyReport, AgentPerformanceReport, SubAdminReport } from '@/services/adminReportService';
-import { formatCurrency } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/utils/currency';
 import { useToast } from '@/hooks/use-toast';
 
 const AdminReportsTab = () => {

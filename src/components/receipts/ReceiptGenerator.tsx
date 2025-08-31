@@ -1,6 +1,6 @@
 
 import jsPDF from 'jspdf';
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface TransactionData {
   id: string;

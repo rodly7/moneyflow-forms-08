@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Wallet, Plus, TrendingUp, AlertCircle } from "lucide-react";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 
 const AdminSelfRecharge = () => {
   const { user, profile } = useAuth();

@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { formatCurrency } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/utils/currency';
 import { User, Shield, Ban, UserCheck, UserX, Edit3, Trash2, Crown, Eye, Camera } from 'lucide-react';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import AgentPhotoManager from './AgentPhotoManager';

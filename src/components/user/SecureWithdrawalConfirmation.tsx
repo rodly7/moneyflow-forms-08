@@ -8,7 +8,7 @@ import { Shield, CheckCircle, XCircle, Eye, EyeOff, Fingerprint } from "lucide-r
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface WithdrawalRequest {
   id: string;

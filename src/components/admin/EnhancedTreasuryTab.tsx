@@ -9,7 +9,7 @@ import {
   RefreshCw, Download, Calendar, Target
 } from 'lucide-react';
 import { AdminReportService } from '@/services/adminReportService';
-import { formatCurrency } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/utils/currency';
 import { useToast } from '@/hooks/use-toast';
 
 interface TreasuryData {

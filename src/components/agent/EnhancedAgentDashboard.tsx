@@ -29,7 +29,7 @@ import {
   QrCode
 } from "lucide-react";
 import { useAgentWithdrawalEnhanced } from "@/hooks/useAgentWithdrawalEnhanced";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 
 const EnhancedAgentDashboard = () => {
   const { user, profile } = useAuth();

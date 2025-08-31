@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Scan, Eye, EyeOff, RefreshCw, Phone, DollarSign, ArrowLeft } from "lucide-react";
 import { useAgentAutomaticDeposit } from "@/hooks/useAgentAutomaticDeposit";
