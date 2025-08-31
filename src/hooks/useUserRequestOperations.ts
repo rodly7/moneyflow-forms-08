@@ -17,7 +17,16 @@ export const useUserRequestOperations = () => {
     paymentPhone: string,
     notes?: string
   ) => {
+    console.log('🔍 useUserRequestOperations - Début createUserRequest:', {
+      userId: user?.id,
+      operationType,
+      amount,
+      paymentMethod,
+      paymentPhone
+    });
+
     if (!user) {
+      console.error('❌ Utilisateur non connecté');
       toast({
         title: "Erreur",
         description: "Vous devez être connecté pour faire une demande",
@@ -28,6 +37,7 @@ export const useUserRequestOperations = () => {
 
     setIsLoading(true);
     try {
+      console.log('📝 Insertion dans user_requests...');
       const { error } = await supabase
         .from('user_requests')
         .insert({
@@ -41,7 +51,12 @@ export const useUserRequestOperations = () => {
           notes: notes
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erreur Supabase:', error);
+        throw error;
+      }
+
+      console.log('✅ Demande créée avec succès');
 
       toast({
         title: "Demande envoyée",

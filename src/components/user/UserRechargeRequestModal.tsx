@@ -131,7 +131,11 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
   };
 
   const handleSubmitRequest = async () => {
+    console.log('🚀 UserRechargeRequestModal - handleSubmitRequest démarré');
+    console.log('🔍 État actuel:', { userId: user?.id, selectedOperation, amount, paymentMethod });
+    
     if (!user?.id || !selectedOperation || !amount || !paymentMethod) {
+      console.error('❌ Champs manquants:', { userId: user?.id, selectedOperation, amount, paymentMethod });
       toast({
         title: "Erreur",
         description: "Veuillez remplir tous les champs requis",
