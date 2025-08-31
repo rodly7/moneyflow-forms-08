@@ -46,6 +46,25 @@ const SubAdminRechargeTab = () => {
     try {
       console.log('🔄 Chargement des demandes utilisateurs...');
 
+      // D'abord, obtenir les users du même pays que le sous-admin
+      const { data: usersInCountry, error: usersError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('country', user?.user_metadata?.country || '');
+
+      if (usersError) {
+        console.error('Erreur lors du chargement des utilisateurs:', usersError);
+        throw usersError;
+      }
+
+      const userIds = usersInCountry?.map(u => u.id) || [];
+      
+      if (userIds.length === 0) {
+        console.log('Aucun utilisateur trouvé dans le pays:', user?.user_metadata?.country);
+        setUserRequests([]);
+        return;
+      }
+
       const { data: requests, error } = await supabase
         .from('user_requests')
         .select(`
@@ -61,6 +80,7 @@ const SubAdminRechargeTab = () => {
           processed_at,
           rejection_reason
         `)
+        .in('user_id', userIds)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -84,7 +104,7 @@ const SubAdminRechargeTab = () => {
         })
       );
 
-      console.log('✅ Demandes chargées:', requestsWithProfiles);
+      console.log('✅ Demandes chargées pour le pays:', user?.user_metadata?.country, requestsWithProfiles);
       setUserRequests(requestsWithProfiles);
     } catch (error) {
       console.error('Erreur critique:', error);
