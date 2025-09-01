@@ -1,66 +1,104 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { QrCode, Store, TrendingUp, Users, CreditCard, ScanLine } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { QrCode, Store, TrendingUp, Users, CreditCard, Wallet } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import MerchantQRGenerator from '@/components/merchant/MerchantQRGenerator';
+import { supabase } from '@/integrations/supabase/client';
 import MerchantPersonalQR from '@/components/merchant/MerchantPersonalQR';
-import MerchantClientScanner from '@/components/merchant/MerchantClientScanner';
 import MerchantTransactionHistory from '@/components/merchant/MerchantTransactionHistory';
 import MerchantStats from '@/components/merchant/MerchantStats';
+import LogoutButton from '@/components/auth/LogoutButton';
 
 const MerchantDashboard = () => {
   const { profile } = useAuth();
-  const [merchantData, setMerchantData] = useState({
-    businessName: '',
-    merchantId: '',
-    paymentAmount: '',
-    description: ''
+  const [stats, setStats] = useState({
+    dailyPayments: 0,
+    monthlyTotal: 0,
+    totalClients: 0,
+    qrScanned: 0
   });
-  const [showQRGenerator, setShowQRGenerator] = useState(false);
-  const { toast } = useToast();
 
-  // Initialiser les données du commerçant avec les informations du profil
+  // Récupérer les statistiques réelles
   useEffect(() => {
-    if (profile) {
-      setMerchantData(prev => ({
-        ...prev,
-        businessName: profile.full_name || '',
-        merchantId: profile.id || ''
-      }));
-    }
-  }, [profile]);
+    const fetchStats = async () => {
+      if (!profile?.id) return;
 
-  const handleGenerateQR = () => {
-    if (!merchantData.paymentAmount) {
-      toast({
-        title: "Montant requis",
-        description: "Veuillez renseigner le montant à payer",
-        variant: "destructive"
-      });
-      return;
-    }
-    setShowQRGenerator(true);
-  };
+      try {
+        // Récupérer les paiements du jour
+        const today = new Date().toISOString().split('T')[0];
+        const { data: dailyData } = await supabase
+          .from('merchant_payments')
+          .select('amount')
+          .eq('merchant_id', profile.id)
+          .gte('created_at', today);
+
+        // Récupérer les paiements du mois
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        const { data: monthlyData } = await supabase
+          .from('merchant_payments')
+          .select('amount')
+          .eq('merchant_id', profile.id)
+          .gte('created_at', startOfMonth.toISOString());
+
+        // Récupérer le nombre de clients uniques
+        const { data: clientsData } = await supabase
+          .from('merchant_payments')
+          .select('user_id')
+          .eq('merchant_id', profile.id);
+
+        // Calculer les statistiques
+        const dailyTotal = dailyData?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
+        const monthlyTotal = monthlyData?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
+        const uniqueClients = new Set(clientsData?.map(payment => payment.user_id)).size || 0;
+        const totalTransactions = monthlyData?.length || 0;
+
+        setStats({
+          dailyPayments: dailyTotal,
+          monthlyTotal: monthlyTotal,
+          totalClients: uniqueClients,
+          qrScanned: totalTransactions
+        });
+      } catch (error) {
+        console.error('Erreur lors du chargement des statistiques:', error);
+      }
+    };
+
+    fetchStats();
+  }, [profile?.id]);
 
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <Store className="h-8 w-8 text-primary mr-3" />
-            <h1 className="text-3xl font-bold text-foreground">Interface Commerciale</h1>
+        {/* Header avec bouton de déconnexion */}
+        <div className="flex justify-between items-center mb-8">
+          <div className="text-center flex-1">
+            <div className="flex items-center justify-center mb-4">
+              <Store className="h-8 w-8 text-primary mr-3" />
+              <h1 className="text-3xl font-bold text-foreground">Interface Commerciale</h1>
+            </div>
+            <p className="text-muted-foreground">
+              Tableau de bord pour gérer vos paiements
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            Générez des QR codes pour recevoir des paiements sans frais
-          </p>
+          <LogoutButton />
         </div>
 
-        {/* Stats Cards */}
+        {/* Carte du solde */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center">
+              <Wallet className="h-10 w-10 text-primary mr-4" />
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">Mon Solde</p>
+                <p className="text-3xl font-bold text-primary">
+                  {profile?.balance?.toLocaleString() || 0} XAF
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Stats Cards avec vraies données */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
@@ -68,7 +106,7 @@ const MerchantDashboard = () => {
                 <CreditCard className="h-8 w-8 text-green-500" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">Paiements du jour</p>
-                  <p className="text-2xl font-bold">0 XAF</p>
+                  <p className="text-2xl font-bold">{stats.dailyPayments.toLocaleString()} XAF</p>
                 </div>
               </div>
             </CardContent>
@@ -80,7 +118,7 @@ const MerchantDashboard = () => {
                 <TrendingUp className="h-8 w-8 text-blue-500" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">Total du mois</p>
-                  <p className="text-2xl font-bold">0 XAF</p>
+                  <p className="text-2xl font-bold">{stats.monthlyTotal.toLocaleString()} XAF</p>
                 </div>
               </div>
             </CardContent>
@@ -92,7 +130,7 @@ const MerchantDashboard = () => {
                 <Users className="h-8 w-8 text-purple-500" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">Clients</p>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">{stats.totalClients}</p>
                 </div>
               </div>
             </CardContent>
@@ -103,89 +141,18 @@ const MerchantDashboard = () => {
               <div className="flex items-center">
                 <QrCode className="h-8 w-8 text-orange-500" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">QR Scannés</p>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-sm font-medium text-muted-foreground">Transactions</p>
+                  <p className="text-2xl font-bold">{stats.qrScanned}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Mon QR Code Personnel */}
+        {/* QR Code Personnel uniquement */}
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 max-w-md mx-auto">
           <MerchantPersonalQR />
-
-          {/* Scanner Client pour Retrait */}
-          <MerchantClientScanner />
-
-          {/* QR Code Generator */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <QrCode className="h-5 w-5 mr-2" />
-                QR Code avec Montant
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="businessName">Nom du commerce</Label>
-                <Input
-                  id="businessName"
-                  value={merchantData.businessName}
-                  onChange={(e) => setMerchantData(prev => ({ ...prev, businessName: e.target.value }))}
-                  placeholder="Nom de votre commerce"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="paymentAmount">Montant (XAF) *</Label>
-                <Input
-                  id="paymentAmount"
-                  type="number"
-                  value={merchantData.paymentAmount}
-                  onChange={(e) => setMerchantData(prev => ({ ...prev, paymentAmount: e.target.value }))}
-                  placeholder="0"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description (optionnel)</Label>
-                <Input
-                  id="description"
-                  value={merchantData.description}
-                  onChange={(e) => setMerchantData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Ex: Commande #123"
-                />
-              </div>
-
-              <Button 
-                onClick={handleGenerateQR} 
-                className="w-full"
-              >
-                <QrCode className="h-4 w-4 mr-2" />
-                Générer QR Code
-              </Button>
-
-              <div className="text-center">
-                <p className="text-sm text-green-600 font-medium">
-                  ✓ Paiements sans frais pour vos clients
-                </p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
-
-        {/* QR Display Modal */}
-        {showQRGenerator && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="max-w-md w-full">
-              <MerchantQRGenerator 
-                merchantData={merchantData}
-                onClose={() => setShowQRGenerator(false)}
-              />
-            </div>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 gap-6">
           {/* Transaction History */}
