@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { QrCode, Store, TrendingUp, Users, CreditCard } from 'lucide-react';
+import { QrCode, Store, TrendingUp, Users, CreditCard, ScanLine } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import MerchantQRGenerator from '@/components/merchant/MerchantQRGenerator';
+import MerchantPersonalQR from '@/components/merchant/MerchantPersonalQR';
+import MerchantClientScanner from '@/components/merchant/MerchantClientScanner';
 import MerchantTransactionHistory from '@/components/merchant/MerchantTransactionHistory';
 import MerchantStats from '@/components/merchant/MerchantStats';
 
@@ -109,13 +111,19 @@ const MerchantDashboard = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Mon QR Code Personnel */}
+          <MerchantPersonalQR />
+
+          {/* Scanner Client pour Retrait */}
+          <MerchantClientScanner />
+
           {/* QR Code Generator */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
                 <QrCode className="h-5 w-5 mr-2" />
-                Générateur de QR Code
+                QR Code avec Montant
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -126,16 +134,6 @@ const MerchantDashboard = () => {
                   value={merchantData.businessName}
                   onChange={(e) => setMerchantData(prev => ({ ...prev, businessName: e.target.value }))}
                   placeholder="Nom de votre commerce"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="merchantId">ID Commerçant</Label>
-                <Input
-                  id="merchantId"
-                  value={merchantData.merchantId}
-                  readOnly
-                  className="bg-muted text-xs"
                 />
               </div>
 
@@ -175,15 +173,21 @@ const MerchantDashboard = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
 
-          {/* QR Display */}
-          {showQRGenerator && (
-            <MerchantQRGenerator 
-              merchantData={merchantData}
-              onClose={() => setShowQRGenerator(false)}
-            />
-          )}
+        {/* QR Display Modal */}
+        {showQRGenerator && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="max-w-md w-full">
+              <MerchantQRGenerator 
+                merchantData={merchantData}
+                onClose={() => setShowQRGenerator(false)}
+              />
+            </div>
+          </div>
+        )}
 
+        <div className="grid grid-cols-1 gap-6">
           {/* Transaction History */}
           <MerchantTransactionHistory />
         </div>
