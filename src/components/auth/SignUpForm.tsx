@@ -113,16 +113,6 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="birthDate">Date de naissance *</Label>
-          <Input
-            id="birthDate"
-            type="date"
-            value={formData.birthDate}
-            onChange={(e) => handleInputChange('birthDate', e.target.value)}
-            required
-          />
-        </div>
 
         <div className="space-y-2">
           <Label htmlFor="country">Pays *</Label>
