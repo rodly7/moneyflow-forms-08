@@ -11,13 +11,12 @@ const MerchantPersonalQR = () => {
   const qrRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // QR code personnel du commerçant pour recevoir des paiements
+  // QR code personnel du commerçant (même structure que les utilisateurs)
   const personalQRData = JSON.stringify({
-    type: 'merchant_payment',
-    merchantId: profile?.id,
-    businessName: profile?.full_name,
-    amount: 0, // Montant sera saisi par le client
-    description: 'Paiement commerçant',
+    type: 'merchant_profile',
+    userId: profile?.id || '',
+    fullName: profile?.full_name || 'Commerçant',
+    phone: profile?.phone || '',
     currency: 'XAF',
     timestamp: Date.now()
   });

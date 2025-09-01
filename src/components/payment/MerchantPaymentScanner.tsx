@@ -35,31 +35,28 @@ const MerchantPaymentScanner = ({ isOpen, onClose }: MerchantPaymentScannerProps
       const merchantData = typeof data === 'string' ? JSON.parse(data) : data;
       console.log('🔍 Données marchand parsées:', merchantData);
       
-      if (merchantData.type !== 'merchant_payment') {
+      if (merchantData.type !== 'merchant_profile') {
         console.log('❌ Type de QR invalide pour marchand:', merchantData.type);
         toast({
           title: "QR Code invalide",
-          description: "Ce QR code n'est pas un code de paiement marchand",
+          description: "Ce QR code n'est pas un code de commerçant valide",
           variant: "destructive"
         });
         return;
       }
 
-      // Vérifier que les données nécessaires sont présentes
-      // Les champs peuvent varier selon le type de QR code marchand
-      const merchantId = merchantData.merchantId || merchantData.id;
-      const businessName = merchantData.businessName || merchantData.full_name || merchantData.name;
+      // Utiliser la même structure que les QR codes utilisateur
+      const merchantId = merchantData.userId;
+      const businessName = merchantData.fullName;
       
       console.log('🔍 merchantId extrait:', merchantId);
       console.log('🔍 businessName extrait:', businessName);
-      console.log('🔍 merchantData.merchantId:', merchantData.merchantId);
-      console.log('🔍 merchantData.businessName:', merchantData.businessName);
       
-      if (!merchantId && !businessName) {
+      if (!merchantId || !businessName) {
         console.log('❌ Données marchandes insuffisantes');
         toast({
           title: "QR Code invalide",
-          description: "Données marchandes manquantes",
+          description: "Données commerçant manquantes",
           variant: "destructive"
         });
         return;

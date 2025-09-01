@@ -33,21 +33,20 @@ const MerchantClientScanner = () => {
       const clientData = typeof data === 'string' ? JSON.parse(data) : data;
       console.log('🔍 Données client parsées:', clientData);
       
-      // Accepter différents types de QR codes d'utilisateurs
-      const validTypes = ['user_profile', 'user_withdrawal', 'client_profile', 'user_qr', 'sendflow_user'];
-      if (clientData.type && !validTypes.includes(clientData.type)) {
-        console.log('❌ Type de QR invalide:', clientData.type);
+      // Vérifier le type de QR code (standardisé comme dans QRCode.tsx)
+      if (clientData.type !== 'user_profile') {
+        console.log('❌ Type de QR invalide pour utilisateur:', clientData.type);
         toast({
           title: "QR Code invalide",
-          description: "Ce QR code n'est pas un profil client valide",
+          description: "Ce QR code n'est pas un profil utilisateur valide",
           variant: "destructive"
         });
         return;
       }
 
       // Récupérer les informations du client depuis la base de données
-      // Utiliser l'ID utilisateur du QR code (peut être userId ou id selon le format)
-      const userId = clientData.userId || clientData.id;
+      // Utiliser la structure standardisée des QR codes utilisateur
+      const userId = clientData.userId;
       console.log('🔍 ID utilisateur extrait:', userId);
       console.log('🔍 clientData.userId:', clientData.userId);
       console.log('🔍 clientData.id:', clientData.id);
