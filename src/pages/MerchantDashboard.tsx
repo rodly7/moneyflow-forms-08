@@ -1,29 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { QrCode, Store, TrendingUp, Users, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import MerchantQRGenerator from '@/components/merchant/MerchantQRGenerator';
 import MerchantTransactionHistory from '@/components/merchant/MerchantTransactionHistory';
 import MerchantStats from '@/components/merchant/MerchantStats';
 
 const MerchantDashboard = () => {
+  const { profile } = useAuth();
   const [merchantData, setMerchantData] = useState({
     businessName: '',
-    merchantId: 'MERCH_' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+    merchantId: '',
     paymentAmount: '',
     description: ''
   });
   const [showQRGenerator, setShowQRGenerator] = useState(false);
   const { toast } = useToast();
 
+  // Initialiser les données du commerçant avec les informations du profil
+  useEffect(() => {
+    if (profile) {
+      setMerchantData(prev => ({
+        ...prev,
+        businessName: profile.full_name || '',
+        merchantId: profile.id || ''
+      }));
+    }
+  }, [profile]);
+
   const handleGenerateQR = () => {
-    if (!merchantData.businessName || !merchantData.paymentAmount) {
+    if (!merchantData.paymentAmount) {
       toast({
-        title: "Informations manquantes",
-        description: "Veuillez renseigner le nom du commerce et le montant",
+        title: "Montant requis",
+        description: "Veuillez renseigner le montant à payer",
         variant: "destructive"
       });
       return;
@@ -107,12 +120,12 @@ const MerchantDashboard = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="businessName">Nom du commerce *</Label>
+                <Label htmlFor="businessName">Nom du commerce</Label>
                 <Input
                   id="businessName"
                   value={merchantData.businessName}
                   onChange={(e) => setMerchantData(prev => ({ ...prev, businessName: e.target.value }))}
-                  placeholder="Ex: Restaurant Le Délice"
+                  placeholder="Nom de votre commerce"
                 />
               </div>
 
@@ -122,7 +135,7 @@ const MerchantDashboard = () => {
                   id="merchantId"
                   value={merchantData.merchantId}
                   readOnly
-                  className="bg-muted"
+                  className="bg-muted text-xs"
                 />
               </div>
 

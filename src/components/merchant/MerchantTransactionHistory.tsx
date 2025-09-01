@@ -1,28 +1,64 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, CheckCircle, XCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const MerchantTransactionHistory = () => {
-  // Données d'exemple - à remplacer par de vraies données
-  const transactions = [
+  const { profile } = useAuth();
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Charger les vraies transactions de l'utilisateur
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!profile?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('merchant_payments')
+          .select('*')
+          .eq('merchant_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error('Erreur lors du chargement des transactions:', error);
+        } else {
+          setTransactions(data || []);
+        }
+      } catch (error) {
+        console.error('Erreur:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [profile?.id]);
+
+  // Données d'exemple si aucune transaction réelle
+  const exampleTransactions = [
     {
       id: 'TX001',
       amount: 5000,
-      customerName: 'Client A',
+      business_name: 'Client A',
       status: 'completed',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 min ago
+      created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
       description: 'Commande #123'
     },
     {
       id: 'TX002',
       amount: 2500,
-      customerName: 'Client B',
+      business_name: 'Client B', 
       status: 'pending',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60), // 1h ago
+      created_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
       description: 'Achat divers'
     }
   ];
+
+  const displayTransactions = transactions.length > 0 ? transactions : exampleTransactions;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -50,7 +86,8 @@ const MerchantTransactionHistory = () => {
     }
   };
 
-  const formatTime = (date: Date) => {
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
     return date.toLocaleTimeString('fr-FR', { 
       hour: '2-digit', 
       minute: '2-digit' 
@@ -63,7 +100,11 @@ const MerchantTransactionHistory = () => {
         <CardTitle>Historique des Paiements</CardTitle>
       </CardHeader>
       <CardContent>
-        {transactions.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Chargement des transactions...</p>
+          </div>
+        ) : displayTransactions.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-muted-foreground">Aucun paiement reçu aujourd'hui</p>
             <p className="text-sm text-muted-foreground mt-2">
@@ -72,7 +113,7 @@ const MerchantTransactionHistory = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {transactions.map((transaction) => (
+            {displayTransactions.map((transaction) => (
               <div 
                 key={transaction.id}
                 className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -80,12 +121,12 @@ const MerchantTransactionHistory = () => {
                 <div className="flex items-center space-x-3">
                   {getStatusIcon(transaction.status)}
                   <div>
-                    <p className="font-medium">{transaction.customerName}</p>
+                    <p className="font-medium">{transaction.business_name || 'Client'}</p>
                     <p className="text-sm text-muted-foreground">
-                      {transaction.description}
+                      {transaction.description || 'Paiement'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {formatTime(transaction.timestamp)}
+                      {formatTime(transaction.created_at)}
                     </p>
                   </div>
                 </div>
