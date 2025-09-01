@@ -57,7 +57,7 @@ const MerchantClientScanner: React.FC<MerchantClientScannerProps> = () => {
           .from('profiles')
           .select('id, full_name, phone, balance, country')
           .eq('id', userId)
-          .maybeSingle();
+          .single();
 
         console.log('🔍 Résultat recherche par ID:', { profile, error });
         
@@ -65,7 +65,7 @@ const MerchantClientScanner: React.FC<MerchantClientScannerProps> = () => {
           console.log('✅ Client trouvé par ID:', profile);
           clientProfile = profile;
         } else {
-          console.log('❌ Client non trouvé par ID, essai par téléphone...');
+          console.log('❌ Client non trouvé par ID, erreur:', error);
         }
       }
 
