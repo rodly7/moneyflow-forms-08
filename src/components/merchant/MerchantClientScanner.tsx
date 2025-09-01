@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Separator } from '@/components/ui/separator';
 import { QrCode, User, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { ClientData, processAgentWithdrawal, findUserByPhone } from '@/services/withdrawalService';
+import { ClientData, findUserByPhone } from '@/services/withdrawalService';
+import { processAgentWithdrawalWithCommission } from '@/services/agentWithdrawalService';
 
 interface MerchantClientScannerProps {
   // Pas de props nécessaires pour l'instant
@@ -157,8 +158,8 @@ const MerchantClientScanner: React.FC<MerchantClientScannerProps> = () => {
         throw new Error('Utilisateur non connecté');
       }
 
-      // Utiliser exactement la même fonction que l'agent
-      const result = await processAgentWithdrawal(
+      // Utiliser exactement la même fonction que l'agent avec commission
+      const result = await processAgentWithdrawalWithCommission(
         user.id, // merchant agit comme agent
         scannedClient.id,
         amount,
@@ -168,7 +169,7 @@ const MerchantClientScanner: React.FC<MerchantClientScannerProps> = () => {
       if (result.success) {
         toast({
           title: "Retrait effectué",
-          description: `Retrait de ${amount.toLocaleString()} XAF effectué avec succès`,
+          description: `Retrait de ${amount.toLocaleString()} XAF effectué avec succès. Commission: ${result.agentCommission.toLocaleString()} XAF`,
         });
 
         // Reset form
