@@ -1,24 +1,21 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ScanLine, CreditCard, CheckCircle, User } from 'lucide-react';
-import { FastQRScanner } from '@/components/shared/FastQRScanner';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
+import { UniversalQRScanner } from '@/components/shared/UniversalQRScanner';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { QrCode, User, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { ClientData, processAgentWithdrawal, findUserByPhone } from '@/services/withdrawalService';
 
-interface ClientData {
-  userId: string;
-  userName: string;
-  userPhone: string;
-  balance: number;
+interface MerchantClientScannerProps {
+  // Pas de props nécessaires pour l'instant
 }
 
-const MerchantClientScanner = () => {
-  const { profile } = useAuth();
+const MerchantClientScanner: React.FC<MerchantClientScannerProps> = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scannedClient, setScannedClient] = useState<ClientData | null>(null);
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -26,10 +23,10 @@ const MerchantClientScanner = () => {
   const { toast } = useToast();
 
   const handleScanSuccess = async (data: any) => {
-    console.log('🔍 QR Code scanné:', data);
-    console.log('🔍 Type de données:', typeof data);
-    
     try {
+      console.log('🔍 QR Code scanné:', data);
+      console.log('🔍 Type de données:', typeof data);
+      
       const clientData = typeof data === 'string' ? JSON.parse(data) : data;
       console.log('🔍 Données client parsées:', clientData);
       
@@ -44,67 +41,74 @@ const MerchantClientScanner = () => {
         return;
       }
 
-      // Récupérer les informations du client depuis la base de données
-      // Utiliser la structure standardisée des QR codes utilisateur
-      const userId = clientData.userId;
-      console.log('🔍 ID utilisateur extrait:', userId);
-      console.log('🔍 clientData.userId:', clientData.userId);
-      console.log('🔍 clientData.id:', clientData.id);
+      // Récupérer les informations du client - utiliser les mêmes fonctions que l'agent
+      // D'abord essayer par userId, sinon par téléphone
+      let clientProfile: ClientData | null = null;
       
-      if (!userId) {
-        console.log('❌ Aucun ID utilisateur trouvé dans les données');
+      const userId = clientData.userId;
+      const userPhone = clientData.phone;
+      
+      console.log('🔍 Recherche client - userId:', userId, 'phone:', userPhone);
+
+      if (userId) {
+        // Rechercher par ID d'abord
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, balance, country')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profile && !error) {
+          clientProfile = profile;
+        }
+      }
+
+      // Si pas trouvé par ID, essayer par téléphone (comme fait l'agent)
+      if (!clientProfile && userPhone) {
+        try {
+          clientProfile = await findUserByPhone(userPhone);
+        } catch (error) {
+          console.error('❌ Erreur recherche par téléphone:', error);
+        }
+      }
+
+      if (!clientProfile) {
+        console.log('❌ Client non trouvé');
         toast({
-          title: "QR Code invalide",
-          description: "Identifiant utilisateur manquant",
+          title: "Client non trouvé",
+          description: "Aucun utilisateur trouvé avec ces informations. Vérifiez que le QR code est valide.",
           variant: "destructive"
         });
         return;
       }
 
-      console.log('🔍 Recherche du profil pour l\'ID:', userId);
-      const { data: clientProfile, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, balance')
-        .eq('id', userId)
-        .maybeSingle();
-
-      console.log('🔍 Profil trouvé:', clientProfile);
-      console.log('🔍 Erreur de requête:', error);
-
-      if (error || !clientProfile) {
-        console.log('❌ Utilisateur non trouvé dans la base de données');
-        console.log('❌ Error:', error);
-        console.log('❌ Profile:', clientProfile);
-        toast({
-          title: "Utilisateur non trouvé",
-          description: `L'utilisateur avec l'ID ${userId} n'existe pas dans la base de données. Le QR code pourrait être obsolète.`,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      setScannedClient({
-        userId: clientProfile.id,
-        userName: clientProfile.full_name || 'Client',
-        userPhone: clientProfile.phone,
-        balance: clientProfile.balance
-      });
-
+      setScannedClient(clientProfile);
       setIsScanning(false);
-    } catch (error) {
+      
       toast({
-        title: "Erreur",
-        description: "QR code invalide ou corrompu",
+        title: "Client scanné",
+        description: `Client ${clientProfile.full_name} trouvé`,
+      });
+    } catch (error) {
+      console.error('❌ Erreur lors du scan:', error);
+      toast({
+        title: "Erreur de scan",
+        description: "Impossible de traiter ce QR code",
         variant: "destructive"
       });
     }
+  };
+
+  const handleCancel = () => {
+    setScannedClient(null);
+    setWithdrawAmount('');
   };
 
   const handleWithdraw = async () => {
     if (!scannedClient || !withdrawAmount) return;
 
     const amount = parseFloat(withdrawAmount);
-    if (amount <= 0) {
+    if (isNaN(amount) || amount <= 0) {
       toast({
         title: "Montant invalide",
         description: "Veuillez saisir un montant valide",
@@ -125,43 +129,35 @@ const MerchantClientScanner = () => {
     setIsProcessing(true);
 
     try {
-      // Effectuer le retrait via la fonction RPC
-      const { data, error } = await supabase.rpc('process_withdrawal_transaction', {
-        p_client_id: scannedClient.userId,
-        p_agent_id: profile?.id,
-        p_amount: amount,
-        p_commission: 0 // Pas de commission pour les commerçants
-      });
-
-      if (error) {
-        throw new Error(error.message);
+      // Get current user (merchant)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Utilisateur non connecté');
       }
 
-      // Enregistrer la transaction dans l'historique
-      await supabase.from('merchant_payments').insert({
-        user_id: scannedClient.userId,
-        merchant_id: profile?.id,
-        business_name: profile?.full_name || 'Commerçant',
-        amount: amount,
-        description: `Retrait chez ${profile?.full_name}`,
-        currency: 'XAF',
-        status: 'completed'
-      });
+      // Utiliser exactement la même fonction que l'agent
+      const result = await processAgentWithdrawal(
+        user.id, // merchant agit comme agent
+        scannedClient.id,
+        amount,
+        scannedClient.phone
+      );
 
-      toast({
-        title: "Retrait effectué",
-        description: `${amount.toLocaleString()} XAF retiré avec succès du compte de ${scannedClient.userName}`,
-      });
+      if (result.success) {
+        toast({
+          title: "Retrait effectué",
+          description: `Retrait de ${amount.toLocaleString()} XAF effectué avec succès`,
+        });
 
-      // Reset
-      setScannedClient(null);
-      setWithdrawAmount('');
-
+        // Reset form
+        setScannedClient(null);
+        setWithdrawAmount('');
+      }
     } catch (error) {
-      console.error('Withdrawal error:', error);
+      console.error('Erreur lors du retrait:', error);
       toast({
         title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible d'effectuer le retrait",
+        description: error instanceof Error ? error.message : "Impossible de traiter le retrait",
         variant: "destructive"
       });
     } finally {
@@ -169,135 +165,111 @@ const MerchantClientScanner = () => {
     }
   };
 
-  const handleCancel = () => {
-    setScannedClient(null);
-    setWithdrawAmount('');
-  };
-
   return (
-    <>
-      <Card className="w-full">
+    <div className="space-y-6">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <ScanLine className="h-5 w-5 mr-2" />
-            Scanner Client pour Retrait
+          <CardTitle className="flex items-center gap-2">
+            <QrCode className="h-5 w-5" />
+            Scanner Client
           </CardTitle>
+          <CardDescription>
+            Scannez le QR code d'un client pour effectuer un retrait
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="text-center space-y-4">
-            <CreditCard className="w-12 h-12 mx-auto text-primary" />
-            <p className="text-muted-foreground">
-              Scannez le QR code du client pour effectuer un retrait
-            </p>
-            
-            <Button 
-              onClick={() => setIsScanning(true)}
-              className="w-full"
-            >
-              <ScanLine className="h-4 w-4 mr-2" />
-              Scanner QR Code Client
-            </Button>
-
-            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-700 text-center">
-                ℹ️ Le client doit présenter son QR code personnel
-              </p>
-            </div>
-          </div>
+        <CardContent>
+          <Button 
+            onClick={() => setIsScanning(true)}
+            className="w-full"
+            size="lg"
+          >
+            <QrCode className="h-5 w-5 mr-2" />
+            Scanner QR Code Client
+          </Button>
         </CardContent>
       </Card>
 
       {/* Scanner Dialog */}
-      <Dialog open={isScanning} onOpenChange={setIsScanning}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ScanLine className="w-5 h-5" />
-              Scanner QR Code Client
-            </DialogTitle>
-          </DialogHeader>
-
-          <FastQRScanner
-            isOpen={isScanning}
-            onClose={() => setIsScanning(false)}
-            onScanSuccess={handleScanSuccess}
-            title="Scanner Client"
-            variant="compact"
-          />
-        </DialogContent>
-      </Dialog>
+      <UniversalQRScanner
+        isOpen={isScanning}
+        onClose={() => setIsScanning(false)}
+        onScanSuccess={handleScanSuccess}
+        title="Scanner le QR code du client"
+        variant="compact"
+      />
 
       {/* Withdrawal Confirmation Dialog */}
       <Dialog open={!!scannedClient} onOpenChange={() => !isProcessing && handleCancel()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirmer le Retrait</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Effectuer un Retrait
+            </DialogTitle>
+            <DialogDescription>
+              Confirmez les détails du retrait pour le client
+            </DialogDescription>
           </DialogHeader>
-
+          
           {scannedClient && (
-            <div className="space-y-6">
-              {/* Client Info */}
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-center space-y-2">
-                    <User className="w-8 h-8 mx-auto text-primary" />
-                    <h3 className="font-semibold text-lg">{scannedClient.userName}</h3>
-                    <p className="text-sm text-muted-foreground">{scannedClient.userPhone}</p>
-                    <p className="text-lg font-medium">
-                      Solde: {scannedClient.balance.toLocaleString()} XAF
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="space-y-4">
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Nom:</span>
+                  <span className="font-medium">{scannedClient.full_name}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Téléphone:</span>
+                  <span className="font-medium">{scannedClient.phone}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Solde disponible:</span>
+                  <span className="font-bold text-green-600">
+                    {scannedClient.balance.toLocaleString()} XAF
+                  </span>
+                </div>
+              </div>
 
-              {/* Withdrawal Amount */}
               <div className="space-y-2">
-                <Label htmlFor="withdrawAmount">Montant à retirer (XAF)</Label>
+                <Label htmlFor="withdrawAmount" className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Montant à retirer (XAF)
+                </Label>
                 <Input
                   id="withdrawAmount"
                   type="number"
+                  placeholder="Entrez le montant"
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="0"
+                  min="0"
                   max={scannedClient.balance}
+                  disabled={isProcessing}
                 />
               </div>
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  variant="outline" 
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
                   onClick={handleCancel}
                   disabled={isProcessing}
+                  className="flex-1"
                 >
                   Annuler
                 </Button>
-                <Button 
+                <Button
                   onClick={handleWithdraw}
                   disabled={isProcessing || !withdrawAmount}
-                  className="bg-red-600 hover:bg-red-700"
+                  className="flex-1"
                 >
-                  {isProcessing ? (
-                    "Traitement..."
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Retirer
-                    </>
-                  )}
+                  {isProcessing ? "Traitement..." : "Effectuer le Retrait"}
                 </Button>
-              </div>
-
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground">
-                  Retrait sécurisé • Instantané
-                </p>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 
