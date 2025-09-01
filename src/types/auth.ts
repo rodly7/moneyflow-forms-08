@@ -6,7 +6,7 @@ export interface Profile {
   country: string | null;
   address: string | null;
   balance: number;
-  role: 'user' | 'agent' | 'admin' | 'sub_admin';
+  role: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant';
   avatar_url: string | null;
   is_verified: boolean | null;
   birth_date: string | null;
@@ -22,7 +22,7 @@ export interface Profile {
 export interface AuthContextType {
   user: any | null;
   profile: Profile | null;
-  userRole: 'user' | 'agent' | 'admin' | 'sub_admin' | null;
+  userRole: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant' | null;
   loading: boolean;
   signIn: (phone: string, password: string) => Promise<void>;
   signUp: (phone: string, password: string, metadata: any) => Promise<void>;

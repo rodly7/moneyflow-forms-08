@@ -16,7 +16,7 @@ interface User {
   birth_date: string;
   id_card_photo_url: string;
   id_card_url: string;
-  role: 'user' | 'agent' | 'admin' | 'sub_admin';
+  role: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant';
   balance: number;
   created_at: string;
   is_banned?: boolean;
@@ -47,7 +47,7 @@ export const AdminUsersManagement = () => {
     }
   };
 
-  const changeUserRole = async (userId: string, newRole: 'user' | 'agent' | 'admin' | 'sub_admin') => {
+  const changeUserRole = async (userId: string, newRole: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant') => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -292,6 +292,7 @@ export const AdminUsersManagement = () => {
                   >
                     <option value="user">Utilisateur</option>
                     <option value="agent">Agent</option>
+                    <option value="merchant">Commerçant</option>
                     <option value="sub_admin">Sous-Admin</option>
                     <option value="admin">Administrateur</option>
                   </select>

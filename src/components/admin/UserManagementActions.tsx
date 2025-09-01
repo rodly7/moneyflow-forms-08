@@ -40,7 +40,7 @@ const UserManagementActions = ({ user, onUserUpdated, onUserDeleted }: UserManag
     phone: user.phone || '',
     country: user.country || '',
     address: user.address || '',
-    role: user.role as 'user' | 'agent' | 'admin' | 'sub_admin' || 'user',
+    role: user.role as 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant' || 'user',
     is_verified: user.is_verified || false,
     is_banned: user.is_banned || false,
   });
@@ -224,13 +224,14 @@ const UserManagementActions = ({ user, onUserUpdated, onUserDeleted }: UserManag
               </div>
               <div>
                 <Label htmlFor="role">Rôle</Label>
-                <Select value={editData.role} onValueChange={(value) => setEditData({...editData, role: value as 'user' | 'agent' | 'admin' | 'sub_admin'})}>
+                <Select value={editData.role} onValueChange={(value) => setEditData({...editData, role: value as 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant'})}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">Utilisateur</SelectItem>
                     <SelectItem value="agent">Agent</SelectItem>
+                    <SelectItem value="merchant">Commerçant</SelectItem>
                     <SelectItem value="sub_admin">Sous-admin</SelectItem>
                     <SelectItem value="admin">Administrateur</SelectItem>
                   </SelectContent>

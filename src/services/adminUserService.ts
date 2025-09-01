@@ -7,7 +7,7 @@ export interface AdminUserData {
   phone: string;
   balance: number;
   country: string | null;
-  role: 'user' | 'agent' | 'admin' | 'sub_admin';
+  role: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant';
   is_banned?: boolean;
   banned_reason?: string | null;
   created_at: string;
@@ -71,12 +71,12 @@ export class AdminUserService {
   // Changer le rôle d'un utilisateur avec validation
   static async changeUserRole(
     userId: string, 
-    newRole: 'user' | 'agent' | 'admin' | 'sub_admin',
+    newRole: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant',
     performedBy?: string
   ): Promise<UserOperationResult> {
     try {
       // Validation du rôle
-      const validRoles = ['user', 'agent', 'admin', 'sub_admin'];
+      const validRoles = ['user', 'agent', 'admin', 'sub_admin', 'merchant'];
       if (!validRoles.includes(newRole)) {
         return {
           success: false,

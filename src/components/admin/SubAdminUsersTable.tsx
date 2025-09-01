@@ -11,7 +11,7 @@ interface UserData {
   phone: string;
   balance: number;
   country: string | null;
-  role: 'user' | 'agent' | 'admin' | 'sub_admin';
+  role: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant';
   created_at: string;
 }
 

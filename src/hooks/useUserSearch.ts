@@ -9,7 +9,7 @@ interface UserSearchResult {
   phone: string;
   balance: number;
   country?: string;
-  role: 'user' | 'agent' | 'admin' | 'sub_admin';
+  role: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant';
 }
 
 export const useUserSearch = () => {

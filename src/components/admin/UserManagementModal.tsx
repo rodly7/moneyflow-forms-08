@@ -21,7 +21,7 @@ interface UserData {
   phone: string;
   balance: number;
   country: string | null;
-  role: 'user' | 'agent' | 'admin' | 'sub_admin';
+  role: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant';
   is_banned?: boolean;
   banned_reason?: string | null;
   created_at: string;
@@ -292,6 +292,7 @@ const UserManagementModal = ({ isOpen, onClose, user, onUserUpdated, isSubAdmin 
       case 'admin': return 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg';
       case 'sub_admin': return 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg';
       case 'agent': return 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg';
+      case 'merchant': return 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg';
       default: return 'bg-gradient-to-r from-slate-500 to-gray-500 text-white shadow-lg';
     }
   };
@@ -301,6 +302,7 @@ const UserManagementModal = ({ isOpen, onClose, user, onUserUpdated, isSubAdmin 
       case 'admin': return '👑 Administrateur';
       case 'sub_admin': return '🛡️ Sous-Administrateur';
       case 'agent': return '🔧 Agent';
+      case 'merchant': return '🏪 Commerçant';
       default: return '👤 Utilisateur';
     }
   };
@@ -525,6 +527,7 @@ const UserManagementModal = ({ isOpen, onClose, user, onUserUpdated, isSubAdmin 
                         >
                           <option value="user">👤 Utilisateur</option>
                           <option value="agent">🔧 Agent</option>
+                          <option value="merchant">🏪 Commerçant</option>
                           <option value="sub_admin">🛡️ Sous-Admin</option>
                           <option value="admin">👑 Admin</option>
                         </select>

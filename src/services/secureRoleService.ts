@@ -2,10 +2,10 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface UserRole {
-  role: 'user' | 'agent' | 'admin' | 'sub_admin';
+  role: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant';
 }
 
-export const getUserRole = async (userId: string): Promise<'user' | 'agent' | 'admin' | 'sub_admin'> => {
+export const getUserRole = async (userId: string): Promise<'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant'> => {
   try {
     const { data, error } = await supabase.rpc('get_user_role', {
       user_id_param: userId

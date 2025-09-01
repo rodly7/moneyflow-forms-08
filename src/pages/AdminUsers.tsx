@@ -20,7 +20,7 @@ interface UserData {
   phone: string;
   balance: number;
   country: string | null;
-  role: 'user' | 'agent' | 'admin' | 'sub_admin';
+  role: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant';
   is_banned?: boolean;
   banned_reason?: string | null;
   created_at: string;
@@ -85,7 +85,7 @@ const AdminUsers = () => {
     }
   };
 
-  const handleQuickRoleChange = async (userId: string, newRole: 'user' | 'agent' | 'admin' | 'sub_admin') => {
+  const handleQuickRoleChange = async (userId: string, newRole: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant') => {
     try {
       const result = await AdminUserService.changeUserRole(userId, newRole, profile?.id);
       

@@ -29,7 +29,7 @@ export const calculateFee = (
   amount: number,
   senderCountry: string,
   recipientCountry: string,
-  userType: 'user' | 'agent' | 'admin' | 'sub_admin' = 'user'
+  userType: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant' = 'user'
 ) => {
   const isNational = senderCountry === recipientCountry;
   let fee = 0;
