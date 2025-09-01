@@ -45,7 +45,7 @@ const MerchantClientScanner = () => {
         .from('profiles')
         .select('id, full_name, phone, balance')
         .eq('id', clientData.userId)
-        .single();
+        .maybeSingle();
 
       if (error || !clientProfile) {
         toast({

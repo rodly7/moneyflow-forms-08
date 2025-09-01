@@ -40,6 +40,16 @@ const MerchantPaymentScanner = ({ isOpen, onClose }: MerchantPaymentScannerProps
         return;
       }
 
+      // Vérifier que toutes les données nécessaires sont présentes
+      if (!merchantData.merchantId || !merchantData.businessName) {
+        toast({
+          title: "QR Code invalide",
+          description: "Données marchandes manquantes",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Si le montant n'est pas défini, demander à l'utilisateur de le saisir
       if (!merchantData.amount || merchantData.amount === 0) {
         const amount = prompt("Entrez le montant à payer (XAF):");
