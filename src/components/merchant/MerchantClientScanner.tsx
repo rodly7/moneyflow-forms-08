@@ -31,10 +31,20 @@ const MerchantClientScanner = () => {
       
       // Accepter différents types de QR codes d'utilisateurs
       const validTypes = ['user_profile', 'user_withdrawal', 'client_profile', 'user_qr', 'sendflow_user'];
-      if (!clientData.type || !validTypes.includes(clientData.type)) {
+      if (clientData.type && !validTypes.includes(clientData.type)) {
         toast({
           title: "QR Code invalide",
           description: "Ce QR code n'est pas un profil client valide",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Vérifier que userId est présent
+      if (!clientData.userId) {
+        toast({
+          title: "QR Code invalide",
+          description: "Identifiant utilisateur manquant",
           variant: "destructive"
         });
         return;

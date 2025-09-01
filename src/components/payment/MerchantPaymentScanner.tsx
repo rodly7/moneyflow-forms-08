@@ -41,7 +41,7 @@ const MerchantPaymentScanner = ({ isOpen, onClose }: MerchantPaymentScannerProps
       }
 
       // Vérifier que toutes les données nécessaires sont présentes
-      if (!merchantData.merchantId || !merchantData.businessName) {
+      if (!merchantData.merchantId && !merchantData.businessName) {
         toast({
           title: "QR Code invalide",
           description: "Données marchandes manquantes",
