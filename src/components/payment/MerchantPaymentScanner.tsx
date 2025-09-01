@@ -28,10 +28,15 @@ const MerchantPaymentScanner = ({ isOpen, onClose }: MerchantPaymentScannerProps
   const { toast } = useToast();
 
   const handleScanSuccess = (data: any) => {
+    console.log('🔍 QR Code marchand scanné:', data);
+    console.log('🔍 Type de données:', typeof data);
+    
     try {
       const merchantData = typeof data === 'string' ? JSON.parse(data) : data;
+      console.log('🔍 Données marchand parsées:', merchantData);
       
       if (merchantData.type !== 'merchant_payment') {
+        console.log('❌ Type de QR invalide pour marchand:', merchantData.type);
         toast({
           title: "QR Code invalide",
           description: "Ce QR code n'est pas un code de paiement marchand",
@@ -45,7 +50,13 @@ const MerchantPaymentScanner = ({ isOpen, onClose }: MerchantPaymentScannerProps
       const merchantId = merchantData.merchantId || merchantData.id;
       const businessName = merchantData.businessName || merchantData.full_name || merchantData.name;
       
+      console.log('🔍 merchantId extrait:', merchantId);
+      console.log('🔍 businessName extrait:', businessName);
+      console.log('🔍 merchantData.merchantId:', merchantData.merchantId);
+      console.log('🔍 merchantData.businessName:', merchantData.businessName);
+      
       if (!merchantId && !businessName) {
+        console.log('❌ Données marchandes insuffisantes');
         toast({
           title: "QR Code invalide",
           description: "Données marchandes manquantes",

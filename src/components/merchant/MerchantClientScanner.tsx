@@ -73,9 +73,12 @@ const MerchantClientScanner = () => {
       console.log('🔍 Erreur de requête:', error);
 
       if (error || !clientProfile) {
+        console.log('❌ Utilisateur non trouvé dans la base de données');
+        console.log('❌ Error:', error);
+        console.log('❌ Profile:', clientProfile);
         toast({
-          title: "Erreur",
-          description: "Impossible de récupérer les informations du client",
+          title: "Utilisateur non trouvé",
+          description: `L'utilisateur avec l'ID ${userId} n'existe pas dans la base de données. Le QR code pourrait être obsolète.`,
           variant: "destructive"
         });
         return;
