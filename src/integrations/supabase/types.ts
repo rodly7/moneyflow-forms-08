@@ -1024,6 +1024,45 @@ export type Database = {
           },
         ]
       }
+      merchant_payments: {
+        Row: {
+          amount: number
+          business_name: string
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          merchant_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          business_name: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          merchant_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          business_name?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          merchant_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       monthly_bonuses: {
         Row: {
           bonus_amount: number

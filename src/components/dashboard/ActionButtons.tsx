@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Send, Scan, QrCode, CreditCard, Receipt, Bell, User, Settings } from "lucide-react";
+import { Send, Scan, QrCode, CreditCard, Receipt, Bell, User, Settings, Store } from "lucide-react";
 import RechargeAccountButton from "@/components/dashboard/RechargeAccountButton";
 
 const ActionButtons = () => {
@@ -34,11 +34,18 @@ const ActionButtons = () => {
       description: "Partager mon code"
     },
     {
+      icon: Store,
+      label: "Payer Marchand",
+      path: "/qr-payment",
+      color: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700",
+      description: "Scanner QR marchand"
+    },
+    {
       icon: CreditCard,
-      label: isAgent ? "Services Agent" : "Épargnes",
-      path: isAgent ? "/agent-services" : "/savings",
+      label: isAgent ? "Services Agent" : "Interface Marchand",
+      path: isAgent ? "/agent-services" : "/merchant",
       color: "bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700",
-      description: isAgent ? "Services d'agent" : "Gérer mes épargnes"
+      description: isAgent ? "Services d'agent" : "Créer QR de paiement"
     },
   ];
 
@@ -81,7 +88,7 @@ const ActionButtons = () => {
       </div>
 
       {/* Actions principales - encore plus grandes */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3">
         {primaryActions.map((action, index) => {
           const IconComponent = action.icon;
           return (
@@ -89,27 +96,39 @@ const ActionButtons = () => {
               key={index}
               onClick={() => navigate(action.path)}
               className={`
-                min-h-[160px] w-full flex flex-col items-center justify-center gap-4 
-                rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 
+                min-h-[140px] w-full flex flex-col items-center justify-center gap-3 
+                rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 
                 transform hover:scale-105 active:scale-95 ${action.color} 
-                text-white border-0 p-6
+                text-white border-0 p-4
               `}
-              style={{ height: '160px' }}
+              style={{ height: '140px' }}
             >
-              <div className="p-4 bg-white/20 rounded-xl backdrop-blur-sm">
-                <IconComponent className="w-12 h-12 text-white" />
+              <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
+                <IconComponent className="w-8 h-8 text-white" />
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-white leading-tight">{action.label}</div>
-                <div className="text-sm text-white/80 mt-1">{action.description}</div>
+                <div className="text-sm font-bold text-white leading-tight">{action.label}</div>
+                <div className="text-xs text-white/80 mt-1">{action.description}</div>
               </div>
             </button>
           );
         })}
       </div>
 
-      {/* Actions secondaires - également agrandies */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Actions secondaires - épargnes ajoutée */}
+      <div className="space-y-4">
+        <Button 
+          onClick={() => navigate("/savings")}
+          className="w-full h-16 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white"
+        >
+          <CreditCard className="w-6 h-6 mr-3" />
+          <div className="text-left">
+            <div className="font-semibold">Mes Épargnes</div>
+            <div className="text-xs opacity-90">Gérer mes comptes épargne</div>
+          </div>
+        </Button>
+        
+        <div className="grid grid-cols-2 gap-3">
         {secondaryActions.map((action, index) => {
           const IconComponent = action.icon;
           return (
@@ -117,23 +136,24 @@ const ActionButtons = () => {
               key={index}
               onClick={() => navigate(action.path)}
               className={`
-                min-h-[120px] w-full flex flex-col items-center justify-center gap-3 
-                rounded-xl shadow-md hover:shadow-lg transition-all duration-300 
+                min-h-[100px] w-full flex flex-col items-center justify-center gap-2 
+                rounded-lg shadow-md hover:shadow-lg transition-all duration-300 
                 transform hover:scale-105 active:scale-95 ${action.color} 
-                text-white border-0 p-4
+                text-white border-0 p-3
               `}
-              style={{ height: '120px' }}
+              style={{ height: '100px' }}
             >
-              <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
-                <IconComponent className="w-8 h-8 text-white" />
+              <div className="p-2 bg-white/20 rounded-md backdrop-blur-sm">
+                <IconComponent className="w-6 h-6 text-white" />
               </div>
               <div className="text-center">
-                <div className="text-base font-semibold text-white leading-tight">{action.label}</div>
-                <div className="text-xs text-white/80 mt-1">{action.description}</div>
+                <div className="text-sm font-semibold text-white leading-tight">{action.label}</div>
+                <div className="text-xs text-white/80">{action.description}</div>
               </div>
             </button>
           );
         })}
+        </div>
       </div>
     </div>
   );
