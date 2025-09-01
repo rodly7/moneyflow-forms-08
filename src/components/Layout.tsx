@@ -8,7 +8,7 @@ import { OfflineIndicator } from './pwa/OfflineIndicator';
 import { PWAOptimizedLayout } from './pwa/PWAOptimizedLayout';
 
 const Layout = () => {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const location = useLocation();
 
   useEffect(() => {
@@ -158,6 +158,21 @@ const Layout = () => {
   } else {
     console.log('Layout: User found, checking if on auth page');
     if (location.pathname === '/auth') {
+      // Redirect based on user role from profile
+      if (profile?.role) {
+        const role = profile.role;
+        if (role === 'merchant') {
+          return <Navigate to="/merchant" replace />;
+        } else if (role === 'admin') {
+          return <Navigate to="/admin-dashboard" replace />;
+        } else if (role === 'sub_admin') {
+          return <Navigate to="/sub-admin-dashboard" replace />;
+        } else if (role === 'agent') {
+          return <Navigate to="/agent-dashboard" replace />;
+        } else {
+          return <Navigate to="/dashboard" replace />;
+        }
+      }
       return <Navigate to="/dashboard" replace />;
     }
   }
