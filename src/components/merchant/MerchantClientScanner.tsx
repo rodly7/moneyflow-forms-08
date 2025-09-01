@@ -26,21 +26,9 @@ const MerchantClientScanner: React.FC<MerchantClientScannerProps> = () => {
     try {
       console.log('🔍 QR Code scanné:', data);
       console.log('🔍 Type de données:', typeof data);
-      console.log('🔍 Contenu brut du QR:', JSON.stringify(data));
       
-      let clientData;
-      try {
-        clientData = typeof data === 'string' ? JSON.parse(data) : data;
-        console.log('🔍 Données client parsées:', clientData);
-      } catch (parseError) {
-        console.error('❌ Erreur parsing JSON:', parseError);
-        toast({
-          title: "QR Code invalide",
-          description: "Le QR code ne contient pas de données valides",
-          variant: "destructive"
-        });
-        return;
-      }
+      const clientData = typeof data === 'string' ? JSON.parse(data) : data;
+      console.log('🔍 Données client parsées:', clientData);
       
       // Vérifier le type de QR code (standardisé comme dans QRCode.tsx)
       if (clientData.type !== 'user_profile') {
