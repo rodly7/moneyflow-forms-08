@@ -40,8 +40,11 @@ const MerchantClientScanner = () => {
         return;
       }
 
-      // Vérifier que userId est présent
-      if (!clientData.userId) {
+      // Récupérer les informations du client depuis la base de données
+      // Utiliser l'ID utilisateur du QR code (peut être userId ou id selon le format)
+      const userId = clientData.userId || clientData.id;
+      
+      if (!userId) {
         toast({
           title: "QR Code invalide",
           description: "Identifiant utilisateur manquant",
@@ -50,11 +53,10 @@ const MerchantClientScanner = () => {
         return;
       }
 
-      // Récupérer les informations du client depuis la base de données
       const { data: clientProfile, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, balance')
-        .eq('id', clientData.userId)
+        .eq('id', userId)
         .maybeSingle();
 
       if (error || !clientProfile) {

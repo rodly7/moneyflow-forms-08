@@ -40,8 +40,12 @@ const MerchantPaymentScanner = ({ isOpen, onClose }: MerchantPaymentScannerProps
         return;
       }
 
-      // Vérifier que toutes les données nécessaires sont présentes
-      if (!merchantData.merchantId && !merchantData.businessName) {
+      // Vérifier que les données nécessaires sont présentes
+      // Les champs peuvent varier selon le type de QR code marchand
+      const merchantId = merchantData.merchantId || merchantData.id;
+      const businessName = merchantData.businessName || merchantData.full_name || merchantData.name;
+      
+      if (!merchantId && !businessName) {
         toast({
           title: "QR Code invalide",
           description: "Données marchandes manquantes",
@@ -49,6 +53,10 @@ const MerchantPaymentScanner = ({ isOpen, onClose }: MerchantPaymentScannerProps
         });
         return;
       }
+
+      // Mettre à jour les données avec les champs normalisés
+      merchantData.merchantId = merchantId;
+      merchantData.businessName = businessName;
 
       // Si le montant n'est pas défini, demander à l'utilisateur de le saisir
       if (!merchantData.amount || merchantData.amount === 0) {
