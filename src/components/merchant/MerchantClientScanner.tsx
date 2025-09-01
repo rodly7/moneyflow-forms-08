@@ -51,32 +51,42 @@ const MerchantClientScanner: React.FC<MerchantClientScannerProps> = () => {
       console.log('🔍 Recherche client - userId:', userId, 'phone:', userPhone);
 
       if (userId) {
-        // Rechercher par ID d'abord
+        // Rechercher par ID d'abord avec plus de logs
+        console.log('🔍 Tentative recherche par ID:', userId);
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('id, full_name, phone, balance, country')
           .eq('id', userId)
           .maybeSingle();
 
+        console.log('🔍 Résultat recherche par ID:', { profile, error });
+        
         if (profile && !error) {
+          console.log('✅ Client trouvé par ID:', profile);
           clientProfile = profile;
+        } else {
+          console.log('❌ Client non trouvé par ID, essai par téléphone...');
         }
       }
 
       // Si pas trouvé par ID, essayer par téléphone (comme fait l'agent)
       if (!clientProfile && userPhone) {
+        console.log('🔍 Tentative recherche par téléphone:', userPhone);
         try {
           clientProfile = await findUserByPhone(userPhone);
+          if (clientProfile) {
+            console.log('✅ Client trouvé par téléphone:', clientProfile);
+          }
         } catch (error) {
           console.error('❌ Erreur recherche par téléphone:', error);
         }
       }
 
       if (!clientProfile) {
-        console.log('❌ Client non trouvé');
+        console.log('❌ Client non trouvé après toutes les tentatives');
         toast({
           title: "Client non trouvé",
-          description: "Aucun utilisateur trouvé avec ces informations. Vérifiez que le QR code est valide.",
+          description: "Aucun utilisateur trouvé. Le QR code pourrait être obsolète ou l'utilisateur n'existe plus.",
           variant: "destructive"
         });
         return;

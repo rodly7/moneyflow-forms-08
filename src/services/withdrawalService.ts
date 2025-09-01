@@ -45,24 +45,41 @@ export const getCountryCodeForAgent = (country: string): string => {
 export const findUserByPhone = async (phone: string): Promise<ClientData | null> => {
   console.log("🔍 Recherche utilisateur par téléphone:", phone);
   
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, phone, balance, country')
-    .eq('phone', phone)
-    .maybeSingle();
+  // Normaliser le numéro (enlever espaces, tirets, etc.)
+  const normalizedPhone = phone.replace(/[\s\-\(\)]/g, '');
+  
+  // Essayer plusieurs formats de numéro
+  const phoneVariants = [
+    phone, // Format original
+    normalizedPhone,
+    normalizedPhone.startsWith('+') ? normalizedPhone.substring(1) : normalizedPhone, // Sans +
+    normalizedPhone.startsWith('242') ? '+' + normalizedPhone : normalizedPhone, // Avec + si commence par 242
+    normalizedPhone.startsWith('0') ? '+242' + normalizedPhone.substring(1) : normalizedPhone, // Remplacer 0 par +242
+  ];
+  
+  console.log("🔍 Variants de téléphone à tester:", phoneVariants);
+  
+  // Essayer chaque variant
+  for (const phoneVariant of phoneVariants) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone, balance, country')
+      .eq('phone', phoneVariant)
+      .maybeSingle();
 
-  if (error) {
-    console.error("❌ Erreur lors de la recherche:", error);
-    throw error;
+    if (error) {
+      console.error("❌ Erreur lors de la recherche avec:", phoneVariant, error);
+      continue; // Continuer avec le variant suivant
+    }
+
+    if (data) {
+      console.log("✅ Utilisateur trouvé avec variant:", phoneVariant, data);
+      return data;
+    }
   }
-
-  if (!data) {
-    console.log("ℹ️ Aucun utilisateur trouvé");
-    return null;
-  }
-
-  console.log("✅ Utilisateur trouvé:", data);
-  return data;
+  
+  console.log("ℹ️ Aucun utilisateur trouvé avec aucun variant");
+  return null;
 };
 
 export const validateUserBalance = async (userId: string, amount: number) => {
