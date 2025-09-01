@@ -13,9 +13,11 @@ const MerchantPersonalQR = () => {
 
   // QR code personnel du commerçant pour recevoir des paiements
   const personalQRData = JSON.stringify({
-    type: 'merchant_profile',
+    type: 'merchant_payment',
     merchantId: profile?.id,
     businessName: profile?.full_name,
+    amount: 0, // Montant sera saisi par le client
+    description: 'Paiement commerçant',
     currency: 'XAF',
     timestamp: Date.now()
   });

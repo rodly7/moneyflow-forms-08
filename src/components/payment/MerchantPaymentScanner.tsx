@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { QrCode, Store, CreditCard, CheckCircle } from 'lucide-react';
-import { FastQRScanner } from '@/components/shared/FastQRScanner';
+import { UniversalQRScanner } from '@/components/shared/UniversalQRScanner';
 import { useToast } from '@/hooks/use-toast';
 import { useMerchantPayment } from '@/hooks/useMerchantPayment';
 
@@ -16,7 +16,7 @@ interface MerchantPaymentData {
   type: string;
   merchantId: string;
   businessName: string;
-  amount: number;
+  amount?: number;
   description: string;
   currency: string;
 }
@@ -38,6 +38,20 @@ const MerchantPaymentScanner = ({ isOpen, onClose }: MerchantPaymentScannerProps
           variant: "destructive"
         });
         return;
+      }
+
+      // Si le montant n'est pas défini, demander à l'utilisateur de le saisir
+      if (!merchantData.amount || merchantData.amount === 0) {
+        const amount = prompt("Entrez le montant à payer (XAF):");
+        if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+          toast({
+            title: "Montant invalide",
+            description: "Veuillez entrer un montant valide",
+            variant: "destructive"
+          });
+          return;
+        }
+        merchantData.amount = Number(amount);
       }
 
       setScannedData(merchantData);
@@ -87,7 +101,7 @@ const MerchantPaymentScanner = ({ isOpen, onClose }: MerchantPaymentScannerProps
               </p>
             </div>
 
-            <FastQRScanner
+            <UniversalQRScanner
               isOpen={isOpen}
               onClose={onClose}
               onScanSuccess={handleScanSuccess}

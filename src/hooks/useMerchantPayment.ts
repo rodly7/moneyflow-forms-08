@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface MerchantPaymentData {
   merchantId: string;
   businessName: string;
-  amount: number;
+  amount?: number;
   description: string;
   currency: string;
 }
@@ -18,6 +18,11 @@ export const useMerchantPayment = () => {
     setIsProcessing(true);
 
     try {
+      // Vérifier que le montant est défini
+      if (!paymentData.amount || paymentData.amount <= 0) {
+        throw new Error('Montant invalide');
+      }
+
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
