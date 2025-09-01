@@ -20,8 +20,9 @@ const QRCode = () => {
   }, [user, navigate]);
 
   const qrData = {
+    type: 'user_profile',
     userId: user?.id || '',
-    fullName: profile?.full_name || 'Utilisateur',
+    fullName: profile?.full_name || 'Utilisateur', 
     phone: profile?.phone || '',
     timestamp: Date.now()
   };
