@@ -26,12 +26,17 @@ const MerchantClientScanner = () => {
   const { toast } = useToast();
 
   const handleScanSuccess = async (data: any) => {
+    console.log('🔍 QR Code scanné:', data);
+    console.log('🔍 Type de données:', typeof data);
+    
     try {
       const clientData = typeof data === 'string' ? JSON.parse(data) : data;
+      console.log('🔍 Données client parsées:', clientData);
       
       // Accepter différents types de QR codes d'utilisateurs
       const validTypes = ['user_profile', 'user_withdrawal', 'client_profile', 'user_qr', 'sendflow_user'];
       if (clientData.type && !validTypes.includes(clientData.type)) {
+        console.log('❌ Type de QR invalide:', clientData.type);
         toast({
           title: "QR Code invalide",
           description: "Ce QR code n'est pas un profil client valide",
@@ -43,8 +48,12 @@ const MerchantClientScanner = () => {
       // Récupérer les informations du client depuis la base de données
       // Utiliser l'ID utilisateur du QR code (peut être userId ou id selon le format)
       const userId = clientData.userId || clientData.id;
+      console.log('🔍 ID utilisateur extrait:', userId);
+      console.log('🔍 clientData.userId:', clientData.userId);
+      console.log('🔍 clientData.id:', clientData.id);
       
       if (!userId) {
+        console.log('❌ Aucun ID utilisateur trouvé dans les données');
         toast({
           title: "QR Code invalide",
           description: "Identifiant utilisateur manquant",
@@ -53,11 +62,15 @@ const MerchantClientScanner = () => {
         return;
       }
 
+      console.log('🔍 Recherche du profil pour l\'ID:', userId);
       const { data: clientProfile, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, balance')
         .eq('id', userId)
         .maybeSingle();
+
+      console.log('🔍 Profil trouvé:', clientProfile);
+      console.log('🔍 Erreur de requête:', error);
 
       if (error || !clientProfile) {
         toast({
