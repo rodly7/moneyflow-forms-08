@@ -8,10 +8,18 @@ import LogoutButton from '@/components/auth/LogoutButton';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { UnifiedNotificationBell } from '@/components/notifications/UnifiedNotificationBell';
+import { useAutoBalanceRefresh } from '@/hooks/useAutoBalanceRefresh';
 
 const MerchantDashboard = () => {
   const { profile } = useAuth();
   const [sendflowDebt, setSendflowDebt] = useState(0);
+  const [sendflowPaidToday, setSendflowPaidToday] = useState(false);
+  
+  // Rafraîchir le solde toutes les 5 secondes
+  useAutoBalanceRefresh({ 
+    intervalMs: 5000,
+    enableRealtime: true
+  });
 
   // Vérifier la dette Sendflow du marchand
   const checkSendflowDebt = async () => {
@@ -19,6 +27,20 @@ const MerchantDashboard = () => {
 
     try {
       const today = new Date().toISOString().split('T')[0];
+      
+      // Vérifier s'il y a des paiements de commission Sendflow aujourd'hui
+      const { data: sendflowPayments } = await supabase
+        .from('audit_logs')
+        .select('id')
+        .eq('action', 'sendflow_commission_payment')
+        .eq('record_id', profile.id)
+        .gte('created_at', `${today}T00:00:00`)
+        .lt('created_at', `${today}T23:59:59`);
+
+      const paidToday = sendflowPayments && sendflowPayments.length > 0;
+      setSendflowPaidToday(paidToday);
+
+      // Vérifier s'il y a des paiements marchands aujourd'hui
       const { data: todayPayments } = await supabase
         .from('merchant_payments')
         .select('id')
@@ -26,8 +48,8 @@ const MerchantDashboard = () => {
         .gte('created_at', `${today}T00:00:00`)
         .lt('created_at', `${today}T23:59:59`);
 
-      // Si des paiements ont été effectués aujourd'hui, il y a une dette de 50 FCFA
-      if (todayPayments && todayPayments.length > 0) {
+      // Si des paiements ont été effectués aujourd'hui ET que Sendflow n'a pas été payé
+      if (todayPayments && todayPayments.length > 0 && !paidToday) {
         setSendflowDebt(50);
       } else {
         setSendflowDebt(0);
@@ -51,15 +73,29 @@ const MerchantDashboard = () => {
 
     try {
       // Débiter le compte du marchand
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('profiles')
         .update({ balance: profile.balance - sendflowDebt })
         .eq('id', profile.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      // Enregistrer le paiement dans audit_logs pour traçabilité
+      const { error: logError } = await supabase
+        .from('audit_logs')
+        .insert({
+          action: 'sendflow_commission_payment',
+          table_name: 'profiles',
+          record_id: profile.id,
+          user_id: profile.id,
+          new_values: { commission_paid: sendflowDebt, date: new Date().toISOString().split('T')[0] }
+        });
+
+      if (logError) console.error('Erreur lors de l\'enregistrement du log:', logError);
 
       toast.success(`Commission Sendflow de ${sendflowDebt} FCFA payée`);
       setSendflowDebt(0);
+      setSendflowPaidToday(true);
     } catch (error) {
       console.error('Erreur lors du paiement Sendflow:', error);
       toast.error("Erreur lors du paiement");
@@ -68,6 +104,9 @@ const MerchantDashboard = () => {
 
   useEffect(() => {
     checkSendflowDebt();
+    // Vérifier toutes les minutes si la dette a changé
+    const interval = setInterval(checkSendflowDebt, 60000);
+    return () => clearInterval(interval);
   }, [profile?.id]);
 
   return (
@@ -142,12 +181,23 @@ const MerchantDashboard = () => {
           </Card>
         )}
 
-        {sendflowDebt === 0 && (
+        {sendflowDebt === 0 && sendflowPaidToday && (
           <Card className="border-green-200 bg-green-50">
             <CardContent className="p-4">
               <div className="flex items-center justify-center gap-2 text-green-700">
                 <Bell className="h-5 w-5" />
-                <span className="font-medium">Commission Sendflow à jour</span>
+                <span className="font-medium">Commission Sendflow payée aujourd'hui</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {sendflowDebt === 0 && !sendflowPaidToday && (
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-center gap-2 text-blue-700">
+                <Bell className="h-5 w-5" />
+                <span className="font-medium">Aucune transaction aujourd'hui</span>
               </div>
             </CardContent>
           </Card>
