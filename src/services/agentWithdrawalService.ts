@@ -11,14 +11,19 @@ export const processAgentWithdrawalWithCommission = async (
   
   try {
     // 1. Vérifier si l'agent est un commerçant et s'il a payé sa commission Sendflow aujourd'hui
+    console.log("🔍 [SERVICE] Vérification du profil de l'agent:", agentId);
     const { data: agentProfile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', agentId)
       .single();
 
+    console.log("👤 [SERVICE] Profil agent récupéré:", agentProfile);
+
     if (agentProfile?.role === 'merchant') {
+      console.log("🏪 [SERVICE] Agent est un commerçant, vérification commission Sendflow");
       const today = new Date().toISOString().split('T')[0];
+      console.log("📅 [SERVICE] Date du jour:", today);
       
       // Vérifier s'il y a des paiements marchands aujourd'hui
       const { data: todayPayments } = await supabase
@@ -27,6 +32,8 @@ export const processAgentWithdrawalWithCommission = async (
         .eq('user_id', agentId)
         .gte('created_at', `${today}T00:00:00`)
         .lt('created_at', `${today}T23:59:59`);
+
+      console.log("💳 [SERVICE] Paiements marchands aujourd'hui:", todayPayments);
 
       // Vérifier s'il a payé sa commission Sendflow aujourd'hui
       const { data: sendflowPayments } = await supabase
@@ -37,15 +44,25 @@ export const processAgentWithdrawalWithCommission = async (
         .gte('created_at', `${today}T00:00:00`)
         .lt('created_at', `${today}T23:59:59`);
 
+      console.log("💰 [SERVICE] Paiements Sendflow aujourd'hui:", sendflowPayments);
+
       const hasTodayPayments = todayPayments && todayPayments.length > 0;
       const hasPaidSendflow = sendflowPayments && sendflowPayments.length > 0;
 
+      console.log("📊 [SERVICE] État des paiements - Paiements aujourd'hui:", hasTodayPayments, "Commission payée:", hasPaidSendflow);
+
       if (hasTodayPayments && !hasPaidSendflow) {
+        console.log("❌ [SERVICE] RETRAIT REFUSÉ - Commission Sendflow non payée");
         throw new Error("Retrait refusé: Commission Sendflow quotidienne non payée. Veuillez payer votre commission de 50 FCFA avant de pouvoir effectuer un retrait.");
       }
+      
+      console.log("✅ [SERVICE] Vérification commission OK, retrait autorisé");
+    } else {
+      console.log("👮 [SERVICE] Agent n'est pas un commerçant, pas de vérification commission");
     }
 
     // 2. Vérifier le solde du client
+    console.log("💵 [SERVICE] Vérification du solde du client:", clientId);
     const { data: clientBalance, error: balanceError } = await supabase.rpc('increment_balance', {
       user_id: clientId,
       amount: 0
