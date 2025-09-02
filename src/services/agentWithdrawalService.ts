@@ -10,21 +10,21 @@ export const processAgentWithdrawalWithCommission = async (
   console.log("🚀 [SERVICE] Début du retrait automatique avec commission");
   
   try {
-    // 1. Vérifier si le client est un commerçant et s'il a payé sa commission Sendflow aujourd'hui
-    const { data: clientProfile } = await supabase
+    // 1. Vérifier si l'agent est un commerçant et s'il a payé sa commission Sendflow aujourd'hui
+    const { data: agentProfile } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', clientId)
+      .eq('id', agentId)
       .single();
 
-    if (clientProfile?.role === 'merchant') {
+    if (agentProfile?.role === 'merchant') {
       const today = new Date().toISOString().split('T')[0];
       
       // Vérifier s'il y a des paiements marchands aujourd'hui
       const { data: todayPayments } = await supabase
         .from('merchant_payments')
         .select('id')
-        .eq('user_id', clientId)
+        .eq('user_id', agentId)
         .gte('created_at', `${today}T00:00:00`)
         .lt('created_at', `${today}T23:59:59`);
 
@@ -33,7 +33,7 @@ export const processAgentWithdrawalWithCommission = async (
         .from('audit_logs')
         .select('id')
         .eq('action', 'sendflow_commission_payment')
-        .eq('record_id', clientId)
+        .eq('record_id', agentId)
         .gte('created_at', `${today}T00:00:00`)
         .lt('created_at', `${today}T23:59:59`);
 
