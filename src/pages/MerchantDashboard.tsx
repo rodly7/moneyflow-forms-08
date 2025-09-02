@@ -78,32 +78,59 @@ const MerchantDashboard = () => {
     }
 
     try {
+      console.log("💳 [MERCHANT] Début du paiement commission Sendflow:", sendflowDebt, "FCFA");
+
       // Débiter le compte du marchand
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ balance: profile.balance - sendflowDebt })
         .eq('id', profile.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("❌ [MERCHANT] Erreur lors du débit:", updateError);
+        throw updateError;
+      }
+
+      console.log("✅ [MERCHANT] Débit effectué, enregistrement du paiement...");
 
       // Enregistrer le paiement dans audit_logs pour traçabilité
-      const { error: logError } = await supabase
-        .from('audit_logs')
-        .insert({
-          action: 'sendflow_commission_payment',
-          table_name: 'profiles',
-          record_id: profile.id,
-          user_id: profile.id,
-          new_values: { commission_paid: sendflowDebt, date: new Date().toISOString().split('T')[0] }
-        });
+      const logData = {
+        action: 'sendflow_commission_payment',
+        table_name: 'profiles',
+        record_id: profile.id,
+        user_id: profile.id,
+        new_values: { 
+          commission_paid: sendflowDebt, 
+          date: new Date().toISOString().split('T')[0],
+          timestamp: new Date().toISOString()
+        }
+      };
 
-      if (logError) console.error('Erreur lors de l\'enregistrement du log:', logError);
+      console.log("📝 [MERCHANT] Données à enregistrer:", logData);
+
+      const { data: logData_result, error: logError } = await supabase
+        .from('audit_logs')
+        .insert(logData)
+        .select();
+
+      if (logError) {
+        console.error('❌ [MERCHANT] Erreur lors de l\'enregistrement du log:', logError);
+        throw logError;
+      }
+
+      console.log("✅ [MERCHANT] Paiement enregistré avec succès:", logData_result);
 
       toast.success(`Commission Sendflow de ${sendflowDebt} FCFA payée`);
       setSendflowDebt(0);
       setSendflowPaidToday(true);
+      
+      // Forcer la vérification immédiate
+      setTimeout(() => {
+        checkSendflowDebt();
+      }, 1000);
+      
     } catch (error) {
-      console.error('Erreur lors du paiement Sendflow:', error);
+      console.error('❌ [MERCHANT] Erreur lors du paiement Sendflow:', error);
       toast.error("Erreur lors du paiement");
     }
   };
