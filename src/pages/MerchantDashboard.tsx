@@ -15,6 +15,26 @@ const MerchantDashboard = () => {
   const [sendflowDebt, setSendflowDebt] = useState(0);
   const [sendflowPaidToday, setSendflowPaidToday] = useState(false);
   
+  // Clé pour le localStorage basée sur la date et l'utilisateur
+  const getStorageKey = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return `sendflow_paid_${profile?.id}_${today}`;
+  };
+  
+  // Vérifier si déjà payé aujourd'hui depuis le localStorage
+  const checkLocalPaymentStatus = () => {
+    if (!profile?.id) return false;
+    const storageKey = getStorageKey();
+    return localStorage.getItem(storageKey) === 'true';
+  };
+  
+  // Marquer comme payé dans le localStorage
+  const markAsPaidLocally = () => {
+    if (!profile?.id) return;
+    const storageKey = getStorageKey();
+    localStorage.setItem(storageKey, 'true');
+  };
+  
   // Rafraîchir le solde toutes les 5 secondes
   useAutoBalanceRefresh({ 
     intervalMs: 5000,
@@ -27,6 +47,17 @@ const MerchantDashboard = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
       console.log("🔍 [MERCHANT] Vérification commission pour:", profile.id, "Date:", today);
+      
+      // D'abord vérifier le localStorage
+      const locallyPaid = checkLocalPaymentStatus();
+      console.log("💾 [MERCHANT] Statut local du paiement:", locallyPaid);
+      
+      if (locallyPaid) {
+        console.log("✅ [MERCHANT] Paiement déjà effectué selon localStorage");
+        setSendflowDebt(0);
+        setSendflowPaidToday(true);
+        return;
+      }
       
       // Vérifier s'il y a des paiements de commission Sendflow aujourd'hui
       // Utiliser une plage de dates plus large pour éviter les problèmes de timezone
@@ -50,6 +81,13 @@ const MerchantDashboard = () => {
       console.log("💰 [MERCHANT] Paiements Sendflow trouvés:", sendflowPayments);
 
       const paidToday = sendflowPayments && sendflowPayments.length > 0;
+      
+      // Si payé selon la base de données, marquer aussi localement
+      if (paidToday) {
+        markAsPaidLocally();
+        console.log("✅ [MERCHANT] Paiement trouvé en DB, marqué localement");
+      }
+      
       setSendflowPaidToday(paidToday);
 
       // Vérifier s'il y a des paiements marchands aujourd'hui
@@ -152,9 +190,12 @@ const MerchantDashboard = () => {
         console.log("✅ [MERCHANT] Paiement enregistré avec succès dans audit_logs:", logData_result);
       }
 
-      // Marquer immédiatement comme payé pour éviter le re-calcul
+      // Marquer immédiatement comme payé localement et dans l'état
+      markAsPaidLocally();
       setSendflowDebt(0);
       setSendflowPaidToday(true);
+      
+      console.log("✅ [MERCHANT] Marqué comme payé localement et dans l'état");
       
       toast.success(`Commission Sendflow de ${sendflowDebt} FCFA payée`);
       
@@ -169,12 +210,6 @@ const MerchantDashboard = () => {
         .limit(1);
       
       console.log("✅ [MERCHANT] Vérification paiement:", verifyPayment);
-      
-      // Attendre un peu puis recharger
-      setTimeout(() => {
-        console.log("🔄 [MERCHANT] Rechargement des données après paiement...");
-        checkSendflowDebt();
-      }, 2000);
       
     } catch (error) {
       console.error('❌ [MERCHANT] Erreur lors du paiement Sendflow:', error);
