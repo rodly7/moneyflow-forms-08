@@ -1680,6 +1680,41 @@ export type Database = {
           },
         ]
       }
+      sendflow_commission_payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          merchant_id: string
+          payment_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          merchant_id: string
+          payment_date?: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          merchant_id?: string
+          payment_date?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sendflow_commission_payments_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_agents_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sub_admin_daily_requests: {
         Row: {
           created_at: string

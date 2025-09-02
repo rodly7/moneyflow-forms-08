@@ -59,20 +59,12 @@ const MerchantDashboard = () => {
         return;
       }
       
-      // Vérifier s'il y a des paiements de commission Sendflow aujourd'hui
-      // Utiliser une plage de dates plus large pour éviter les problèmes de timezone
-      const startDate = `${today}T00:00:00.000Z`;
-      const endDate = `${today}T23:59:59.999Z`;
-      
-      console.log("📅 [MERCHANT] Recherche entre:", startDate, "et", endDate);
-      
+      // Vérifier s'il y a des paiements de commission Sendflow aujourd'hui dans la table dédiée
       const { data: sendflowPayments, error: paymentError } = await supabase
-        .from('audit_logs')
-        .select('id, created_at, new_values')
-        .eq('action', 'sendflow_commission_payment')
-        .eq('record_id', profile.id)
-        .gte('created_at', startDate)
-        .lte('created_at', endDate);
+        .from('sendflow_commission_payments')
+        .select('id, created_at, amount')
+        .eq('merchant_id', profile.id)
+        .eq('payment_date', today);
 
       if (paymentError) {
         console.error("❌ [MERCHANT] Erreur lors de la recherche des paiements Sendflow:", paymentError);
@@ -91,6 +83,9 @@ const MerchantDashboard = () => {
       setSendflowPaidToday(paidToday);
 
       // Vérifier s'il y a des paiements marchands aujourd'hui
+      const startDate = `${today}T00:00:00.000Z`;
+      const endDate = `${today}T23:59:59.999Z`;
+      
       const { data: todayPayments, error: merchantError } = await supabase
         .from('merchant_payments')
         .select('id')
@@ -153,42 +148,30 @@ const MerchantDashboard = () => {
 
       console.log("✅ [MERCHANT] Débit effectué, nouveau solde:", profile.balance - sendflowDebt);
 
-      // Enregistrer le paiement dans audit_logs pour traçabilité
-      const logData = {
-        action: 'sendflow_commission_payment',
-        table_name: 'profiles',
-        record_id: profile.id,
-        user_id: profile.id,
-        new_values: { 
-          commission_paid: sendflowDebt, 
-          date: new Date().toISOString().split('T')[0],
-          timestamp: new Date().toISOString(),
-          previous_balance: profile.balance,
-          new_balance: profile.balance - sendflowDebt
-        }
-      };
-
-      console.log("📝 [MERCHANT] Données à enregistrer dans audit_logs:", logData);
-
-      const { data: logData_result, error: logError } = await supabase
-        .from('audit_logs')
-        .insert(logData)
+      // Enregistrer le paiement dans la table dédiée sendflow_commission_payments
+      console.log("📝 [MERCHANT] Enregistrement du paiement dans sendflow_commission_payments...");
+      
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('sendflow_commission_payments')
+        .insert({
+          merchant_id: profile.id,
+          amount: sendflowDebt,
+          payment_date: new Date().toISOString().split('T')[0]
+        })
         .select();
 
-      if (logError) {
-        console.error('❌ [MERCHANT] Erreur lors de l\'enregistrement du log:', logError);
+      if (paymentError) {
+        console.error('❌ [MERCHANT] Erreur lors de l\'enregistrement du paiement:', paymentError);
         console.error('❌ [MERCHANT] Détails de l\'erreur:', {
-          message: logError.message,
-          details: logError.details,
-          hint: logError.hint,
-          code: logError.code
+          message: paymentError.message,
+          details: paymentError.details,
+          hint: paymentError.hint,
+          code: paymentError.code
         });
-        
-        // Même si le log échoue, on continue car le débit a été effectué
-        console.log("⚠️ [MERCHANT] Log échoué mais on continue car le débit a réussi");
-      } else {
-        console.log("✅ [MERCHANT] Paiement enregistré avec succès dans audit_logs:", logData_result);
+        throw paymentError;
       }
+
+      console.log("✅ [MERCHANT] Paiement enregistré avec succès:", paymentData);
 
       // Marquer immédiatement comme payé localement et dans l'état
       markAsPaidLocally();
@@ -202,10 +185,10 @@ const MerchantDashboard = () => {
       // Vérifier immédiatement que le paiement est bien enregistré
       console.log("🔄 [MERCHANT] Vérification immédiate du paiement...");
       const { data: verifyPayment } = await supabase
-        .from('audit_logs')
+        .from('sendflow_commission_payments')
         .select('id, created_at')
-        .eq('action', 'sendflow_commission_payment')
-        .eq('record_id', profile.id)
+        .eq('merchant_id', profile.id)
+        .eq('payment_date', new Date().toISOString().split('T')[0])
         .order('created_at', { ascending: false })
         .limit(1);
       
