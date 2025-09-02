@@ -7,6 +7,8 @@ import MerchantPersonalQR from '@/components/merchant/MerchantPersonalQR';
 import MerchantTransactionHistory from '@/components/merchant/MerchantTransactionHistory';
 import MerchantStats from '@/components/merchant/MerchantStats';
 import LogoutButton from '@/components/auth/LogoutButton';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 const MerchantDashboard = () => {
   const { profile, refreshProfile } = useAuth();
@@ -16,6 +18,7 @@ const MerchantDashboard = () => {
     totalClients: 0,
     qrScanned: 0
   });
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Récupérer les statistiques réelles
   const fetchStats = async () => {
@@ -59,6 +62,55 @@ const MerchantDashboard = () => {
       });
     } catch (error) {
       console.error('Erreur lors du chargement des statistiques:', error);
+    }
+  };
+
+  // Créer rapidement quelques paiements pour ce marchand (insérés en base)
+  const handleCreatePayments = async () => {
+    if (!profile?.id) {
+      toast.error("Profil introuvable");
+      return;
+    }
+    try {
+      const inserts = [
+        {
+          user_id: profile.id,
+          merchant_id: String(profile.id),
+          amount: 12500,
+          business_name: profile.full_name || 'Client A',
+          description: 'Paiement QR',
+          status: 'completed',
+          currency: 'XAF'
+        },
+        {
+          user_id: profile.id,
+          merchant_id: String(profile.id),
+          amount: 8900,
+          business_name: 'Client B',
+          description: 'Paiement QR',
+          status: 'completed',
+          currency: 'XAF'
+        },
+        {
+          user_id: profile.id,
+          merchant_id: String(profile.id),
+          amount: 4600,
+          business_name: 'Client C',
+          description: 'Paiement QR',
+          status: 'pending',
+          currency: 'XAF'
+        }
+      ];
+
+      const { error } = await supabase.from('merchant_payments').insert(inserts);
+      if (error) throw error;
+
+      toast.success('Paiements créés');
+      await fetchStats();
+      setRefreshKey((k) => k + 1); // force le rafraîchissement de l'historique
+    } catch (e:any) {
+      console.error(e);
+      toast.error(e.message || 'Erreur lors de la création');
     }
   };
 
@@ -123,9 +175,19 @@ const MerchantDashboard = () => {
           <MerchantPersonalQR />
         </div>
 
+        {/* Action de génération de paiements réels (à retirer ensuite) */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">Créer 3 paiements dans la base pour ce marchand</p>
+              <Button onClick={handleCreatePayments}>Créer des paiements</Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid grid-cols-1 gap-6">
           {/* Transaction History */}
-          <MerchantTransactionHistory />
+          <MerchantTransactionHistory key={refreshKey} />
         </div>
 
         {/* Detailed Stats */}
