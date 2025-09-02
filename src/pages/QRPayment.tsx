@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, QrCode, Send, User, Phone, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import PaymentQRScanner from "@/components/payment/PaymentQRScanner";
+import QRPaymentFeeDisplay from "@/components/payment/QRPaymentFeeDisplay";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -101,13 +102,37 @@ const QRPayment = () => {
 
     // Calculer les frais - pas de frais si le destinataire est un marchand
     const fees = isMerchant ? 0 : transferAmount * 0.01;
-    const totalWithFees = transferAmount + fees;
+    
+    // Vérifier si c'est la première transaction du jour pour un marchand et ajouter les frais Sendflow
+    let sendflowFee = 0;
+    if (isMerchant) {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: todayPayments } = await supabase
+        .from('merchant_payments')
+        .select('id')
+        .eq('user_id', user.id)
+        .gte('created_at', `${today}T00:00:00`)
+        .lt('created_at', `${today}T23:59:59`);
+      
+      // Si c'est la première transaction du jour, ajouter 50 FCFA pour Sendflow
+      if (!todayPayments || todayPayments.length === 0) {
+        sendflowFee = 50;
+      }
+    }
+    
+    const totalWithFees = transferAmount + fees + sendflowFee;
     
     // Vérifier le solde
     if (profile?.balance && profile.balance < totalWithFees) {
+      const feeDescription = isMerchant && sendflowFee > 0 
+        ? ` (montant + 50 FCFA Sendflow: ${totalWithFees.toLocaleString()} FCFA)`
+        : !isMerchant 
+        ? ` (montant + frais: ${totalWithFees.toLocaleString()} FCFA)`
+        : `: ${totalWithFees.toLocaleString()} FCFA`;
+      
       toast({
         title: "Solde insuffisant",
-        description: `Votre solde est insuffisant pour effectuer ce paiement${!isMerchant ? ` (montant + frais: ${totalWithFees.toLocaleString()} FCFA)` : `: ${totalWithFees.toLocaleString()} FCFA`}`,
+        description: `Votre solde est insuffisant pour effectuer ce paiement${feeDescription}`,
         variant: "destructive"
       });
       return;
@@ -213,9 +238,15 @@ const QRPayment = () => {
         }
       }
 
+      const feeMessage = isMerchant && sendflowFee > 0 
+        ? ` (+ ${sendflowFee} FCFA Sendflow)`
+        : !isMerchant && fees > 0 
+        ? ` (+ ${fees.toLocaleString()} FCFA de frais)`
+        : '';
+      
       toast({
         title: "Paiement effectué",
-        description: `${transferAmount.toLocaleString()} FCFA ${isMerchant ? 'payé au marchand' : 'envoyé à'} ${scannedUser.fullName}${!isMerchant && fees > 0 ? ` (+ ${fees.toLocaleString()} FCFA de frais)` : ''}`,
+        description: `${transferAmount.toLocaleString()} FCFA ${isMerchant ? 'payé au marchand' : 'envoyé à'} ${scannedUser.fullName}${feeMessage}`,
       });
       
       // Réinitialiser le formulaire
@@ -341,31 +372,12 @@ const QRPayment = () => {
                 
                 {/* Affichage des frais */}
                 {amount && parseFloat(amount) > 0 && (
-                  <div className={`${isMerchant ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'} ${isMobile ? 'p-2' : 'p-3'} rounded-lg border`}>
-                    <div className={`${isMobile ? 'text-xs' : 'text-sm'} space-y-1`}>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Montant:</span>
-                        <span className="font-medium">{parseFloat(amount).toLocaleString()} FCFA</span>
-                      </div>
-                      {!isMerchant && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Frais (1%):</span>
-                          <span className="font-medium">{(parseFloat(amount) * 0.01).toLocaleString()} FCFA</span>
-                        </div>
-                      )}
-                      <div className={`flex justify-between border-t pt-1 ${isMobile ? 'text-sm' : ''}`}>
-                        <span className="font-semibold text-gray-800">Total:</span>
-                        <span className={`font-bold ${isMerchant ? 'text-green-600' : 'text-blue-600'}`}>
-                          {isMerchant ? parseFloat(amount).toLocaleString() : (parseFloat(amount) * 1.01).toLocaleString()} FCFA
-                        </span>
-                      </div>
-                      {isMerchant && (
-                        <div className="text-center">
-                          <span className="text-green-600 font-medium text-xs">✓ Aucun frais pour les marchands</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <QRPaymentFeeDisplay 
+                    amount={parseFloat(amount)}
+                    isMerchant={isMerchant}
+                    userId={user.id}
+                    isMobile={isMobile}
+                  />
                 )}
                 
                 {profile?.balance && (
