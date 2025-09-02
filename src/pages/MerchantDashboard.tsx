@@ -18,52 +18,77 @@ const MerchantDashboard = () => {
   });
 
   // Récupérer les statistiques réelles
+  const fetchStats = async () => {
+    if (!profile?.id) return;
+
+    try {
+      // Récupérer les paiements du jour
+      const today = new Date().toISOString().split('T')[0];
+      const { data: dailyData } = await supabase
+        .from('merchant_payments')
+        .select('amount')
+        .eq('merchant_id', profile.id)
+        .gte('created_at', today);
+
+      // Récupérer les paiements du mois
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      const { data: monthlyData } = await supabase
+        .from('merchant_payments')
+        .select('amount')
+        .eq('merchant_id', profile.id)
+        .gte('created_at', startOfMonth.toISOString());
+
+      // Récupérer le nombre de clients uniques
+      const { data: clientsData } = await supabase
+        .from('merchant_payments')
+        .select('user_id')
+        .eq('merchant_id', profile.id);
+
+      // Calculer les statistiques
+      const dailyTotal = dailyData?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
+      const monthlyTotal = monthlyData?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
+      const uniqueClients = new Set(clientsData?.map(payment => payment.user_id)).size || 0;
+      const totalTransactions = monthlyData?.length || 0;
+
+      setStats({
+        dailyPayments: dailyTotal,
+        monthlyTotal: monthlyTotal,
+        totalClients: uniqueClients,
+        qrScanned: totalTransactions
+      });
+    } catch (error) {
+      console.error('Erreur lors du chargement des statistiques:', error);
+    }
+  };
+
   useEffect(() => {
-    const fetchStats = async () => {
-      if (!profile?.id) return;
-
-      try {
-        // Récupérer les paiements du jour
-        const today = new Date().toISOString().split('T')[0];
-        const { data: dailyData } = await supabase
-          .from('merchant_payments')
-          .select('amount')
-          .eq('merchant_id', profile.id)
-          .gte('created_at', today);
-
-        // Récupérer les paiements du mois
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        const { data: monthlyData } = await supabase
-          .from('merchant_payments')
-          .select('amount')
-          .eq('merchant_id', profile.id)
-          .gte('created_at', startOfMonth.toISOString());
-
-        // Récupérer le nombre de clients uniques
-        const { data: clientsData } = await supabase
-          .from('merchant_payments')
-          .select('user_id')
-          .eq('merchant_id', profile.id);
-
-        // Calculer les statistiques
-        const dailyTotal = dailyData?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
-        const monthlyTotal = monthlyData?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
-        const uniqueClients = new Set(clientsData?.map(payment => payment.user_id)).size || 0;
-        const totalTransactions = monthlyData?.length || 0;
-
-        setStats({
-          dailyPayments: dailyTotal,
-          monthlyTotal: monthlyTotal,
-          totalClients: uniqueClients,
-          qrScanned: totalTransactions
-        });
-      } catch (error) {
-        console.error('Erreur lors du chargement des statistiques:', error);
-      }
-    };
-
     fetchStats();
+  }, [profile?.id]);
+
+  // Rafraîchir le solde toutes les 5 secondes
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (profile?.id) {
+        try {
+          // Refetch profile to get updated balance
+          const { data } = await supabase
+            .from('profiles')
+            .select('balance')
+            .eq('id', profile.id)
+            .single();
+          
+          if (data) {
+            // Update profile balance in context if possible or just trigger a re-fetch
+            fetchStats();
+          }
+        } catch (error) {
+          console.error('Erreur lors du rafraîchissement du solde:', error);
+        }
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [profile?.id]);
 
   return (
