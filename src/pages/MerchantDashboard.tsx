@@ -67,12 +67,19 @@ const MerchantDashboard = () => {
 
   // Payer la commission Sendflow
   const handlePaySendflow = async () => {
+    console.log("🚀 [MERCHANT] Début fonction handlePaySendflow");
+    console.log("📊 [MERCHANT] profile?.id:", profile?.id);
+    console.log("📊 [MERCHANT] sendflowDebt:", sendflowDebt);
+    console.log("📊 [MERCHANT] profile.balance:", profile?.balance);
+
     if (!profile?.id || sendflowDebt <= 0) {
+      console.log("❌ [MERCHANT] Aucune commission à payer - profile?.id:", profile?.id, "sendflowDebt:", sendflowDebt);
       toast.error("Aucune commission à payer");
       return;
     }
 
     if (profile.balance < sendflowDebt) {
+      console.log("❌ [MERCHANT] Solde insuffisant - balance:", profile.balance, "debt:", sendflowDebt);
       toast.error("Solde insuffisant pour payer la commission Sendflow");
       return;
     }
@@ -81,6 +88,7 @@ const MerchantDashboard = () => {
       console.log("💳 [MERCHANT] Début du paiement commission Sendflow:", sendflowDebt, "FCFA");
 
       // Débiter le compte du marchand
+      console.log("🔄 [MERCHANT] Tentative de débit du compte...");
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ balance: profile.balance - sendflowDebt })
@@ -91,7 +99,7 @@ const MerchantDashboard = () => {
         throw updateError;
       }
 
-      console.log("✅ [MERCHANT] Débit effectué, enregistrement du paiement...");
+      console.log("✅ [MERCHANT] Débit effectué, nouveau solde:", profile.balance - sendflowDebt);
 
       // Enregistrer le paiement dans audit_logs pour traçabilité
       const logData = {
@@ -102,11 +110,13 @@ const MerchantDashboard = () => {
         new_values: { 
           commission_paid: sendflowDebt, 
           date: new Date().toISOString().split('T')[0],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          previous_balance: profile.balance,
+          new_balance: profile.balance - sendflowDebt
         }
       };
 
-      console.log("📝 [MERCHANT] Données à enregistrer:", logData);
+      console.log("📝 [MERCHANT] Données à enregistrer dans audit_logs:", logData);
 
       const { data: logData_result, error: logError } = await supabase
         .from('audit_logs')
@@ -115,23 +125,39 @@ const MerchantDashboard = () => {
 
       if (logError) {
         console.error('❌ [MERCHANT] Erreur lors de l\'enregistrement du log:', logError);
-        throw logError;
+        console.error('❌ [MERCHANT] Détails de l\'erreur:', {
+          message: logError.message,
+          details: logError.details,
+          hint: logError.hint,
+          code: logError.code
+        });
+        
+        // Même si le log échoue, on continue car le débit a été effectué
+        console.log("⚠️ [MERCHANT] Log échoué mais on continue car le débit a réussi");
+      } else {
+        console.log("✅ [MERCHANT] Paiement enregistré avec succès dans audit_logs:", logData_result);
       }
-
-      console.log("✅ [MERCHANT] Paiement enregistré avec succès:", logData_result);
 
       toast.success(`Commission Sendflow de ${sendflowDebt} FCFA payée`);
       setSendflowDebt(0);
       setSendflowPaidToday(true);
       
       // Forcer la vérification immédiate
+      console.log("🔄 [MERCHANT] Rechargement des données après paiement...");
       setTimeout(() => {
         checkSendflowDebt();
       }, 1000);
       
     } catch (error) {
       console.error('❌ [MERCHANT] Erreur lors du paiement Sendflow:', error);
-      toast.error("Erreur lors du paiement");
+      console.error('❌ [MERCHANT] Détails complets de l\'erreur:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        stack: error.stack
+      });
+      toast.error(`Erreur lors du paiement: ${error.message || 'Erreur inconnue'}`);
     }
   };
 
