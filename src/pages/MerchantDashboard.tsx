@@ -98,56 +98,6 @@ const MerchantDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Stats Cards avec vraies données */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <CreditCard className="h-8 w-8 text-green-500" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Paiements du jour</p>
-                  <p className="text-2xl font-bold">{stats.dailyPayments.toLocaleString()} XAF</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <TrendingUp className="h-8 w-8 text-blue-500" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Total du mois</p>
-                  <p className="text-2xl font-bold">{stats.monthlyTotal.toLocaleString()} XAF</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <Users className="h-8 w-8 text-purple-500" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Clients</p>
-                  <p className="text-2xl font-bold">{stats.totalClients}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <QrCode className="h-8 w-8 text-orange-500" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Transactions</p>
-                  <p className="text-2xl font-bold">{stats.qrScanned}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* QR Code Personnel uniquement */}
         <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 max-w-md mx-auto">
