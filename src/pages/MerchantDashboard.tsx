@@ -1,146 +1,79 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { QrCode, Store, TrendingUp, Users, CreditCard, Wallet } from 'lucide-react';
+import { Store, Wallet, Bell } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import MerchantPersonalQR from '@/components/merchant/MerchantPersonalQR';
-import MerchantTransactionHistory from '@/components/merchant/MerchantTransactionHistory';
-import MerchantStats from '@/components/merchant/MerchantStats';
 import LogoutButton from '@/components/auth/LogoutButton';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { UnifiedNotificationBell } from '@/components/notifications/UnifiedNotificationBell';
 
 const MerchantDashboard = () => {
-  const { profile, refreshProfile } = useAuth();
-  const [stats, setStats] = useState({
-    dailyPayments: 0,
-    monthlyTotal: 0,
-    totalClients: 0,
-    qrScanned: 0
-  });
-  const [refreshKey, setRefreshKey] = useState(0);
+  const { profile } = useAuth();
+  const [sendflowDebt, setSendflowDebt] = useState(0);
 
-  // Récupérer les statistiques réelles
-  const fetchStats = async () => {
+  // Vérifier la dette Sendflow du marchand
+  const checkSendflowDebt = async () => {
     if (!profile?.id) return;
 
     try {
-      // Récupérer les paiements du jour
       const today = new Date().toISOString().split('T')[0];
-      const { data: dailyData } = await supabase
+      const { data: todayPayments } = await supabase
         .from('merchant_payments')
-        .select('amount')
+        .select('id')
         .eq('merchant_id', profile.id)
-        .gte('created_at', today);
+        .gte('created_at', `${today}T00:00:00`)
+        .lt('created_at', `${today}T23:59:59`);
 
-      // Récupérer les paiements du mois
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      const { data: monthlyData } = await supabase
-        .from('merchant_payments')
-        .select('amount')
-        .eq('merchant_id', profile.id)
-        .gte('created_at', startOfMonth.toISOString());
-
-      // Récupérer le nombre de clients uniques
-      const { data: clientsData } = await supabase
-        .from('merchant_payments')
-        .select('user_id')
-        .eq('merchant_id', profile.id);
-
-      // Calculer les statistiques
-      const dailyTotal = dailyData?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
-      const monthlyTotal = monthlyData?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
-      const uniqueClients = new Set(clientsData?.map(payment => payment.user_id)).size || 0;
-      const totalTransactions = monthlyData?.length || 0;
-
-      setStats({
-        dailyPayments: dailyTotal,
-        monthlyTotal: monthlyTotal,
-        totalClients: uniqueClients,
-        qrScanned: totalTransactions
-      });
+      // Si des paiements ont été effectués aujourd'hui, il y a une dette de 50 FCFA
+      if (todayPayments && todayPayments.length > 0) {
+        setSendflowDebt(50);
+      } else {
+        setSendflowDebt(0);
+      }
     } catch (error) {
-      console.error('Erreur lors du chargement des statistiques:', error);
+      console.error('Erreur lors de la vérification de la dette Sendflow:', error);
     }
   };
 
-  // Créer rapidement quelques paiements pour ce marchand (insérés en base)
-  const handleCreatePayments = async () => {
-    if (!profile?.id) {
-      toast.error("Profil introuvable");
+  // Payer la commission Sendflow
+  const handlePaySendflow = async () => {
+    if (!profile?.id || sendflowDebt <= 0) {
+      toast.error("Aucune commission à payer");
       return;
     }
-    try {
-      const inserts = [
-        {
-          user_id: profile.id,
-          merchant_id: String(profile.id),
-          amount: 12500,
-          business_name: profile.full_name || 'Client A',
-          description: 'Paiement QR',
-          status: 'completed',
-          currency: 'XAF'
-        },
-        {
-          user_id: profile.id,
-          merchant_id: String(profile.id),
-          amount: 8900,
-          business_name: 'Client B',
-          description: 'Paiement QR',
-          status: 'completed',
-          currency: 'XAF'
-        },
-        {
-          user_id: profile.id,
-          merchant_id: String(profile.id),
-          amount: 4600,
-          business_name: 'Client C',
-          description: 'Paiement QR',
-          status: 'pending',
-          currency: 'XAF'
-        }
-      ];
 
-      const { error } = await supabase.from('merchant_payments').insert(inserts);
+    if (profile.balance < sendflowDebt) {
+      toast.error("Solde insuffisant pour payer la commission Sendflow");
+      return;
+    }
+
+    try {
+      // Débiter le compte du marchand
+      const { error } = await supabase
+        .from('profiles')
+        .update({ balance: profile.balance - sendflowDebt })
+        .eq('id', profile.id);
+
       if (error) throw error;
 
-      toast.success('Paiements créés');
-      await fetchStats();
-      setRefreshKey((k) => k + 1); // force le rafraîchissement de l'historique
-    } catch (e:any) {
-      console.error(e);
-      toast.error(e.message || 'Erreur lors de la création');
+      toast.success(`Commission Sendflow de ${sendflowDebt} FCFA payée`);
+      setSendflowDebt(0);
+    } catch (error) {
+      console.error('Erreur lors du paiement Sendflow:', error);
+      toast.error("Erreur lors du paiement");
     }
   };
 
   useEffect(() => {
-    fetchStats();
-  }, [profile?.id]);
-
-  // Rafraîchir les données toutes les 5 secondes avec mise à jour forcée
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      if (profile?.id) {
-        try {
-          // Refetch des statistiques et du profil
-          await fetchStats();
-          
-          // Force refresh du profil dans le contexte d'authentification
-          await refreshProfile();
-        } catch (error) {
-          console.error('Erreur lors du rafraîchissement:', error);
-        }
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
+    checkSendflowDebt();
   }, [profile?.id]);
 
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header avec bouton de déconnexion */}
+        {/* Header avec notifications et déconnexion */}
         <div className="flex justify-between items-center mb-8">
           <div className="text-center flex-1">
             <div className="flex items-center justify-center mb-4">
@@ -151,7 +84,10 @@ const MerchantDashboard = () => {
               Tableau de bord pour gérer vos paiements
             </p>
           </div>
-          <LogoutButton />
+          <div className="flex items-center gap-4">
+            <UnifiedNotificationBell />
+            <LogoutButton />
+          </div>
         </div>
 
         {/* Carte du solde */}
@@ -170,28 +106,52 @@ const MerchantDashboard = () => {
         </Card>
 
 
-        {/* QR Code Personnel uniquement */}
+        {/* QR Code Personnel */}
         <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 max-w-md mx-auto">
           <MerchantPersonalQR />
         </div>
 
-        {/* Action de génération de paiements réels (à retirer ensuite) */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground">Créer 3 paiements dans la base pour ce marchand</p>
-              <Button onClick={handleCreatePayments}>Créer des paiements</Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Commission Sendflow */}
+        {sendflowDebt > 0 && (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardHeader>
+              <CardTitle className="text-orange-700 flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Commission Sendflow à payer
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-600 font-medium">
+                    Montant: {sendflowDebt} FCFA
+                  </p>
+                  <p className="text-sm text-orange-500 mt-1">
+                    Payez votre commission quotidienne pour pouvoir effectuer des retraits
+                  </p>
+                </div>
+                <Button 
+                  onClick={handlePaySendflow}
+                  variant="default"
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  Payer Sendflow
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <div className="grid grid-cols-1 gap-6">
-          {/* Transaction History */}
-          <MerchantTransactionHistory key={refreshKey} />
-        </div>
-
-        {/* Detailed Stats */}
-        <MerchantStats />
+        {sendflowDebt === 0 && (
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-center gap-2 text-green-700">
+                <Bell className="h-5 w-5" />
+                <span className="font-medium">Commission Sendflow à jour</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
