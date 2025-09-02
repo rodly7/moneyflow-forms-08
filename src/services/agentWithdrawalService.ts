@@ -10,7 +10,42 @@ export const processAgentWithdrawalWithCommission = async (
   console.log("🚀 [SERVICE] Début du retrait automatique avec commission");
   
   try {
-    // 1. Vérifier le solde du client
+    // 1. Vérifier si le client est un commerçant et s'il a payé sa commission Sendflow aujourd'hui
+    const { data: clientProfile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', clientId)
+      .single();
+
+    if (clientProfile?.role === 'merchant') {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Vérifier s'il y a des paiements marchands aujourd'hui
+      const { data: todayPayments } = await supabase
+        .from('merchant_payments')
+        .select('id')
+        .eq('user_id', clientId)
+        .gte('created_at', `${today}T00:00:00`)
+        .lt('created_at', `${today}T23:59:59`);
+
+      // Vérifier s'il a payé sa commission Sendflow aujourd'hui
+      const { data: sendflowPayments } = await supabase
+        .from('audit_logs')
+        .select('id')
+        .eq('action', 'sendflow_commission_payment')
+        .eq('record_id', clientId)
+        .gte('created_at', `${today}T00:00:00`)
+        .lt('created_at', `${today}T23:59:59`);
+
+      const hasTodayPayments = todayPayments && todayPayments.length > 0;
+      const hasPaidSendflow = sendflowPayments && sendflowPayments.length > 0;
+
+      if (hasTodayPayments && !hasPaidSendflow) {
+        throw new Error("Retrait refusé: Commission Sendflow quotidienne non payée. Veuillez payer votre commission de 50 FCFA avant de pouvoir effectuer un retrait.");
+      }
+    }
+
+    // 2. Vérifier le solde du client
     const { data: clientBalance, error: balanceError } = await supabase.rpc('increment_balance', {
       user_id: clientId,
       amount: 0
