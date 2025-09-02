@@ -12,6 +12,29 @@ import PaymentQRScanner from "@/components/payment/PaymentQRScanner";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { supabase } from "@/integrations/supabase/client";
 
+// Hook pour vérifier si un utilisateur est marchand
+const useMerchantCheck = (userId: string | undefined) => {
+  const [isMerchant, setIsMerchant] = useState(false);
+  
+  useEffect(() => {
+    if (!userId) return;
+    
+    const checkMerchant = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+      
+      setIsMerchant(data?.role === 'merchant');
+    };
+    
+    checkMerchant();
+  }, [userId]);
+  
+  return isMerchant;
+};
+
 const QRPayment = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -26,6 +49,9 @@ const QRPayment = () => {
   } | null>(null);
   const [amount, setAmount] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  
+  // Vérifier si le destinataire scanné est un marchand
+  const isMerchant = useMerchantCheck(scannedUser?.userId);
 
   useEffect(() => {
     if (!user) {
@@ -73,15 +99,15 @@ const QRPayment = () => {
       return;
     }
 
-    // Calculer les frais (1% pour transferts nationaux)
-    const fees = transferAmount * 0.01;
+    // Calculer les frais - pas de frais si le destinataire est un marchand
+    const fees = isMerchant ? 0 : transferAmount * 0.01;
     const totalWithFees = transferAmount + fees;
     
     // Vérifier le solde
     if (profile?.balance && profile.balance < totalWithFees) {
       toast({
         title: "Solde insuffisant",
-        description: `Votre solde est insuffisant pour effectuer ce paiement (montant + frais: ${totalWithFees.toLocaleString()} FCFA)`,
+        description: `Votre solde est insuffisant pour effectuer ce paiement${!isMerchant ? ` (montant + frais: ${totalWithFees.toLocaleString()} FCFA)` : `: ${totalWithFees.toLocaleString()} FCFA`}`,
         variant: "destructive"
       });
       return;
@@ -142,32 +168,54 @@ const QRPayment = () => {
 
       console.log('✅ Crédit effectué:', creditResult);
 
-      // Enregistrer la transaction
+      // Enregistrer la transaction selon le type de destinataire
       console.log('📝 Enregistrement de la transaction...');
-      const { error: transferError } = await supabase
-        .from('transfers')
-        .insert({
-          sender_id: user.id,
-          recipient_id: scannedUser.userId,
-          recipient_full_name: scannedUser.fullName,
-          recipient_phone: scannedUser.phone,
-          recipient_country: profile?.country || 'Congo Brazzaville',
-          amount: transferAmount,
-          fees: fees,
-          currency: 'XAF',
-          status: 'completed'
-        });
+      
+      if (isMerchant) {
+        // Pour les marchands, enregistrer dans merchant_payments
+        const { error: merchantPaymentError } = await supabase
+          .from('merchant_payments')
+          .insert({
+            user_id: user.id,
+            merchant_id: scannedUser.userId,
+            amount: transferAmount,
+            business_name: scannedUser.fullName,
+            description: 'Paiement QR',
+            currency: 'XAF',
+            status: 'completed'
+          });
 
-      if (transferError) {
-        console.error('⚠️ Erreur enregistrement transfert:', transferError);
-        // La transaction a déjà eu lieu, on continue
+        if (merchantPaymentError) {
+          console.error('⚠️ Erreur enregistrement paiement marchand:', merchantPaymentError);
+        } else {
+          console.log('✅ Paiement marchand enregistré');
+        }
       } else {
-        console.log('✅ Transaction enregistrée');
+        // Pour les utilisateurs normaux, enregistrer dans transfers
+        const { error: transferError } = await supabase
+          .from('transfers')
+          .insert({
+            sender_id: user.id,
+            recipient_id: scannedUser.userId,
+            recipient_full_name: scannedUser.fullName,
+            recipient_phone: scannedUser.phone,
+            recipient_country: profile?.country || 'Congo Brazzaville',
+            amount: transferAmount,
+            fees: fees,
+            currency: 'XAF',
+            status: 'completed'
+          });
+
+        if (transferError) {
+          console.error('⚠️ Erreur enregistrement transfert:', transferError);
+        } else {
+          console.log('✅ Transaction enregistrée');
+        }
       }
 
       toast({
         title: "Paiement effectué",
-        description: `${transferAmount.toLocaleString()} FCFA envoyé à ${scannedUser.fullName}`,
+        description: `${transferAmount.toLocaleString()} FCFA ${isMerchant ? 'payé au marchand' : 'envoyé à'} ${scannedUser.fullName}${!isMerchant && fees > 0 ? ` (+ ${fees.toLocaleString()} FCFA de frais)` : ''}`,
       });
       
       // Réinitialiser le formulaire
@@ -293,20 +341,29 @@ const QRPayment = () => {
                 
                 {/* Affichage des frais */}
                 {amount && parseFloat(amount) > 0 && (
-                  <div className={`bg-yellow-50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg border border-yellow-200`}>
+                  <div className={`${isMerchant ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'} ${isMobile ? 'p-2' : 'p-3'} rounded-lg border`}>
                     <div className={`${isMobile ? 'text-xs' : 'text-sm'} space-y-1`}>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Montant:</span>
                         <span className="font-medium">{parseFloat(amount).toLocaleString()} FCFA</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Frais (1%):</span>
-                        <span className="font-medium">{(parseFloat(amount) * 0.01).toLocaleString()} FCFA</span>
-                      </div>
+                      {!isMerchant && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Frais (1%):</span>
+                          <span className="font-medium">{(parseFloat(amount) * 0.01).toLocaleString()} FCFA</span>
+                        </div>
+                      )}
                       <div className={`flex justify-between border-t pt-1 ${isMobile ? 'text-sm' : ''}`}>
                         <span className="font-semibold text-gray-800">Total:</span>
-                        <span className="font-bold text-blue-600">{(parseFloat(amount) * 1.01).toLocaleString()} FCFA</span>
+                        <span className={`font-bold ${isMerchant ? 'text-green-600' : 'text-blue-600'}`}>
+                          {isMerchant ? parseFloat(amount).toLocaleString() : (parseFloat(amount) * 1.01).toLocaleString()} FCFA
+                        </span>
                       </div>
+                      {isMerchant && (
+                        <div className="text-center">
+                          <span className="text-green-600 font-medium text-xs">✓ Aucun frais pour les marchands</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
