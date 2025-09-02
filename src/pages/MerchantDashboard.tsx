@@ -29,13 +29,23 @@ const MerchantDashboard = () => {
       console.log("🔍 [MERCHANT] Vérification commission pour:", profile.id, "Date:", today);
       
       // Vérifier s'il y a des paiements de commission Sendflow aujourd'hui
-      const { data: sendflowPayments } = await supabase
+      // Utiliser une plage de dates plus large pour éviter les problèmes de timezone
+      const startDate = `${today}T00:00:00.000Z`;
+      const endDate = `${today}T23:59:59.999Z`;
+      
+      console.log("📅 [MERCHANT] Recherche entre:", startDate, "et", endDate);
+      
+      const { data: sendflowPayments, error: paymentError } = await supabase
         .from('audit_logs')
-        .select('id')
+        .select('id, created_at, new_values')
         .eq('action', 'sendflow_commission_payment')
         .eq('record_id', profile.id)
-        .gte('created_at', `${today}T00:00:00`)
-        .lt('created_at', `${today}T23:59:59`);
+        .gte('created_at', startDate)
+        .lte('created_at', endDate);
+
+      if (paymentError) {
+        console.error("❌ [MERCHANT] Erreur lors de la recherche des paiements Sendflow:", paymentError);
+      }
 
       console.log("💰 [MERCHANT] Paiements Sendflow trouvés:", sendflowPayments);
 
@@ -43,12 +53,16 @@ const MerchantDashboard = () => {
       setSendflowPaidToday(paidToday);
 
       // Vérifier s'il y a des paiements marchands aujourd'hui
-      const { data: todayPayments } = await supabase
+      const { data: todayPayments, error: merchantError } = await supabase
         .from('merchant_payments')
         .select('id')
         .eq('merchant_id', profile.id)
-        .gte('created_at', `${today}T00:00:00`)
-        .lt('created_at', `${today}T23:59:59`);
+        .gte('created_at', startDate)
+        .lte('created_at', endDate);
+
+      if (merchantError) {
+        console.error("❌ [MERCHANT] Erreur lors de la recherche des paiements marchands:", merchantError);
+      }
 
       console.log("💳 [MERCHANT] Paiements marchands trouvés:", todayPayments);
 
@@ -138,15 +152,29 @@ const MerchantDashboard = () => {
         console.log("✅ [MERCHANT] Paiement enregistré avec succès dans audit_logs:", logData_result);
       }
 
-      toast.success(`Commission Sendflow de ${sendflowDebt} FCFA payée`);
+      // Marquer immédiatement comme payé pour éviter le re-calcul
       setSendflowDebt(0);
       setSendflowPaidToday(true);
       
-      // Forcer la vérification immédiate
-      console.log("🔄 [MERCHANT] Rechargement des données après paiement...");
+      toast.success(`Commission Sendflow de ${sendflowDebt} FCFA payée`);
+      
+      // Vérifier immédiatement que le paiement est bien enregistré
+      console.log("🔄 [MERCHANT] Vérification immédiate du paiement...");
+      const { data: verifyPayment } = await supabase
+        .from('audit_logs')
+        .select('id, created_at')
+        .eq('action', 'sendflow_commission_payment')
+        .eq('record_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      console.log("✅ [MERCHANT] Vérification paiement:", verifyPayment);
+      
+      // Attendre un peu puis recharger
       setTimeout(() => {
+        console.log("🔄 [MERCHANT] Rechargement des données après paiement...");
         checkSendflowDebt();
-      }, 1000);
+      }, 2000);
       
     } catch (error) {
       console.error('❌ [MERCHANT] Erreur lors du paiement Sendflow:', error);
