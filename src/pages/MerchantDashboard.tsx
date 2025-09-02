@@ -21,12 +21,12 @@ const MerchantDashboard = () => {
     enableRealtime: true
   });
 
-  // Vérifier la dette Sendflow du marchand
   const checkSendflowDebt = async () => {
     if (!profile?.id) return;
 
     try {
       const today = new Date().toISOString().split('T')[0];
+      console.log("🔍 [MERCHANT] Vérification commission pour:", profile.id, "Date:", today);
       
       // Vérifier s'il y a des paiements de commission Sendflow aujourd'hui
       const { data: sendflowPayments } = await supabase
@@ -36,6 +36,8 @@ const MerchantDashboard = () => {
         .eq('record_id', profile.id)
         .gte('created_at', `${today}T00:00:00`)
         .lt('created_at', `${today}T23:59:59`);
+
+      console.log("💰 [MERCHANT] Paiements Sendflow trouvés:", sendflowPayments);
 
       const paidToday = sendflowPayments && sendflowPayments.length > 0;
       setSendflowPaidToday(paidToday);
@@ -48,14 +50,18 @@ const MerchantDashboard = () => {
         .gte('created_at', `${today}T00:00:00`)
         .lt('created_at', `${today}T23:59:59`);
 
+      console.log("💳 [MERCHANT] Paiements marchands trouvés:", todayPayments);
+
       // Si des paiements ont été effectués aujourd'hui ET que Sendflow n'a pas été payé
       if (todayPayments && todayPayments.length > 0 && !paidToday) {
+        console.log("⚠️ [MERCHANT] Dette Sendflow détectée - Paiements:", todayPayments.length, "Commission payée:", paidToday);
         setSendflowDebt(50);
       } else {
+        console.log("✅ [MERCHANT] Pas de dette Sendflow - Paiements:", todayPayments?.length || 0, "Commission payée:", paidToday);
         setSendflowDebt(0);
       }
     } catch (error) {
-      console.error('Erreur lors de la vérification de la dette Sendflow:', error);
+      console.error('❌ [MERCHANT] Erreur lors de la vérification de la dette Sendflow:', error);
     }
   };
 
