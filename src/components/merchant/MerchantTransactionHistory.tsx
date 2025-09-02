@@ -38,27 +38,7 @@ const MerchantTransactionHistory = () => {
     fetchTransactions();
   }, [profile?.id]);
 
-  // Données d'exemple si aucune transaction réelle
-  const exampleTransactions = [
-    {
-      id: 'TX001',
-      amount: 5000,
-      business_name: 'Client A',
-      status: 'completed',
-      created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-      description: 'Commande #123'
-    },
-    {
-      id: 'TX002',
-      amount: 2500,
-      business_name: 'Client B', 
-      status: 'pending',
-      created_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-      description: 'Achat divers'
-    }
-  ];
-
-  const displayTransactions = transactions.length > 0 ? transactions : exampleTransactions;
+  const displayTransactions = transactions;
 
   const getStatusIcon = (status: string) => {
     switch (status) {

@@ -62,76 +62,35 @@ const MerchantStats = () => {
     fetchStats();
   }, [profile?.id]);
 
-  // Données d'exemple pour l'affichage graphique
-  const weeklyStats = [
-    { day: 'Lun', amount: 15000, transactions: 8 },
-    { day: 'Mar', amount: 12000, transactions: 6 },
-    { day: 'Mer', amount: 18000, transactions: 12 },
-    { day: 'Jeu', amount: 22000, transactions: 15 },
-    { day: 'Ven', amount: 35000, transactions: 24 },
-    { day: 'Sam', amount: 28000, transactions: 18 },
-    { day: 'Dim', amount: 8000, transactions: 4 }
-  ];
-
-  const totalWeekly = weeklyStats.reduce((sum, day) => sum + day.amount, 0);
-  const totalTransactions = weeklyStats.reduce((sum, day) => sum + day.transactions, 0);
-  const avgTransaction = totalTransactions > 0 ? totalWeekly / totalTransactions : 0;
 
   return (
     <div className="space-y-6">
-      {/* Weekly Overview */}
+      {/* Statistiques Détaillées */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <Calendar className="h-5 w-5 mr-2" />
-            Résumé de la Semaine
+            <TrendingUp className="h-5 w-5 mr-2" />
+            Statistiques Détaillées
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-primary/10 rounded-lg">
               <p className="text-2xl font-bold text-primary">{stats.todayTotal.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Aujourd'hui</p>
+              <p className="text-sm text-muted-foreground">Paiements du jour (XAF)</p>
             </div>
-            <div className="text-center">
+            <div className="text-center p-4 bg-green-50 rounded-lg">
               <p className="text-2xl font-bold text-green-600">{stats.monthTotal.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Ce mois</p>
+              <p className="text-sm text-muted-foreground">Total du mois (XAF)</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">{Math.round(stats.avgTransaction).toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Panier moyen</p>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <p className="text-2xl font-bold text-blue-600">{stats.totalTransactions}</p>
+              <p className="text-sm text-muted-foreground">Transactions totales</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-600">0</p>
-              <p className="text-sm text-muted-foreground">Frais payés</p>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <p className="text-2xl font-bold text-purple-600">{Math.round(stats.avgTransaction).toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Panier moyen (XAF)</p>
             </div>
-          </div>
-
-          <div className="space-y-3">
-            {weeklyStats.map((day, index) => {
-              const percentage = totalWeekly > 0 ? (day.amount / totalWeekly) * 100 : 0;
-              return (
-                <div key={day.day} className="flex items-center space-x-4">
-                  <div className="w-12 text-sm font-medium">{day.day}</div>
-                  <div className="flex-1">
-                    <div className="bg-muted rounded-full h-3 overflow-hidden">
-                      <div 
-                        className="bg-primary h-full transition-all duration-300"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="w-20 text-right text-sm font-medium">
-                    {day.amount.toLocaleString()}
-                  </div>
-                  <div className="w-16 text-right">
-                    <Badge variant="outline" className="text-xs">
-                      {day.transactions} tx
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </CardContent>
       </Card>
