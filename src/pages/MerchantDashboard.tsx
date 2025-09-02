@@ -9,7 +9,7 @@ import MerchantStats from '@/components/merchant/MerchantStats';
 import LogoutButton from '@/components/auth/LogoutButton';
 
 const MerchantDashboard = () => {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const [stats, setStats] = useState({
     dailyPayments: 0,
     monthlyTotal: 0,
@@ -66,24 +66,18 @@ const MerchantDashboard = () => {
     fetchStats();
   }, [profile?.id]);
 
-  // Rafraîchir le solde toutes les 5 secondes
+  // Rafraîchir les données toutes les 5 secondes avec mise à jour forcée
   useEffect(() => {
     const interval = setInterval(async () => {
       if (profile?.id) {
         try {
-          // Refetch profile to get updated balance
-          const { data } = await supabase
-            .from('profiles')
-            .select('balance')
-            .eq('id', profile.id)
-            .single();
+          // Refetch des statistiques et du profil
+          await fetchStats();
           
-          if (data) {
-            // Update profile balance in context if possible or just trigger a re-fetch
-            fetchStats();
-          }
+          // Force refresh du profil dans le contexte d'authentification
+          await refreshProfile();
         } catch (error) {
-          console.error('Erreur lors du rafraîchissement du solde:', error);
+          console.error('Erreur lors du rafraîchissement:', error);
         }
       }
     }, 5000);
