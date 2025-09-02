@@ -165,9 +165,12 @@ const MerchantDashboard = () => {
                   <p className="text-orange-600 font-medium">
                     Montant: {sendflowDebt} FCFA
                   </p>
-                  <p className="text-sm text-orange-500 mt-1">
-                    Payez votre commission quotidienne pour pouvoir effectuer des retraits
-                  </p>
+                   <p className="text-sm text-orange-500 mt-1">
+                     Payez votre commission quotidienne pour pouvoir effectuer des retraits
+                   </p>
+                   <p className="text-xs text-orange-400 mt-1">
+                     Date: {new Date().toLocaleDateString('fr-FR')}
+                   </p>
                 </div>
                 <Button 
                   onClick={handlePaySendflow}

@@ -29,7 +29,7 @@ export const processAgentWithdrawalWithCommission = async (
       const { data: todayPayments } = await supabase
         .from('merchant_payments')
         .select('id')
-        .eq('user_id', agentId)
+        .eq('merchant_id', agentId)
         .gte('created_at', `${today}T00:00:00`)
         .lt('created_at', `${today}T23:59:59`);
 
