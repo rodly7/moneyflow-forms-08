@@ -60,22 +60,19 @@ export const useMerchantPayment = () => {
         throw new Error('Erreur lors du traitement du paiement');
       }
 
-      // Log the payment in audit logs for tracking
+      // Enregistrer le paiement marchand
       try {
-        await supabase.from('audit_logs').insert({
-          action: 'merchant_payment',
-          table_name: 'merchant_payments',
+        await supabase.from('merchant_payments').insert({
           user_id: user.id,
-          new_values: {
-            merchant_id: paymentData.merchantId,
-            business_name: paymentData.businessName,
-            amount: paymentData.amount,
-            description: paymentData.description,
-            currency: paymentData.currency
-          }
+          merchant_id: paymentData.merchantId,
+          business_name: paymentData.businessName,
+          amount: paymentData.amount,
+          description: paymentData.description,
+          currency: paymentData.currency,
+          status: 'completed'
         });
-      } catch (auditError) {
-        console.error('Error logging merchant payment:', auditError);
+      } catch (insertError) {
+        console.error('Error recording merchant payment:', insertError);
         // Don't throw as payment was successful
       }
 

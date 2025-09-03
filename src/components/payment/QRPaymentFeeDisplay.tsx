@@ -37,8 +37,10 @@ const QRPaymentFeeDisplay = ({ amount, isMerchant, userId, isMobile }: QRPayment
     checkSendflowFee();
   }, [isMerchant, userId]);
 
-  const regularFees = isMerchant ? 0 : amount * 0.01;
-  const total = amount + regularFees + sendflowFee;
+  // Aucun frais pour les utilisateurs qui paient des marchands
+  const regularFees = 0;
+  // Seuls les marchands paient les frais Sendflow
+  const total = amount + (isMerchant ? sendflowFee : 0);
 
   return (
     <div className={`${isMerchant ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'} ${isMobile ? 'p-2' : 'p-3'} rounded-lg border`}>
@@ -48,10 +50,11 @@ const QRPaymentFeeDisplay = ({ amount, isMerchant, userId, isMobile }: QRPayment
           <span className="font-medium">{amount.toLocaleString()} FCFA</span>
         </div>
         
+        {/* Aucun frais pour les utilisateurs qui paient des marchands */}
         {!isMerchant && (
           <div className="flex justify-between">
-            <span className="text-gray-600">Frais (1%):</span>
-            <span className="font-medium">{regularFees.toLocaleString()} FCFA</span>
+            <span className="text-green-600">Frais:</span>
+            <span className="font-medium text-green-600">0 FCFA</span>
           </div>
         )}
         
@@ -69,9 +72,15 @@ const QRPaymentFeeDisplay = ({ amount, isMerchant, userId, isMobile }: QRPayment
           </span>
         </div>
         
+        {!isMerchant && (
+          <div className="text-center">
+            <span className="text-green-600 font-medium text-xs">✓ Paiement sans frais pour les clients</span>
+          </div>
+        )}
+        
         {isMerchant && sendflowFee === 0 && (
           <div className="text-center">
-            <span className="text-green-600 font-medium text-xs">✓ Aucun frais pour les marchands</span>
+            <span className="text-green-600 font-medium text-xs">✓ Aucun frais Sendflow aujourd'hui</span>
           </div>
         )}
         
