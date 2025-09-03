@@ -103,30 +103,15 @@ const QRPayment = () => {
     // Calculer les frais - pas de frais si le destinataire est un marchand
     const fees = isMerchant ? 0 : transferAmount * 0.01;
     
-    // Vérifier si c'est la première transaction du jour pour un marchand et ajouter les frais Sendflow
-    let sendflowFee = 0;
-    if (isMerchant) {
-      const today = new Date().toISOString().split('T')[0];
-      const { data: todayPayments } = await supabase
-        .from('merchant_payments')
-        .select('id')
-        .eq('user_id', user.id)
-        .gte('created_at', `${today}T00:00:00`)
-        .lt('created_at', `${today}T23:59:59`);
-      
-      // Si c'est la première transaction du jour, ajouter 50 FCFA pour Sendflow
-      if (!todayPayments || todayPayments.length === 0) {
-        sendflowFee = 50;
-      }
-    }
+    // IMPORTANT: Les frais Sendflow ne sont JAMAIS payés par l'utilisateur
+    // Ils sont uniquement à la charge du marchand dans sa logique interne
+    let sendflowFee = 0; // Toujours 0 pour l'utilisateur qui paie
     
-    const totalWithFees = transferAmount + fees + sendflowFee;
+    const totalWithFees = transferAmount + fees; // Pas de sendflowFee pour l'utilisateur
     
     // Vérifier le solde
     if (profile?.balance && profile.balance < totalWithFees) {
-      const feeDescription = isMerchant && sendflowFee > 0 
-        ? ` (montant + 50 FCFA Sendflow: ${totalWithFees.toLocaleString()} FCFA)`
-        : !isMerchant 
+      const feeDescription = !isMerchant 
         ? ` (montant + frais: ${totalWithFees.toLocaleString()} FCFA)`
         : `: ${totalWithFees.toLocaleString()} FCFA`;
       
@@ -238,9 +223,7 @@ const QRPayment = () => {
         }
       }
 
-      const feeMessage = isMerchant && sendflowFee > 0 
-        ? ` (+ ${sendflowFee} FCFA Sendflow)`
-        : !isMerchant && fees > 0 
+      const feeMessage = !isMerchant && fees > 0 
         ? ` (+ ${fees.toLocaleString()} FCFA de frais)`
         : '';
       
