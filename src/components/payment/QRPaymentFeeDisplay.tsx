@@ -39,7 +39,7 @@ const QRPaymentFeeDisplay = ({ amount, isMerchant, userId, isMobile }: QRPayment
 
   // Aucun frais pour les utilisateurs qui paient des marchands
   const regularFees = 0;
-  // Seuls les marchands paient les frais Sendflow
+  // Seuls les marchands paient les frais Sendflow - jamais les utilisateurs
   const total = amount + (isMerchant ? sendflowFee : 0);
 
   return (
