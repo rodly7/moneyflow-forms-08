@@ -12,35 +12,15 @@ const QRPaymentFeeDisplay = ({ amount, isMerchant, userId, isMobile }: QRPayment
   const [sendflowFee, setSendflowFee] = useState(0);
 
   useEffect(() => {
-    const checkSendflowFee = async () => {
-      if (!isMerchant) {
-        setSendflowFee(0);
-        return;
-      }
-
-      const today = new Date().toISOString().split('T')[0];
-      const { data: todayPayments } = await supabase
-        .from('merchant_payments')
-        .select('id')
-        .eq('user_id', userId)
-        .gte('created_at', `${today}T00:00:00`)
-        .lt('created_at', `${today}T23:59:59`);
-      
-      // Si c'est la première transaction du jour, ajouter 50 FCFA pour Sendflow
-      if (!todayPayments || todayPayments.length === 0) {
-        setSendflowFee(50);
-      } else {
-        setSendflowFee(0);
-      }
-    };
-
-    checkSendflowFee();
+    // Les frais Sendflow ne sont JAMAIS affichés ou payés par l'utilisateur
+    // Ils sont uniquement à la charge interne du marchand
+    setSendflowFee(0);
   }, [isMerchant, userId]);
 
   // Aucun frais pour les utilisateurs qui paient des marchands
   const regularFees = 0;
-  // Seuls les marchands paient les frais Sendflow - jamais les utilisateurs
-  const total = amount + (isMerchant ? sendflowFee : 0);
+  // L'utilisateur ne paie JAMAIS les frais Sendflow - ils sont toujours à 0 pour l'affichage
+  const total = amount; // Toujours le montant exact pour l'utilisateur
 
   return (
     <div className={`${isMerchant ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'} ${isMobile ? 'p-2' : 'p-3'} rounded-lg border`}>
@@ -58,12 +38,7 @@ const QRPaymentFeeDisplay = ({ amount, isMerchant, userId, isMobile }: QRPayment
           </div>
         )}
         
-        {isMerchant && sendflowFee > 0 && (
-          <div className="flex justify-between">
-            <span className="text-orange-600">Frais Sendflow (1ère du jour):</span>
-            <span className="font-medium text-orange-600">{sendflowFee} FCFA</span>
-          </div>
-        )}
+        {/* Pas d'affichage des frais Sendflow pour l'utilisateur */}
         
         <div className={`flex justify-between border-t pt-1 ${isMobile ? 'text-sm' : ''}`}>
           <span className="font-semibold text-gray-800">Total:</span>
@@ -78,15 +53,9 @@ const QRPaymentFeeDisplay = ({ amount, isMerchant, userId, isMobile }: QRPayment
           </div>
         )}
         
-        {isMerchant && sendflowFee === 0 && (
+        {isMerchant && (
           <div className="text-center">
-            <span className="text-green-600 font-medium text-xs">✓ Aucun frais Sendflow aujourd'hui</span>
-          </div>
-        )}
-        
-        {isMerchant && sendflowFee > 0 && (
-          <div className="text-center">
-            <span className="text-orange-600 font-medium text-xs">⚠️ Frais Sendflow automatique (première transaction du jour)</span>
+            <span className="text-green-600 font-medium text-xs">✓ Paiement sans frais supplémentaires</span>
           </div>
         )}
       </div>
