@@ -111,7 +111,7 @@ export const FraudDetectionInterface = () => {
   );
 
   const suspiciousUsers = filteredUsers.filter(user => 
-    !user.is_verified && (user.id_card_photo_url || user.avatar_url)
+    !user.is_verified || (!user.is_verified && (user.id_card_photo_url || user.avatar_url))
   );
 
   if (loading) {

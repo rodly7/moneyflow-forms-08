@@ -26,6 +26,7 @@ import { RevenueAnalytics } from '@/components/admin/RevenueAnalytics';
 import { SimpleSettingsTab } from '@/components/admin/SimpleSettingsTab';
 import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
 import { FraudDetectionInterface } from '@/components/admin/FraudDetectionInterface';
+import { MerchantTrackingTab } from '@/components/admin/MerchantTrackingTab';
 import LogoutButton from '@/components/auth/LogoutButton';
 
 const PWAMainAdminDashboard = () => {
@@ -106,6 +107,13 @@ const PWAMainAdminDashboard = () => {
       bgColor: 'bg-purple-50'
     },
     { 
+      id: 'merchants', 
+      label: 'Marchands', 
+      icon: DollarSign,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50'
+    },
+    { 
       id: 'revenue', 
       label: 'Revenus', 
       icon: DollarSign,
@@ -138,6 +146,8 @@ const PWAMainAdminDashboard = () => {
         return <AdminUsersManagement />;
       case 'agents':
         return <AgentManagementPanel />;
+      case 'merchants':
+        return <MerchantTrackingTab />;
       case 'revenue':
         return <RevenueAnalytics />;
       case 'messages':
