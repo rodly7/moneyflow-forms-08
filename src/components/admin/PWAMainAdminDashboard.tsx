@@ -27,6 +27,7 @@ import { SimpleSettingsTab } from '@/components/admin/SimpleSettingsTab';
 import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
 import { FraudDetectionInterface } from '@/components/admin/FraudDetectionInterface';
 import { MerchantTrackingTab } from '@/components/admin/MerchantTrackingTab';
+import { UserFraudMonitoring } from '@/components/admin/UserFraudMonitoring';
 import LogoutButton from '@/components/auth/LogoutButton';
 
 const PWAMainAdminDashboard = () => {
@@ -93,6 +94,13 @@ const PWAMainAdminDashboard = () => {
       bgColor: 'bg-red-50'
     },
     { 
+      id: 'user-monitoring', 
+      label: 'Suivi Utilisateurs', 
+      icon: Shield,
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-50'
+    },
+    { 
       id: 'users', 
       label: 'Utilisateurs', 
       icon: Users,
@@ -142,6 +150,8 @@ const PWAMainAdminDashboard = () => {
         return <SimpleAdminDashboard />;
       case 'fraud':
         return <FraudDetectionInterface />;
+      case 'user-monitoring':
+        return <UserFraudMonitoring />;
       case 'users':
         return <AdminUsersManagement />;
       case 'agents':
