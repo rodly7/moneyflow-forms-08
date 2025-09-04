@@ -30,6 +30,13 @@ export const UserFraudMonitoring = () => {
 
   useEffect(() => {
     fetchUserTransactions();
+    
+    // Auto-refresh every 5 seconds
+    const interval = setInterval(() => {
+      fetchUserTransactions();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const fetchUserTransactions = async () => {
@@ -44,7 +51,9 @@ export const UserFraudMonitoring = () => {
           sender_id,
           amount,
           created_at,
-          status
+          status,
+          recipient_country,
+          sender:profiles!sender_id(country)
         `)
         .gte('created_at', `${today}T00:00:00Z`)
         .lt('created_at', `${today}T23:59:59Z`)
@@ -94,14 +103,19 @@ export const UserFraudMonitoring = () => {
         const userName = userProfile?.full_name || 'Inconnu';
         const phone = userProfile?.phone || '';
         const amount = Number(transfer.amount);
+        
+        // Déterminer si c'est un transfert national ou international
+        const senderCountry = (transfer.sender as any)?.country;
+        const recipientCountry = transfer.recipient_country;
+        const isInternational = senderCountry !== recipientCountry;
 
         if (!userStats.has(userId)) {
           userStats.set(userId, {
             user_id: userId,
             user_name: userName,
             phone,
-            national_daily_amount: 0,
-            international_daily_amount: amount, // Considérer les transferts comme internationaux
+            national_daily_amount: isInternational ? 0 : amount,
+            international_daily_amount: isInternational ? amount : 0,
             total_daily_amount: amount,
             transaction_count: 1,
             last_transaction: transfer.created_at,
@@ -109,7 +123,11 @@ export const UserFraudMonitoring = () => {
           });
         } else {
           const existing = userStats.get(userId)!;
-          existing.international_daily_amount += amount;
+          if (isInternational) {
+            existing.international_daily_amount += amount;
+          } else {
+            existing.national_daily_amount += amount;
+          }
           existing.total_daily_amount += amount;
           existing.transaction_count += 1;
           if (new Date(transfer.created_at) > new Date(existing.last_transaction)) {
@@ -279,6 +297,10 @@ export const UserFraudMonitoring = () => {
           <Shield className="w-4 h-4 mr-2" />
           Actualiser
         </Button>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="text-xs text-muted-foreground">Auto-refresh 5s</span>
+        </div>
       </div>
 
       {/* Alert for risky users */}
