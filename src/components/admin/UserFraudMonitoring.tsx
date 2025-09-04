@@ -52,8 +52,7 @@ export const UserFraudMonitoring = () => {
           amount,
           created_at,
           status,
-          recipient_country,
-          sender:profiles!sender_id(country)
+          recipient_country
         `)
         .gte('created_at', `${today}T00:00:00Z`)
         .lt('created_at', `${today}T23:59:59Z`)
@@ -76,7 +75,7 @@ export const UserFraudMonitoring = () => {
 
       if (withdrawalsError) throw withdrawalsError;
 
-      // Récupérer les profils utilisateurs
+      // Récupérer les profils utilisateurs avec leur pays
       const userIds = [
         ...new Set([
           ...(transfers?.map(t => t.sender_id) || []),
@@ -86,7 +85,7 @@ export const UserFraudMonitoring = () => {
 
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, full_name, phone')
+        .select('id, full_name, phone, country')
         .in('id', userIds);
 
       if (profilesError) throw profilesError;
@@ -105,7 +104,7 @@ export const UserFraudMonitoring = () => {
         const amount = Number(transfer.amount);
         
         // Déterminer si c'est un transfert national ou international
-        const senderCountry = (transfer.sender as any)?.country;
+        const senderCountry = userProfile?.country;
         const recipientCountry = transfer.recipient_country;
         const isInternational = senderCountry !== recipientCountry;
 
