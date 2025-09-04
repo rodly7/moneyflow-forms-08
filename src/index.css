@@ -49,9 +49,24 @@
     --lvh: 1lvh;
     --dvh: 1dvh;
 
-    /* Variables pour animations fluides */
-    --transition-speed: 0.3s;
+    /* Variables pour animations fluides améliorées */
+    --transition-speed: 0.2s;
+    --transition-speed-fast: 0.15s;
+    --transition-speed-slow: 0.4s;
     --transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-easing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --transition-easing-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    
+    /* Variables pour effets visuels */
+    --blur-glass: 12px;
+    --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.08);
+    --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.12);
+    --shadow-floating: 0 12px 48px rgba(0, 0, 0, 0.15);
+    
+    /* Variables pour gradients dynamiques */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)) 0%, hsl(var(--accent)) 100%);
+    --gradient-glass: linear-gradient(145deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
   }
 
   .dark {
@@ -130,7 +145,8 @@
   textarea,
   select {
     font-size: 16px !important;
-    transition: all var(--transition-speed) var(--transition-easing);
+    transition: all var(--transition-speed-fast) var(--transition-easing-smooth);
+    transform: translateZ(0); /* GPU acceleration */
   }
 
   /* Forcer 16px sur tous les éléments de formulaire */
@@ -146,7 +162,7 @@
   h5 { font-size: 16px; }
   h6 { font-size: 16px; }
 
-  /* Amélioration des focus states */
+  /* Amélioration des focus states avec animations */
   input:focus,
   textarea:focus,
   select:focus,
@@ -155,6 +171,25 @@
     ring: 4;
     ring-color: hsl(var(--primary) / 0.2);
     border-color: hsl(var(--primary));
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: var(--shadow-elevated);
+    transition: all var(--transition-speed-fast) var(--transition-easing-smooth);
+  }
+  
+  /* États hover pour les éléments interactifs */
+  button:hover,
+  [role="button"]:hover,
+  .clickable:hover {
+    transform: translateY(-1px) scale(1.02);
+    transition: all var(--transition-speed-fast) var(--transition-easing-smooth);
+  }
+  
+  /* États active pour un feedback immédiat */
+  button:active,
+  [role="button"]:active,
+  .clickable:active {
+    transform: translateY(0) scale(0.98);
+    transition: all 0.1s var(--transition-easing);
   }
 }
 
@@ -210,27 +245,55 @@
 
 .fluid-card {
   @apply bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20;
-  @apply transition-all duration-300 ease-out;
-  @apply hover:shadow-xl hover:-translate-y-1 hover:bg-white/95;
-  @apply transform-gpu;
+  @apply transition-all duration-200 ease-out;
+  @apply hover:shadow-xl hover:-translate-y-1 hover:bg-white/95 hover:scale-[1.02];
+  @apply transform-gpu will-change-transform;
+  backdrop-filter: blur(var(--blur-glass));
+  box-shadow: var(--shadow-soft);
+}
+
+.fluid-card:hover {
+  box-shadow: var(--shadow-floating);
 }
 
 .fluid-button {
   @apply px-6 py-3 rounded-xl font-semibold;
-  @apply transform transition-all duration-200 ease-out;
+  @apply transform transition-all ease-out;
   @apply hover:scale-105 active:scale-95;
   @apply shadow-lg hover:shadow-xl;
   @apply focus:outline-none focus:ring-4;
+  @apply will-change-transform transform-gpu;
   font-size: 16px !important;
+  transition-duration: var(--transition-speed-fast);
+  transition-timing-function: var(--transition-easing-smooth);
+}
+
+.fluid-button:hover {
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-2px) scale(1.05);
+}
+
+.fluid-button:active {
+  transform: translateY(0) scale(0.98);
+  transition-duration: 0.1s;
 }
 
 .fluid-input {
   @apply w-full px-4 py-3 rounded-xl border border-gray-200;
   @apply bg-white/80 backdrop-blur-sm;
-  @apply transition-all duration-200 ease-out;
+  @apply transition-all ease-out;
   @apply focus:border-blue-400 focus:ring-4 focus:ring-blue-100;
   @apply focus:bg-white focus:shadow-lg;
+  @apply will-change-transform transform-gpu;
   font-size: 16px !important;
+  transition-duration: var(--transition-speed-fast);
+  transition-timing-function: var(--transition-easing-smooth);
+  backdrop-filter: blur(var(--blur-glass));
+}
+
+.fluid-input:focus {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: var(--shadow-elevated);
 }
 
 .stagger-animation {
