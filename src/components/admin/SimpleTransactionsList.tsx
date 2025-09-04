@@ -24,6 +24,7 @@ export const SimpleTransactionsList = () => {
 
   const loadTransactions = async () => {
     try {
+      console.log('🔄 Chargement des transactions...');
       setLoading(true);
       
       // Charger tous les types de transactions
@@ -85,6 +86,17 @@ export const SimpleTransactionsList = () => {
           .order('created_at', { ascending: false })
           .limit(50)
       ]);
+
+      console.log('📊 Réponses reçues:', {
+        transfers: transfersResponse.data?.length || 0,
+        withdrawals: withdrawalsResponse.data?.length || 0,
+        recharges: rechargesResponse.data?.length || 0,
+        merchantPayments: merchantPaymentsResponse.data?.length || 0,
+        transfersError: transfersResponse.error,
+        withdrawalsError: withdrawalsResponse.error,
+        rechargesError: rechargesResponse.error,
+        merchantPaymentsError: merchantPaymentsResponse.error
+      });
 
       const allTransactions = [];
 
@@ -151,7 +163,9 @@ export const SimpleTransactionsList = () => {
       // Trier par date de création
       allTransactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
-      setTransactions(allTransactions.slice(0, 20)); // Limiter à 20 transactions
+      const finalTransactions = allTransactions.slice(0, 20);
+      console.log('✅ Transactions finales chargées:', finalTransactions.length, finalTransactions);
+      setTransactions(finalTransactions); // Limiter à 20 transactions
     } catch (error) {
       console.error('Erreur chargement transactions:', error);
     } finally {
