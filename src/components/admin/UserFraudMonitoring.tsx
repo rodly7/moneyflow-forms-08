@@ -18,6 +18,7 @@ interface UserTransaction {
   transaction_count: number;
   last_transaction: string;
   is_risky: boolean;
+  is_verified: boolean;
 }
 
 const NATIONAL_DAILY_LIMIT = 200000; // 200,000 XAF
@@ -85,7 +86,7 @@ export const UserFraudMonitoring = () => {
 
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, country')
+        .select('id, full_name, phone, country, is_verified')
         .in('id', userIds);
 
       if (profilesError) throw profilesError;
@@ -118,7 +119,8 @@ export const UserFraudMonitoring = () => {
             total_daily_amount: amount,
             transaction_count: 1,
             last_transaction: transfer.created_at,
-            is_risky: false
+            is_risky: false,
+            is_verified: userProfile?.is_verified || false
           });
         } else {
           const existing = userStats.get(userId)!;
@@ -153,7 +155,8 @@ export const UserFraudMonitoring = () => {
             total_daily_amount: amount,
             transaction_count: 1,
             last_transaction: withdrawal.created_at,
-            is_risky: false
+            is_risky: false,
+            is_verified: userProfile?.is_verified || false
           });
         } else {
           const existing = userStats.get(userId)!;
@@ -333,6 +336,9 @@ export const UserFraudMonitoring = () => {
                       <h4 className="font-medium">{user.user_name}</h4>
                       <Badge variant={user.is_risky ? 'destructive' : 'secondary'}>
                         {user.phone}
+                      </Badge>
+                      <Badge variant={user.is_verified ? 'default' : 'outline'}>
+                        {user.is_verified ? '✓ Vérifié' : '⚠ Non vérifié'}
                       </Badge>
                       {user.is_risky && (
                         <Badge variant="destructive">
