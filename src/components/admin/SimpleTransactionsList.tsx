@@ -27,8 +27,8 @@ export const SimpleTransactionsList = () => {
       console.log('🔄 Chargement des transactions...');
       setLoading(true);
       
-      // Charger tous les types de transactions
-      const [transfersResponse, withdrawalsResponse, rechargesResponse, merchantPaymentsResponse] = await Promise.all([
+      // Charger tous les types de transactions et commissions Sendflow
+      const [transfersResponse, withdrawalsResponse, rechargesResponse, merchantPaymentsResponse, sendflowCommissionsResponse] = await Promise.all([
         // Transferts
         supabase
           .from('transfers')
@@ -84,6 +84,19 @@ export const SimpleTransactionsList = () => {
             user:profiles!user_id(full_name)
           `)
           .order('created_at', { ascending: false })
+          .limit(50),
+        
+        // Commissions Sendflow
+        supabase
+          .from('sendflow_commission_payments')
+          .select(`
+            id,
+            amount,
+            created_at,
+            payment_date,
+            merchant:profiles!merchant_id(full_name)
+          `)
+          .order('created_at', { ascending: false })
           .limit(50)
       ]);
 
@@ -92,10 +105,12 @@ export const SimpleTransactionsList = () => {
         withdrawals: withdrawalsResponse.data?.length || 0,
         recharges: rechargesResponse.data?.length || 0,
         merchantPayments: merchantPaymentsResponse.data?.length || 0,
+        sendflowCommissions: sendflowCommissionsResponse.data?.length || 0,
         transfersError: transfersResponse.error,
         withdrawalsError: withdrawalsResponse.error,
         rechargesError: rechargesResponse.error,
-        merchantPaymentsError: merchantPaymentsResponse.error
+        merchantPaymentsError: merchantPaymentsResponse.error,
+        sendflowCommissionsError: sendflowCommissionsResponse.error
       });
 
       const allTransactions = [];
@@ -160,6 +175,21 @@ export const SimpleTransactionsList = () => {
         })));
       }
 
+      // Commissions Sendflow
+      if (sendflowCommissionsResponse.data) {
+        allTransactions.push(...sendflowCommissionsResponse.data.map(s => ({
+          id: s.id,
+          amount: s.amount,
+          status: 'completed',
+          created_at: s.created_at,
+          sender_full_name: (s.merchant as any)?.full_name || 'N/A',
+          recipient_full_name: 'Sendflow Commission',
+          recipient_phone: '',
+          fees: 0,
+          type: 'sendflow_commission'
+        })));
+      }
+
       // Trier par date de création
       allTransactions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
@@ -204,6 +234,13 @@ export const SimpleTransactionsList = () => {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_payments' }, () => {
           loadTransactions();
         })
+        .subscribe(),
+      
+      supabase
+        .channel('sendflow-commissions-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'sendflow_commission_payments' }, () => {
+          loadTransactions();
+        })
         .subscribe()
     ];
 
@@ -224,6 +261,7 @@ export const SimpleTransactionsList = () => {
       case 'withdrawal': return 'bg-red-100 text-red-800';
       case 'recharge': return 'bg-green-100 text-green-800';
       case 'merchant_payment': return 'bg-purple-100 text-purple-800';
+      case 'sendflow_commission': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -234,6 +272,7 @@ export const SimpleTransactionsList = () => {
       case 'withdrawal': return 'Retrait';
       case 'recharge': return 'Recharge';
       case 'merchant_payment': return 'Paiement Marchand';
+      case 'sendflow_commission': return 'Commission Sendflow';
       default: return type;
     }
   };
@@ -325,8 +364,11 @@ export const SimpleTransactionsList = () => {
                 </div>
                 
                 <div className="text-right">
-                  <div className="font-semibold">
+                  <div className="font-semibold flex items-center gap-1">
                     {new Intl.NumberFormat('fr-FR').format(transaction.amount)} FCFA
+                    {transaction.type === 'sendflow_commission' && (
+                      <span className="text-xs bg-orange-500 text-white px-1 rounded">SF</span>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {new Date(transaction.created_at).toLocaleTimeString('fr-FR', {
@@ -334,6 +376,11 @@ export const SimpleTransactionsList = () => {
                       minute: '2-digit'
                     })}
                   </div>
+                  {transaction.fees > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      Frais: {new Intl.NumberFormat('fr-FR').format(transaction.fees)} FCFA
+                    </div>
+                  )}
                 </div>
               </div>
             ))
