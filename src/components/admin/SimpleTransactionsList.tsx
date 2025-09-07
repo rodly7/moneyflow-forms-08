@@ -40,7 +40,7 @@ export const SimpleTransactionsList = () => {
             recipient_full_name,
             recipient_phone,
             fees,
-            sender:profiles!sender_id(full_name)
+            sender_id
           `)
           .order('created_at', { ascending: false })
           .limit(50),
@@ -54,7 +54,7 @@ export const SimpleTransactionsList = () => {
             status,
             created_at,
             withdrawal_phone,
-            user:profiles!user_id(full_name)
+            user_id
           `)
           .order('created_at', { ascending: false })
           .limit(50),
@@ -67,7 +67,7 @@ export const SimpleTransactionsList = () => {
             amount,
             status,
             created_at,
-            user:profiles!user_id(full_name)
+            user_id
           `)
           .order('created_at', { ascending: false })
           .limit(50),
@@ -81,7 +81,7 @@ export const SimpleTransactionsList = () => {
             status,
             created_at,
             business_name,
-            user:profiles!user_id(full_name)
+            user_id
           `)
           .order('created_at', { ascending: false })
           .limit(50),
@@ -94,7 +94,7 @@ export const SimpleTransactionsList = () => {
             amount,
             created_at,
             payment_date,
-            merchant:profiles!merchant_id(full_name)
+            merchant_id
           `)
           .order('created_at', { ascending: false })
           .limit(50)
@@ -114,6 +114,27 @@ export const SimpleTransactionsList = () => {
       });
 
       const allTransactions = [];
+      
+      // Récupérer les noms des utilisateurs en lot
+      const allUserIds = new Set();
+      
+      // Collecter tous les IDs d'utilisateurs
+      transfersResponse.data?.forEach(t => allUserIds.add(t.sender_id));
+      withdrawalsResponse.data?.forEach(w => allUserIds.add(w.user_id));
+      rechargesResponse.data?.forEach(r => allUserIds.add(r.user_id));
+      merchantPaymentsResponse.data?.forEach(m => allUserIds.add(m.user_id));
+      sendflowCommissionsResponse.data?.forEach(s => allUserIds.add(s.merchant_id));
+      
+      // Récupérer tous les profils en une seule requête
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', Array.from(allUserIds).filter(id => id) as string[]);
+      
+      const profileMap = profiles?.reduce((acc, profile) => {
+        acc[profile.id] = profile.full_name;
+        return acc;
+      }, {} as Record<string, string>) || {};
 
       // Transferts
       if (transfersResponse.data) {
@@ -122,7 +143,7 @@ export const SimpleTransactionsList = () => {
           amount: t.amount,
           status: t.status,
           created_at: t.created_at,
-          sender_full_name: (t.sender as any)?.full_name || 'N/A',
+          sender_full_name: profileMap[t.sender_id] || 'N/A',
           recipient_full_name: t.recipient_full_name,
           recipient_phone: t.recipient_phone,
           fees: t.fees || 0,
@@ -137,7 +158,7 @@ export const SimpleTransactionsList = () => {
           amount: w.amount,
           status: w.status,
           created_at: w.created_at,
-          sender_full_name: (w.user as any)?.full_name || 'N/A',
+          sender_full_name: profileMap[w.user_id] || 'N/A',
           recipient_full_name: 'Retrait',
           recipient_phone: w.withdrawal_phone,
           fees: 0,
@@ -153,7 +174,7 @@ export const SimpleTransactionsList = () => {
           status: r.status,
           created_at: r.created_at,
           sender_full_name: 'Recharge',
-          recipient_full_name: (r.user as any)?.full_name || 'N/A',
+          recipient_full_name: profileMap[r.user_id] || 'N/A',
           recipient_phone: '',
           fees: 0,
           type: 'recharge'
@@ -167,7 +188,7 @@ export const SimpleTransactionsList = () => {
           amount: m.amount,
           status: m.status,
           created_at: m.created_at,
-          sender_full_name: (m.user as any)?.full_name || 'N/A',
+          sender_full_name: profileMap[m.user_id] || 'N/A',
           recipient_full_name: m.business_name,
           recipient_phone: '',
           fees: 0,
@@ -182,7 +203,7 @@ export const SimpleTransactionsList = () => {
           amount: s.amount,
           status: 'completed',
           created_at: s.created_at,
-          sender_full_name: (s.merchant as any)?.full_name || 'N/A',
+          sender_full_name: profileMap[s.merchant_id] || 'N/A',
           recipient_full_name: 'Sendflow Commission',
           recipient_phone: '',
           fees: 0,
