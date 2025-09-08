@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import SimplePaymentNumbersManager from './SimplePaymentNumbersManager';
+import PaymentNumbersManager from '../../pages/admin/PaymentNumbersManagement';
 import SystemSettings from './SystemSettings';
 import { Phone, Settings } from 'lucide-react';
 
@@ -21,7 +21,9 @@ const PaymentSettingsTab = () => {
         </TabsList>
         
         <TabsContent value="numbers" className="mt-6">
-          <SimplePaymentNumbersManager />
+          <div className="bg-background rounded-lg">
+            <PaymentNumbersManager />
+          </div>
         </TabsContent>
         
         <TabsContent value="system" className="mt-6">
