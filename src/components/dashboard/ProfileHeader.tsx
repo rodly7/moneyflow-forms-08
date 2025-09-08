@@ -103,7 +103,7 @@ const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                     )}
                   </div>
                 </DialogTrigger>
-                <DialogContent className="rounded-3xl max-w-md glass backdrop-blur-lg border-white/20">
+                <DialogContent className="rounded-3xl max-w-md glass backdrop-blur-lg border-white/20" aria-describedby="profile-edit-description">
                   <DialogHeader>
                     <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center gap-3">
                       <div className="p-2 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl">
@@ -111,6 +111,9 @@ const ProfileHeader = ({ profile }: ProfileHeaderProps) => {
                       </div>
                       Modifier votre profil
                     </DialogTitle>
+                    <p id="profile-edit-description" className="text-sm text-gray-600 mt-2">
+                      Cliquez sur votre avatar pour ajouter ou modifier votre photo de profil et vos informations personnelles.
+                    </p>
                   </DialogHeader>
                   {profile && <ProfileEditForm profile={profile} />}
                 </DialogContent>
