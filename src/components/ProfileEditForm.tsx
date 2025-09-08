@@ -34,10 +34,21 @@ const ProfileEditForm = ({ profile }: ProfileEditFormProps) => {
   } = useProfileForm(profile);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('🔄 handleFileChange déclenché');
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.log('❌ Aucun fichier sélectionné');
+      return;
+    }
+
+    console.log('📁 Fichier sélectionné:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
 
     if (file.size > 2 * 1024 * 1024) {
+      console.log('❌ Fichier trop volumineux:', file.size);
       toast({
         title: "Fichier trop volumineux",
         description: "L'image ne doit pas dépasser 2 Mo",
@@ -46,8 +57,10 @@ const ProfileEditForm = ({ profile }: ProfileEditFormProps) => {
       return;
     }
 
+    console.log('✅ Validation du fichier réussie, mise à jour de l\'état...');
     setAvatarFile(file);
     const objectUrl = URL.createObjectURL(file);
+    console.log('🖼️ URL de prévisualisation créée:', objectUrl);
     setPreviewUrl(objectUrl);
   };
 

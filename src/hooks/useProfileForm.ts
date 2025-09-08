@@ -79,8 +79,10 @@ export const useProfileForm = (profile: ProfileData) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 Début de handleSubmit');
     
     if (!fullName.trim()) {
+      console.log('❌ Nom complet manquant');
       toast({
         title: "Erreur",
         description: "Le nom complet est requis",
@@ -88,6 +90,12 @@ export const useProfileForm = (profile: ProfileData) => {
       });
       return;
     }
+
+    console.log('📋 État actuel:', {
+      fullName: fullName.trim(),
+      avatarFile: avatarFile ? `${avatarFile.name} (${avatarFile.size} bytes)` : 'null',
+      idCardFile: idCardFile ? `${idCardFile.name} (${idCardFile.size} bytes)` : 'null'
+    });
 
     setIsUploading(true);
 
