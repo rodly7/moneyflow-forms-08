@@ -56,9 +56,11 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
   const getPaymentMethods = () => {
     if (!paymentNumbers) return [];
     const serviceType = selectedOperation === 'recharge' ? 'deposit' : 'withdrawal';
-    return paymentNumbers
+    const providers = paymentNumbers
       .filter(p => p.service_type === 'both' || p.service_type === serviceType)
       .map(p => p.provider);
+    // Remove duplicates using Set
+    return [...new Set(providers)];
   };
 
   // Get payment number for selected method
