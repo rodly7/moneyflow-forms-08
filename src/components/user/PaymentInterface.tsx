@@ -75,10 +75,45 @@ const PaymentInterface = ({
   const openUSSD = () => {
     const ussdCode = generateUSSDCode();
     const telUrl = `tel:${ussdCode}`;
-    window.location.href = telUrl;
-    setTimeout(() => {
-      handleProceedToPayment();
-    }, 1000);
+    
+    // Essayer d'ouvrir l'USSD automatiquement
+    try {
+      // Méthode 1: window.open pour mobile
+      if (window.open(telUrl, '_self')) {
+        // Si ça marche, démarrer le processus
+        setTimeout(() => {
+          handleProceedToPayment();
+        }, 1500);
+      } else {
+        // Fallback: location.assign
+        window.location.assign(telUrl);
+        setTimeout(() => {
+          handleProceedToPayment();
+        }, 1500);
+      }
+    } catch (error) {
+      // Si ça ne marche pas, au moins copier le code et informer l'utilisateur
+      copyUSSDCode(ussdCode);
+      setTimeout(() => {
+        handleProceedToPayment();
+      }, 1000);
+    }
+  };
+
+  const copyUSSDCode = async (ussdCode: string) => {
+    try {
+      await navigator.clipboard.writeText(ussdCode);
+      toast({
+        title: "Code USSD copié",
+        description: `Composez ${ussdCode} sur votre téléphone`
+      });
+    } catch (error) {
+      toast({
+        title: "Code USSD",
+        description: `Composez: ${ussdCode}`,
+        duration: 10000
+      });
+    }
   };
 
   if (step === 'completed') {
