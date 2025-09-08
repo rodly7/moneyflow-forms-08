@@ -20,6 +20,10 @@ const PAYMENT_CONFIG = {
     'Mobile Money': { number: '066164686', ussd: '*105#', appUrl: null },
     'Airtel Money': { number: '055524407', ussd: '*128#', appUrl: null }
   },
+  'Gabon': {
+    'Moov Money': { number: '+24107000000', ussd: '*150#', appUrl: null },
+    'Airtel Money': { number: '+24105000000', ussd: '*128#', appUrl: null }
+  },
   'Sénégal': {
     'Wave': { number: '+221780192989', ussd: null, appUrl: 'wave://send' },
     'Orange Money': { number: '774596609', ussd: '#144#', appUrl: null }
