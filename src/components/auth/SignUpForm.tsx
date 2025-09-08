@@ -74,7 +74,7 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
         country: formData.country,
         address: formData.city, // Using city as address
         role: formData.role,
-        birth_date: formData.birthDate,
+        birth_date: formData.birthDate || null, // Send null instead of empty string
         
       };
 
