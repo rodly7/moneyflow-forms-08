@@ -23,7 +23,7 @@ import { SimpleAdminDashboard } from '@/components/admin/SimpleAdminDashboard';
 import { AdminUsersManagement } from '@/components/admin/AdminUsersManagement';
 import { AgentManagementPanel } from '@/components/admin/AgentManagementPanel';
 import { RevenueAnalytics } from '@/components/admin/RevenueAnalytics';
-import { SimpleSettingsTab } from '@/components/admin/SimpleSettingsTab';
+import PaymentSettingsTab from '@/components/admin/PaymentSettingsTab';
 import { SimpleMessagesTab } from '@/components/admin/SimpleMessagesTab';
 import { FraudDetectionInterface } from '@/components/admin/FraudDetectionInterface';
 import { MerchantTrackingTab } from '@/components/admin/MerchantTrackingTab';
@@ -163,7 +163,7 @@ const PWAMainAdminDashboard = () => {
       case 'messages':
         return <SimpleMessagesTab />;
       case 'settings':
-        return <SimpleSettingsTab />;
+        return <PaymentSettingsTab />;
       default:
         return <SimpleAdminDashboard />;
     }
