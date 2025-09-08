@@ -45,6 +45,7 @@ import PrepaidCards from "./pages/PrepaidCards";
 import AgentCommissionWithdrawal from "./pages/AgentCommissionWithdrawal";
 import AgentSettingsPage from "./pages/AgentSettings";
 import MerchantDashboard from "./pages/MerchantDashboard";
+import ProfileTestPage from "./pages/ProfileTest";
 import DepositWithdrawalForm from "./components/deposit-withdrawal/DepositWithdrawalForm";
 
 // Enhanced loading component with error boundary
@@ -191,6 +192,7 @@ function App() {
           <Route path="change-password" element={<ChangePassword />} />
           <Route path="bill-payments" element={<BillPayments />} />
           <Route path="merchant" element={<MerchantDashboard />} />
+          <Route path="profile-test" element={<ProfileTestPage />} />
         </Route>
       </Routes>
     </TooltipProvider>

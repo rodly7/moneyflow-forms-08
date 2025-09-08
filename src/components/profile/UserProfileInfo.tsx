@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { User, Shield, Star, Crown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import ProfileAvatarUpload from "./ProfileAvatarUpload";
 
 const UserProfileInfo = () => {
   const { profile } = useAuth();
@@ -51,12 +52,7 @@ const UserProfileInfo = () => {
 
   return (
     <div className="flex items-center gap-3 p-2">
-      <Avatar className="h-10 w-10 ring-2 ring-primary/20">
-        <AvatarImage src={profile.avatar_url || undefined} />
-        <AvatarFallback className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-sm font-bold">
-          {profile.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U'}
-        </AvatarFallback>
-      </Avatar>
+      <ProfileAvatarUpload size="sm" showUploadButton={false} />
       
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
