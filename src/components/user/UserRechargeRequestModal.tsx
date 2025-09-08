@@ -11,9 +11,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Wallet, CreditCard, Send, ArrowLeft, Copy, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
+import PaymentInterface from './PaymentInterface';
 
 type OperationType = 'recharge' | 'withdrawal';
-type StepType = 'operation' | 'details' | 'confirmation';
+type StepType = 'operation' | 'details' | 'confirmation' | 'payment';
 
 const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) => {
   const { user, profile } = useAuth();
@@ -103,16 +104,12 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
   }, [paymentMethod, currentStep, selectedOperation]);
 
 
-  // Redirect to operator app/USSD
-  const redirectToOperator = () => {
+  // Redirect to payment interface
+  const redirectToPaymentInterface = () => {
     const paymentNumber = getPaymentNumber();
     if (!paymentNumber) return;
 
-    // For now, just show a toast with instructions
-    toast({
-      title: "Instructions de paiement",
-      description: `Utilisez le numéro ${paymentNumber.phone_number} pour ${paymentMethod}`
-    });
+    setCurrentStep('payment');
   };
 
   const handleOperationSelect = (operation: OperationType) => {
@@ -143,10 +140,10 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
         description: `Votre demande de ${selectedOperation} de ${amount} XAF a été envoyée avec succès.`
       });
 
-      // For recharge, redirect to operator
+      // For recharge, redirect to payment interface
       if (selectedOperation === 'recharge') {
         setTimeout(() => {
-          redirectToOperator();
+          redirectToPaymentInterface();
         }, 1000);
       }
 
@@ -363,6 +360,21 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
     </div>
   );
 
+  const renderPaymentInterface = () => {
+    const paymentNumber = getPaymentNumber();
+    if (!paymentNumber) return null;
+
+    return (
+      <PaymentInterface
+        amount={amount}
+        paymentMethod={paymentMethod}
+        paymentNumber={paymentNumber.phone_number}
+        onBack={() => setCurrentStep('confirmation')}
+        onComplete={() => setIsOpen(false)}
+      />
+    );
+  };
+
   const renderCurrentStep = () => {
     if (isLoading) {
       return (
@@ -382,6 +394,8 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
         return renderDetailsForm();
       case 'confirmation':
         return renderConfirmation();
+      case 'payment':
+        return renderPaymentInterface();
       default:
         return renderOperationSelection();
     }
