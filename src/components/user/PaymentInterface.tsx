@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { ArrowLeft, Copy, CheckCircle, Clock, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,6 +24,7 @@ const PaymentInterface = ({
 }: PaymentInterfaceProps) => {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [step, setStep] = useState<'instructions' | 'processing' | 'completed'>('instructions');
   const [countdown, setCountdown] = useState(30);
 
@@ -161,18 +163,18 @@ const PaymentInterface = ({
         <h2 className="text-xl font-bold">Interface de paiement</h2>
       </div>
 
-      <Card className="bg-primary/5 border-primary/20">
+        <Card className="bg-primary/5 border-primary/20">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className={`flex items-center gap-2 ${isMobile ? 'text-lg' : 'text-xl'}`}>
             <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
             Paiement sécurisé
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-2 gap-4'}`}>
             <div>
               <div className="text-sm text-muted-foreground">Montant</div>
-              <div className="text-2xl font-bold text-primary">{amount} XAF</div>
+              <div className={`font-bold text-primary ${isMobile ? 'text-xl' : 'text-2xl'}`}>{amount} XAF</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Mode de paiement</div>
@@ -182,19 +184,20 @@ const PaymentInterface = ({
           
           <div className="space-y-2">
             <div className="text-sm text-muted-foreground">Numéro de paiement</div>
-            <div className="flex items-center gap-2">
-              <code className="bg-muted px-3 py-2 rounded-md font-mono text-lg">
+            <div className={`flex items-center gap-2 ${isMobile ? 'flex-col' : ''}`}>
+              <code className={`bg-muted px-3 py-2 rounded-md font-mono ${isMobile ? 'text-base w-full text-center' : 'text-lg'}`}>
                 {paymentNumber}
               </code>
-              <Button size="sm" variant="ghost" onClick={copyPaymentNumber}>
-                <Copy className="w-4 h-4" />
+              <Button size={isMobile ? "default" : "sm"} variant="ghost" onClick={copyPaymentNumber} className={isMobile ? "w-full" : ""}>
+                <Copy className="w-4 h-4 mr-2" />
+                {isMobile && "Copier"}
               </Button>
             </div>
           </div>
 
           <div className="space-y-2">
             <div className="text-sm text-muted-foreground">Votre numéro (référence)</div>
-            <code className="bg-muted px-3 py-2 rounded-md font-mono block">
+            <code className={`bg-muted px-3 py-2 rounded-md font-mono block ${isMobile ? 'text-center' : ''}`}>
               {profile?.phone}
             </code>
           </div>
@@ -218,12 +221,12 @@ const PaymentInterface = ({
       </Card>
 
       <div className="space-y-3">
-        <Button onClick={openUSSD} className="w-full" size="lg">
+        <Button onClick={openUSSD} className="w-full" size={isMobile ? "lg" : "default"}>
           <ExternalLink className="w-4 h-4 mr-2" />
-          Ouvrir {paymentMethod} ({generateUSSDCode()})
+          {isMobile ? "Payer maintenant" : `Ouvrir ${paymentMethod} (${generateUSSDCode()})`}
         </Button>
         
-        <Button onClick={handleProceedToPayment} variant="outline" className="w-full">
+        <Button onClick={handleProceedToPayment} variant="outline" className="w-full" size={isMobile ? "lg" : "default"}>
           J'ai initié le paiement manuellement
         </Button>
       </div>
