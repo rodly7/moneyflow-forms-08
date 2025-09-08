@@ -341,7 +341,9 @@ const PaymentNumbersManagement = () => {
                     <SelectItem value="MTN Mobile Money">MTN Mobile Money</SelectItem>
                     <SelectItem value="Wave">Wave</SelectItem>
                     <SelectItem value="Moov Money">Moov Money</SelectItem>
+                    <SelectItem value="Airtel Money">Airtel Money</SelectItem>
                     <SelectItem value="Free Money">Free Money</SelectItem>
+                    <SelectItem value="Mobile Money">Mobile Money</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
