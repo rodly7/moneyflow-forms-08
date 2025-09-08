@@ -46,6 +46,7 @@ import AgentCommissionWithdrawal from "./pages/AgentCommissionWithdrawal";
 import AgentSettingsPage from "./pages/AgentSettings";
 import MerchantDashboard from "./pages/MerchantDashboard";
 import ProfileTestPage from "./pages/ProfileTest";
+import PaymentNumbersManagement from "./pages/admin/PaymentNumbersManagement";
 import DepositWithdrawalForm from "./components/deposit-withdrawal/DepositWithdrawalForm";
 
 // Enhanced loading component with error boundary
@@ -193,6 +194,7 @@ function App() {
           <Route path="bill-payments" element={<BillPayments />} />
           <Route path="merchant" element={<MerchantDashboard />} />
           <Route path="profile-test" element={<ProfileTestPage />} />
+          <Route path="admin/payment-numbers" element={<PaymentNumbersManagement />} />
         </Route>
       </Routes>
     </TooltipProvider>
