@@ -12,6 +12,7 @@ import { Plus, Edit, Trash2, Phone, Globe, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { countries } from "@/data/countries";
 
 interface PaymentNumber {
   id: string;
@@ -67,19 +68,7 @@ const PaymentNumbersManagement = () => {
     }
   });
 
-  // Fetch countries for dropdown
-  const { data: countries } = useQuery({
-    queryKey: ['countries'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('countries')
-        .select('*')
-        .order('name', { ascending: true });
-      
-      if (error) throw error;
-      return data;
-    }
-  });
+  // Use static countries data from countries.ts
 
   // Add payment number mutation
   const addMutation = useMutation({
@@ -328,8 +317,8 @@ const PaymentNumbersManagement = () => {
                     <SelectValue placeholder="Sélectionner un pays" />
                   </SelectTrigger>
                   <SelectContent>
-                    {countries?.map((country) => (
-                      <SelectItem key={country.id} value={country.name}>
+                    {countries.map((country) => (
+                      <SelectItem key={country.code} value={country.name}>
                         {country.name}
                       </SelectItem>
                     ))}
