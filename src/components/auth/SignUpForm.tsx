@@ -69,6 +69,12 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
       // Combine country code with phone number
       const fullPhoneNumber = phonePrefix + ' ' + formData.phone;
       
+      console.log('🔍 Données du formulaire de parrainage:', {
+        referralCode: formData.referralCode,
+        fullPhoneNumber,
+        metadata: formData
+      });
+      
       const metadata = {
         full_name: formData.fullName,
         phone: fullPhoneNumber,
@@ -79,7 +85,7 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
         referral_code: formData.referralCode || null,
       };
 
-      await signUp(formData.phone, formData.password, metadata);
+      await signUp(fullPhoneNumber, formData.password, metadata);
       
       toast.success('Inscription réussie ! Vous pouvez maintenant vous connecter.');
       
