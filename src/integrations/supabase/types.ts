@@ -519,6 +519,7 @@ export type Database = {
         Row: {
           amount: number
           bill_name: string
+          bill_type: string | null
           created_at: string
           due_date: string
           id: string
@@ -530,6 +531,9 @@ export type Database = {
           payment_attempts: number
           payment_number: string | null
           priority: number
+          provider: string | null
+          provider_name: string | null
+          provider_number: string | null
           recurrence: string
           status: string
           updated_at: string
@@ -538,6 +542,7 @@ export type Database = {
         Insert: {
           amount: number
           bill_name: string
+          bill_type?: string | null
           created_at?: string
           due_date: string
           id?: string
@@ -549,6 +554,9 @@ export type Database = {
           payment_attempts?: number
           payment_number?: string | null
           priority?: number
+          provider?: string | null
+          provider_name?: string | null
+          provider_number?: string | null
           recurrence?: string
           status?: string
           updated_at?: string
@@ -557,6 +565,7 @@ export type Database = {
         Update: {
           amount?: number
           bill_name?: string
+          bill_type?: string | null
           created_at?: string
           due_date?: string
           id?: string
@@ -568,6 +577,9 @@ export type Database = {
           payment_attempts?: number
           payment_number?: string | null
           priority?: number
+          provider?: string | null
+          provider_name?: string | null
+          provider_number?: string | null
           recurrence?: string
           status?: string
           updated_at?: string
