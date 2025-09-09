@@ -106,6 +106,21 @@ class SecureTransferService {
         amount: -request.amount
       });
 
+      // Activer le bonus de parrainage si c'est la première transaction du destinataire
+      if (recipientId) {
+        try {
+          const { error: referralError } = await supabase.rpc('activate_referral_bonus', {
+            user_id_param: recipientId
+          });
+          
+          if (referralError) {
+            console.error("Erreur activation bonus parrainage:", referralError);
+          }
+        } catch (error) {
+          console.error("Erreur non-critique activation bonus:", error);
+        }
+      }
+
       // Log security event
       await SecurityService.logSecurityEvent(
         'transfer_executed',

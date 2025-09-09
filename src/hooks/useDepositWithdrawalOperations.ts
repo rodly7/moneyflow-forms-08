@@ -97,6 +97,19 @@ export const useDepositWithdrawalOperations = () => {
         console.error('Erreur transaction:', transactionError);
       }
 
+      // Activer le bonus de parrainage si c'est la première transaction du destinataire
+      try {
+        const { error: referralError } = await supabase.rpc('activate_referral_bonus', {
+          user_id_param: recipientId
+        });
+        
+        if (referralError) {
+          console.error("Erreur activation bonus parrainage:", referralError);
+        }
+      } catch (error) {
+        console.error("Erreur non-critique activation bonus:", error);
+      }
+
       // Créer une notification pour le destinataire
       await NotificationService.createAutoNotification(
         "💰 Argent reçu",
@@ -218,6 +231,19 @@ export const useDepositWithdrawalOperations = () => {
 
       if (withdrawalError) {
         console.error("❌ Erreur lors de l'enregistrement du retrait:", withdrawalError);
+      }
+
+      // Activer le bonus de parrainage si c'est la première transaction du client
+      try {
+        const { error: referralError } = await supabase.rpc('activate_referral_bonus', {
+          user_id_param: clientId
+        });
+        
+        if (referralError) {
+          console.error("Erreur activation bonus parrainage:", referralError);
+        }
+      } catch (error) {
+        console.error("Erreur non-critique activation bonus:", error);
       }
 
       toast({

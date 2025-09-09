@@ -134,6 +134,22 @@ export const processAgentWithdrawalWithCommission = async (
       console.error("⚠️ [SERVICE] Erreur enregistrement (non-critique):", withdrawalError);
     }
 
+    // 6. Activer le bonus de parrainage si c'est la première transaction du client
+    try {
+      console.log("🎁 [SERVICE] Vérification bonus parrainage pour client:", clientId);
+      const { error: referralError } = await supabase.rpc('activate_referral_bonus', {
+        user_id_param: clientId
+      });
+      
+      if (referralError) {
+        console.error("⚠️ [SERVICE] Erreur activation bonus parrainage:", referralError);
+      } else {
+        console.log("✅ [SERVICE] Bonus parrainage vérifié/activé");
+      }
+    } catch (error) {
+      console.error("⚠️ [SERVICE] Erreur non-critique activation bonus:", error);
+    }
+
     console.log("✅ [SERVICE] Retrait automatique avec commission terminé");
     return { 
       success: true, 
