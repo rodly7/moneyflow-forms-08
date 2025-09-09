@@ -54,24 +54,27 @@ export const authService = {
     // Vérifier le code de parrainage s'il est fourni
     let referrerId: string | null = null;
     if (metadata.referral_code) {
-      try {
-        const { data: referralData, error: referralError } = await supabase
-          .from('referral_codes')
-          .select('user_id')
-          .eq('referral_code', metadata.referral_code.trim())
-          .single();
+      const trimmedCode = metadata.referral_code.trim();
+      console.log('🔍 Vérification du code de parrainage:', trimmedCode);
+      
+      const { data: referralData, error: referralError } = await supabase
+        .from('referral_codes')
+        .select('user_id')
+        .eq('referral_code', trimmedCode)
+        .maybeSingle();
 
-        if (referralError || !referralData) {
-          console.log('⚠️ Code de parrainage invalide:', metadata.referral_code);
-          throw new Error('Code de parrainage invalide. Vérifiez le code et réessayez.');
-        }
+      if (referralError) {
+        console.error('❌ Erreur lors de la vérification du code:', referralError);
+        throw new Error('Erreur lors de la vérification du code de parrainage. Réessayez.');
+      }
 
-        referrerId = referralData.user_id;
-        console.log('✅ Code de parrainage valide, parrain trouvé:', referrerId);
-      } catch (error) {
-        console.error('❌ Erreur validation code de parrainage:', error);
+      if (!referralData) {
+        console.log('⚠️ Code de parrainage non trouvé:', trimmedCode);
         throw new Error('Code de parrainage invalide. Vérifiez le code et réessayez.');
       }
+
+      referrerId = referralData.user_id;
+      console.log('✅ Code de parrainage valide, parrain trouvé:', referrerId);
     }
 
     // Préparer les métadonnées pour l'inscription
