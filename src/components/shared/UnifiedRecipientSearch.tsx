@@ -172,15 +172,21 @@ export const UnifiedRecipientSearch = ({
 
   // Handle input change to format and validate
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let inputValue = e.target.value.replace(/\D/g, ''); // Only allow digits
+    let inputValue = e.target.value;
+    
+    // Remove any non-digit characters except spaces (for formatting)
+    let cleanValue = inputValue.replace(/[^\d\s]/g, '');
+    
+    // Remove spaces for processing
+    let digitsOnly = cleanValue.replace(/\s/g, '');
     
     // Remove country code if user accidentally types it
     const countryCodeWithoutPlus = selectedCountryCode.replace('+', '');
-    if (inputValue.startsWith(countryCodeWithoutPlus)) {
-      inputValue = inputValue.substring(countryCodeWithoutPlus.length);
+    if (digitsOnly.startsWith(countryCodeWithoutPlus)) {
+      digitsOnly = digitsOnly.substring(countryCodeWithoutPlus.length);
     }
     
-    onPhoneChange(inputValue);
+    onPhoneChange(digitsOnly);
   };
 
   // Handle keyup to trigger verification on Enter key
