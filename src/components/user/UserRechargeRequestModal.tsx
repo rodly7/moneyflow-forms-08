@@ -10,11 +10,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Wallet, CreditCard, Send, ArrowLeft, Copy, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery } from '@tanstack/react-query';
-import PaymentInterface from './PaymentInterface';
 
 type OperationType = 'recharge' | 'withdrawal';
-type StepType = 'operation' | 'details' | 'confirmation' | 'payment';
+type StepType = 'operation' | 'details' | 'confirmation';
+
+// Configuration des numéros de paiement par pays
+const PAYMENT_CONFIG = {
+  'Congo Brazzaville': {
+    'Mobile Money': { number: '066164686', ussd: '*105#', appUrl: null },
+    'Airtel Money': { number: '055524407', ussd: '*128#', appUrl: null }
+  },
+  'Sénégal': {
+    'Wave': { number: '+221780192989', ussd: null, appUrl: 'wave://send' },
+    'Orange Money': { number: '774596609', ussd: '#144#', appUrl: null }
+  }
+};
 
 const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) => {
   const { user, profile } = useAuth();
@@ -25,22 +35,6 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Fetch payment numbers from database
-  const { data: paymentNumbers, isLoading } = useQuery({
-    queryKey: ['payment-numbers', profile?.country],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payment_numbers')
-        .select('*')
-        .eq('country', profile?.country)
-        .eq('is_active', true);
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!profile?.country
-  });
 
   // Reset state when modal closes
   const handleOpenChange = (open: boolean) => {
@@ -55,31 +49,29 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
 
   // Get payment methods for user's country
   const getPaymentMethods = () => {
-    if (!paymentNumbers) return [];
-    const serviceType = selectedOperation === 'recharge' ? 'deposit' : 'withdrawal';
-    const providers = paymentNumbers
-      .filter(p => p.service_type === 'both' || p.service_type === serviceType)
-      .map(p => p.provider);
-    // Remove duplicates using Set
-    return [...new Set(providers)];
+    const userCountry = profile?.country;
+    if (!userCountry || !PAYMENT_CONFIG[userCountry as keyof typeof PAYMENT_CONFIG]) {
+      return [];
+    }
+    return Object.keys(PAYMENT_CONFIG[userCountry as keyof typeof PAYMENT_CONFIG]);
   };
 
-  // Get payment number for selected method
-  const getPaymentNumber = () => {
-    if (!paymentNumbers || !paymentMethod) return null;
-    const serviceType = selectedOperation === 'recharge' ? 'deposit' : 'withdrawal';
-    return paymentNumbers.find(p => 
-      p.provider === paymentMethod && 
-      (p.service_type === 'both' || p.service_type === serviceType)
-    );
+  // Get payment config based on country and method
+  const getPaymentConfig = () => {
+    const userCountry = profile?.country;
+    if (!userCountry || !paymentMethod || !PAYMENT_CONFIG[userCountry as keyof typeof PAYMENT_CONFIG]) {
+      return null;
+    }
+    const countryConfig = PAYMENT_CONFIG[userCountry as keyof typeof PAYMENT_CONFIG];
+    return countryConfig[paymentMethod as keyof typeof countryConfig] || null;
   };
   
   // Copy phone number to clipboard and auto-copy on load
   const copyPhoneNumber = async () => {
-    const paymentNumber = getPaymentNumber();
-    if (paymentNumber?.phone_number) {
+    const config = getPaymentConfig();
+    if (config?.number) {
       try {
-        await navigator.clipboard.writeText(paymentNumber.phone_number);
+        await navigator.clipboard.writeText(config.number);
         toast({
           title: "Numéro copié",
           description: "Numéro copié automatiquement dans le presse-papiers!"
@@ -88,7 +80,7 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
         console.error('Erreur lors de la copie:', error);
         toast({
           title: "Numéro",
-          description: paymentNumber.phone_number
+          description: config.number
         });
       }
     }
@@ -104,12 +96,33 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
   }, [paymentMethod, currentStep, selectedOperation]);
 
 
-  // Redirect to payment interface
-  const redirectToPaymentInterface = () => {
-    const paymentNumber = getPaymentNumber();
-    if (!paymentNumber) return;
+  // Redirect to operator app/USSD
+  const redirectToOperator = () => {
+    const config = getPaymentConfig();
+    if (!config) return;
 
-    setCurrentStep('payment');
+    if (config.appUrl) {
+      // Ouvrir l'application (Wave)
+      window.open(config.appUrl, '_blank');
+      toast({
+        title: "Redirection",
+        description: "Redirection vers l'application..."
+      });
+    } else if (config.ussd) {
+      // Composer le code USSD
+      window.location.href = `tel:${config.ussd}`;
+      toast({
+        title: "Redirection",
+        description: "Redirection vers le code USSD..."
+      });
+    } else {
+      // Fallback: composer le numéro
+      window.location.href = `tel:${config.number}`;
+      toast({
+        title: "Redirection",
+        description: "Redirection vers l'appel..."
+      });
+    }
   };
 
   const handleOperationSelect = (operation: OperationType) => {
@@ -118,18 +131,41 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
   };
 
   const handleSubmitRequest = async () => {
-    if (!amount || !paymentMethod || !selectedOperation) return;
+    console.log('🚀 UserRechargeRequestModal - handleSubmitRequest démarré');
+    console.log('🔍 État actuel:', { userId: user?.id, selectedOperation, amount, paymentMethod });
+    
+    if (!user?.id || !selectedOperation || !amount || !paymentMethod) {
+      console.error('❌ Champs manquants:', { userId: user?.id, selectedOperation, amount, paymentMethod });
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs requis",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const config = getPaymentConfig();
+    if (!config?.number) {
+      toast({
+        title: "Erreur",
+        description: "Numéro de paiement non configuré pour ce mode de paiement",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setIsSubmitting(true);
+
     try {
       const { error } = await supabase
         .from('user_requests')
         .insert({
-          user_id: user?.id,
+          user_id: user.id,
           operation_type: selectedOperation,
-          request_type: selectedOperation,
+          request_type: selectedOperation, // Ajouter request_type requis
           amount: parseFloat(amount),
           payment_method: paymentMethod,
+          payment_phone: config.number,
           status: 'pending'
         });
 
@@ -137,22 +173,22 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
 
       toast({
         title: "Demande envoyée",
-        description: `Votre demande de ${selectedOperation} de ${amount} XAF a été envoyée avec succès.`
+        description: `Demande de ${selectedOperation === 'recharge' ? 'recharge' : 'retrait'} envoyée avec succès`
       });
-
-      // For recharge, redirect to payment interface
+      
+      // Rediriger vers l'opérateur après envoi de la demande seulement pour les recharges
       if (selectedOperation === 'recharge') {
         setTimeout(() => {
-          redirectToPaymentInterface();
+          redirectToOperator();
         }, 1000);
       }
-
+      
       setIsOpen(false);
     } catch (error) {
-      console.error('Erreur lors de l\'envoi:', error);
+      console.error('Erreur lors de l\'envoi de la demande:', error);
       toast({
         title: "Erreur",
-        description: "Une erreur s'est produite lors de l'envoi de votre demande.",
+        description: "Erreur lors de l'envoi de la demande",
         variant: "destructive"
       });
     } finally {
@@ -162,38 +198,29 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
 
   const renderOperationSelection = () => (
     <div className="space-y-4">
-      <DialogHeader>
-        <DialogTitle>Choisissez une opération</DialogTitle>
-      </DialogHeader>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <h3 className="text-lg font-semibold text-center">
+        Que souhaitez-vous faire ?
+      </h3>
+      <div className="grid grid-cols-1 gap-4">
         <Card 
-          className="cursor-pointer hover:shadow-md transition-shadow"
+          className="cursor-pointer transition-colors hover:bg-accent"
           onClick={() => handleOperationSelect('recharge')}
         >
-          <CardHeader className="text-center">
-            <CreditCard className="w-12 h-12 mx-auto text-primary" />
-            <CardTitle>Recharge</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground text-center">
-              Rechargez votre compte via Mobile Money
-            </p>
+          <CardContent className="p-6 text-center">
+            <Wallet className="w-8 h-8 mx-auto mb-2 text-green-600" />
+            <h4 className="font-semibold">Recharger mon compte</h4>
+            <p className="text-sm text-muted-foreground">Ajouter de l'argent à votre compte</p>
           </CardContent>
         </Card>
-
+        
         <Card 
-          className="cursor-pointer hover:shadow-md transition-shadow"
+          className="cursor-pointer transition-colors hover:bg-accent"
           onClick={() => handleOperationSelect('withdrawal')}
         >
-          <CardHeader className="text-center">
-            <Wallet className="w-12 h-12 mx-auto text-primary" />
-            <CardTitle>Retrait</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground text-center">
-              Retirez de l'argent vers Mobile Money
-            </p>
+          <CardContent className="p-6 text-center">
+            <CreditCard className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+            <h4 className="font-semibold">Retirer de l'argent</h4>
+            <p className="text-sm text-muted-foreground">Retirer de l'argent de votre compte</p>
           </CardContent>
         </Card>
       </div>
@@ -202,51 +229,42 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
 
   const renderDetailsForm = () => {
     const paymentMethods = getPaymentMethods();
-    const paymentNumber = getPaymentNumber();
-
+    const config = getPaymentConfig();
+    
     return (
       <div className="space-y-4">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentStep('operation')}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <DialogTitle>
-              {selectedOperation === 'recharge' ? 'Détails de la recharge' : 'Détails du retrait'}
-            </DialogTitle>
-          </div>
-        </DialogHeader>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setCurrentStep('operation')}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <h3 className="text-lg font-semibold">
+            Détails de la {selectedOperation === 'recharge' ? 'recharge' : 'retrait'}
+          </h3>
+        </div>
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="amount">Montant (XAF)</Label>
+            <Label htmlFor="amount">Montant (FCFA) *</Label>
             <Input
               id="amount"
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="Ex: 1000"
-              required
+              placeholder="Entrez le montant"
+              min="1000"
+              step="1000"
             />
           </div>
 
           <div>
-            <Label htmlFor="payment_method">Mode de paiement</Label>
-            <Select
-              value={paymentMethod}
-              onValueChange={setPaymentMethod}
-              required
-            >
+            <Label htmlFor="payment-method">Mode de paiement *</Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un mode" />
+                <SelectValue placeholder="Choisissez un mode de paiement" />
               </SelectTrigger>
               <SelectContent>
-                {paymentMethods.map((method) => (
-                  <SelectItem key={method} value={method}>
+                {paymentMethods.map((method, index) => (
+                  <SelectItem key={index} value={method}>
                     {method}
                   </SelectItem>
                 ))}
@@ -254,139 +272,174 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
             </Select>
           </div>
 
-          {paymentNumber && selectedOperation === 'recharge' && (
-            <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="pt-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">Numéro de paiement:</span>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{paymentNumber.phone_number}</Badge>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={copyPhoneNumber}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="text-sm text-blue-700">
-                    <p><strong>Instructions:</strong></p>
-                    <p>1. Envoyez {amount} XAF au numéro {paymentNumber.phone_number}</p>
-                    <p>2. Utilisez votre numéro ({profile?.phone}) comme référence</p>
-                    <p>3. Votre compte sera crédité automatiquement</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {config && selectedOperation === 'recharge' && (
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-green-900">📱 Numéro de paiement</h4>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={copyPhoneNumber}
+                  className="h-8"
+                >
+                  <Copy className="w-3 h-3 mr-1" />
+                  Copier
+                </Button>
+              </div>
+              
+              <div className="bg-white rounded-lg p-3 mb-3">
+                <p className="text-center font-mono text-xl font-bold text-green-800">
+                  {config.number}
+                </p>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                <p className="text-sm text-yellow-800 font-medium">
+                  💡 <strong>Instructions de paiement:</strong>
+                </p>
+                <p className="text-sm text-yellow-700 mt-1">
+                  1. ✅ Le numéro est automatiquement copié<br/>
+                  2. 💰 Faites un dépôt de <strong>{amount || '0'} FCFA</strong> vers ce numéro<br/>
+                  3. 📱 Cliquez sur "Ouvrir {paymentMethod}" pour être redirigé<br/>
+                  4. ✅ Confirmez votre demande ci-dessous
+                </p>
+              </div>
+
+              <Button 
+                variant="outline" 
+                onClick={redirectToOperator}
+                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Ouvrir {paymentMethod}
+              </Button>
+            </div>
           )}
 
-          {paymentNumber && selectedOperation === 'withdrawal' && (
-            <Card className="bg-orange-50 border-orange-200">
-              <CardContent className="pt-4">
-                <div className="text-sm text-orange-700">
-                  <p><strong>Information:</strong></p>
-                  <p>Votre demande de retrait sera traitée et vous recevrez {amount} XAF sur votre {paymentMethod}.</p>
-                </div>
-              </CardContent>
-            </Card>
+          {config && selectedOperation === 'withdrawal' && (
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-yellow-800 font-medium">
+                  💡 <strong>Instructions de retrait:</strong>
+                </p>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Votre numéro ({paymentMethod}) va être rechargé de {amount ? `${Number(amount).toLocaleString()} FCFA` : '0 FCFA'} dans 2-5 minutes
+                </p>
+              </div>
+            </div>
           )}
 
           <Button 
             onClick={() => setCurrentStep('confirmation')}
-            className="w-full"
+            className="w-full bg-green-600 hover:bg-green-700"
             disabled={!amount || !paymentMethod}
           >
-            Continuer
+            Continuer vers la confirmation
           </Button>
         </div>
       </div>
     );
   };
 
-  const renderConfirmation = () => (
-    <div className="space-y-4">
-      <DialogHeader>
+  const renderConfirmation = () => {
+    const config = getPaymentConfig();
+    
+    return (
+      <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentStep('details')}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setCurrentStep('details')}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <DialogTitle>Confirmation</DialogTitle>
+          <h3 className="text-lg font-semibold">Confirmation</h3>
         </div>
-      </DialogHeader>
 
-      <Card>
-        <CardContent className="pt-4">
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span>Opération:</span>
-              <Badge variant={selectedOperation === 'recharge' ? 'default' : 'secondary'}>
-                {selectedOperation === 'recharge' ? 'Recharge' : 'Retrait'}
-              </Badge>
+        <Card>
+          <CardContent className="p-4">
+            <h4 className="font-semibold mb-3">Récapitulatif de la demande</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>Opération:</span>
+                <Badge className={selectedOperation === 'recharge' ? 'bg-green-600' : 'bg-blue-600'}>
+                  {selectedOperation === 'recharge' ? 'Recharge' : 'Retrait'}
+                </Badge>
+              </div>
+              <div className="flex justify-between">
+                <span>Montant:</span>
+                <span className="font-medium">{parseFloat(amount).toLocaleString()} FCFA</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Mode de paiement:</span>
+                <span className="font-medium">{paymentMethod}</span>
+              </div>
+              {selectedOperation === 'recharge' && (
+                <div className="flex justify-between">
+                  <span>Numéro:</span>
+                  <span className="font-medium font-mono">{config?.number}</span>
+                </div>
+              )}
             </div>
-            <div className="flex justify-between">
-              <span>Montant:</span>
-              <span className="font-medium">{amount} XAF</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Mode de paiement:</span>
-              <span>{paymentMethod}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <div className="space-y-2">
-        <Button 
-          onClick={handleSubmitRequest}
-          className="w-full"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? 'Envoi en cours...' : 'Confirmer la demande'}
-        </Button>
-        
-        {selectedOperation === 'recharge' && (
-          <p className="text-xs text-muted-foreground text-center">
-            Après confirmation, vous serez redirigé vers votre application de paiement
-          </p>
+        {selectedOperation === 'recharge' ? (
+          <>
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4">
+              <h4 className="font-semibold text-orange-900 mb-2">⚠️ Avant de confirmer</h4>
+              <div className="text-sm text-orange-800 space-y-1">
+                <p>✅ J'ai fait le dépôt de <strong>{parseFloat(amount).toLocaleString()} FCFA</strong></p>
+                <p>✅ Le numéro utilisé est: <strong>{config?.number}</strong></p>
+                <p>✅ Ma demande sera traitée par un administrateur</p>
+              </div>
+            </div>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-semibold text-green-900 mb-2">🚀 Après confirmation</h4>
+              <p className="text-sm text-green-800">
+                Vous serez automatiquement redirigé vers votre opérateur ({paymentMethod}) 
+                pour composer le code USSD ou ouvrir l'application et finaliser le paiement.
+              </p>
+            </div>
+
+            <Button 
+              onClick={handleSubmitRequest}
+              className="w-full bg-green-600 hover:bg-green-700"
+              disabled={isSubmitting}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {isSubmitting ? 'Envoi en cours...' : 'Confirmer et rediriger'}
+            </Button>
+          </>
+        ) : (
+          <>
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4">
+              <h4 className="font-semibold text-orange-900 mb-2">⚠️ Avant de confirmer</h4>
+              <p className="text-sm text-orange-800">
+                Ma demande sera traitée par un administrateur
+              </p>
+            </div>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-semibold text-green-900 mb-2">🚀 Après confirmation</h4>
+              <p className="text-sm text-green-800">
+                Votre compte ({paymentMethod}) sera rechargé dans 2-5 minutes
+              </p>
+            </div>
+
+            <Button 
+              onClick={handleSubmitRequest}
+              className="w-full bg-green-600 hover:bg-green-700"
+              disabled={isSubmitting}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {isSubmitting ? 'Envoi en cours...' : 'Envoyer'}
+            </Button>
+          </>
         )}
       </div>
-    </div>
-  );
-
-  const renderPaymentInterface = () => {
-    const paymentNumber = getPaymentNumber();
-    if (!paymentNumber) return null;
-
-    return (
-      <PaymentInterface
-        amount={amount}
-        paymentMethod={paymentMethod}
-        paymentNumber={paymentNumber.phone_number}
-        onBack={() => setCurrentStep('confirmation')}
-        onComplete={() => setIsOpen(false)}
-      />
     );
   };
 
   const renderCurrentStep = () => {
-    if (isLoading) {
-      return (
-        <div className="flex items-center justify-center p-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-            <p>Chargement des modes de paiement...</p>
-          </div>
-        </div>
-      );
-    }
-
     switch (currentStep) {
       case 'operation':
         return renderOperationSelection();
@@ -394,8 +447,6 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
         return renderDetailsForm();
       case 'confirmation':
         return renderConfirmation();
-      case 'payment':
-        return renderPaymentInterface();
       default:
         return renderOperationSelection();
     }
@@ -406,8 +457,16 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        {renderCurrentStep()}
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold text-center">
+            💰 Recharger / Retirer
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {renderCurrentStep()}
+        </div>
       </DialogContent>
     </Dialog>
   );
