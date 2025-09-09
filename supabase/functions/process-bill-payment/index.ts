@@ -219,6 +219,41 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Créditer le fournisseur (si défini)
+    if (provider && account_number) {
+      try {
+        // Trouver le profil du fournisseur par téléphone/compte
+        const { data: providerProfile, error: providerError } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .eq('phone', account_number)
+          .single()
+
+        if (providerProfile && !providerError) {
+          console.log('Crédit du fournisseur:', { providerId: providerProfile.id, amount })
+          
+          // Créditer le compte du fournisseur
+          const { error: providerCreditError } = await supabase.rpc('secure_increment_balance', {
+            target_user_id: providerProfile.id,
+            amount: amount,
+            operation_type: 'bill_provider_credit',
+            performed_by: user_id
+          })
+
+          if (providerCreditError) {
+            console.error('Erreur crédit fournisseur:', providerCreditError)
+          } else {
+            console.log('Fournisseur crédité avec succès')
+          }
+        } else {
+          console.log('Fournisseur non trouvé avec le numéro:', account_number)
+        }
+      } catch (error) {
+        console.error('Erreur lors du crédit fournisseur:', error)
+        // Continuer même si le crédit fournisseur échoue
+      }
+    }
+
     // Enregistrer l'historique de paiement
     const { error: historyError } = await supabase
       .from('bill_payment_history')
