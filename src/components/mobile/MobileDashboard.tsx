@@ -11,7 +11,8 @@ import {
   PiggyBank,
   LogOut,
   Eye,
-  EyeOff
+  EyeOff,
+  Receipt
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/lib/utils/currency";
@@ -76,6 +77,12 @@ const MobileDashboard: React.FC = () => {
       icon: Scan,
       color: "from-indigo-500 to-blue-500",
       onClick: () => navigate('/qr-payment')
+    },
+    {
+      title: "Factures",
+      icon: Receipt,
+      color: "from-orange-500 to-red-500",
+      onClick: () => navigate('/bill-payments')
     },
     {
       title: "Épargne",
@@ -172,7 +179,7 @@ const MobileDashboard: React.FC = () => {
         <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
           <CardContent className="p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-5">Actions rapides</h2>
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-2 gap-4">
               {quickActions.map((action, index) => (
                 <Button
                   key={index}
