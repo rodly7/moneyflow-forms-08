@@ -22,7 +22,7 @@ const BillPayments = () => {
   const [provider, setProvider] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [savedMeterNumbers, setSavedMeterNumbers] = useState<{[key: string]: string}>({});
-  const [activeTab, setActiveTab] = useState<'manual' | 'automatic'>('manual');
+  const [activeTab, setActiveTab] = useState<'manual' | 'automatic'>('automatic');
   const [showQRScanner, setShowQRScanner] = useState(false);
 
   // États pour le type de facture sélectionné
@@ -174,65 +174,14 @@ const BillPayments = () => {
               </Button>
               <h1 className="text-xl font-bold text-gray-800">Paiement de Factures</h1>
             </div>
-            
-            {/* Tab Selector compact */}
-            <div className="flex bg-gray-100 rounded-xl p-1 shadow-sm">
-              <Button
-                variant={activeTab === 'manual' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('manual')}
-                className={`rounded-lg text-sm px-3 py-2 transition-all duration-200 ${
-                  activeTab === 'manual' 
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md' 
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                <Zap className="w-4 h-4 mr-1" />
-                Manuel
-              </Button>
-              <Button
-                variant={activeTab === 'automatic' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('automatic')}
-                className={`rounded-lg text-sm px-3 py-2 transition-all duration-200 ${
-                  activeTab === 'automatic' 
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md' 
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                <Settings className="w-4 h-4 mr-1" />
-                Auto
-              </Button>
-            </div>
           </div>
         </div>
 
         {/* Contenu scrollable */}
         <div className="h-[calc(100%-80px)] overflow-y-auto">
-          {/* Content based on active tab */}
-          {activeTab === 'automatic' ? (
-            <div className="p-3">
-              <AutomaticBillsManager />
-            </div>
-          ) : (
-            <div className="p-3">
-              <div className="max-w-md mx-auto">
-                <ManualBillPayment
-                  selectedBillType={selectedBillType}
-                  provider={provider}
-                  accountNumber={accountNumber}
-                  amount={amount}
-                  recipientPhone={recipientPhone}
-                  selectedCountry={selectedCountry}
-                  setSelectedBillType={setSelectedBillType}
-                  setProvider={setProvider}
-                  setAccountNumber={setAccountNumber}
-                  setAmount={setAmount}
-                  setRecipientPhone={setRecipientPhone}
-                />
-              </div>
-            </div>
-          )}
+          <div className="p-3">
+            <AutomaticBillsManager />
+          </div>
 
         {/* QR Scanner Modal */}
         {showQRScanner && (

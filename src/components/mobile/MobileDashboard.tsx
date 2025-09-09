@@ -184,13 +184,15 @@ const MobileDashboard: React.FC = () => {
                 <Button
                   key={index}
                   variant="outline"
-                  className="relative h-28 flex-col gap-3 bg-white border-0 hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-lg"
+                  className={`relative flex-col gap-3 bg-white border-0 hover:bg-gray-50 transition-all duration-300 hover:scale-105 shadow-lg ${
+                    action.title === "Factures" ? "col-span-2 h-32" : "h-28"
+                  }`}
                   onClick={action.onClick}
                 >
                   <div className={`p-3 bg-gradient-to-r ${action.color} rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center`}>
-                    <action.icon className="w-6 h-6 text-white" />
+                    <action.icon className={`${action.title === "Factures" ? "w-8 h-8" : "w-6 h-6"} text-white`} />
                   </div>
-                  <span className="text-base font-medium text-center">{action.title}</span>
+                  <span className={`font-medium text-center ${action.title === "Factures" ? "text-lg" : "text-base"}`}>{action.title}</span>
                 </Button>
               ))}
             </div>
