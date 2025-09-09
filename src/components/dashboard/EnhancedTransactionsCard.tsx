@@ -25,6 +25,18 @@ const EnhancedTransactionsCard = () => {
   const { transactions, isLoading } = useRealtimeTransactions(user?.id);
   const navigate = useNavigate();
 
+  console.log("🔍 ENHANCED TRANSACTIONS - Utilisateur ID:", user?.id);
+  console.log("🔍 ENHANCED TRANSACTIONS - Total récupéré:", transactions.length);
+  console.log("📊 ENHANCED TRANSACTIONS - Détail par type:", {
+    recharges: transactions.filter(t => t.type === 'recharge').length,
+    retraits: transactions.filter(t => t.type === 'withdrawal').length,
+    transferts_envoyés: transactions.filter(t => t.type === 'transfer_sent').length,
+    transferts_reçus: transactions.filter(t => t.type === 'transfer_received').length,
+    paiements_factures: transactions.filter(t => t.type === 'bill_payment').length,
+    paiements_scanner: transactions.filter(t => t.type === 'merchant_payment').length
+  });
+  console.log("🔍 ENHANCED TRANSACTIONS - Loading:", isLoading);
+
   const getTransactionIcon = (type: string, impact?: string) => {
     switch (type) {
       case 'transfer_sent':

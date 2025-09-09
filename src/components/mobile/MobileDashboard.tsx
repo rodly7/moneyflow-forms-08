@@ -16,6 +16,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { formatCurrency, getCurrencyForCountry, convertCurrency } from "@/lib/utils/currency";
 import EnhancedTransactionsCard from "@/components/dashboard/EnhancedTransactionsCard";
+import TransactionDebugger from "@/components/debug/TransactionDebugger";
 import { UnifiedNotificationBell } from "@/components/notifications/UnifiedNotificationBell";
 import { UserSettingsModal } from "@/components/settings/UserSettingsModal";
 import { useAutoBalanceRefresh } from "@/hooks/useAutoBalanceRefresh";
@@ -204,6 +205,7 @@ const MobileDashboard: React.FC = () => {
       {/* Transactions récentes */}
       <div className="px-6 mt-6">
         <EnhancedTransactionsCard />
+        <TransactionDebugger />
       </div>
 
       {/* Agents à proximité */}
