@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Check } from 'lucide-react';
-import { UnifiedRecipientSearch } from '@/components/shared/UnifiedRecipientSearch';
+import { BillProviderNumberSearch } from './BillProviderNumberSearch';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface AutomaticBillFormProps {
@@ -198,18 +198,14 @@ export const AutomaticBillForm: React.FC<AutomaticBillFormProps> = ({
 
             {/* Numéro du fournisseur */}
             {formData.bill_type && (
-              <UnifiedRecipientSearch
-                phoneInput={formData.provider_number || ''}
-                selectedCountry={profile?.country || 'Sénégal'}
-                onPhoneChange={(value) => setFormData({...formData, provider_number: value})}
-                onCountryChange={() => {}} // Pas de changement de pays pour les factures
-                onUserFound={(provider) => setFormData({
+              <BillProviderNumberSearch
+                billType={formData.bill_type}
+                value={formData.provider_number || ''}
+                onChange={(number, providerName) => setFormData({
                   ...formData, 
-                  provider_number: provider.fullPhoneNumber || provider.provider_number,
-                  provider_name: provider.full_name || provider.provider_name
+                  provider_number: number,
+                  provider_name: providerName
                 })}
-                label="Numéro du fournisseur"
-                showCountrySelector={false}
                 placeholder="Ex: 555-000-001"
                 required
               />
