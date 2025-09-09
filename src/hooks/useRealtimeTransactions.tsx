@@ -42,7 +42,7 @@ export const useRealtimeTransactions = (userId?: string) => {
 
   const fetchTransactions = async (currentUserId?: string) => {
     if (!currentUserId) {
-      console.log("❌ Pas d'ID utilisateur fourni - useRealtimeTransactions");
+      console.log("❌ Pas d'ID utilisateur fourni");
       setTransactions([]);
       setWithdrawals([]);
       setIsLoading(false);

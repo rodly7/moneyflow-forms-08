@@ -11,7 +11,6 @@ const ReliableTransactionsCard = () => {
   const { user } = useAuth();
   const { transactions, loading, error, refetch } = useAllTransactions(user?.id);
 
-  console.log("🔍 TRANSACTIONS RÉCENTES - Utilisateur ID:", user?.id);
   console.log("🔍 TRANSACTIONS RÉCENTES - Total récupéré:", transactions.length);
   console.log("📊 TRANSACTIONS RÉCENTES - Détail par type:", {
     recharges: transactions.filter(t => t.type === 'recharge').length,
@@ -19,11 +18,8 @@ const ReliableTransactionsCard = () => {
     transferts_envoyés: transactions.filter(t => t.type === 'transfer_sent').length,
     transferts_reçus: transactions.filter(t => t.type === 'transfer_received').length,
     paiements_factures: transactions.filter(t => t.type === 'bill_payment').length,
-    paiements_scanner: transactions.filter(t => t.type === 'merchant_payment').length,
     en_attente: transactions.filter(t => t.type === 'transfer_pending').length
   });
-  console.log("🔍 TRANSACTIONS RÉCENTES - Loading:", loading);
-  console.log("🔍 TRANSACTIONS RÉCENTES - Error:", error);
 
   // Afficher les 5 transactions les plus récentes
   const recentTransactions = transactions.slice(0, 5);

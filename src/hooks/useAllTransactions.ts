@@ -30,7 +30,7 @@ export const useAllTransactions = (userId?: string) => {
 
   const fetchAllTransactions = async () => {
     if (!userId) {
-      console.log("❌ DEBUG: Pas d'ID utilisateur fourni - useAllTransactions");
+      console.log("❌ DEBUG: Pas d'ID utilisateur fourni");
       setTransactions([]);
       setLoading(false);
       return;
