@@ -71,6 +71,15 @@ export const useMerchantPayment = () => {
           currency: paymentData.currency,
           status: 'completed'
         });
+
+        // Activer le bonus de parrainage si c'est la première transaction
+        try {
+          await supabase.rpc('activate_referral_bonus', {
+            user_id_param: user.id
+          });
+        } catch (referralError) {
+          console.log('Aucun bonus de parrainage à activer ou erreur:', referralError);
+        }
       } catch (insertError) {
         console.error('Error recording merchant payment:', insertError);
         // Don't throw as payment was successful

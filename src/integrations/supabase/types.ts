@@ -1664,6 +1664,8 @@ export type Database = {
       }
       referrals: {
         Row: {
+          activated: boolean | null
+          activated_at: string | null
           amount_credited: number | null
           created_at: string
           credit_applique: boolean
@@ -1676,6 +1678,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          activated?: boolean | null
+          activated_at?: string | null
           amount_credited?: number | null
           created_at?: string
           credit_applique?: boolean
@@ -1688,6 +1692,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          activated?: boolean | null
+          activated_at?: string | null
           amount_credited?: number | null
           created_at?: string
           credit_applique?: boolean
@@ -2288,6 +2294,10 @@ export type Database = {
       }
     }
     Functions: {
+      activate_referral_bonus: {
+        Args: { user_id_param: string }
+        Returns: boolean
+      }
       calculate_agent_monthly_performance: {
         Args:
           | Record<PropertyKey, never>
@@ -2480,10 +2490,6 @@ export type Database = {
           phone_param: string
         }
         Returns: Json
-      }
-      process_referral_credit: {
-        Args: { referred_user_id_param: string }
-        Returns: boolean
       }
       process_withdrawal_transaction: {
         Args: {

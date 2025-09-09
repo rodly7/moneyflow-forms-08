@@ -154,22 +154,8 @@ export const authService = {
         } else {
           console.log('✅ Parrainage créé avec succès');
           
-          // Optionnel: Créditer immédiatement le parrain (ou attendre la première transaction)
-          // Pour le moment, on crédite directement après l'inscription
-          try {
-            const { data: creditResult, error: creditError } = await supabase.rpc(
-              'process_referral_credit',
-              { referred_user_id_param: data.user.id }
-            );
-
-            if (creditError) {
-              console.error('❌ Erreur crédit parrainage:', creditError);
-            } else if (creditResult) {
-              console.log('✅ Crédit de parrainage appliqué');
-            }
-          } catch (creditError) {
-            console.error('❌ Erreur lors du crédit de parrainage:', creditError);
-          }
+          // Le crédit de parrainage sera appliqué lors de la première transaction du filleul
+          console.log('✅ Parrainage enregistré - bonus sera activé lors de la première transaction');
         }
       } catch (referralError) {
         console.error('❌ Erreur traitement parrainage:', referralError);
