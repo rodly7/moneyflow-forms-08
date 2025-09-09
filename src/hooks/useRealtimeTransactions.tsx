@@ -234,6 +234,33 @@ export const useRealtimeTransactions = (userId?: string) => {
         allTransactions.push(...transformedBillPayments);
       }
 
+      // 6. Récupérer les paiements par scanner/QR (DÉBIT)
+      console.log("📱 Récupération des paiements par scanner...");
+      const { data: merchantPaymentsData, error: merchantPaymentsError } = await supabase
+        .from('merchant_payments')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false });
+
+      if (merchantPaymentsError) {
+        console.error('❌ Erreur paiements scanner:', merchantPaymentsError);
+      } else if (merchantPaymentsData) {
+        console.log("✅ Paiements par scanner trouvés:", merchantPaymentsData.length);
+        const transformedMerchantPayments: Transaction[] = merchantPaymentsData.map(payment => ({
+          id: `merchant_${payment.id}`,
+          type: 'merchant_payment',
+          amount: payment.amount,
+          date: new Date(payment.created_at),
+          description: `📱 Paiement par scanner de ${payment.amount?.toLocaleString() || '0'} XAF à ${payment.business_name}`,
+          currency: payment.currency || 'XAF',
+          status: payment.status || 'completed',
+          userType: 'user' as const,
+          created_at: payment.created_at,
+          impact: 'debit'
+        }));
+        allTransactions.push(...transformedMerchantPayments);
+      }
+
       // Trier toutes les transactions par date décroissante
       const sortedTransactions = allTransactions.sort((a, b) => 
         new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime()
@@ -245,7 +272,8 @@ export const useRealtimeTransactions = (userId?: string) => {
         retraits: sortedTransactions.filter(t => t.type === 'withdrawal').length,
         transferts_envoyés: sortedTransactions.filter(t => t.type === 'transfer_sent').length,
         transferts_reçus: sortedTransactions.filter(t => t.type === 'transfer_received').length,
-        paiements_factures: sortedTransactions.filter(t => t.type === 'bill_payment').length
+        paiements_factures: sortedTransactions.filter(t => t.type === 'bill_payment').length,
+        paiements_scanner: sortedTransactions.filter(t => t.type === 'merchant_payment').length
       });
 
       setTransactions(sortedTransactions);
@@ -312,6 +340,16 @@ export const useRealtimeTransactions = (userId?: string) => {
       })
       .subscribe();
     channels.push(billPaymentsChannel);
+
+    // Paiements par scanner
+    const merchantPaymentsChannel = supabase
+      .channel('realtime-merchant-payments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_payments' }, () => {
+        console.log('🔄 Changement détecté dans merchant_payments, rechargement...');
+        if (userId) fetchTransactions(userId);
+      })
+      .subscribe();
+    channels.push(merchantPaymentsChannel);
 
     return () => {
       channels.forEach(channel => supabase.removeChannel(channel));

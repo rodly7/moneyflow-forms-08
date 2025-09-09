@@ -288,6 +288,35 @@ export const useAllTransactions = (userId?: string) => {
         });
       }
 
+      // 7. Récupérer les paiements par scanner/QR (DÉBIT)
+      console.log("📱 Récupération des paiements par scanner...");
+      const { data: merchantPayments, error: merchantError } = await supabase
+        .from('merchant_payments')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (merchantError) {
+        console.error("❌ Erreur paiements scanner:", merchantError);
+      } else if (merchantPayments) {
+        console.log("✅ Paiements par scanner trouvés:", merchantPayments.length);
+        merchantPayments.forEach(payment => {
+          allTransactions.push({
+            id: `merchant_${payment.id}`,
+            type: 'merchant_payment',
+            amount: payment.amount || 0,
+            date: new Date(payment.created_at),
+            description: `Paiement par scanner de ${payment.amount?.toLocaleString() || '0'} XAF à ${payment.business_name}`,
+            currency: payment.currency || 'XAF',
+            status: payment.status || 'completed',
+            created_at: payment.created_at,
+            userType: "user" as const,
+            impact: "debit" as const,
+            reference_id: payment.id?.toString()
+          });
+        });
+      }
+
       // Trier par date décroissante (plus récentes en premier)
       const sortedTransactions = allTransactions.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -301,6 +330,7 @@ export const useAllTransactions = (userId?: string) => {
       console.log("📊 DEBUG: - Transferts reçus:", sortedTransactions.filter(t => t.type === 'transfer_received').length);
       console.log("📊 DEBUG: - Paiements factures:", sortedTransactions.filter(t => t.type === 'bill_payment').length);
       console.log("📊 DEBUG: - En attente:", sortedTransactions.filter(t => t.type === 'transfer_pending').length);
+      console.log("📊 DEBUG: - Paiements scanner:", sortedTransactions.filter(t => t.type === 'merchant_payment').length);
 
       // Afficher les 5 premières transactions pour debug
       console.log("📋 DEBUG: Les 5 premières transactions:", sortedTransactions.slice(0, 5).map(t => ({
