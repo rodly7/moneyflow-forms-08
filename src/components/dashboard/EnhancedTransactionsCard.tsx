@@ -38,6 +38,8 @@ const EnhancedTransactionsCard = () => {
         return <Download className="w-4 h-4 text-red-600" />;
       case 'bill_payment':
         return <Receipt className="w-4 h-4 text-orange-600" />;
+      case 'merchant_payment':
+        return <CreditCard className="w-4 h-4 text-purple-600" />;
       default:
         return <CreditCard className="w-4 h-4" />;
     }

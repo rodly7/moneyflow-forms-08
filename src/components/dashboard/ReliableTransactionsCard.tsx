@@ -31,7 +31,8 @@ const ReliableTransactionsCard = () => {
     transfers_sent: transactions.filter(t => t.type === 'transfer_sent').length,
     transfers_received: transactions.filter(t => t.type === 'transfer_received').length,
     bills: transactions.filter(t => t.type === 'bill_payment').length,
-    pending: transactions.filter(t => t.type === 'transfer_pending').length
+    pending: transactions.filter(t => t.type === 'transfer_pending').length,
+    merchant_payments: transactions.filter(t => t.type === 'merchant_payment').length
   };
 
   const getTransactionIcon = (type: string) => {
@@ -42,6 +43,7 @@ const ReliableTransactionsCard = () => {
       case 'transfer_received': return <ArrowDownLeft className="w-4 h-4 text-green-600" />;
       case 'transfer_pending': return <Activity className="w-4 h-4 text-orange-600" />;
       case 'bill_payment': return <FileText className="w-4 h-4 text-purple-600" />;
+      case 'merchant_payment': return <CreditCard className="w-4 h-4 text-purple-600" />;
       default: return <Activity className="w-4 h-4" />;
     }
   };
@@ -54,6 +56,7 @@ const ReliableTransactionsCard = () => {
       case 'transfer_received': return 'bg-green-100 text-green-800';
       case 'transfer_pending': return 'bg-orange-100 text-orange-800';
       case 'bill_payment': return 'bg-purple-100 text-purple-800';
+      case 'merchant_payment': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -66,6 +69,7 @@ const ReliableTransactionsCard = () => {
       case 'transfer_received': return 'Réception';
       case 'transfer_pending': return 'En attente';
       case 'bill_payment': return 'Facture';
+      case 'merchant_payment': return 'Scanner';
       default: return type;
     }
   };
@@ -129,6 +133,12 @@ const ReliableTransactionsCard = () => {
             <Badge variant="secondary" className="bg-orange-50 text-orange-700">
               <Activity className="w-3 h-3 mr-1" />
               {stats.pending} en attente
+            </Badge>
+          )}
+          {stats.merchant_payments > 0 && (
+            <Badge variant="secondary" className="bg-purple-50 text-purple-700">
+              <CreditCard className="w-3 h-3 mr-1" />
+              {stats.merchant_payments} scanner
             </Badge>
           )}
         </div>
