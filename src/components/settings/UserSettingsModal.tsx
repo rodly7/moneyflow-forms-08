@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ReferralSection from "@/components/referral/ReferralSection";
 
 interface UserSettingsModalProps {
   trigger?: React.ReactNode;
@@ -266,6 +267,9 @@ export const UserSettingsModal = ({ trigger }: UserSettingsModalProps) => {
         </DialogHeader>
         
         <div className="space-y-6">
+          {/* Section Parrainage */}
+          <ReferralSection />
+
           {/* Section changement de mot de passe */}
           <Card>
             <CardHeader className="pb-4">

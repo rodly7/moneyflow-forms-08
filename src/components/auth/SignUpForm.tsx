@@ -24,6 +24,7 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
     city: '',
     role: 'user',
     birthDate: '',
+    referralCode: '',
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -75,7 +76,7 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
         address: formData.city, // Using city as address
         role: formData.role,
         birth_date: formData.birthDate || null, // Send null instead of empty string
-        
+        referral_code: formData.referralCode || null,
       };
 
       await signUp(formData.phone, formData.password, metadata);
@@ -193,6 +194,21 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
             onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
             required
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="referralCode">Code de parrainage (optionnel)</Label>
+          <Input
+            id="referralCode"
+            type="text"
+            placeholder="SEND-XXXXX"
+            value={formData.referralCode}
+            onChange={(e) => handleInputChange('referralCode', e.target.value.toUpperCase())}
+            className="font-mono"
+          />
+          <p className="text-xs text-gray-500">
+            Avez-vous été invité ? Saisissez le code de parrainage de votre ami pour que vous receviez tous les deux 200 F !
+          </p>
         </div>
 
         <Button 

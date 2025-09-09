@@ -38,9 +38,10 @@ export const authService = {
   },
 
 
-  async signUp(phone: string, password: string, metadata: SignUpMetadata & { id_card_file?: File }) {
+  async signUp(phone: string, password: string, metadata: SignUpMetadata & { id_card_file?: File, referral_code?: string }) {
     console.log('📝 Tentative d\'inscription avec le numéro:', phone);
     console.log('🎯 Rôle demandé:', metadata.role);
+    console.log('🎁 Code de parrainage:', metadata.referral_code);
     
     // Même normalisation que pour la connexion
     const normalizedPhone = phone.replace(/[^\d+]/g, '');
@@ -50,6 +51,29 @@ export const authService = {
     const userRole = metadata.role === 'agent' ? 'agent' : 'user';
     console.log('👥 Rôle final assigné:', userRole);
 
+    // Vérifier le code de parrainage s'il est fourni
+    let referrerId: string | null = null;
+    if (metadata.referral_code) {
+      try {
+        const { data: referralData, error: referralError } = await supabase
+          .from('referral_codes')
+          .select('user_id')
+          .eq('referral_code', metadata.referral_code.trim())
+          .single();
+
+        if (referralError || !referralData) {
+          console.log('⚠️ Code de parrainage invalide:', metadata.referral_code);
+          throw new Error('Code de parrainage invalide. Vérifiez le code et réessayez.');
+        }
+
+        referrerId = referralData.user_id;
+        console.log('✅ Code de parrainage valide, parrain trouvé:', referrerId);
+      } catch (error) {
+        console.error('❌ Erreur validation code de parrainage:', error);
+        throw new Error('Code de parrainage invalide. Vérifiez le code et réessayez.');
+      }
+    }
+
     // Préparer les métadonnées pour l'inscription
     const signUpMetadata = {
       ...metadata,
@@ -57,8 +81,8 @@ export const authService = {
       role: userRole,
     };
 
-    // Supprimer le fichier des métadonnées car il ne peut pas être sérialisé
-    const { id_card_file, ...metadataWithoutFile } = signUpMetadata as any;
+    // Supprimer les champs spéciaux des métadonnées car ils ne peuvent pas être sérialisés
+    const { id_card_file, referral_code, ...metadataWithoutFile } = signUpMetadata as any;
     
     const { data, error } = await supabase.auth.signUp({
       email: email,
@@ -101,6 +125,50 @@ export const authService = {
         }
       } catch (uploadError) {
         console.error('❌ Erreur lors de l\'upload de la pièce d\'identité:', uploadError);
+      }
+    }
+
+    // Traiter le parrainage après inscription réussie
+    if (data.user && referrerId && metadata.referral_code) {
+      try {
+        console.log('🎁 Création du parrainage...');
+        
+        // Créer l'enregistrement de parrainage
+        const { error: referralInsertError } = await supabase
+          .from('referrals')
+          .insert({
+            referrer_id: referrerId,
+            referred_user_id: data.user.id,
+            referral_code: metadata.referral_code.trim(),
+            status: 'en_attente',
+            amount_credited: 200
+          });
+
+        if (referralInsertError) {
+          console.error('❌ Erreur création parrainage:', referralInsertError);
+        } else {
+          console.log('✅ Parrainage créé avec succès');
+          
+          // Optionnel: Créditer immédiatement le parrain (ou attendre la première transaction)
+          // Pour le moment, on crédite directement après l'inscription
+          try {
+            const { data: creditResult, error: creditError } = await supabase.rpc(
+              'process_referral_credit',
+              { referred_user_id_param: data.user.id }
+            );
+
+            if (creditError) {
+              console.error('❌ Erreur crédit parrainage:', creditError);
+            } else if (creditResult) {
+              console.log('✅ Crédit de parrainage appliqué');
+            }
+          } catch (creditError) {
+            console.error('❌ Erreur lors du crédit de parrainage:', creditError);
+          }
+        }
+      } catch (referralError) {
+        console.error('❌ Erreur traitement parrainage:', referralError);
+        // Ne pas faire échouer l'inscription pour une erreur de parrainage
       }
     }
     

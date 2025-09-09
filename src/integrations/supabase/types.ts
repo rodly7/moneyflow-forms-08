@@ -1630,6 +1630,92 @@ export type Database = {
           },
         ]
       }
+      referral_codes: {
+        Row: {
+          created_at: string
+          id: string
+          referral_code: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referral_code: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referral_code?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_codes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_agents_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          amount_credited: number | null
+          created_at: string
+          credit_applique: boolean
+          credited_at: string | null
+          id: string
+          referral_code: string
+          referred_user_id: string
+          referrer_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_credited?: number | null
+          created_at?: string
+          credit_applique?: boolean
+          credited_at?: string | null
+          id?: string
+          referral_code: string
+          referred_user_id: string
+          referrer_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_credited?: number | null
+          created_at?: string
+          credit_applique?: boolean
+          credited_at?: string | null
+          id?: string
+          referral_code?: string
+          referred_user_id?: string
+          referrer_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referred_user_id_fkey"
+            columns: ["referred_user_id"]
+            isOneToOne: true
+            referencedRelation: "auth_users_agents_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_agents_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       savings_accounts: {
         Row: {
           auto_deposit_amount: number | null
@@ -2279,6 +2365,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      generate_referral_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_agent_by_user_id: {
         Args: { user_id_param: string }
         Returns: {
@@ -2390,6 +2480,10 @@ export type Database = {
           phone_param: string
         }
         Returns: Json
+      }
+      process_referral_credit: {
+        Args: { referred_user_id_param: string }
+        Returns: boolean
       }
       process_withdrawal_transaction: {
         Args: {
