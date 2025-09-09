@@ -305,6 +305,18 @@ Télécharge l'app et inscris-toi avec mon code !
               E-mail
             </Button>
           </div>
+          
+          {/* Bouton d'inscription directe */}
+          <div className="pt-2">
+            <Button
+              onClick={() => window.open('/auth', '_blank')}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+              size="sm"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Inviter un ami via le lien d'inscription
+            </Button>
+          </div>
         </div>
 
         {/* Voir mes gains */}
