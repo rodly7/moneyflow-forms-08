@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Phone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRobustBillPayment } from '@/hooks/useRobustBillPayment';
-import { CreditCard, ArrowRight } from 'lucide-react';
-import { UnifiedRecipientSearch } from '@/components/shared/UnifiedRecipientSearch';
 
 interface ManualBillPaymentProps {
   selectedBillType: string;
@@ -16,14 +15,14 @@ interface ManualBillPaymentProps {
   amount: string;
   recipientPhone: string;
   selectedCountry: string;
-  setSelectedBillType: (type: string) => void;
-  setProvider: (provider: string) => void;
-  setAccountNumber: (number: string) => void;
-  setAmount: (amount: string) => void;
-  setRecipientPhone: (phone: string) => void;
+  setSelectedBillType: (value: string) => void;
+  setProvider: (value: string) => void;
+  setAccountNumber: (value: string) => void;
+  setAmount: (value: string) => void;
+  setRecipientPhone: (value: string) => void;
 }
 
-const ManualBillPayment = ({
+const ManualBillPayment: React.FC<ManualBillPaymentProps> = ({
   selectedBillType,
   provider,
   accountNumber,
@@ -35,12 +34,9 @@ const ManualBillPayment = ({
   setAccountNumber,
   setAmount,
   setRecipientPhone
-}: ManualBillPaymentProps) => {
+}) => {
   const { profile } = useAuth();
   const { processBillPayment, isProcessing } = useRobustBillPayment();
-  const [isFormValid, setIsFormValid] = useState(false);
-  const [recipientPhoneInput, setRecipientPhoneInput] = useState('');
-  const [foundRecipient, setFoundRecipient] = useState<any>(null);
 
   const feeRate = 0.015; // 1.5% frais
 
@@ -89,20 +85,17 @@ const ManualBillPayment = ({
     return companies[type]?.[country] || [];
   };
 
-  // Vérifier la validité du formulaire
-  useEffect(() => {
-    const isValid = selectedBillType && provider && accountNumber && amount && recipientPhone;
-    setIsFormValid(!!isValid);
-  }, [selectedBillType, provider, accountNumber, amount, recipientPhone]);
-
   const calculateTotal = () => {
     const baseAmount = parseFloat(amount) || 0;
     const fees = baseAmount * feeRate;
     return baseAmount + fees;
   };
 
-  const handlePayment = async () => {
-    if (!isFormValid) return;
+  const handlePayBill = async () => {
+    if (!selectedBillType || !provider || !accountNumber || !amount) {
+      alert("Veuillez remplir tous les champs obligatoires");
+      return;
+    }
 
     const paymentData = {
       amount: parseFloat(amount),
@@ -112,27 +105,35 @@ const ManualBillPayment = ({
       recipientPhone: recipientPhone
     };
 
-    await processBillPayment(paymentData);
+    try {
+      const result = await processBillPayment(paymentData);
+      if (result.success) {
+        // Reset form
+        setSelectedBillType('');
+        setProvider('');
+        setAccountNumber('');
+        setAmount('');
+        setRecipientPhone('');
+      }
+    } catch (error) {
+      console.error('Erreur lors du paiement:', error);
+    }
   };
 
   return (
-    <Card className="bg-white shadow-2xl rounded-2xl border-0 overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-600 text-white pb-4">
-        <CardTitle className="text-center text-lg font-bold mb-2">
-          Paiement de Facture Manuel
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          Paiement Manuel de Facture
         </CardTitle>
-        <p className="text-center text-sm text-blue-100">
-          Payez vos factures en temps réel
-        </p>
       </CardHeader>
-      
-      <CardContent className="p-4 space-y-4">
+      <CardContent className="space-y-4">
         {/* Type de facture */}
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold text-gray-700">Type de facture *</Label>
+        <div>
+          <Label htmlFor="billType">Type de facture</Label>
           <Select value={selectedBillType} onValueChange={setSelectedBillType}>
-            <SelectTrigger className="h-14 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl">
-              <SelectValue placeholder="Sélectionnez un type de facture" />
+            <SelectTrigger>
+              <SelectValue placeholder="Choisir le type" />
             </SelectTrigger>
             <SelectContent>
               {billTypes.map((type) => (
@@ -146,11 +147,11 @@ const ManualBillPayment = ({
 
         {/* Fournisseur */}
         {selectedBillType && (
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold text-gray-700">Fournisseur *</Label>
+          <div>
+            <Label htmlFor="provider">Fournisseur</Label>
             <Select value={provider} onValueChange={setProvider}>
-              <SelectTrigger className="h-14 bg-green-50 border-2 border-green-200 rounded-xl">
-                <SelectValue placeholder="Sélectionnez un fournisseur" />
+              <SelectTrigger>
+                <SelectValue placeholder="Choisir le fournisseur" />
               </SelectTrigger>
               <SelectContent>
                 {getCompaniesForType(selectedBillType, selectedCountry).map((company) => (
@@ -163,112 +164,97 @@ const ManualBillPayment = ({
           </div>
         )}
 
-        {/* Numéro de compteur */}
-        {selectedBillType && (
-          <div className="space-y-2">
-            <Label htmlFor="account" className="text-sm font-semibold text-gray-700">
-              Numéro de compteur *
-            </Label>
-            <Input
-              id="account"
-              type="text"
-              placeholder="Entrez votre numéro de compteur"
-              value={accountNumber}
-              onChange={(e) => setAccountNumber(e.target.value)}
-              className="h-14 bg-gradient-to-r from-gray-50 to-blue-50 border-2 border-gray-200 rounded-xl"
-            />
-          </div>
-        )}
-
-        {/* Recherche du destinataire avec système unifié */}
-        {selectedBillType && (
-          <div className="space-y-2">
-            <UnifiedRecipientSearch
-              phoneInput={recipientPhoneInput}
-              selectedCountry={selectedCountry}
-              onPhoneChange={setRecipientPhoneInput}
-              onCountryChange={() => {}} // Country already managed by parent
-              onUserFound={(userData) => {
-                setFoundRecipient(userData);
-                setRecipientPhone(userData.fullPhoneNumber || '');
-                // Mettre à jour les informations utilisateur trouvées
-                if (userData.full_name) {
-                  console.log('✅ Destinataire trouvé:', userData.full_name);
-                }
-              }}
-              label="Numéro du destinataire"
-              showCountrySelector={false} // Country already selected above
-              required={true}
-            />
-          </div>
-        )}
+        {/* Numéro de compte/compteur */}
+        <div>
+          <Label htmlFor="accountNumber">Numéro de compte/compteur</Label>
+          <Input
+            id="accountNumber"
+            value={accountNumber}
+            onChange={(e) => setAccountNumber(e.target.value)}
+            placeholder="Entrez le numéro"
+          />
+        </div>
 
         {/* Montant */}
-        {selectedBillType && (
-          <div className="space-y-2">
-            <Label htmlFor="amount" className="text-sm font-semibold text-gray-700">
-              Montant (FCFA) *
-            </Label>
+        <div>
+          <Label htmlFor="amount">Montant (FCFA)</Label>
+          <Input
+            id="amount"
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0"
+            min="0"
+          />
+        </div>
+
+        {/* Numéro de téléphone (optionnel) */}
+        <div>
+          <Label htmlFor="recipientPhone">Numéro de téléphone (optionnel)</Label>
+          <div className="relative">
+            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              id="amount"
-              type="number"
-              placeholder="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="h-14 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-orange-200 rounded-xl font-bold text-lg"
+              id="recipientPhone"
+              value={recipientPhone}
+              onChange={(e) => setRecipientPhone(e.target.value)}
+              placeholder="Numéro du bénéficiaire"
+              className="pl-10"
             />
-            {amount && (
-              <div className="text-sm text-gray-700 bg-gradient-to-r from-gray-50 to-blue-50 p-4 rounded-xl border border-gray-200 shadow-sm">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-medium">Montant de base:</span>
-                  <span className="font-bold text-blue-600">{parseFloat(amount || "0").toLocaleString()} FCFA</span>
-                </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-medium">Frais (1,5%):</span>
-                  <span className="font-bold text-orange-600">{(parseFloat(amount || "0") * feeRate).toLocaleString()} FCFA</span>
-                </div>
-                <div className="flex justify-between items-center font-bold text-lg text-purple-600 border-t border-gray-300 pt-2 mt-2">
-                  <span>Total à payer:</span>
-                  <span>{calculateTotal().toLocaleString()} FCFA</span>
-                </div>
-              </div>
-            )}
+          </div>
+        </div>
+
+        {/* Résumé des frais */}
+        {amount && parseFloat(amount) > 0 && (
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="flex justify-between text-sm">
+              <span>Montant:</span>
+              <span>{parseFloat(amount).toLocaleString()} FCFA</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Frais (1.5%):</span>
+              <span>{(parseFloat(amount) * feeRate).toLocaleString()} FCFA</span>
+            </div>
+            <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+              <span>Total:</span>
+              <span>{calculateTotal().toLocaleString()} FCFA</span>
+            </div>
+          </div>
+        )}
+
+        {/* Vérification du solde */}
+        {profile && amount && parseFloat(amount) > 0 && (
+          <div className={`p-3 rounded-lg ${
+            profile.balance >= calculateTotal()
+              ? 'bg-green-50 text-green-700'
+              : 'bg-red-50 text-red-700'
+          }`}>
+            <p className="text-sm">
+              Solde actuel: {profile.balance.toLocaleString()} FCFA
+              {profile.balance < calculateTotal() && (
+                <span className="block mt-1">
+                  Solde insuffisant pour ce paiement.
+                </span>
+              )}
+            </p>
           </div>
         )}
 
         {/* Bouton de paiement */}
-        {isFormValid && (
-          <Button
-            onClick={handlePayment}
-            disabled={isProcessing || !isFormValid}
-            className="w-full h-14 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 text-lg font-semibold rounded-xl"
-          >
-            {isProcessing ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
-                Traitement en cours...
-              </>
-            ) : (
-              <>
-                <CreditCard className="w-5 h-5 mr-2" />
-                Payer {calculateTotal().toLocaleString()} FCFA
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </>
-            )}
-          </Button>
-        )}
-
-        {/* Message d'information solde */}
-        {profile?.balance && amount && (
-          <div className="text-center text-sm text-gray-600 bg-blue-50 p-3 rounded-xl border border-blue-200">
-            Votre solde: <span className="font-bold text-blue-600">{profile.balance.toLocaleString()} FCFA</span>
-            {profile.balance < calculateTotal() && (
-              <div className="text-red-600 font-medium mt-1">
-                ⚠️ Solde insuffisant pour ce paiement
-              </div>
-            )}
-          </div>
-        )}
+        <Button 
+          onClick={handlePayBill}
+          disabled={
+            isProcessing || 
+            !selectedBillType || 
+            !provider || 
+            !accountNumber || 
+            !amount ||
+            parseFloat(amount) <= 0 ||
+            (profile && profile.balance < calculateTotal())
+          }
+          className="w-full"
+        >
+          {isProcessing ? 'Traitement...' : `Payer ${calculateTotal().toLocaleString()} FCFA`}
+        </Button>
       </CardContent>
     </Card>
   );

@@ -1,93 +1,52 @@
-import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 import { useAutomaticBills } from '@/hooks/useAutomaticBills';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  Plus, 
-  Wifi,
-  CheckCircle
-} from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { Badge } from '@/components/ui/badge';
-import BillCard from './BillCard';
-import AutomaticBillForm from './AutomaticBillForm';
+import { AutomaticBillForm } from './AutomaticBillForm';
+import { BillCard } from './BillCard';
 
-const AutomaticBillsManager = () => {
-  const { 
-    bills, 
-    loading, 
-    createBill, 
-    updateBill, 
-    deleteBill, 
-    toggleAutomation,
-    payBillManually,
-    paymentHistory 
-  } = useAutomaticBills();
-  
-  const { toast } = useToast();
+interface FormData {
+  bill_name: string;
+  amount: number;
+  due_date: string;
+  recurrence: string;
+  is_automated: boolean;
+  priority: number;
+  status: string;
+  payment_number: string;
+  meter_number: string;
+}
+
+export const AutomaticBillsManager: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
-  const [editingBill, setEditingBill] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+  const [editingBill, setEditingBill] = useState<any>(null);
+  const [formData, setFormData] = useState<FormData>({
     bill_name: '',
-    selectedBillType: '',
-    provider: '',
-    accountNumber: '',
-    amount: '',
-    recipientPhone: '',
+    amount: 0,
     due_date: '',
-    is_automated: true
+    recurrence: 'monthly',
+    is_automated: false,
+    priority: 1,
+    status: 'pending',
+    payment_number: '',
+    meter_number: ''
   });
 
-  const resetForm = () => {
-    setFormData({
-      bill_name: '',
-      selectedBillType: '',
-      provider: '',
-      accountNumber: '',
-      amount: '',
-      recipientPhone: '',
-      due_date: '',
-      is_automated: true
-    });
-    setShowForm(false);
-    setEditingBill(null);
-  };
+  const {
+    bills,
+    paymentHistory,
+    loading,
+    createBill,
+    updateBill,
+    deleteBill,
+    toggleAutomation,
+    payBillManually
+  } = useAutomaticBills();
 
   const handleCreateBill = async () => {
-    if (!formData.bill_name.trim() || !formData.amount || !formData.due_date || !formData.recipientPhone || !formData.selectedBillType) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs obligatoires",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const amount = parseFloat(formData.amount);
-    if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: "Erreur",
-        description: "Le montant doit être un nombre positif",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
-      await createBill({
-        bill_name: formData.bill_name.trim(),
-        amount: amount,
-        due_date: formData.due_date,
-        recurrence: 'monthly',
-        priority: 1,
-        is_automated: formData.is_automated,
-        status: 'pending',
-        payment_number: formData.recipientPhone,
-        meter_number: formData.accountNumber
-      });
-
+      await createBill(formData);
       resetForm();
     } catch (error) {
       console.error('Error creating bill:', error);
@@ -96,71 +55,22 @@ const AutomaticBillsManager = () => {
 
   const handleEditBill = async () => {
     if (!editingBill) return;
-
-    if (!formData.bill_name.trim() || !formData.amount || !formData.due_date || !formData.recipientPhone || !formData.selectedBillType) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs obligatoires",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const amount = parseFloat(formData.amount);
-    if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: "Erreur",
-        description: "Le montant doit être un nombre positif",
-        variant: "destructive"
-      });
-      return;
-    }
-
+    
     try {
-      await updateBill(editingBill, {
-        bill_name: formData.bill_name.trim(),
-        amount: amount,
-        due_date: formData.due_date,
-        recurrence: 'monthly',
-        is_automated: formData.is_automated,
-        payment_number: formData.recipientPhone,
-        meter_number: formData.accountNumber
-      });
-
+      await updateBill(editingBill.id, formData);
       resetForm();
     } catch (error) {
       console.error('Error updating bill:', error);
     }
   };
 
-  const startEdit = (bill: any) => {
-    setEditingBill(bill.id);
-    setFormData({
-      bill_name: bill.bill_name || '',
-      selectedBillType: 'electricity', // Default type based on the bill
-      provider: 'ENEO', // Default provider
-      accountNumber: bill.meter_number || '',
-      amount: bill.amount?.toString() || '',
-      recipientPhone: bill.payment_number || '',
-      due_date: bill.due_date || '',
-      is_automated: bill.is_automated || true
-    });
-    setShowForm(true);
-  };
-
-  const handlePayNow = async (billId: string) => {
-    try {
-      await payBillManually(billId);
-    } catch (error) {
-      console.error('Error paying bill:', error);
-    }
-  };
-
   const handleDeleteBill = async (billId: string) => {
-    try {
-      await deleteBill(billId);
-    } catch (error) {
-      console.error('Error deleting bill:', error);
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette facture ?')) {
+      try {
+        await deleteBill(billId);
+      } catch (error) {
+        console.error('Error deleting bill:', error);
+      }
     }
   };
 
@@ -172,28 +82,66 @@ const AutomaticBillsManager = () => {
     }
   };
 
-  return (
-    <div className="max-w-6xl mx-auto p-4 space-y-6 h-full overflow-y-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Factures Automatiques</h1>
-          <p className="text-gray-600">Gérez vos paiements récurrents avec débit automatique mensuel</p>
-        </div>
-        
-        <Button
-          onClick={() => setShowForm(true)}
-          className="bg-gradient-to-r from-blue-500 to-purple-500 hover:opacity-90 text-white shadow-lg"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nouvelle facture
-        </Button>
-      </div>
+  const handlePayNow = async (billId: string) => {
+    try {
+      await payBillManually(billId);
+    } catch (error) {
+      console.error('Error paying bill:', error);
+    }
+  };
 
-      {/* Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+  const startEdit = (bill: any) => {
+    setEditingBill(bill);
+    setFormData({
+      bill_name: bill.bill_name,
+      amount: bill.amount,
+      due_date: bill.due_date,
+      recurrence: bill.recurrence,
+      is_automated: bill.is_automated,
+      priority: bill.priority,
+      status: bill.status,
+      payment_number: bill.payment_number || '',
+      meter_number: bill.meter_number || ''
+    });
+    setShowForm(true);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      bill_name: '',
+      amount: 0,
+      due_date: '',
+      recurrence: 'monthly',
+      is_automated: false,
+      priority: 1,
+      status: 'pending',
+      payment_number: '',
+      meter_number: ''
+    });
+    setEditingBill(null);
+    setShowForm(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Factures Automatiques</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Gérez vos factures récurrentes et automatisez vos paiements
+            </p>
+          </div>
+          <Button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvelle facture
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {showForm && (
             <AutomaticBillForm
               editingBill={editingBill}
               formData={formData}
@@ -202,71 +150,58 @@ const AutomaticBillsManager = () => {
               onCancel={resetForm}
               loading={loading}
             />
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Bills List */}
-      <div className="grid gap-4">
-        {bills.length === 0 ? (
-          <Card className="text-center p-8">
-            <CardContent>
-              <Wifi className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-600 mb-2">Aucune facture automatique</h3>
-              <p className="text-gray-500 mb-4">Créez votre première facture automatique pour simplifier vos paiements récurrents.</p>
-              <Button onClick={() => setShowForm(true)} className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                Créer une facture
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          bills.map((bill) => (
-            <BillCard
-              key={bill.id}
-              bill={bill}
-              loading={loading}
-              onEdit={startEdit}
-              onDelete={handleDeleteBill}
-              onToggleAutomation={handleToggleAutomation}
-              onPayNow={handlePayNow}
-            />
-          ))
-        )}
-      </div>
-
-      {/* Payment History */}
-      {paymentHistory.length > 0 && (
-        <Card className="shadow-lg border-0 bg-white">
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              Historique des Paiements
-            </h2>
+          <div className="space-y-4">
+            {bills.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Aucune facture automatique configurée
+              </div>
+            ) : (
+              bills.map((bill) => (
+                <BillCard
+                  key={bill.id}
+                  bill={bill}
+                  onEdit={() => startEdit(bill)}
+                  onDelete={() => handleDeleteBill(bill.id)}
+                  onToggleAutomation={(isAutomated) => 
+                    handleToggleAutomation(bill.id, isAutomated)
+                  }
+                  onPayNow={() => handlePayNow(bill.id)}
+                />
+              ))
+            )}
           </div>
-          <CardContent className="p-6">
-            <div className="space-y-3">
-              {paymentHistory.slice(0, 5).map((payment) => (
-                <div key={payment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-800">
-                      Facture payée - {payment.amount.toLocaleString()} FCFA
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {format(parseISO(payment.payment_date), 'dd/MM/yyyy à HH:mm', { locale: fr })}
-                    </p>
+
+          {paymentHistory.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4">Historique des paiements</h3>
+              <div className="space-y-2">
+                {paymentHistory.slice(0, 5).map((payment) => (
+                  <div
+                    key={payment.id}
+                    className="flex justify-between items-center p-3 bg-muted rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium">{payment.amount.toLocaleString()} FCFA</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(payment.payment_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className={`px-2 py-1 rounded text-xs font-medium ${
+                      payment.status === 'success' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {payment.status === 'success' ? 'Réussi' : 'Échec'}
+                    </div>
                   </div>
-                  <Badge variant={payment.status === 'success' ? 'default' : 'destructive'} className={payment.status === 'success' ? 'bg-green-500' : ''}>
-                    {payment.status === 'success' ? 'Réussi' : 'Échoué'}
-                  </Badge>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
-
-export default AutomaticBillsManager;
