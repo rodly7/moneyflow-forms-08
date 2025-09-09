@@ -79,16 +79,16 @@ const MobileDashboard: React.FC = () => {
       onClick: () => navigate('/qr-payment')
     },
     {
-      title: "Factures",
-      icon: Receipt,
-      color: "from-orange-500 to-red-500",
-      onClick: () => navigate('/bill-payments')
-    },
-    {
       title: "Épargne",
       icon: PiggyBank,
       color: "from-teal-500 to-green-500",
       onClick: () => navigate('/savings')
+    },
+    {
+      title: "Factures",
+      icon: Receipt,
+      color: "from-orange-500 to-red-500",
+      onClick: () => navigate('/bill-payments')
     }
   ];
 

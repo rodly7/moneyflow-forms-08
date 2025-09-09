@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface AutomaticBillFormProps {
@@ -198,12 +199,20 @@ export const AutomaticBillForm: React.FC<AutomaticBillFormProps> = ({
             {formData.provider && (
               <div>
                 <Label htmlFor="provider_number">Numéro du fournisseur</Label>
-                <Input
-                  id="provider_number"
-                  value={getProviderNumber(formData.bill_type, formData.provider, profile?.country || 'Sénégal')}
-                  disabled
-                  className="bg-gray-50"
-                />
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="provider_number"
+                    value={formData.provider_number || ''}
+                    onChange={(e) => setFormData({...formData, provider_number: e.target.value})}
+                    placeholder="Saisir le numéro du fournisseur"
+                    className="h-12"
+                  />
+                  {formData.provider_number && (
+                    <div className="flex-shrink-0">
+                      <Check className="w-5 h-5 text-green-500" />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
