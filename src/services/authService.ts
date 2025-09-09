@@ -53,10 +53,9 @@ export const authService = {
 
     // Vérifier le code de parrainage s'il est fourni
     let referrerId: string | null = null;
-    if (metadata.referral_code) {
-      const trimmedCode = metadata.referral_code.trim();
+    if (metadata.referral_code && metadata.referral_code.trim()) {
+      const trimmedCode = metadata.referral_code.trim().toUpperCase();
       console.log('🔍 Début vérification du code de parrainage:', trimmedCode);
-      console.log('🔍 Type du code:', typeof trimmedCode, 'Longueur:', trimmedCode.length);
       
       const { data: referralData, error: referralError } = await supabase
         .from('referral_codes')
@@ -72,13 +71,7 @@ export const authService = {
       }
 
       if (!referralData) {
-        console.log('⚠️ Code de parrainage non trouvé dans la BD:', trimmedCode);
-        // Vérifions tous les codes pour debug
-        const { data: allCodes } = await supabase
-          .from('referral_codes')
-          .select('referral_code')
-          .limit(10);
-        console.log('🔍 Codes existants:', allCodes);
+        console.log('⚠️ Code de parrainage non trouvé:', trimmedCode);
         throw new Error('Code de parrainage invalide. Vérifiez le code et réessayez.');
       }
 
