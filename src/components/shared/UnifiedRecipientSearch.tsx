@@ -73,13 +73,21 @@ export const UnifiedRecipientSearch = ({
     return digits.length >= 8;
   };
 
-  // Format the phone number for display
+  // Format the phone number for display (without country code)
   const formatPhoneForDisplay = (phone: string): string => {
+    if (!phone) return '';
+    
+    // Always work with digits only and remove any country code
+    let digitsOnly = phone.replace(/\D/g, '');
+    const countryCodeWithoutPlus = selectedCountryCode.replace('+', '');
+    
+    // Remove country code if present
+    if (digitsOnly.startsWith(countryCodeWithoutPlus)) {
+      digitsOnly = digitsOnly.substring(countryCodeWithoutPlus.length);
+    }
+    
     // For Congo Brazzaville, format as XX XXX XX XX
-    if (selectedCountryCode.includes('242') && phone.length > 0) {
-      const digitsOnly = phone.replace(/\D/g, '');
-      
-      // Apply Congo Brazzaville formatting
+    if (selectedCountryCode.includes('242') && digitsOnly.length > 0) {
       let formatted = '';
       for (let i = 0; i < digitsOnly.length; i++) {
         if (i === 2 || i === 5 || i === 7) {
@@ -90,8 +98,8 @@ export const UnifiedRecipientSearch = ({
       return formatted.trim();
     }
     
-    // Default format (just return cleaned input)
-    return phone;
+    // Default format (just return cleaned digits)
+    return digitsOnly;
   };
 
   // Handle phone number search
@@ -103,26 +111,17 @@ export const UnifiedRecipientSearch = ({
     }
 
     try {
-      // Clean phone input first to avoid duplication
-      const cleanedPhoneInput = phoneInput.replace(/\D/g, '');
-      console.log("🔧 DEBUG - phoneInput:", phoneInput);
-      console.log("🔧 DEBUG - cleanedPhoneInput:", cleanedPhoneInput);
-      console.log("🔧 DEBUG - selectedCountryCode:", selectedCountryCode);
-      
-      // Construct full phone number with country code (avoid duplication)
-      let fullPhoneNumber = '';
+      // Clean phone input and ensure no country code duplication
+      let cleanedPhoneInput = phoneInput.replace(/\D/g, '');
       const countryCodeWithoutPlus = selectedCountryCode.replace('+', '');
-      console.log("🔧 DEBUG - countryCodeWithoutPlus:", countryCodeWithoutPlus);
       
+      // Always remove country code if it exists in the input
       if (cleanedPhoneInput.startsWith(countryCodeWithoutPlus)) {
-        // Phone already includes country code, just add the + sign
-        fullPhoneNumber = '+' + cleanedPhoneInput;
-        console.log("🔧 DEBUG - Phone already has country code, result:", fullPhoneNumber);
-      } else {
-        // Phone doesn't include country code, add it
-        fullPhoneNumber = selectedCountryCode + cleanedPhoneInput;
-        console.log("🔧 DEBUG - Adding country code, result:", fullPhoneNumber);
+        cleanedPhoneInput = cleanedPhoneInput.substring(countryCodeWithoutPlus.length);
       }
+      
+      // Construct full phone number with country code
+      const fullPhoneNumber = selectedCountryCode + cleanedPhoneInput;
       
       console.log("🔍 Recherche du destinataire:", fullPhoneNumber);
       
