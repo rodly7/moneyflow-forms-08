@@ -56,13 +56,14 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
     
-    // Get request body
+    // Get request body - correct handling for supabase.functions.invoke
     let requestBody: BillPaymentRequest
     try {
-      const bodyText = await req.text()
-      console.log('Raw request body:', bodyText)
+      // supabase.functions.invoke sends JSON directly, no need to parse text first
+      requestBody = await req.json()
+      console.log('Parsed request body:', requestBody)
       
-      if (!bodyText || bodyText.trim() === '') {
+      if (!requestBody) {
         console.error('Empty request body received')
         return new Response(
           JSON.stringify({ 
@@ -75,9 +76,6 @@ Deno.serve(async (req) => {
           }
         )
       }
-      
-      requestBody = JSON.parse(bodyText)
-      console.log('Parsed request body:', requestBody)
     } catch (error) {
       console.error('Error parsing request body:', error)
       return new Response(
