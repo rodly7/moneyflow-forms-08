@@ -7,12 +7,14 @@ import MerchantBillStats from '@/components/merchant/MerchantBillStats';
 import LogoutButton from '@/components/auth/LogoutButton';
 import { UnifiedNotificationBell } from '@/components/notifications/UnifiedNotificationBell';
 import { useAutoBalanceRefresh } from '@/hooks/useAutoBalanceRefresh';
+import { ProviderBalanceCard } from '@/components/provider/ProviderBalanceCard';
+import { ProviderPaymentHistory } from '@/components/provider/ProviderPaymentHistory';
 
 const ProviderDashboard = () => {
   const { profile } = useAuth();
   
   // Rafraîchir le solde toutes les 5 secondes
-  useAutoBalanceRefresh({ 
+  const { refreshBalance } = useAutoBalanceRefresh({ 
     intervalMs: 5000,
     enableRealtime: true
   });
@@ -75,11 +77,14 @@ const ProviderDashboard = () => {
           </CardContent>
         </Card>
 
+        {/* Solde du fournisseur */}
+        <ProviderBalanceCard onRefresh={refreshBalance} />
+
         {/* Statistiques des paiements de factures */}
         <MerchantBillStats />
 
         {/* Paiements de factures reçus */}
-        <BillPaymentRequests />
+        <ProviderPaymentHistory />
       </div>
     </div>
   );
