@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log('Processing bill payment:', { user_id, amount, bill_type, provider, account_number })
+    console.log('🔄 Processing bill payment:', { user_id, amount, bill_type, provider, account_number, recipient_phone })
 
     // Vérifier le solde de l'utilisateur
     const { data: profile, error: profileError } = await supabase
