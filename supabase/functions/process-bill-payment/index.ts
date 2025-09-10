@@ -56,19 +56,18 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
     
-    // Get request body - correct handling for supabase.functions.invoke
+    // Get request body with better error handling
     let requestBody: BillPaymentRequest
     try {
-      // supabase.functions.invoke sends JSON directly, no need to parse text first
-      requestBody = await req.json()
-      console.log('Parsed request body:', requestBody)
+      const body = await req.json()
+      console.log('Request body received:', JSON.stringify(body, null, 2))
       
-      if (!requestBody) {
-        console.error('Empty request body received')
+      if (!body || Object.keys(body).length === 0) {
+        console.error('Empty or invalid request body')
         return new Response(
           JSON.stringify({ 
             success: false, 
-            message: 'Corps de requête vide' 
+            message: 'Corps de requête vide ou invalide' 
           }), 
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -76,6 +75,8 @@ Deno.serve(async (req) => {
           }
         )
       }
+      
+      requestBody = body
     } catch (error) {
       console.error('Error parsing request body:', error)
       return new Response(
