@@ -107,6 +107,80 @@ export const useRobustBillPayment = () => {
           throw new Error(`Erreur de balance: ${balanceError.message}`);
         }
 
+        // Créditer le fournisseur si un numéro de téléphone est fourni
+        if (paymentData.recipientPhone) {
+          try {
+            console.log('🔍 Recherche du bénéficiaire avec le numéro:', paymentData.recipientPhone);
+            
+            // Trouver le profil du bénéficiaire par numéro de téléphone
+            const { data: recipientProfile, error: recipientError } = await supabase
+              .from('profiles')
+              .select('id, full_name, phone')
+              .eq('phone', paymentData.recipientPhone)
+              .maybeSingle();
+
+            if (recipientProfile && !recipientError) {
+              console.log('✅ Bénéficiaire trouvé:', { recipientId: recipientProfile.id, recipientPhone: paymentData.recipientPhone });
+              
+              // Calculer la commission SendFlow (1.5% pour les paiements de factures)
+              const commissionRate = 0.015; // 1.5%
+              const commission = paymentData.amount * commissionRate;
+              const netAmount = paymentData.amount - commission;
+              
+              console.log('💰 Calcul commission:', { amount: paymentData.amount, commission, netAmount });
+              
+              // Créditer le compte du bénéficiaire avec le montant net (après commission)
+              const { error: recipientCreditError } = await supabase.rpc('secure_increment_balance', {
+                target_user_id: recipientProfile.id,
+                amount: netAmount,
+                operation_type: 'bill_payment_transfer',
+                performed_by: user.id
+              });
+
+              if (recipientCreditError) {
+                console.error('❌ Erreur crédit bénéficiaire:', recipientCreditError);
+              } else {
+                console.log('✅ Bénéficiaire crédité avec succès du montant net:', netAmount);
+                
+                // Enregistrer la transaction comme un transfert avec le montant brut
+                await supabase
+                  .from('transfers')
+                  .insert({
+                    sender_id: user.id,
+                    recipient_id: recipientProfile.id,
+                    recipient_phone: paymentData.recipientPhone,
+                    recipient_full_name: recipientProfile.full_name,
+                    recipient_country: 'Congo Brazzaville',
+                    amount: paymentData.amount, // Montant brut payé par l'utilisateur
+                    fees: commission,
+                    status: 'completed',
+                    currency: 'XAF'
+                  });
+                  
+                // Enregistrer aussi comme paiement marchand si c'est un fournisseur
+                if (paymentData.provider) {
+                  await supabase
+                    .from('merchant_payments')
+                    .insert({
+                      user_id: user.id,
+                      merchant_id: recipientProfile.id,
+                      amount: netAmount, // Montant net reçu par le fournisseur
+                      business_name: paymentData.provider || 'Paiement de facture',
+                      description: `Paiement facture ${paymentData.billType || 'manuel'} - Commission: ${commission.toFixed(2)} XAF - Net: ${netAmount.toFixed(2)} XAF`,
+                      status: 'completed'
+                    });
+                }
+              }
+            } else {
+              console.log('⚠️ Bénéficiaire non trouvé avec le numéro:', paymentData.recipientPhone);
+              console.log('Le paiement a été débité mais aucun compte à créditer trouvé');
+            }
+          } catch (error) {
+            console.error('❌ Erreur lors du crédit bénéficiaire:', error);
+            // Continuer même si le crédit bénéficiaire échoue
+          }
+        }
+
         // Enregistrer l'historique de paiement
         const { error: historyError } = await supabase
           .from('automatic_bills')
