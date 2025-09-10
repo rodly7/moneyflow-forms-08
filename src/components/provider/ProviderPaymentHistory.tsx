@@ -208,13 +208,18 @@ export const ProviderPaymentHistory = () => {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className="font-bold text-lg text-green-600">
-                      {formatCurrency(payment.amount, "XAF")}
-                    </div>
-                    {getStatusBadge(payment.status)}
-                  </div>
+                 <div className="flex items-center gap-4">
+                   <div className="text-right">
+                     <div className="space-y-1">
+                       <div className="font-bold text-lg text-green-600">
+                         {formatCurrency(payment.amount * 0.985, "XAF")}
+                       </div>
+                       <div className="text-xs text-muted-foreground">
+                         Net après commission
+                       </div>
+                     </div>
+                     {getStatusBadge(payment.status)}
+                   </div>
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button variant="ghost" size="sm">
@@ -229,18 +234,32 @@ export const ProviderPaymentHistory = () => {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="text-sm font-medium">Montant</label>
-                            <div className="text-lg font-bold text-green-600">
-                              {formatCurrency(payment.amount, "XAF")}
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium">Statut</label>
-                            <div>{getStatusBadge(payment.status)}</div>
-                          </div>
-                        </div>
+                         <div className="grid grid-cols-2 gap-4">
+                           <div>
+                             <label className="text-sm font-medium">Montant reçu</label>
+                             <div className="text-lg font-bold text-green-600">
+                               {formatCurrency(payment.amount, "XAF")}
+                             </div>
+                           </div>
+                           <div>
+                             <label className="text-sm font-medium">Statut</label>
+                             <div>{getStatusBadge(payment.status)}</div>
+                           </div>
+                         </div>
+                         <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                           <div className="flex justify-between items-center mb-2">
+                             <span className="text-sm font-medium text-orange-800">Commission SendFlow (1,5%)</span>
+                             <span className="text-sm font-bold text-orange-600">
+                               -{formatCurrency(payment.amount * 0.015, "XAF")}
+                             </span>
+                           </div>
+                           <div className="flex justify-between items-center">
+                             <span className="text-sm font-medium text-green-800">Montant net reçu</span>
+                             <span className="text-sm font-bold text-green-600">
+                               {formatCurrency(payment.amount * 0.985, "XAF")}
+                             </span>
+                           </div>
+                         </div>
                         <div>
                           <label className="text-sm font-medium">Client</label>
                           <div>{payment.profiles?.full_name || 'Client inconnu'}</div>

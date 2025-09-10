@@ -9,6 +9,7 @@ import { UnifiedNotificationBell } from '@/components/notifications/UnifiedNotif
 import { useAutoBalanceRefresh } from '@/hooks/useAutoBalanceRefresh';
 import { ProviderBalanceCard } from '@/components/provider/ProviderBalanceCard';
 import { ProviderPaymentHistory } from '@/components/provider/ProviderPaymentHistory';
+import { ProviderQRCode } from '@/components/provider/ProviderQRCode';
 
 const ProviderDashboard = () => {
   const { profile } = useAuth();
@@ -77,8 +78,15 @@ const ProviderDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Solde du fournisseur */}
-        <ProviderBalanceCard onRefresh={refreshBalance} />
+        {/* Solde et QR Code */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="md:col-span-2">
+            <ProviderBalanceCard onRefresh={refreshBalance} />
+          </div>
+          <div>
+            <ProviderQRCode />
+          </div>
+        </div>
 
         {/* Statistiques des paiements de factures */}
         <MerchantBillStats />
