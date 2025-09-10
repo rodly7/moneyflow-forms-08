@@ -40,7 +40,7 @@ export const useRobustBillPayment = () => {
         return { success: false };
       }
 
-      // Préparer les données de paiement avec validation - CORRECTION DU FORMAT
+      // Préparer les données de paiement avec validation
       const requestBody = {
         user_id: user.id,
         amount: Number(paymentData.amount),
@@ -52,14 +52,12 @@ export const useRobustBillPayment = () => {
 
       console.log('🔄 Tentative de paiement via Edge Function');
       console.log('📤 Données envoyées:', requestBody);
-      console.log('🎯 Numéro du bénéficiaire:', paymentData.recipientPhone);
 
       // Stratégie de fallback pour les erreurs Edge Function
       let paymentSuccess = false;
       
       // Tentative 1: Utiliser l'Edge Function si possible
       try {
-        console.log('🚀 Invocation de la fonction edge...');
         const { data, error } = await supabase.functions.invoke('process-bill-payment', {
           body: requestBody,
           headers: {
@@ -67,9 +65,7 @@ export const useRobustBillPayment = () => {
           }
         });
 
-        console.log('📥 Réponse complète reçue:', { data, error });
-        console.log('📊 Type de réponse:', typeof data);
-        console.log('📋 Contenu data:', JSON.stringify(data, null, 2));
+        console.log('📥 Réponse reçue:', { data, error });
 
         if (!error && data?.success) {
           paymentSuccess = true;
@@ -109,34 +105,6 @@ export const useRobustBillPayment = () => {
         if (balanceError) {
           console.error('❌ Erreur de balance:', balanceError);
           throw new Error(`Erreur de balance: ${balanceError.message}`);
-        }
-
-        // Créditer le bénéficiaire si un numéro est fourni
-        if (paymentData.recipientPhone) {
-          console.log('🔍 Recherche du bénéficiaire avec le numéro:', paymentData.recipientPhone);
-          
-          const { data: recipientProfile, error: recipientError } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone')
-            .eq('phone', paymentData.recipientPhone)
-            .maybeSingle();
-
-          if (recipientProfile && !recipientError) {
-            console.log('💰 Crédit du bénéficiaire trouvé:', recipientProfile.id);
-            
-            const { error: recipientCreditError } = await supabase.rpc('secure_increment_balance', {
-              target_user_id: recipientProfile.id,
-              amount: paymentData.amount,
-              operation_type: 'bill_payment_transfer',
-              performed_by: user.id
-            });
-
-            if (recipientCreditError) {
-              console.error('❌ Erreur crédit bénéficiaire (fallback):', recipientCreditError);
-            } else {
-              console.log('✅ Bénéficiaire crédité avec succès (fallback)');
-            }
-          }
         }
 
         // Enregistrer l'historique de paiement

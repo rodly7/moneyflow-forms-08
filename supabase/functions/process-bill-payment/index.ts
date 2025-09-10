@@ -56,11 +56,38 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
     
-    // Get request body with improved error handling
+    // Get request body with better error handling
     let requestBody: BillPaymentRequest
     try {
-      requestBody = await req.json()
-      console.log('📥 Request body received:', requestBody)
+      // Try to get the body as JSON first
+      let bodyData;
+      try {
+        bodyData = await req.json()
+        console.log('Request body parsed as JSON:', bodyData)
+      } catch (jsonError) {
+        console.log('Failed to parse as JSON, trying as text:', jsonError)
+        const bodyText = await req.text()
+        console.log('Raw request body as text:', bodyText)
+        
+        if (!bodyText || bodyText.trim() === '') {
+          console.error('Empty request body received')
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              message: 'Corps de requête vide' 
+            }), 
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400
+            }
+          )
+        }
+        
+        bodyData = JSON.parse(bodyText)
+      }
+      
+      requestBody = bodyData
+      console.log('Final parsed request body:', requestBody)
     } catch (error) {
       console.error('Error parsing request body:', error)
       return new Response(
@@ -92,7 +119,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log('🔄 Processing bill payment:', { user_id, amount, bill_type, provider, account_number, recipient_phone })
+    console.log('Processing bill payment:', { user_id, amount, bill_type, provider, account_number })
 
     // Vérifier le solde de l'utilisateur
     const { data: profile, error: profileError } = await supabase
