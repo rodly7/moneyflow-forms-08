@@ -163,6 +163,8 @@ const Layout = () => {
         const role = profile.role;
         if (role === 'merchant') {
           return <Navigate to="/merchant" replace />;
+        } else if (role === 'provider') {
+          return <Navigate to="/provider" replace />;
         } else if (role === 'admin') {
           return <Navigate to="/admin-dashboard" replace />;
         } else if (role === 'sub_admin') {
