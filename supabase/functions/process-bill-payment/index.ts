@@ -219,65 +219,68 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Créditer le fournisseur via les numéros de paiement prédéfinis
-    if (provider && bill_type && recipient_phone) {
+    // Créditer le bénéficiaire directement par son numéro de téléphone (comme un transfert)
+    if (recipient_phone) {
       try {
-        // Trouver le numéro de paiement pour ce fournisseur et type de facture
-        const { data: billPaymentNumber, error: billPaymentError } = await supabase
-          .from('bill_payment_numbers')
-          .select('*')
-          .eq('provider_name', provider)
-          .eq('bill_type', bill_type)
-          .eq('is_active', true)
-          .single()
+        console.log('Recherche du bénéficiaire avec le numéro:', recipient_phone)
+        
+        // Trouver le profil du bénéficiaire par numéro de téléphone
+        const { data: recipientProfile, error: recipientError } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .eq('phone', recipient_phone)
+          .maybeSingle()
 
-        if (billPaymentNumber && !billPaymentError) {
-          console.log('Numéro de paiement trouvé:', billPaymentNumber.payment_number)
+        if (recipientProfile && !recipientError) {
+          console.log('Bénéficiaire trouvé:', { recipientId: recipientProfile.id, recipientPhone: recipient_phone })
           
-          // Trouver le profil du fournisseur par le numéro de paiement
-          const { data: providerProfile, error: providerError } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone')
-            .eq('phone', billPaymentNumber.payment_number)
-            .single()
+          // Créditer le compte du bénéficiaire
+          const { error: recipientCreditError } = await supabase.rpc('secure_increment_balance', {
+            target_user_id: recipientProfile.id,
+            amount: amount,
+            operation_type: 'bill_payment_transfer',
+            performed_by: user_id
+          })
 
-          if (providerProfile && !providerError) {
-            console.log('Crédit du fournisseur:', { providerId: providerProfile.id, amount, providerPhone: billPaymentNumber.payment_number })
+          if (recipientCreditError) {
+            console.error('Erreur crédit bénéficiaire:', recipientCreditError)
+          } else {
+            console.log('Bénéficiaire crédité avec succès')
             
-            // Créditer le compte du fournisseur
-            const { error: providerCreditError } = await supabase.rpc('secure_increment_balance', {
-              target_user_id: providerProfile.id,
-              amount: amount,
-              operation_type: 'bill_provider_credit',
-              performed_by: user_id
-            })
-
-            if (providerCreditError) {
-              console.error('Erreur crédit fournisseur:', providerCreditError)
-            } else {
-              console.log('Fournisseur crédité avec succès')
+            // Enregistrer la transaction comme un transfert
+            await supabase
+              .from('transfers')
+              .insert({
+                sender_id: user_id,
+                recipient_id: recipientProfile.id,
+                recipient_phone: recipient_phone,
+                amount: amount,
+                status: 'completed',
+                currency: 'XAF',
+                transfer_type: 'bill_payment'
+              })
               
-              // Enregistrer la transaction du fournisseur
+            // Enregistrer aussi comme paiement marchand si c'est un fournisseur
+            if (provider) {
               await supabase
                 .from('merchant_payments')
                 .insert({
                   user_id: user_id,
-                  merchant_id: providerProfile.id,
+                  merchant_id: recipientProfile.id,
                   amount: amount,
-                  business_name: provider,
-                  description: `Paiement facture ${bill_type} - ${account_number || recipient_phone}`,
+                  business_name: provider || 'Paiement de facture',
+                  description: `Paiement facture ${bill_type || 'manuel'} - ${account_number || recipient_phone}`,
                   status: 'completed'
                 })
             }
-          } else {
-            console.log('Profil fournisseur non trouvé avec le numéro:', billPaymentNumber.payment_number)
           }
         } else {
-          console.log('Numéro de paiement non trouvé pour:', { provider, bill_type })
+          console.log('Bénéficiaire non trouvé avec le numéro:', recipient_phone)
+          console.log('Le paiement a été débité mais aucun compte à créditer trouvé')
         }
       } catch (error) {
-        console.error('Erreur lors du crédit fournisseur:', error)
-        // Continuer même si le crédit fournisseur échoue
+        console.error('Erreur lors du crédit bénéficiaire:', error)
+        // Continuer même si le crédit bénéficiaire échoue
       }
     }
 
