@@ -92,7 +92,10 @@ const ManualBillPayment: React.FC<ManualBillPaymentProps> = ({
   };
 
   const handlePayBill = async () => {
+    console.log('🔥 handlePayBill appelé avec:', { selectedBillType, provider, accountNumber, amount, recipientPhone });
+    
     if (!selectedBillType || !provider || !accountNumber || !amount) {
+      console.log('❌ Champs manquants détectés');
       alert("Veuillez remplir tous les champs obligatoires");
       return;
     }
@@ -105,18 +108,26 @@ const ManualBillPayment: React.FC<ManualBillPaymentProps> = ({
       recipientPhone: recipientPhone
     };
 
+    console.log('📤 Données de paiement préparées:', paymentData);
+
     try {
+      console.log('🚀 Appel de processBillPayment...');
       const result = await processBillPayment(paymentData);
+      console.log('📥 Résultat du paiement:', result);
+      
       if (result.success) {
+        console.log('✅ Paiement réussi, reset du formulaire');
         // Reset form
         setSelectedBillType('');
         setProvider('');
         setAccountNumber('');
         setAmount('');
         setRecipientPhone('');
+      } else {
+        console.log('❌ Paiement échoué:', result);
       }
     } catch (error) {
-      console.error('Erreur lors du paiement:', error);
+      console.error('❌ Erreur lors du paiement:', error);
     }
   };
 
