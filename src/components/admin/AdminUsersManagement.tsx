@@ -16,7 +16,7 @@ interface User {
   birth_date: string;
   id_card_photo_url: string;
   id_card_url: string;
-  role: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant';
+  role: 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant' | 'provider';
   balance: number;
   created_at: string;
   is_banned?: boolean;

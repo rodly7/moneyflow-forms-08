@@ -2584,7 +2584,13 @@ export type Database = {
     }
     Enums: {
       agent_status: "pending" | "active" | "suspended" | "rejected"
-      user_role: "user" | "agent" | "admin" | "sub_admin" | "merchant"
+      user_role:
+        | "user"
+        | "agent"
+        | "admin"
+        | "sub_admin"
+        | "merchant"
+        | "provider"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2713,7 +2719,14 @@ export const Constants = {
   public: {
     Enums: {
       agent_status: ["pending", "active", "suspended", "rejected"],
-      user_role: ["user", "agent", "admin", "sub_admin", "merchant"],
+      user_role: [
+        "user",
+        "agent",
+        "admin",
+        "sub_admin",
+        "merchant",
+        "provider",
+      ],
     },
   },
 } as const
