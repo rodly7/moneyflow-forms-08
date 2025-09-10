@@ -219,34 +219,61 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Créditer le fournisseur (si défini)
-    if (provider && account_number) {
+    // Créditer le fournisseur via les numéros de paiement prédéfinis
+    if (provider && bill_type && recipient_phone) {
       try {
-        // Trouver le profil du fournisseur par téléphone/compte
-        const { data: providerProfile, error: providerError } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .eq('phone', account_number)
+        // Trouver le numéro de paiement pour ce fournisseur et type de facture
+        const { data: billPaymentNumber, error: billPaymentError } = await supabase
+          .from('bill_payment_numbers')
+          .select('*')
+          .eq('provider_name', provider)
+          .eq('bill_type', bill_type)
+          .eq('is_active', true)
           .single()
 
-        if (providerProfile && !providerError) {
-          console.log('Crédit du fournisseur:', { providerId: providerProfile.id, amount })
+        if (billPaymentNumber && !billPaymentError) {
+          console.log('Numéro de paiement trouvé:', billPaymentNumber.payment_number)
           
-          // Créditer le compte du fournisseur
-          const { error: providerCreditError } = await supabase.rpc('secure_increment_balance', {
-            target_user_id: providerProfile.id,
-            amount: amount,
-            operation_type: 'bill_provider_credit',
-            performed_by: user_id
-          })
+          // Trouver le profil du fournisseur par le numéro de paiement
+          const { data: providerProfile, error: providerError } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .eq('phone', billPaymentNumber.payment_number)
+            .single()
 
-          if (providerCreditError) {
-            console.error('Erreur crédit fournisseur:', providerCreditError)
+          if (providerProfile && !providerError) {
+            console.log('Crédit du fournisseur:', { providerId: providerProfile.id, amount, providerPhone: billPaymentNumber.payment_number })
+            
+            // Créditer le compte du fournisseur
+            const { error: providerCreditError } = await supabase.rpc('secure_increment_balance', {
+              target_user_id: providerProfile.id,
+              amount: amount,
+              operation_type: 'bill_provider_credit',
+              performed_by: user_id
+            })
+
+            if (providerCreditError) {
+              console.error('Erreur crédit fournisseur:', providerCreditError)
+            } else {
+              console.log('Fournisseur crédité avec succès')
+              
+              // Enregistrer la transaction du fournisseur
+              await supabase
+                .from('merchant_payments')
+                .insert({
+                  user_id: user_id,
+                  merchant_id: providerProfile.id,
+                  amount: amount,
+                  business_name: provider,
+                  description: `Paiement facture ${bill_type} - ${account_number || recipient_phone}`,
+                  status: 'completed'
+                })
+            }
           } else {
-            console.log('Fournisseur crédité avec succès')
+            console.log('Profil fournisseur non trouvé avec le numéro:', billPaymentNumber.payment_number)
           }
         } else {
-          console.log('Fournisseur non trouvé avec le numéro:', account_number)
+          console.log('Numéro de paiement non trouvé pour:', { provider, bill_type })
         }
       } catch (error) {
         console.error('Erreur lors du crédit fournisseur:', error)
