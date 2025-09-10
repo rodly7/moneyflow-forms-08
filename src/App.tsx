@@ -45,6 +45,7 @@ import PrepaidCards from "./pages/PrepaidCards";
 import AgentCommissionWithdrawal from "./pages/AgentCommissionWithdrawal";
 import AgentSettingsPage from "./pages/AgentSettings";
 import MerchantDashboard from "./pages/MerchantDashboard";
+import ProviderDashboard from "./pages/ProviderDashboard";
 import ProfileTestPage from "./pages/ProfileTest";
 import PaymentNumbersManagement from "./pages/admin/PaymentNumbersManagement";
 import DepositWithdrawalForm from "./components/deposit-withdrawal/DepositWithdrawalForm";
@@ -193,6 +194,7 @@ function App() {
           <Route path="change-password" element={<ChangePassword />} />
           <Route path="bill-payments" element={<BillPayments />} />
           <Route path="merchant" element={<MerchantDashboard />} />
+          <Route path="provider" element={<ProviderDashboard />} />
           <Route path="profile-test" element={<ProfileTestPage />} />
           <Route path="admin/payment-numbers" element={<PaymentNumbersManagement />} />
         </Route>
