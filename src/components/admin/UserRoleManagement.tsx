@@ -99,7 +99,7 @@ const UserRoleManagement = () => {
       
       const { error } = await supabase
         .from('profiles')
-        .update({ role: newRole })
+        .update({ role: newRole as any })
         .eq('id', userId);
 
       if (error) {
@@ -111,7 +111,7 @@ const UserRoleManagement = () => {
       // Mettre à jour localement
       setUsers(users.map(user => 
         user.id === userId 
-          ? { ...user, role: newRole as 'user' | 'agent' | 'admin' | 'sub_admin' | 'merchant' | 'provider' }
+          ? { ...user, role: newRole as typeof user.role }
           : user
       ));
 
