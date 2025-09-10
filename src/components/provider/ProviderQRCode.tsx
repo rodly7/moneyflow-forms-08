@@ -12,10 +12,10 @@ export const ProviderQRCode = () => {
   const generateQRData = () => {
     return JSON.stringify({
       userId: user?.id,
-      name: profile?.full_name || 'Fournisseur',
+      fullName: profile?.full_name || 'Fournisseur',
       phone: profile?.phone || '',
       action: 'withdrawal',
-      type: 'provider',
+      type: 'user_profile', // Compatible avec les scanners existants
       timestamp: Date.now()
     });
   };
