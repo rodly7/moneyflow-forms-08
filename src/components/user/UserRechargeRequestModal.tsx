@@ -101,23 +101,38 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
     const config = getPaymentConfig();
     if (!config) return;
 
+    toast({
+      title: "Redirection",
+      description: "Redirection vers l'application..."
+    });
+
     if (config.appUrl) {
-      // Ouvrir l'application (Wave)
-      window.open(config.appUrl, '_blank');
-      toast({
-        title: "Redirection",
-        description: "Redirection vers l'application..."
-      });
+      // Méthode plus robuste pour ouvrir l'application
+      setTimeout(() => {
+        try {
+          // Tenter d'ouvrir l'application avec plusieurs méthodes
+          window.location.href = config.appUrl;
+          
+          // Fallback après 2 secondes si l'app ne s'ouvre pas
+          setTimeout(() => {
+            window.open(config.appUrl, '_system');
+          }, 2000);
+        } catch (error) {
+          console.error('Erreur ouverture app:', error);
+          // Fallback vers le téléphone
+          window.location.href = `tel:${config.number}`;
+        }
+      }, 1000);
     } else if (config.ussd) {
       // Composer le code USSD
-      window.location.href = `tel:${config.ussd}`;
-      toast({
-        title: "Redirection",
-        description: "Redirection vers le code USSD..."
-      });
+      setTimeout(() => {
+        window.location.href = `tel:${config.ussd}`;
+      }, 1000);
     } else {
       // Fallback: composer le numéro
-      window.location.href = `tel:${config.number}`;
+      setTimeout(() => {
+        window.location.href = `tel:${config.number}`;
+      }, 1000);
       toast({
         title: "Redirection",
         description: "Redirection vers l'appel..."
