@@ -54,6 +54,7 @@ const UsersDataTable = ({
       case 'sub_admin': return '🛡️ Sous-Admin';
       case 'agent': return '🔧 Agent';
       case 'merchant': return '🏪 Commerçant';
+      case 'provider': return '🏢 Fournisseur';
       default: return '👤 Utilisateur';
     }
   };
@@ -128,6 +129,7 @@ const UsersDataTable = ({
                   <option value="user">👤 Utilisateur</option>
                   <option value="agent">🔧 Agent</option>
                   <option value="merchant">🏪 Commerçant</option>
+                  <option value="provider">🏢 Fournisseur</option>
                   <option value="sub_admin">🛡️ Sous-Admin</option>
                   <option value="admin">👑 Admin</option>
                 </select>
@@ -204,6 +206,7 @@ const UsersDataTable = ({
                     <option value="user">👤 Utilisateur</option>
                     <option value="agent">🔧 Agent</option>
                     <option value="merchant">🏪 Commerçant</option>
+                    <option value="provider">🏢 Fournisseur</option>
                     <option value="sub_admin">🛡️ Sous-Admin</option>
                     <option value="admin">👑 Admin</option>
                   </select>

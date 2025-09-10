@@ -232,6 +232,7 @@ const UserManagementActions = ({ user, onUserUpdated, onUserDeleted }: UserManag
                     <SelectItem value="user">Utilisateur</SelectItem>
                     <SelectItem value="agent">Agent</SelectItem>
                     <SelectItem value="merchant">Commerçant</SelectItem>
+                    <SelectItem value="provider">Fournisseur</SelectItem>
                     <SelectItem value="sub_admin">Sous-admin</SelectItem>
                     <SelectItem value="admin">Administrateur</SelectItem>
                   </SelectContent>
