@@ -56,38 +56,28 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
     
-    // Get request body with better error handling
+    // Get request body
     let requestBody: BillPaymentRequest
     try {
-      // Try to get the body as JSON first
-      let bodyData;
-      try {
-        bodyData = await req.json()
-        console.log('Request body parsed as JSON:', bodyData)
-      } catch (jsonError) {
-        console.log('Failed to parse as JSON, trying as text:', jsonError)
-        const bodyText = await req.text()
-        console.log('Raw request body as text:', bodyText)
-        
-        if (!bodyText || bodyText.trim() === '') {
-          console.error('Empty request body received')
-          return new Response(
-            JSON.stringify({ 
-              success: false, 
-              message: 'Corps de requête vide' 
-            }), 
-            { 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 400
-            }
-          )
-        }
-        
-        bodyData = JSON.parse(bodyText)
+      const bodyText = await req.text()
+      console.log('Raw request body:', bodyText)
+      
+      if (!bodyText || bodyText.trim() === '') {
+        console.error('Empty request body received')
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: 'Corps de requête vide' 
+          }), 
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400
+          }
+        )
       }
       
-      requestBody = bodyData
-      console.log('Final parsed request body:', requestBody)
+      requestBody = JSON.parse(bodyText)
+      console.log('Parsed request body:', requestBody)
     } catch (error) {
       console.error('Error parsing request body:', error)
       return new Response(
@@ -244,10 +234,17 @@ Deno.serve(async (req) => {
         if (recipientProfile && !recipientError) {
           console.log('Bénéficiaire trouvé:', { recipientId: recipientProfile.id, recipientPhone: recipient_phone })
           
-          // Créditer le compte du bénéficiaire
+          // Calculer la commission SendFlow (1.5% pour les paiements de factures)
+          const commissionRate = 0.015 // 1.5%
+          const commission = amount * commissionRate
+          const netAmount = amount - commission
+          
+          console.log('Calcul commission:', { amount, commission, netAmount })
+          
+          // Créditer le compte du bénéficiaire avec le montant net (après commission)
           const { error: recipientCreditError } = await supabase.rpc('secure_increment_balance', {
             target_user_id: recipientProfile.id,
-            amount: amount,
+            amount: netAmount,
             operation_type: 'bill_payment_transfer',
             performed_by: user_id
           })
@@ -257,14 +254,14 @@ Deno.serve(async (req) => {
           } else {
             console.log('Bénéficiaire crédité avec succès')
             
-            // Enregistrer la transaction comme un transfert
+            // Enregistrer la transaction comme un transfert avec le montant brut
             await supabase
               .from('transfers')
               .insert({
                 sender_id: user_id,
                 recipient_id: recipientProfile.id,
                 recipient_phone: recipient_phone,
-                amount: amount,
+                amount: amount, // Montant brut payé par l'utilisateur
                 status: 'completed',
                 currency: 'XAF',
                 transfer_type: 'bill_payment'
@@ -277,9 +274,9 @@ Deno.serve(async (req) => {
                 .insert({
                   user_id: user_id,
                   merchant_id: recipientProfile.id,
-                  amount: amount,
+                  amount: netAmount, // Montant net reçu par le fournisseur
                   business_name: provider || 'Paiement de facture',
-                  description: `Paiement facture ${bill_type || 'manuel'} - ${account_number || recipient_phone}`,
+                  description: `Paiement facture ${bill_type || 'manuel'} - Commission: ${commission.toFixed(2)} XAF - Net: ${netAmount.toFixed(2)} XAF`,
                   status: 'completed'
                 })
             }
