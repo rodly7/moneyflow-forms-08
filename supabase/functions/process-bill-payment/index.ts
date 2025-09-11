@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
         // Recherche simple et directe d'abord
         let { data: recipientProfile, error: recipientError } = await supabase
           .from('profiles')
-          .select('id, full_name, phone')
+          .select('id, full_name, phone, country')
           .eq('phone', recipient_phone)
           .maybeSingle()
         
@@ -285,6 +285,7 @@ Deno.serve(async (req) => {
               recipient_id: recipientProfile.id,
               recipient_phone: recipient_phone,
               recipient_full_name: recipientProfile.full_name,
+              recipient_country: recipientProfile.country || 'Congo Brazzaville',
               amount: amount,
               fees: commission,
               status: 'completed',
