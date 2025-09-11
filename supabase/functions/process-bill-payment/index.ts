@@ -56,38 +56,33 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
     
-    // Get request body with better error handling
+    // Read raw body text to avoid JSON parsing issues
     let requestBody: BillPaymentRequest
     try {
-      const body = await req.json()
-      console.log('Request body received:', JSON.stringify(body, null, 2))
-      
-      if (!body || Object.keys(body).length === 0) {
-        console.error('Empty or invalid request body')
+      const rawText = await req.text()
+      console.log('Raw request body:', rawText || '(empty)')
+
+      if (!rawText) {
         return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: 'Corps de requête vide ou invalide' 
-          }), 
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400
-          }
+          JSON.stringify({ success: false, message: 'Corps de requête vide' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
         )
       }
-      
-      requestBody = body
+
+      const parsed = JSON.parse(rawText)
+      if (!parsed || typeof parsed !== 'object' || Object.keys(parsed).length === 0) {
+        return new Response(
+          JSON.stringify({ success: false, message: 'Corps de requête invalide' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        )
+      }
+
+      requestBody = parsed as BillPaymentRequest
     } catch (error) {
       console.error('Error parsing request body:', error)
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: 'Format de données invalide: ' + error.message 
-        }), 
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400
-        }
+        JSON.stringify({ success: false, message: 'Format de données invalide: ' + (error as Error).message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
 
