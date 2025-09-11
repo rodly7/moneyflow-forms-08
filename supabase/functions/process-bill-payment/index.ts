@@ -278,7 +278,7 @@ Deno.serve(async (req) => {
           console.log('✅ Destinataire crédité:', netAmount, 'XAF')
           
           // Enregistrer le transfert
-          await supabase
+          const { error: transferError } = await supabase
             .from('transfers')
             .insert({
               sender_id: user_id,
@@ -288,11 +288,33 @@ Deno.serve(async (req) => {
               amount: amount,
               fees: commission,
               status: 'completed',
-              currency: 'XAF',
-              transfer_type: 'bill_payment'
+              currency: 'XAF'
             })
+
+          if (transferError) {
+            console.error('❌ Erreur transfert:', transferError)
+          } else {
+            console.log('✅ Transfert enregistré')
+          }
             
-          console.log('✅ Transaction enregistrée')
+          // Enregistrer comme paiement marchand pour affichage côté fournisseur
+          const { error: merchantError } = await supabase
+            .from('merchant_payments')
+            .insert({
+              user_id: user_id,
+              merchant_id: recipientProfile.id,
+              amount: netAmount,
+              business_name: provider || 'Paiement de facture',
+              description: `Paiement facture ${bill_type || 'manuel'} - Commission: ${commission.toFixed(2)} XAF - Net: ${netAmount.toFixed(2)} XAF`,
+              status: 'completed',
+              currency: 'XAF'
+            })
+
+          if (merchantError) {
+            console.error('❌ Erreur merchant payment:', merchantError)
+          } else {
+            console.log('✅ Paiement marchand enregistré')
+          }
             
         } else {
           console.log('⚠️ Destinataire non trouvé pour:', recipient_phone)
