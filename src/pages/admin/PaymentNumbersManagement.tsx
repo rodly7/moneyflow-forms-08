@@ -44,8 +44,8 @@ const PaymentNumbersManagement = () => {
     description: string;
   }>({
     phone_number: '',
-    country: '',
-    provider: '',
+    country: countries[0]?.name || '',
+    provider: 'Orange Money',
     service_type: 'both',
     is_active: true,
     is_default: false,
@@ -154,8 +154,8 @@ const PaymentNumbersManagement = () => {
   const resetForm = () => {
     setFormData({
       phone_number: '',
-      country: '',
-      provider: '',
+      country: countries[0]?.name || '',
+      provider: 'Orange Money',
       service_type: 'both' as const,
       is_active: true,
       is_default: false,
