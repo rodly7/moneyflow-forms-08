@@ -36,35 +36,34 @@ export const ProviderPaymentHistory = () => {
     if (!user?.id) return;
 
     try {
-      // Récupérer les transferts reçus (paiements de factures)
-      const { data: transfersData, error: transfersError } = await supabase
-        .from('transfers')
+      // Récupérer les paiements marchands (paiements de factures) reçus par ce fournisseur
+      const { data: merchantPayments, error: mpError } = await supabase
+        .from('merchant_payments')
         .select(`
           id,
           amount,
           status,
           created_at,
-          sender_id
+          user_id
         `)
-        .eq('recipient_id', user.id)
-        .eq('status', 'completed')
+        .eq('merchant_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (transfersError) {
-        console.error('Erreur lors du chargement des transferts:', transfersError);
+      if (mpError) {
+        console.error('Erreur lors du chargement des paiements marchands:', mpError);
         return;
       }
 
-      // Récupérer les profils des expéditeurs
-      const senderIds = transfersData?.map(t => t.sender_id) || [];
+      // Récupérer les profils des payeurs
+      const payerIds = merchantPayments?.map(p => p.user_id) || [];
       let profilesData: any[] = [];
       
-      if (senderIds.length > 0) {
+      if (payerIds.length > 0) {
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
           .select('id, full_name, phone')
-          .in('id', senderIds);
+          .in('id', payerIds);
 
         if (!profilesError) {
           profilesData = profiles || [];
@@ -72,14 +71,14 @@ export const ProviderPaymentHistory = () => {
       }
 
       // Combiner les données
-      const combinedPayments: BillPayment[] = (transfersData || []).map(transfer => {
-        const profile = profilesData.find(p => p.id === transfer.sender_id);
+      const combinedPayments: BillPayment[] = (merchantPayments || []).map(payment => {
+        const profile = profilesData.find(p => p.id === payment.user_id);
         return {
-          id: transfer.id,
-          amount: transfer.amount,
-          status: transfer.status,
-          created_at: transfer.created_at,
-          user_id: transfer.sender_id,
+          id: payment.id,
+          amount: payment.amount, // déjà net côté table merchant_payments
+          status: payment.status,
+          created_at: payment.created_at,
+          user_id: payment.user_id,
           profiles: profile ? {
             full_name: profile.full_name,
             phone: profile.phone
