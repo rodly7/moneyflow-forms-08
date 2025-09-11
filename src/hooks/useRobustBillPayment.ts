@@ -107,71 +107,57 @@ export const useRobustBillPayment = () => {
           throw new Error(`Erreur de balance: ${balanceError.message}`);
         }
 
-        // Créditer le fournisseur si un numéro de téléphone est fourni
+        // SYSTÈME DE TRANSFERT POUR PAIEMENTS DE FACTURES
         if (paymentData.recipientPhone) {
           try {
-            console.log('🔍 Recherche du bénéficiaire avec le numéro:', paymentData.recipientPhone);
+            console.log('🔍 Recherche destinataire:', paymentData.recipientPhone);
             
-            // Normalisation et variations du numéro
-            const cleaned = paymentData.recipientPhone.replace(/\s+/g, '');
-            const digits = paymentData.recipientPhone.replace(/\D/g, '');
-            const last9 = digits.slice(-9);
-            const last10 = digits.slice(-10);
-            const withPlus = digits ? `+${digits}` : '';
-            const variations = Array.from(new Set([
-              paymentData.recipientPhone,
-              cleaned,
-              digits,
-              withPlus,
-              last9,
-              last10,
-            ].filter(Boolean)));
-            console.log('🔎 Variations testées:', variations);
-
-            // Essai 1: correspondance exacte
-            let { data: recipientProfile, error: recipientError } = await supabase
+            // Recherche directe
+            let { data: recipientProfile } = await supabase
               .from('profiles')
               .select('id, full_name, phone')
-              .in('phone', variations)
+              .eq('phone', paymentData.recipientPhone)
               .maybeSingle();
-
-            // Essai 2: correspondance sur les 9/10 derniers chiffres
-            if ((!recipientProfile || recipientError) && (last9 || last10)) {
-              const ends = last10 || last9;
-              const res = await supabase
+            
+            // Recherche alternative si pas trouvé
+            if (!recipientProfile) {
+              const normalized = paymentData.recipientPhone.replace(/\D/g, '');
+              const withoutCountryCode = normalized.slice(-9);
+              
+              const { data: foundProfile } = await supabase
                 .from('profiles')
                 .select('id, full_name, phone')
-                .ilike('phone', `%${ends}`)
+                .or(`phone.ilike.%${withoutCountryCode},phone.ilike.%${normalized}`)
                 .limit(1)
                 .maybeSingle();
-              recipientProfile = res.data || null;
-              recipientError = res.error || null;
+              
+              recipientProfile = foundProfile;
             }
 
-            if (recipientProfile && !recipientError) {
-              console.log('✅ Bénéficiaire trouvé:', { recipientId: recipientProfile.id, recipientPhone: paymentData.recipientPhone });
+            if (recipientProfile) {
+              console.log('✅ Destinataire trouvé:', recipientProfile.full_name);
               
-              // Calculer la commission SendFlow (1.5% pour les paiements de factures)
-              const commissionRate = 0.015; // 1.5%
-              const commission = paymentData.amount * commissionRate;
+              // Commission 1.5%
+              const commissionRate = 0.015;
+              const commission = Math.round(paymentData.amount * commissionRate);
               const netAmount = paymentData.amount - commission;
               
-              console.log('💰 Calcul commission:', { amount: paymentData.amount, commission, netAmount });
+              console.log('💰 Transfert:', { montant: paymentData.amount, commission, net: netAmount });
               
-              // Créditer le compte du bénéficiaire avec le montant net (après commission)
-              const { error: recipientCreditError } = await supabase.rpc('secure_increment_balance', {
+              // Créditer le destinataire
+              const { error: creditError } = await supabase.rpc('secure_increment_balance', {
                 target_user_id: recipientProfile.id,
                 amount: netAmount,
-                operation_type: 'bill_payment_transfer',
+                operation_type: 'bill_payment_received',
                 performed_by: user.id
               });
 
-              if (recipientCreditError) {
-                console.error('❌ Erreur crédit bénéficiaire:', recipientCreditError);
+              if (creditError) {
+                console.error('❌ Erreur crédit:', creditError);
               } else {
-                console.log('✅ Bénéficiaire crédité avec succès du montant net:', netAmount);
+                console.log('✅ Crédit réussi:', netAmount, 'XAF');
                 
-                // Enregistrer la transaction comme un transfert avec le montant brut
+                // Enregistrer le transfert
                 await supabase
                   .from('transfers')
                   .insert({
@@ -180,34 +166,17 @@ export const useRobustBillPayment = () => {
                     recipient_phone: paymentData.recipientPhone,
                     recipient_full_name: recipientProfile.full_name,
                     recipient_country: 'Congo Brazzaville',
-                    amount: paymentData.amount, // Montant brut payé par l'utilisateur
+                    amount: paymentData.amount,
                     fees: commission,
                     status: 'completed',
-                    currency: 'XAF',
-                    transfer_type: 'bill_payment'
+                    currency: 'XAF'
                   });
-                  
-                // Enregistrer aussi comme paiement marchand si c'est un fournisseur
-                if (paymentData.provider) {
-                  await supabase
-                    .from('merchant_payments')
-                    .insert({
-                      user_id: user.id,
-                      merchant_id: recipientProfile.id,
-                      amount: netAmount, // Montant net reçu par le fournisseur
-                      business_name: paymentData.provider || 'Paiement de facture',
-                      description: `Paiement facture ${paymentData.billType || 'manuel'} - Commission: ${commission.toFixed(2)} XAF - Net: ${netAmount.toFixed(2)} XAF`,
-                      status: 'completed'
-                    });
-                }
               }
             } else {
-              console.log('⚠️ Bénéficiaire non trouvé avec le numéro:', paymentData.recipientPhone);
-              console.log('Le paiement a été débité mais aucun compte à créditer trouvé');
+              console.log('⚠️ Destinataire non trouvé:', paymentData.recipientPhone);
             }
           } catch (error) {
-            console.error('❌ Erreur lors du crédit bénéficiaire:', error);
-            // Continuer même si le crédit bénéficiaire échoue
+            console.error('❌ Erreur transfert:', error);
           }
         }
 

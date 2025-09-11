@@ -218,104 +218,89 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Créditer le bénéficiaire directement par son numéro de téléphone (comme un transfert)
+    // SYSTÈME DE TRANSFERT AUTOMATIQUE POUR PAIEMENTS DE FACTURES
     if (recipient_phone) {
       try {
-        console.log('Recherche du bénéficiaire avec le numéro:', recipient_phone)
+        console.log('🔍 Recherche du destinataire:', recipient_phone)
         
-        // Normalisation et variations du numéro
-        const cleaned = recipient_phone.replace(/\s+/g, '')
-        const digits = recipient_phone.replace(/\D/g, '')
-        const last9 = digits.slice(-9)
-        const last10 = digits.slice(-10)
-        const withPlus = digits ? `+${digits}` : ''
-        const variations = Array.from(new Set([
-          recipient_phone,
-          cleaned,
-          digits,
-          withPlus,
-          last9,
-          last10,
-        ].filter(Boolean)))
-        console.log('Variations testées pour le bénéficiaire:', variations)
-        
-        // Essai 1: correspondance exacte parmi les variations
+        // Recherche simple et directe d'abord
         let { data: recipientProfile, error: recipientError } = await supabase
           .from('profiles')
           .select('id, full_name, phone')
-          .in('phone', variations)
+          .eq('phone', recipient_phone)
           .maybeSingle()
         
-        // Essai 2: correspondance sur les 9/10 derniers chiffres
-        if ((!recipientProfile || recipientError) && (last9 || last10)) {
-          const ends = last10 || last9
-          const res = await supabase
+        // Si pas trouvé, essayer avec différentes normalisations
+        if (!recipientProfile && !recipientError) {
+          const normalized = recipient_phone.replace(/\D/g, '') // Garder seulement les chiffres
+          const withoutCountryCode = normalized.slice(-9) // Derniers 9 chiffres
+          
+          console.log('🔍 Recherche alternative:', { normalized, withoutCountryCode })
+          
+          // Recherche par pattern de fin de numéro
+          const { data: foundProfile } = await supabase
             .from('profiles')
             .select('id, full_name, phone')
-            .ilike('phone', `%${ends}`)
+            .or(`phone.ilike.%${withoutCountryCode},phone.ilike.%${normalized}`)
             .limit(1)
             .maybeSingle()
-          recipientProfile = res.data || null
-          recipientError = res.error || null
+          
+          recipientProfile = foundProfile
         }
 
-        if (recipientProfile && !recipientError) {
-          console.log('Bénéficiaire trouvé:', { recipientId: recipientProfile.id, recipientPhone: recipient_phone, stored: recipientProfile.phone })
+        if (recipientProfile) {
+          console.log('✅ Destinataire trouvé:', { 
+            id: recipientProfile.id, 
+            name: recipientProfile.full_name,
+            phone: recipientProfile.phone 
+          })
           
-          // Calculer la commission SendFlow (1.5% pour les paiements de factures)
-          const commissionRate = 0.015 // 1.5%
-          const commission = amount * commissionRate
+          // Commission SendFlow (1.5%)
+          const commissionRate = 0.015
+          const commission = Math.round(amount * commissionRate)
           const netAmount = amount - commission
           
-          console.log('Calcul commission:', { amount, commission, netAmount })
+          console.log('💰 Commission calculée:', { amount, commission, netAmount })
           
-          // Créditer le compte du bénéficiaire avec le montant net (après commission)
-          const { error: recipientCreditError } = await supabase.rpc('secure_increment_balance', {
+          // Créditer le destinataire
+          const { error: creditError } = await supabase.rpc('secure_increment_balance', {
             target_user_id: recipientProfile.id,
             amount: netAmount,
-            operation_type: 'bill_payment_transfer',
+            operation_type: 'bill_payment_received',
             performed_by: user_id
           })
 
-          if (recipientCreditError) {
-            console.error('Erreur crédit bénéficiaire:', recipientCreditError)
-          } else {
-            console.log('Bénéficiaire crédité avec succès')
-            
-            // Enregistrer la transaction comme un transfert avec le montant brut
-            await supabase
-              .from('transfers')
-              .insert({
-                sender_id: user_id,
-                recipient_id: recipientProfile.id,
-                recipient_phone: recipient_phone,
-                amount: amount, // Montant brut payé par l'utilisateur
-                status: 'completed',
-                currency: 'XAF',
-                transfer_type: 'bill_payment'
-              })
-              
-            // Enregistrer aussi comme paiement marchand si c'est un fournisseur
-            if (provider) {
-              await supabase
-                .from('merchant_payments')
-                .insert({
-                  user_id: user_id,
-                  merchant_id: recipientProfile.id,
-                  amount: netAmount, // Montant net reçu par le fournisseur
-                  business_name: provider || 'Paiement de facture',
-                  description: `Paiement facture ${bill_type || 'manuel'} - Commission: ${commission.toFixed(2)} XAF - Net: ${netAmount.toFixed(2)} XAF`,
-                  status: 'completed'
-                })
-            }
+          if (creditError) {
+            console.error('❌ Erreur crédit destinataire:', creditError)
+            throw new Error('Erreur lors du crédit du destinataire')
           }
+
+          console.log('✅ Destinataire crédité:', netAmount, 'XAF')
+          
+          // Enregistrer le transfert
+          await supabase
+            .from('transfers')
+            .insert({
+              sender_id: user_id,
+              recipient_id: recipientProfile.id,
+              recipient_phone: recipient_phone,
+              recipient_full_name: recipientProfile.full_name,
+              amount: amount,
+              fees: commission,
+              status: 'completed',
+              currency: 'XAF',
+              transfer_type: 'bill_payment'
+            })
+            
+          console.log('✅ Transaction enregistrée')
+            
         } else {
-          console.log('Bénéficiaire non trouvé avec les variations du numéro:', { recipient_phone, variations })
-          console.log('Le paiement a été débité mais aucun compte à créditer trouvé')
+          console.log('⚠️ Destinataire non trouvé pour:', recipient_phone)
+          console.log('💸 Paiement débité mais pas de compte à créditer')
         }
       } catch (error) {
-        console.error('Erreur lors du crédit bénéficiaire:', error)
-        // Continuer même si le crédit bénéficiaire échoue
+        console.error('❌ Erreur système de transfert:', error)
+        // Le paiement continue même si le transfert échoue
       }
     }
 
