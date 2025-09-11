@@ -223,15 +223,44 @@ Deno.serve(async (req) => {
       try {
         console.log('Recherche du bénéficiaire avec le numéro:', recipient_phone)
         
-        // Trouver le profil du bénéficiaire par numéro de téléphone
-        const { data: recipientProfile, error: recipientError } = await supabase
+        // Normalisation et variations du numéro
+        const cleaned = recipient_phone.replace(/\s+/g, '')
+        const digits = recipient_phone.replace(/\D/g, '')
+        const last9 = digits.slice(-9)
+        const last10 = digits.slice(-10)
+        const withPlus = digits ? `+${digits}` : ''
+        const variations = Array.from(new Set([
+          recipient_phone,
+          cleaned,
+          digits,
+          withPlus,
+          last9,
+          last10,
+        ].filter(Boolean)))
+        console.log('Variations testées pour le bénéficiaire:', variations)
+        
+        // Essai 1: correspondance exacte parmi les variations
+        let { data: recipientProfile, error: recipientError } = await supabase
           .from('profiles')
           .select('id, full_name, phone')
-          .eq('phone', recipient_phone)
+          .in('phone', variations)
           .maybeSingle()
+        
+        // Essai 2: correspondance sur les 9/10 derniers chiffres
+        if ((!recipientProfile || recipientError) && (last9 || last10)) {
+          const ends = last10 || last9
+          const res = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .ilike('phone', `%${ends}`)
+            .limit(1)
+            .maybeSingle()
+          recipientProfile = res.data || null
+          recipientError = res.error || null
+        }
 
         if (recipientProfile && !recipientError) {
-          console.log('Bénéficiaire trouvé:', { recipientId: recipientProfile.id, recipientPhone: recipient_phone })
+          console.log('Bénéficiaire trouvé:', { recipientId: recipientProfile.id, recipientPhone: recipient_phone, stored: recipientProfile.phone })
           
           // Calculer la commission SendFlow (1.5% pour les paiements de factures)
           const commissionRate = 0.015 // 1.5%
@@ -281,7 +310,7 @@ Deno.serve(async (req) => {
             }
           }
         } else {
-          console.log('Bénéficiaire non trouvé avec le numéro:', recipient_phone)
+          console.log('Bénéficiaire non trouvé avec les variations du numéro:', { recipient_phone, variations })
           console.log('Le paiement a été débité mais aucun compte à créditer trouvé')
         }
       } catch (error) {
