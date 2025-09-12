@@ -93,18 +93,20 @@ export const useRobustBillPayment = () => {
       if (!paymentSuccess) {
         console.log("🔄 Utilisation du système de fallback pour le paiement");
         
-        // Déduire le montant du solde
-        const { error: balanceError } = await supabase
-          .rpc('secure_increment_balance', {
-            target_user_id: user.id,
-            amount: -paymentData.amount,
-            operation_type: 'bill_payment',
-            performed_by: user.id
-          });
+        // Déduire du solde uniquement si aucun transfert instantané n'est demandé
+        if (!paymentData.recipientPhone) {
+          const { error: balanceError } = await supabase
+            .rpc('secure_increment_balance', {
+              target_user_id: user.id,
+              amount: -paymentData.amount,
+              operation_type: 'bill_payment',
+              performed_by: user.id
+            });
 
-        if (balanceError) {
-          console.error('❌ Erreur de balance:', balanceError);
-          throw new Error(`Erreur de balance: ${balanceError.message}`);
+          if (balanceError) {
+            console.error('❌ Erreur de balance:', balanceError);
+            throw new Error(`Erreur de balance: ${balanceError.message}`);
+          }
         }
 
         // SYSTÈME DE TRANSFERT POUR PAIEMENTS DE FACTURES

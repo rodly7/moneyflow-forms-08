@@ -139,26 +139,28 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Débiter le compte avec la fonction sécurisée
-    const { error: balanceError } = await supabase.rpc('secure_increment_balance', {
-      target_user_id: user_id,
-      amount: -amount,
-      operation_type: 'bill_payment',
-      performed_by: user_id
-    })
+    // Débiter le compte uniquement si aucun transfert instantané n'est demandé
+    if (!recipient_phone) {
+      const { error: balanceError } = await supabase.rpc('secure_increment_balance', {
+        target_user_id: user_id,
+        amount: -amount,
+        operation_type: 'bill_payment',
+        performed_by: user_id
+      })
 
-    if (balanceError) {
-      console.error('Balance update error:', balanceError)
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: 'Erreur lors de la mise à jour du solde' 
-        }), 
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500
-        }
-      )
+      if (balanceError) {
+        console.error('Balance update error:', balanceError)
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: 'Erreur lors de la mise à jour du solde' 
+          }), 
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500
+          }
+        )
+      }
     }
 
     // Si c'est un paiement de facture automatique, mettre à jour le statut
@@ -213,131 +215,40 @@ Deno.serve(async (req) => {
       }
     }
 
-    // SYSTÈME DE TRANSFERT AUTOMATIQUE POUR PAIEMENTS DE FACTURES
+    // SYSTÈME DE TRANSFERT AUTOMATIQUE POUR PAIEMENTS DE FACTURES (utilise la même fonction que les transferts instantanés)
     if (recipient_phone) {
-      console.log('🔧 Début du flux de transfert pour paiement de facture')
+      console.log('🔧 Démarrage du transfert instantané via process-money-transfer')
       try {
-        console.log('🔍 Recherche du destinataire:', recipient_phone)
-        
-        // Recherche directe d'abord
-        let { data: recipientProfile, error: recipientError } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, country')
-          .eq('phone', recipient_phone)
-          .maybeSingle()
-        
-        // Si pas trouvé, essayer avec normalisations
-        if (!recipientProfile && !recipientError) {
-          const normalized = recipient_phone.replace(/\D/g, '') // garder seulement les chiffres
-          const withoutCountryCode = normalized.slice(-9) // derniers 9 chiffres
-          const withPlus = normalized.startsWith('0') ? normalized : `+${normalized}`
-          
-          console.log('🔍 Recherche alternative:', { normalized, withoutCountryCode, withPlus })
-          
-          // Recherche par pattern de fin de numéro et variantes
-          const { data: foundProfile } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone, country')
-            .or(`phone.eq.${normalized},phone.eq.${withPlus},phone.ilike.%${withoutCountryCode},phone.ilike.%${normalized}`)
-            .limit(1)
-            .maybeSingle()
-          
-          recipientProfile = foundProfile || null
-        }
-
-        if (!recipientProfile) {
-          console.warn('⚠️ Destinataire non trouvé, remboursement en cours', { recipient_phone })
-          // Rembourser l'utilisateur immédiatement
-          const { error: refundError } = await supabase.rpc('secure_increment_balance', {
-            target_user_id: user_id,
-            amount: amount,
-            operation_type: 'refund',
-            performed_by: user_id
-          })
-          if (refundError) {
-            console.error('❌ Erreur lors du remboursement:', refundError)
-          }
-          return new Response(
-            JSON.stringify({ success: false, message: 'Destinataire introuvable. Paiement annulé et remboursé.' }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-          )
-        }
-
-        console.log('✅ Destinataire trouvé:', { id: recipientProfile.id, name: recipientProfile.full_name, phone: recipientProfile.phone })
-        
-        // Calcul de la commission (1.5%)
+        // Calcul de la commission (1.5%) identique au flux de transfert
         const commissionRate = 0.015
         const commission = Math.round(amount * commissionRate)
         const netAmount = amount - commission
-        console.log('💰 Commission calculée:', { amount, commission, netAmount })
-        
-        // Créditer le destinataire avec la fonction système côté serveur
-        const { error: creditError } = await supabase.rpc('increment_balance', {
-          user_id: recipientProfile.id,
-          amount: netAmount
+
+        const { data: transferResult, error: transferFnError } = await supabase.functions.invoke('process-money-transfer', {
+          body: JSON.stringify({
+            sender_id: user_id,
+            recipient_identifier: recipient_phone,
+            transfer_amount: netAmount,
+            transfer_fees: commission
+          }),
+          headers: { 'Content-Type': 'application/json' }
         })
-        
-        if (creditError) {
-          console.error('❌ Erreur crédit destinataire (increment_balance):', creditError)
-          // Rembourser le paiement initial
-          const { error: refundError } = await supabase.rpc('secure_increment_balance', {
-            target_user_id: user_id,
-            amount: amount,
-            operation_type: 'refund',
-            performed_by: user_id
-          })
-          if (refundError) {
-            console.error('❌ Erreur lors du remboursement (après échec crédit):', refundError)
-          }
+
+        console.log('📥 Résultat process-money-transfer:', { transferResult, transferFnError })
+
+        if (transferFnError || !transferResult?.success) {
+          console.error('❌ Échec process-money-transfer:', transferFnError || transferResult)
           return new Response(
-            JSON.stringify({ success: false, message: 'Crédit du destinataire impossible. Paiement remboursé.' }),
+            JSON.stringify({ success: false, message: transferResult?.error || transferResult?.message || 'Transfert impossible' }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
           )
         }
 
-        console.log('✅ Destinataire crédité:', netAmount, 'XAF')
-        
-        // Enregistrer le transfert (non bloquant)
-        const { error: transferError } = await supabase
-          .from('transfers')
-          .insert({
-            sender_id: user_id,
-            recipient_id: recipientProfile.id,
-            recipient_phone: recipient_phone,
-            recipient_full_name: recipientProfile.full_name,
-            recipient_country: recipientProfile.country || 'Congo Brazzaville',
-            amount: amount,
-            fees: commission,
-            status: 'completed',
-            currency: 'XAF'
-          })
-        if (transferError) console.error('❌ Erreur transfert (non bloquant):', transferError)
-
-        // Enregistrer comme paiement marchand (non bloquant)
-        const { error: merchantError } = await supabase
-          .from('merchant_payments')
-          .insert({
-            user_id: user_id,
-            merchant_id: recipientProfile.id,
-            amount: netAmount,
-            business_name: provider || 'Paiement de facture',
-            description: `Paiement facture ${bill_type || 'manuel'} - Commission: ${commission.toFixed(2)} XAF - Net: ${netAmount.toFixed(2)} XAF`,
-            status: 'completed',
-            currency: 'XAF'
-          })
-        if (merchantError) console.error('❌ Erreur merchant payment (non bloquant):', merchantError)
+        // Si succès (completed ou pending), on continue le flux de facture sans autre débit/crédit ici
       } catch (error) {
-        console.error('❌ Erreur système de transfert:', error)
-        // En cas d'erreur inattendue, rembourser par sécurité
-        const { error: refundError } = await supabase.rpc('secure_increment_balance', {
-          target_user_id: user_id,
-          amount: amount,
-          operation_type: 'refund',
-          performed_by: user_id
-        })
-        if (refundError) console.error('❌ Erreur lors du remboursement (catch):', refundError)
+        console.error('❌ Erreur appel process-money-transfer:', error)
         return new Response(
-          JSON.stringify({ success: false, message: 'Erreur système lors du transfert. Paiement remboursé.' }),
+          JSON.stringify({ success: false, message: 'Erreur système lors du transfert' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
         )
       }
