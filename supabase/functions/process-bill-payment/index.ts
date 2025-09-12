@@ -215,108 +215,131 @@ Deno.serve(async (req) => {
 
     // SYSTÈME DE TRANSFERT AUTOMATIQUE POUR PAIEMENTS DE FACTURES
     if (recipient_phone) {
+      console.log('🔧 Début du flux de transfert pour paiement de facture')
       try {
         console.log('🔍 Recherche du destinataire:', recipient_phone)
         
-        // Recherche simple et directe d'abord
+        // Recherche directe d'abord
         let { data: recipientProfile, error: recipientError } = await supabase
           .from('profiles')
           .select('id, full_name, phone, country')
           .eq('phone', recipient_phone)
           .maybeSingle()
         
-        // Si pas trouvé, essayer avec différentes normalisations
+        // Si pas trouvé, essayer avec normalisations
         if (!recipientProfile && !recipientError) {
-          const normalized = recipient_phone.replace(/\D/g, '') // Garder seulement les chiffres
-          const withoutCountryCode = normalized.slice(-9) // Derniers 9 chiffres
+          const normalized = recipient_phone.replace(/\D/g, '') // garder seulement les chiffres
+          const withoutCountryCode = normalized.slice(-9) // derniers 9 chiffres
+          const withPlus = normalized.startsWith('0') ? normalized : `+${normalized}`
           
-          console.log('🔍 Recherche alternative:', { normalized, withoutCountryCode })
+          console.log('🔍 Recherche alternative:', { normalized, withoutCountryCode, withPlus })
           
-          // Recherche par pattern de fin de numéro
+          // Recherche par pattern de fin de numéro et variantes
           const { data: foundProfile } = await supabase
             .from('profiles')
-            .select('id, full_name, phone')
-            .or(`phone.ilike.%${withoutCountryCode},phone.ilike.%${normalized}`)
+            .select('id, full_name, phone, country')
+            .or(`phone.eq.${normalized},phone.eq.${withPlus},phone.ilike.%${withoutCountryCode},phone.ilike.%${normalized}`)
             .limit(1)
             .maybeSingle()
           
-          recipientProfile = foundProfile
+          recipientProfile = foundProfile || null
         }
 
-        if (recipientProfile) {
-          console.log('✅ Destinataire trouvé:', { 
-            id: recipientProfile.id, 
-            name: recipientProfile.full_name,
-            phone: recipientProfile.phone 
+        if (!recipientProfile) {
+          console.warn('⚠️ Destinataire non trouvé, remboursement en cours', { recipient_phone })
+          // Rembourser l'utilisateur immédiatement
+          const { error: refundError } = await supabase.rpc('secure_increment_balance', {
+            target_user_id: user_id,
+            amount: amount,
+            operation_type: 'refund',
+            performed_by: user_id
           })
-          
-          // Commission SendFlow (1.5%)
-          const commissionRate = 0.015
-          const commission = Math.round(amount * commissionRate)
-          const netAmount = amount - commission
-          
-          console.log('💰 Commission calculée:', { amount, commission, netAmount })
-          
-          // Créditer le destinataire (utiliser une fonction système côté serveur)
-          const { data: creditedBalance, error: creditError } = await supabase.rpc('increment_balance', {
-            user_id: recipientProfile.id,
-            amount: netAmount
-          })
-
-          if (creditError) {
-            console.error('❌ Erreur crédit destinataire (increment_balance):', creditError)
-            throw new Error('Erreur lors du crédit du destinataire')
+          if (refundError) {
+            console.error('❌ Erreur lors du remboursement:', refundError)
           }
-
-          console.log('✅ Destinataire crédité:', netAmount, 'XAF')
-          
-          // Enregistrer le transfert
-          const { error: transferError } = await supabase
-            .from('transfers')
-            .insert({
-              sender_id: user_id,
-              recipient_id: recipientProfile.id,
-              recipient_phone: recipient_phone,
-              recipient_full_name: recipientProfile.full_name,
-              recipient_country: recipientProfile.country || 'Congo Brazzaville',
-              amount: amount,
-              fees: commission,
-              status: 'completed',
-              currency: 'XAF'
-            })
-
-          if (transferError) {
-            console.error('❌ Erreur transfert:', transferError)
-          } else {
-            console.log('✅ Transfert enregistré')
-          }
-            
-          // Enregistrer comme paiement marchand pour affichage côté fournisseur
-          const { error: merchantError } = await supabase
-            .from('merchant_payments')
-            .insert({
-              user_id: user_id,
-              merchant_id: recipientProfile.id,
-              amount: netAmount,
-              business_name: provider || 'Paiement de facture',
-              description: `Paiement facture ${bill_type || 'manuel'} - Commission: ${commission.toFixed(2)} XAF - Net: ${netAmount.toFixed(2)} XAF`,
-              status: 'completed',
-              currency: 'XAF'
-            })
-
-          if (merchantError) {
-            console.error('❌ Erreur merchant payment:', merchantError)
-          } else {
-            console.log('✅ Paiement marchand enregistré')
-          }
-            
-        } else {
-          console.log('⚠️ Destinataire non trouvé pour:', recipient_phone)
-          console.log('💸 Paiement débité mais pas de compte à créditer')
+          return new Response(
+            JSON.stringify({ success: false, message: 'Destinataire introuvable. Paiement annulé et remboursé.' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          )
         }
+
+        console.log('✅ Destinataire trouvé:', { id: recipientProfile.id, name: recipientProfile.full_name, phone: recipientProfile.phone })
+        
+        // Calcul de la commission (1.5%)
+        const commissionRate = 0.015
+        const commission = Math.round(amount * commissionRate)
+        const netAmount = amount - commission
+        console.log('💰 Commission calculée:', { amount, commission, netAmount })
+        
+        // Créditer le destinataire avec la fonction système côté serveur
+        const { error: creditError } = await supabase.rpc('increment_balance', {
+          user_id: recipientProfile.id,
+          amount: netAmount
+        })
+        
+        if (creditError) {
+          console.error('❌ Erreur crédit destinataire (increment_balance):', creditError)
+          // Rembourser le paiement initial
+          const { error: refundError } = await supabase.rpc('secure_increment_balance', {
+            target_user_id: user_id,
+            amount: amount,
+            operation_type: 'refund',
+            performed_by: user_id
+          })
+          if (refundError) {
+            console.error('❌ Erreur lors du remboursement (après échec crédit):', refundError)
+          }
+          return new Response(
+            JSON.stringify({ success: false, message: 'Crédit du destinataire impossible. Paiement remboursé.' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          )
+        }
+
+        console.log('✅ Destinataire crédité:', netAmount, 'XAF')
+        
+        // Enregistrer le transfert (non bloquant)
+        const { error: transferError } = await supabase
+          .from('transfers')
+          .insert({
+            sender_id: user_id,
+            recipient_id: recipientProfile.id,
+            recipient_phone: recipient_phone,
+            recipient_full_name: recipientProfile.full_name,
+            recipient_country: recipientProfile.country || 'Congo Brazzaville',
+            amount: amount,
+            fees: commission,
+            status: 'completed',
+            currency: 'XAF'
+          })
+        if (transferError) console.error('❌ Erreur transfert (non bloquant):', transferError)
+
+        // Enregistrer comme paiement marchand (non bloquant)
+        const { error: merchantError } = await supabase
+          .from('merchant_payments')
+          .insert({
+            user_id: user_id,
+            merchant_id: recipientProfile.id,
+            amount: netAmount,
+            business_name: provider || 'Paiement de facture',
+            description: `Paiement facture ${bill_type || 'manuel'} - Commission: ${commission.toFixed(2)} XAF - Net: ${netAmount.toFixed(2)} XAF`,
+            status: 'completed',
+            currency: 'XAF'
+          })
+        if (merchantError) console.error('❌ Erreur merchant payment (non bloquant):', merchantError)
       } catch (error) {
         console.error('❌ Erreur système de transfert:', error)
-        // Le paiement continue même si le transfert échoue
+        // En cas d'erreur inattendue, rembourser par sécurité
+        const { error: refundError } = await supabase.rpc('secure_increment_balance', {
+          target_user_id: user_id,
+          amount: amount,
+          operation_type: 'refund',
+          performed_by: user_id
+        })
+        if (refundError) console.error('❌ Erreur lors du remboursement (catch):', refundError)
+        return new Response(
+          JSON.stringify({ success: false, message: 'Erreur système lors du transfert. Paiement remboursé.' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
       }
     }
 
