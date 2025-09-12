@@ -20,6 +20,8 @@ interface AutomaticBill {
   updated_at: string;
   user_id: string;
   payment_number?: string;
+  provider_number?: string;
+  provider_name?: string;
   meter_number?: string;
 }
 
@@ -146,7 +148,7 @@ export const useAutomaticBills = () => {
         bill_type: bill.bill_name || 'automatic_bill',
         provider: bill.bill_name || 'automatic',
         account_number: bill.meter_number || '',
-        recipient_phone: bill.payment_number || '',
+        recipient_phone: bill.payment_number || bill.provider_number || '',
         bill_id: billId
       };
 
