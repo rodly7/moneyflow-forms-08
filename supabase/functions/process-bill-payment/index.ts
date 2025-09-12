@@ -257,16 +257,14 @@ Deno.serve(async (req) => {
           
           console.log('💰 Commission calculée:', { amount, commission, netAmount })
           
-          // Créditer le destinataire
-          const { error: creditError } = await supabase.rpc('secure_increment_balance', {
-            target_user_id: recipientProfile.id,
-            amount: netAmount,
-            operation_type: 'bill_payment_received',
-            performed_by: user_id
+          // Créditer le destinataire (utiliser une fonction système côté serveur)
+          const { data: creditedBalance, error: creditError } = await supabase.rpc('increment_balance', {
+            user_id: recipientProfile.id,
+            amount: netAmount
           })
 
           if (creditError) {
-            console.error('❌ Erreur crédit destinataire:', creditError)
+            console.error('❌ Erreur crédit destinataire (increment_balance):', creditError)
             throw new Error('Erreur lors du crédit du destinataire')
           }
 

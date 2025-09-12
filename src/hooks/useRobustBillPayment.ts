@@ -154,6 +154,19 @@ export const useRobustBillPayment = () => {
 
               if (creditError) {
                 console.error('❌ Erreur crédit:', creditError);
+                // Rembourser le débit précédent pour sécuriser les fonds de l'utilisateur
+                await supabase.rpc('secure_increment_balance', {
+                  target_user_id: user.id,
+                  amount: paymentData.amount,
+                  operation_type: 'refund',
+                  performed_by: user.id
+                });
+                toast({
+                  title: "Crédit destinataire impossible",
+                  description: "Le destinataire n'a pas pu être crédité. Vous avez été remboursé.",
+                  variant: "destructive"
+                });
+                return { success: false };
               } else {
                 console.log('✅ Crédit réussi:', netAmount, 'XAF');
                 
