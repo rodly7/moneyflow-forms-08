@@ -59,7 +59,7 @@ export const useRobustBillPayment = () => {
       // Tentative 1: Utiliser l'Edge Function si possible
       try {
         const { data, error } = await supabase.functions.invoke('process-bill-payment', {
-          body: requestBody,
+          body: JSON.stringify(requestBody),
           headers: {
             'Content-Type': 'application/json',
           }

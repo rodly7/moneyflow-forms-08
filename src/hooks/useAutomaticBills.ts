@@ -154,7 +154,7 @@ export const useAutomaticBills = () => {
 
       // Appeler l'Edge Function avec la même méthode que le paiement manuel
       const { data, error } = await supabase.functions.invoke('process-bill-payment', {
-        body: paymentData,
+        body: JSON.stringify(paymentData),
         headers: {
           'Content-Type': 'application/json',
         }
