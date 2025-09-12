@@ -191,11 +191,14 @@ export const useAutomaticBills = () => {
           description: `Facture ${bill.bill_name} payée avec succès (${bill.amount.toLocaleString()} FCFA)`,
         });
         
-        // Actualiser les données
+        // Actualiser les données et déclencher une actualisation des transactions
         await Promise.all([
           fetchBills(),
           fetchPaymentHistory()
         ]);
+        
+        // Déclencher un événement personnalisé pour actualiser les transactions
+        window.dispatchEvent(new CustomEvent('transactionUpdate'));
         
         return { success: true };
       }
@@ -209,11 +212,14 @@ export const useAutomaticBills = () => {
           variant: "default"
         });
         
-        // Actualiser les données
+        // Actualiser les données et déclencher une actualisation des transactions
         await Promise.all([
           fetchBills(),
           fetchPaymentHistory()
         ]);
+        
+        // Déclencher un événement personnalisé pour actualiser les transactions
+        window.dispatchEvent(new CustomEvent('transactionUpdate'));
       } else {
         toast({
           title: "Paiement échoué",

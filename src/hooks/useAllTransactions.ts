@@ -228,8 +228,8 @@ export const useAllTransactions = (userId?: string) => {
         }
       }
 
-      // 5. Récupérer les paiements de factures (DÉBIT)
-      console.log("📄 Récupération des paiements de factures...");
+      // 5. Récupérer les paiements de factures automatiques (DÉBIT)
+      console.log("📄 Récupération des paiements de factures automatiques...");
       const { data: billPaymentsData, error: billPaymentsError } = await supabase
         .from('bill_payment_history')
         .select('*')
@@ -246,7 +246,7 @@ export const useAllTransactions = (userId?: string) => {
             type: 'bill_payment',
             amount: payment.amount || 0,
             date: new Date(payment.created_at || payment.payment_date),
-            description: `Paiement de facture effectué`,
+            description: `Paiement de facture`,
             currency: 'XAF',
             status: payment.status || 'completed',
             created_at: payment.created_at || payment.payment_date,
@@ -256,6 +256,7 @@ export const useAllTransactions = (userId?: string) => {
           });
         });
       }
+
 
       // 6. Récupérer les transferts en attente (DÉBIT)
       console.log("⏳ Récupération des transferts en attente...");
@@ -359,6 +360,16 @@ export const useAllTransactions = (userId?: string) => {
       setLoading(false);
       setTransactions([]);
     }
+
+    // Écouter les mises à jour de transactions
+    const handleTransactionUpdate = () => {
+      if (userId) {
+        fetchAllTransactions();
+      }
+    };
+
+    window.addEventListener('transactionUpdate', handleTransactionUpdate);
+    return () => window.removeEventListener('transactionUpdate', handleTransactionUpdate);
   }, [userId]);
 
   return {
