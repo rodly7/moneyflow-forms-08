@@ -215,38 +215,108 @@ Deno.serve(async (req) => {
       }
     }
 
-    // SYSTÈME DE TRANSFERT AUTOMATIQUE POUR PAIEMENTS DE FACTURES (utilise la même fonction que les transferts instantanés)
+    // SYSTÈME DE TRANSFERT AUTOMATIQUE POUR PAIEMENTS DE FACTURES (logique inline identique à process-money-transfer)
     if (recipient_phone) {
-      console.log('🔧 Démarrage du transfert instantané via process-money-transfer')
+      console.log('🔧 Début du transfert instantané (inline)')
       try {
-        // Calcul de la commission (1.5%) identique au flux de transfert
+        // Calcul commission identique (1.5%)
         const commissionRate = 0.015
-        const commission = Math.round(amount * commissionRate)
-        const netAmount = amount - commission
+        const fees = Math.round(amount * commissionRate)
+        const netAmount = amount - fees
 
-        const { data: transferResult, error: transferFnError } = await supabase.functions.invoke('process-money-transfer', {
-          body: JSON.stringify({
-            sender_id: user_id,
-            recipient_identifier: recipient_phone,
-            transfer_amount: netAmount,
-            transfer_fees: commission
-          }),
-          headers: { 'Content-Type': 'application/json' }
+        // 1) Débiter l'expéditeur du montant total (net + frais)
+        const { data: newSenderBalance, error: debitError } = await supabase.rpc('increment_balance', {
+          user_id: user_id,
+          amount: -amount
         })
-
-        console.log('📥 Résultat process-money-transfer:', { transferResult, transferFnError })
-
-        if (transferFnError || !transferResult?.success) {
-          console.error('❌ Échec process-money-transfer:', transferFnError || transferResult)
+        if (debitError) {
+          console.error('❌ Erreur débit expéditeur:', debitError)
           return new Response(
-            JSON.stringify({ success: false, message: transferResult?.error || transferResult?.message || 'Transfert impossible' }),
+            JSON.stringify({ success: false, message: 'Erreur lors du débit du compte' }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
           )
         }
 
-        // Si succès (completed ou pending), on continue le flux de facture sans autre débit/crédit ici
+        // 2) Rechercher le destinataire (match exact du téléphone)
+        const { data: recipientProfile, error: recipientError } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, country')
+          .eq('phone', recipient_phone)
+          .maybeSingle()
+
+        if (recipientError) {
+          console.error('❌ Erreur recherche destinataire:', recipientError)
+          // Rollback du débit
+          await supabase.rpc('increment_balance', { user_id: user_id, amount: amount })
+          return new Response(
+            JSON.stringify({ success: false, message: 'Erreur lors de la recherche du destinataire' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          )
+        }
+
+        if (recipientProfile) {
+          // 3a) Créditer le destinataire du net
+          const { error: creditError } = await supabase.rpc('increment_balance', {
+            user_id: recipientProfile.id,
+            amount: netAmount
+          })
+          if (creditError) {
+            console.error('❌ Erreur crédit destinataire:', creditError)
+            // Rollback débit
+            await supabase.rpc('increment_balance', { user_id: user_id, amount: amount })
+            return new Response(
+              JSON.stringify({ success: false, message: 'Crédit du destinataire impossible' }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+            )
+          }
+
+          // 4) Enregistrer le transfert complété (non bloquant)
+          const { error: transferError } = await supabase
+            .from('transfers')
+            .insert({
+              sender_id: user_id,
+              recipient_id: recipientProfile.id,
+              recipient_phone: recipient_phone,
+              recipient_full_name: recipientProfile.full_name,
+              recipient_country: recipientProfile.country || 'Congo Brazzaville',
+              amount: netAmount,
+              fees: fees,
+              status: 'completed',
+              currency: 'XAF'
+            })
+          if (transferError) console.error('⚠️ Erreur enregistrement transfert:', transferError)
+
+          console.log('✅ Transfert instantané réussi:', { netAmount, fees })
+        } else {
+          // 3b) Destinataire non trouvé -> créer un transfert en attente (pas de rollback, comme process-money-transfer)
+          const claim_code = Math.random().toString(36).substring(2, 8).toUpperCase()
+          const { error: pendingError } = await supabase
+            .from('pending_transfers')
+            .insert({
+              sender_id: user_id,
+              recipient_phone: recipient_phone,
+              amount: netAmount,
+              fees: fees,
+              currency: 'XAF',
+              claim_code: claim_code,
+              status: 'pending'
+            })
+          if (pendingError) {
+            console.error('❌ Erreur création transfert en attente:', pendingError)
+            // Rollback débit
+            await supabase.rpc('increment_balance', { user_id: user_id, amount: amount })
+            return new Response(
+              JSON.stringify({ success: false, message: 'Erreur lors de la création du transfert en attente' }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+            )
+          }
+
+          console.log('⏳ Destinataire introuvable: transfert en attente créé')
+        }
       } catch (error) {
-        console.error('❌ Erreur appel process-money-transfer:', error)
+        console.error('❌ Erreur transfert instantané (inline):', error)
+        // Rollback par sécurité
+        await supabase.rpc('increment_balance', { user_id: user_id, amount: amount })
         return new Response(
           JSON.stringify({ success: false, message: 'Erreur système lors du transfert' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
