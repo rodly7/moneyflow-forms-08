@@ -100,76 +100,31 @@ const QRPayment = () => {
       return;
     }
 
-    // Les frais seront calculés après vérification du destinataire
+    // Calcul des frais (1% pour transfert utilisateur → utilisateur)
+    const fees = Math.round(transferAmount * 0.01);
+    const totalWithFees = transferAmount + fees;
+
+    // Vérifier le solde
+    if (profile?.balance && profile.balance < totalWithFees) {
+      const feeDescription = ` (montant + frais: ${totalWithFees.toLocaleString()} FCFA)`;
+      
+      toast({
+        title: "Solde insuffisant",
+        description: `Votre solde est insuffisant pour effectuer ce paiement${feeDescription}`,
+        variant: "destructive"
+      });
+      return;
+    }
 
     setIsProcessingPayment(true);
 
     try {
       console.log('🔄 Début du paiement QR...');
       
-      // Vérifier que le destinataire existe (par id), puis fallback par téléphone
-      const { data: recipientById, error: recipientByIdError } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, country, role')
-        .eq('id', scannedUser.userId)
-        .maybeSingle();
+      // Utiliser directement l'ID du QR; la vérification par SELECT est bloquée par les RLS
+      const recipientId = scannedUser.userId;
+      const isRecipientMerchant = false; // Les QR marchands sont gérés par le flux marchand
 
-      let recipientProfile = recipientById as any;
-      if (!recipientProfile) {
-        const rawPhone = scannedUser.phone || '';
-        const normalized = rawPhone.replace(/\D/g, '');
-        const last8 = normalized.slice(-8);
-
-        // Essai 1: égalité stricte
-        const { data: byPhoneExact } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, country, role')
-          .eq('phone', rawPhone)
-          .maybeSingle();
-
-        if (byPhoneExact) {
-          recipientProfile = byPhoneExact as any;
-        } else {
-          // Essai 2: recherche partielle sur les 8 derniers chiffres
-          const { data: byPhoneList } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone, country, role')
-            .ilike('phone', `%${last8}`);
-
-          if (byPhoneList && byPhoneList.length > 0) {
-            recipientProfile = byPhoneList[0] as any;
-          }
-        }
-      }
-
-      if (!recipientProfile) {
-        console.error('❌ Destinataire non trouvé:', recipientByIdError);
-        throw new Error("Destinataire non trouvé");
-      }
-
-      console.log('✅ Destinataire vérifié:', recipientProfile);
-
-      // Calcul des frais selon le rôle du destinataire
-      const isRecipientMerchant = recipientProfile.role === 'merchant';
-      const fees = isRecipientMerchant ? 0 : Math.round(transferAmount * 0.01);
-      const totalWithFees = transferAmount + fees;
-
-      // Vérifier le solde
-      if (profile?.balance && profile.balance < totalWithFees) {
-        const feeDescription = !isRecipientMerchant 
-          ? ` (montant + frais: ${totalWithFees.toLocaleString()} FCFA)`
-          : `: ${totalWithFees.toLocaleString()} FCFA`;
-        
-        toast({
-          title: "Solde insuffisant",
-          description: `Votre solde est insuffisant pour effectuer ce paiement${feeDescription}`,
-          variant: "destructive"
-        });
-        setIsProcessingPayment(false);
-        return;
-      }
-
-      const recipientId = recipientProfile.id;
 
       // Débiter l'expéditeur
       console.log('💰 Débit expéditeur:', totalWithFees);
@@ -218,7 +173,7 @@ const QRPayment = () => {
             user_id: user.id,
             merchant_id: recipientId,
             amount: transferAmount,
-            business_name: recipientProfile.full_name,
+            business_name: scannedUser.fullName,
             description: 'Paiement QR',
             currency: 'XAF',
             status: 'completed'
