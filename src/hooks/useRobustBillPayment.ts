@@ -30,11 +30,16 @@ export const useRobustBillPayment = () => {
     setIsProcessing(true);
     
     try {
+      // Calculer le montant total avec frais de 1.5%
+      const feeRate = 0.015;
+      const fees = Math.round(paymentData.amount * feeRate);
+      const totalAmount = paymentData.amount + fees;
+      
       // Vérifier le solde d'abord
-      if (profile.balance < paymentData.amount) {
+      if (profile.balance < totalAmount) {
         toast({
           title: "Solde insuffisant",
-          description: `Votre solde (${profile.balance.toLocaleString()} FCFA) est insuffisant pour ce paiement (${paymentData.amount.toLocaleString()} FCFA)`,
+          description: `Votre solde (${profile.balance.toLocaleString()} FCFA) est insuffisant pour ce paiement (${totalAmount.toLocaleString()} FCFA)`,
           variant: "destructive"
         });
         return { success: false };
@@ -90,12 +95,12 @@ export const useRobustBillPayment = () => {
       if (!paymentSuccess) {
         console.log("🔄 Utilisation du système de fallback pour le paiement");
         
-        // Déduire du solde uniquement si aucun transfert instantané n'est demandé
+        // Déduire du solde (montant + frais)
         if (!paymentData.recipientPhone) {
           const { error: balanceError } = await supabase
             .rpc('secure_increment_balance', {
               target_user_id: user.id,
-              amount: -paymentData.amount,
+              amount: -totalAmount,
               operation_type: 'bill_payment',
               performed_by: user.id
             });
@@ -136,10 +141,22 @@ export const useRobustBillPayment = () => {
             if (recipientProfile) {
               console.log('✅ Destinataire trouvé:', recipientProfile.full_name);
               
+              // Débiter le montant total de l'expéditeur d'abord
+              const { error: debitError } = await supabase.rpc('secure_increment_balance', {
+                target_user_id: user.id,
+                amount: -totalAmount,
+                operation_type: 'bill_payment',
+                performed_by: user.id
+              });
+
+              if (debitError) {
+                console.error('❌ Erreur débit:', debitError);
+                throw new Error(`Erreur de débit: ${debitError.message}`);
+              }
+
               // Commission 1.5%
-              const commissionRate = 0.015;
-              const commission = Math.round(paymentData.amount * commissionRate);
-              const netAmount = paymentData.amount - commission;
+              const commission = fees;
+              const netAmount = paymentData.amount;
               
               console.log('💰 Transfert:', { montant: paymentData.amount, commission, net: netAmount });
               
@@ -156,7 +173,7 @@ export const useRobustBillPayment = () => {
                 // Rembourser le débit précédent pour sécuriser les fonds de l'utilisateur
                 await supabase.rpc('secure_increment_balance', {
                   target_user_id: user.id,
-                  amount: paymentData.amount,
+                  amount: totalAmount,
                   operation_type: 'refund',
                   performed_by: user.id
                 });
@@ -211,7 +228,7 @@ export const useRobustBillPayment = () => {
           // Rembourser si l'historique échoue
           await supabase.rpc('secure_increment_balance', {
             target_user_id: user.id,
-            amount: paymentData.amount,
+            amount: totalAmount,
             operation_type: 'refund',
             performed_by: user.id
           });

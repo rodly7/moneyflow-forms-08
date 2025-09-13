@@ -105,6 +105,13 @@ Deno.serve(async (req) => {
 
     console.log('Processing bill payment:', { user_id, amount, bill_type, provider, account_number })
 
+    // Calculer le montant total avec frais de 1.5%
+    const feeRate = 0.015;
+    const fees = Math.round(amount * feeRate);
+    const totalAmount = amount + fees;
+
+    console.log('Fee calculation:', { amount, fees, totalAmount })
+
     // Vérifier le solde de l'utilisateur
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -126,7 +133,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (profile.balance < amount) {
+    if (profile.balance < totalAmount) {
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -139,11 +146,11 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Débiter le compte uniquement si aucun transfert instantané n'est demandé
+    // Débiter le compte (montant + frais) uniquement si aucun transfert instantané n'est demandé
     if (!recipient_phone) {
       const { error: balanceError } = await supabase.rpc('secure_increment_balance', {
         target_user_id: user_id,
-        amount: -amount,
+        amount: -totalAmount,
         operation_type: 'bill_payment',
         performed_by: user_id
       })
@@ -179,7 +186,7 @@ Deno.serve(async (req) => {
         // Rollback balance update
         await supabase.rpc('secure_increment_balance', {
           target_user_id: user_id,
-          amount: amount,
+          amount: totalAmount,
           operation_type: 'refund',
           performed_by: user_id
         })
@@ -219,15 +226,10 @@ Deno.serve(async (req) => {
     if (recipient_phone) {
       console.log('🔧 Début du transfert instantané (inline)')
       try {
-        // Calcul commission identique (1.5%)
-        const commissionRate = 0.015
-        const fees = Math.round(amount * commissionRate)
-        const netAmount = amount - fees
-
-        // 1) Débiter l'expéditeur du montant total (net + frais)
+        // 1) Débiter l'expéditeur du montant total avec frais
         const { data: newSenderBalance, error: debitError } = await supabase.rpc('increment_balance', {
           user_id: user_id,
-          amount: -amount
+          amount: -totalAmount
         })
         if (debitError) {
           console.error('❌ Erreur débit expéditeur:', debitError)
@@ -247,7 +249,7 @@ Deno.serve(async (req) => {
         if (recipientError) {
           console.error('❌ Erreur recherche destinataire:', recipientError)
           // Rollback du débit
-          await supabase.rpc('increment_balance', { user_id: user_id, amount: amount })
+          await supabase.rpc('increment_balance', { user_id: user_id, amount: totalAmount })
           return new Response(
             JSON.stringify({ success: false, message: 'Erreur lors de la recherche du destinataire' }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -255,15 +257,15 @@ Deno.serve(async (req) => {
         }
 
         if (recipientProfile) {
-          // 3a) Créditer le destinataire du net
+          // 3a) Créditer le destinataire du montant original (sans frais)
           const { error: creditError } = await supabase.rpc('increment_balance', {
             user_id: recipientProfile.id,
-            amount: netAmount
+            amount: amount
           })
           if (creditError) {
             console.error('❌ Erreur crédit destinataire:', creditError)
             // Rollback débit
-            await supabase.rpc('increment_balance', { user_id: user_id, amount: amount })
+            await supabase.rpc('increment_balance', { user_id: user_id, amount: totalAmount })
             return new Response(
               JSON.stringify({ success: false, message: 'Crédit du destinataire impossible' }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -279,14 +281,14 @@ Deno.serve(async (req) => {
               recipient_phone: recipient_phone,
               recipient_full_name: recipientProfile.full_name,
               recipient_country: recipientProfile.country || 'Congo Brazzaville',
-              amount: netAmount,
+              amount: amount,
               fees: fees,
               status: 'completed',
               currency: 'XAF'
             })
           if (transferError) console.error('⚠️ Erreur enregistrement transfert:', transferError)
 
-          console.log('✅ Transfert instantané réussi:', { netAmount, fees })
+          console.log('✅ Transfert instantané réussi:', { amount, fees, totalAmount })
         } else {
           // 3b) Destinataire non trouvé -> créer un transfert en attente (pas de rollback, comme process-money-transfer)
           const claim_code = Math.random().toString(36).substring(2, 8).toUpperCase()
@@ -295,7 +297,7 @@ Deno.serve(async (req) => {
             .insert({
               sender_id: user_id,
               recipient_phone: recipient_phone,
-              amount: netAmount,
+              amount: amount,
               fees: fees,
               currency: 'XAF',
               claim_code: claim_code,
@@ -304,7 +306,7 @@ Deno.serve(async (req) => {
           if (pendingError) {
             console.error('❌ Erreur création transfert en attente:', pendingError)
             // Rollback débit
-            await supabase.rpc('increment_balance', { user_id: user_id, amount: amount })
+            await supabase.rpc('increment_balance', { user_id: user_id, amount: totalAmount })
             return new Response(
               JSON.stringify({ success: false, message: 'Erreur lors de la création du transfert en attente' }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
