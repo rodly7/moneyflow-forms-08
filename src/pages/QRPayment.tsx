@@ -100,47 +100,76 @@ const QRPayment = () => {
       return;
     }
 
-    // Calculer les frais - pas de frais si le destinataire est un marchand
-    const fees = isMerchant ? 0 : transferAmount * 0.01;
-    
-    // IMPORTANT: Les frais Sendflow ne sont JAMAIS payés par l'utilisateur
-    // Ils sont uniquement à la charge du marchand dans sa logique interne
-    let sendflowFee = 0; // Toujours 0 pour l'utilisateur qui paie
-    
-    const totalWithFees = transferAmount + fees; // Pas de sendflowFee pour l'utilisateur
-    
-    // Vérifier le solde
-    if (profile?.balance && profile.balance < totalWithFees) {
-      const feeDescription = !isMerchant 
-        ? ` (montant + frais: ${totalWithFees.toLocaleString()} FCFA)`
-        : `: ${totalWithFees.toLocaleString()} FCFA`;
-      
-      toast({
-        title: "Solde insuffisant",
-        description: `Votre solde est insuffisant pour effectuer ce paiement${feeDescription}`,
-        variant: "destructive"
-      });
-      return;
-    }
+    // Les frais seront calculés après vérification du destinataire
 
     setIsProcessingPayment(true);
 
     try {
       console.log('🔄 Début du paiement QR...');
       
-      // Vérifier que le destinataire existe
-      const { data: recipientProfile, error: recipientError } = await supabase
+      // Vérifier que le destinataire existe (par id), puis fallback par téléphone
+      const { data: recipientById, error: recipientByIdError } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, country')
+        .select('id, full_name, phone, country, role')
         .eq('id', scannedUser.userId)
-        .single();
+        .maybeSingle();
 
-      if (recipientError || !recipientProfile) {
-        console.error('❌ Destinataire non trouvé:', recipientError);
+      let recipientProfile = recipientById as any;
+      if (!recipientProfile) {
+        const rawPhone = scannedUser.phone || '';
+        const normalized = rawPhone.replace(/\D/g, '');
+        const last8 = normalized.slice(-8);
+
+        // Essai 1: égalité stricte
+        const { data: byPhoneExact } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, country, role')
+          .eq('phone', rawPhone)
+          .maybeSingle();
+
+        if (byPhoneExact) {
+          recipientProfile = byPhoneExact as any;
+        } else {
+          // Essai 2: recherche partielle sur les 8 derniers chiffres
+          const { data: byPhoneList } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone, country, role')
+            .ilike('phone', `%${last8}`);
+
+          if (byPhoneList && byPhoneList.length > 0) {
+            recipientProfile = byPhoneList[0] as any;
+          }
+        }
+      }
+
+      if (!recipientProfile) {
+        console.error('❌ Destinataire non trouvé:', recipientByIdError);
         throw new Error("Destinataire non trouvé");
       }
 
       console.log('✅ Destinataire vérifié:', recipientProfile);
+
+      // Calcul des frais selon le rôle du destinataire
+      const isRecipientMerchant = recipientProfile.role === 'merchant';
+      const fees = isRecipientMerchant ? 0 : Math.round(transferAmount * 0.01);
+      const totalWithFees = transferAmount + fees;
+
+      // Vérifier le solde
+      if (profile?.balance && profile.balance < totalWithFees) {
+        const feeDescription = !isRecipientMerchant 
+          ? ` (montant + frais: ${totalWithFees.toLocaleString()} FCFA)`
+          : `: ${totalWithFees.toLocaleString()} FCFA`;
+        
+        toast({
+          title: "Solde insuffisant",
+          description: `Votre solde est insuffisant pour effectuer ce paiement${feeDescription}`,
+          variant: "destructive"
+        });
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      const recipientId = recipientProfile.id;
 
       // Débiter l'expéditeur
       console.log('💰 Débit expéditeur:', totalWithFees);
@@ -161,7 +190,7 @@ const QRPayment = () => {
       console.log('💰 Crédit destinataire:', transferAmount);
       const { data: creditResult, error: creditError } = await supabase
         .rpc('increment_balance', {
-          user_id: scannedUser.userId,
+          user_id: recipientId,
           amount: transferAmount
         });
 
@@ -181,15 +210,15 @@ const QRPayment = () => {
       // Enregistrer la transaction selon le type de destinataire
       console.log('📝 Enregistrement de la transaction...');
       
-      if (isMerchant) {
+      if (isRecipientMerchant) {
         // Pour les marchands, enregistrer dans merchant_payments
         const { error: merchantPaymentError } = await supabase
           .from('merchant_payments')
           .insert({
             user_id: user.id,
-            merchant_id: scannedUser.userId,
+            merchant_id: recipientId,
             amount: transferAmount,
-            business_name: scannedUser.fullName,
+            business_name: recipientProfile.full_name,
             description: 'Paiement QR',
             currency: 'XAF',
             status: 'completed'
@@ -206,7 +235,7 @@ const QRPayment = () => {
           .from('transfers')
           .insert({
             sender_id: user.id,
-            recipient_id: scannedUser.userId,
+            recipient_id: recipientId,
             recipient_full_name: scannedUser.fullName,
             recipient_phone: scannedUser.phone,
             recipient_country: profile?.country || 'Congo Brazzaville',
@@ -223,13 +252,13 @@ const QRPayment = () => {
         }
       }
 
-      const feeMessage = !isMerchant && fees > 0 
+      const feeMessage = !isRecipientMerchant && fees > 0 
         ? ` (+ ${fees.toLocaleString()} FCFA de frais)`
         : '';
       
       toast({
         title: "Paiement effectué",
-        description: `${transferAmount.toLocaleString()} FCFA ${isMerchant ? 'payé au marchand' : 'envoyé à'} ${scannedUser.fullName}${feeMessage}`,
+        description: `${transferAmount.toLocaleString()} FCFA ${isRecipientMerchant ? 'payé au marchand' : 'envoyé à'} ${scannedUser.fullName}${feeMessage}`,
       });
       
       // Réinitialiser le formulaire

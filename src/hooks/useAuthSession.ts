@@ -45,9 +45,18 @@ export const useAuthSession = () => {
       // Nettoyer complètement la session
       await supabase.auth.signOut({ scope: 'local' });
       
-      // Forcer le nettoyage du localStorage
-      localStorage.removeItem('supabase.auth.token');
+      // Forcer le nettoyage du localStorage tout en préservant les notifications lues
+      const preserved: Record<string, string> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)!;
+        if (key && key.startsWith('readNotifications_')) {
+          const val = localStorage.getItem(key);
+          if (val !== null) preserved[key] = val;
+        }
+      }
       localStorage.clear();
+      Object.entries(preserved).forEach(([k, v]) => localStorage.setItem(k, v));
+      localStorage.removeItem('supabase.auth.token');
       
       // Déconnecter via le contexte
       await signOut();
