@@ -37,33 +37,22 @@ export const useUserSearch = () => {
         const userData = data[0];
         console.log("✅ Utilisateur trouvé via find_recipient:", userData);
         
-        // Récupérer le profil complet avec le rôle
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, balance, country, role')
-          .eq('id', userData.id)
-          .single();
+        // Récupérer le solde exact via RPC sans retoucher la table profiles (RLS-safe)
+        const { data: currentBalance, error: balanceError } = await supabase.rpc('increment_balance', {
+          user_id: userData.id,
+          amount: 0
+        });
         
-        if (profileError) {
-          console.error("Erreur lors de la récupération du profil:", profileError);
-        } else if (profileData) {
-          // Récupérer le solde exact via RPC
-          const { data: currentBalance, error: balanceError } = await supabase.rpc('increment_balance', {
-            user_id: profileData.id,
-            amount: 0
-          });
-          
-          const actualBalance = balanceError ? Number(profileData.balance) || 0 : Number(currentBalance) || 0;
-          
-          return {
-            id: profileData.id,
-            full_name: profileData.full_name || "Utilisateur",
-            phone: profileData.phone,
-            balance: actualBalance,
-            country: profileData.country,
-            role: profileData.role
-          };
-        }
+        const actualBalance = balanceError ? 0 : Number(currentBalance) || 0;
+        
+        return {
+          id: userData.id,
+          full_name: userData.full_name || "Utilisateur",
+          phone: userData.phone,
+          balance: actualBalance,
+          country: userData.country,
+          role: userData.role
+        };
       }
 
       // Si find_recipient ne trouve rien, essayer une recherche directe plus flexible
