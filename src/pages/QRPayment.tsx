@@ -100,13 +100,20 @@ const QRPayment = () => {
       return;
     }
 
-    // Calcul des frais (1% pour transfert utilisateur → utilisateur)
-    const fees = Math.round(transferAmount * 0.01);
-    const totalWithFees = transferAmount + fees;
-
+    // Calculer les frais - pas de frais si le destinataire est un marchand
+    const fees = isMerchant ? 0 : transferAmount * 0.01;
+    
+    // IMPORTANT: Les frais Sendflow ne sont JAMAIS payés par l'utilisateur
+    // Ils sont uniquement à la charge du marchand dans sa logique interne
+    let sendflowFee = 0; // Toujours 0 pour l'utilisateur qui paie
+    
+    const totalWithFees = transferAmount + fees; // Pas de sendflowFee pour l'utilisateur
+    
     // Vérifier le solde
     if (profile?.balance && profile.balance < totalWithFees) {
-      const feeDescription = ` (montant + frais: ${totalWithFees.toLocaleString()} FCFA)`;
+      const feeDescription = !isMerchant 
+        ? ` (montant + frais: ${totalWithFees.toLocaleString()} FCFA)`
+        : `: ${totalWithFees.toLocaleString()} FCFA`;
       
       toast({
         title: "Solde insuffisant",
@@ -121,10 +128,19 @@ const QRPayment = () => {
     try {
       console.log('🔄 Début du paiement QR...');
       
-      // Utiliser directement l'ID du QR; la vérification par SELECT est bloquée par les RLS
-      const recipientId = scannedUser.userId;
-      const isRecipientMerchant = false; // Les QR marchands sont gérés par le flux marchand
+      // Vérifier que le destinataire existe
+      const { data: recipientProfile, error: recipientError } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, country')
+        .eq('id', scannedUser.userId)
+        .single();
 
+      if (recipientError || !recipientProfile) {
+        console.error('❌ Destinataire non trouvé:', recipientError);
+        throw new Error("Destinataire non trouvé");
+      }
+
+      console.log('✅ Destinataire vérifié:', recipientProfile);
 
       // Débiter l'expéditeur
       console.log('💰 Débit expéditeur:', totalWithFees);
@@ -145,7 +161,7 @@ const QRPayment = () => {
       console.log('💰 Crédit destinataire:', transferAmount);
       const { data: creditResult, error: creditError } = await supabase
         .rpc('increment_balance', {
-          user_id: recipientId,
+          user_id: scannedUser.userId,
           amount: transferAmount
         });
 
@@ -165,13 +181,13 @@ const QRPayment = () => {
       // Enregistrer la transaction selon le type de destinataire
       console.log('📝 Enregistrement de la transaction...');
       
-      if (isRecipientMerchant) {
+      if (isMerchant) {
         // Pour les marchands, enregistrer dans merchant_payments
         const { error: merchantPaymentError } = await supabase
           .from('merchant_payments')
           .insert({
             user_id: user.id,
-            merchant_id: recipientId,
+            merchant_id: scannedUser.userId,
             amount: transferAmount,
             business_name: scannedUser.fullName,
             description: 'Paiement QR',
@@ -190,7 +206,7 @@ const QRPayment = () => {
           .from('transfers')
           .insert({
             sender_id: user.id,
-            recipient_id: recipientId,
+            recipient_id: scannedUser.userId,
             recipient_full_name: scannedUser.fullName,
             recipient_phone: scannedUser.phone,
             recipient_country: profile?.country || 'Congo Brazzaville',
@@ -207,13 +223,13 @@ const QRPayment = () => {
         }
       }
 
-      const feeMessage = !isRecipientMerchant && fees > 0 
+      const feeMessage = !isMerchant && fees > 0 
         ? ` (+ ${fees.toLocaleString()} FCFA de frais)`
         : '';
       
       toast({
         title: "Paiement effectué",
-        description: `${transferAmount.toLocaleString()} FCFA ${isRecipientMerchant ? 'payé au marchand' : 'envoyé à'} ${scannedUser.fullName}${feeMessage}`,
+        description: `${transferAmount.toLocaleString()} FCFA ${isMerchant ? 'payé au marchand' : 'envoyé à'} ${scannedUser.fullName}${feeMessage}`,
       });
       
       // Réinitialiser le formulaire

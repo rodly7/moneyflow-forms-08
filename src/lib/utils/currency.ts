@@ -38,9 +38,9 @@ export const calculateFee = (
   let moneyFlowCommission = 0;
 
   if (isNational) {
-    // National transfer: 1%
-    rate = 1;
-    fee = amount * 0.01;
+    // National transfer: 0.6%
+    rate = 0.6;
+    fee = amount * 0.006;
     moneyFlowCommission = fee; // All for SendFlow
   } else {
     // International transfer rates based on regions
