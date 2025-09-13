@@ -173,7 +173,7 @@ export const useUnifiedNotifications = () => {
         }
       });
 
-      // Ajouter les notifications de transferts reçus
+      // Ajouter les notifications de transferts reçus (seulement si non lues)
       transfers?.forEach(transfer => {
         const notificationId = `transfer_${transfer.id}`;
         
@@ -191,7 +191,7 @@ export const useUnifiedNotifications = () => {
         }
       });
 
-      // Ajouter les notifications de recharges
+      // Ajouter les notifications de recharges (seulement si non lues)
       recharges?.forEach(recharge => {
         const notificationId = `recharge_${recharge.id}`;
         
