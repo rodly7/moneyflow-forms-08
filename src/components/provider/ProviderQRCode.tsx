@@ -29,8 +29,8 @@ export const ProviderQRCode = () => {
     const ctx = canvas.getContext('2d');
     const img = new Image();
 
-    canvas.width = 300;
-    canvas.height = 300;
+    canvas.width = 400;
+    canvas.height = 400;
 
     img.onload = () => {
       if (ctx) {
@@ -80,12 +80,12 @@ export const ProviderQRCode = () => {
                   <QRCodeSVG
                     id="provider-qr-code"
                     value={generateQRData()}
-                    size={200}
+                    size={300}
                     level="M"
                     includeMargin={true}
                   />
                 ) : (
-                  <div className="w-[200px] h-[200px] bg-muted rounded-lg flex items-center justify-center">
+                  <div className="w-[300px] h-[300px] bg-muted rounded-lg flex items-center justify-center">
                     <QrCode className="h-12 w-12 text-muted-foreground" />
                   </div>
                 )}

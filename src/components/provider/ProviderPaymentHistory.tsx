@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Receipt, Eye, User, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Receipt, Eye, User, Clock, CheckCircle, XCircle, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/utils/currency';
@@ -21,6 +22,9 @@ interface BillPayment {
   status: string;
   created_at: string;
   user_id: string;
+  bill_type?: string;
+  account_number?: string;
+  company?: string;
   profiles?: {
     full_name: string;
     phone: string;
@@ -79,6 +83,9 @@ export const ProviderPaymentHistory = () => {
           status: payment.status,
           created_at: payment.created_at,
           user_id: payment.user_id,
+          bill_type: 'Facture', // Valeur par défaut
+          account_number: 'N/A', // Valeur par défaut
+          company: 'Divers', // Valeur par défaut
           profiles: profile ? {
             full_name: profile.full_name,
             phone: profile.phone
@@ -134,6 +141,62 @@ export const ProviderPaymentHistory = () => {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const downloadPaymentPDF = (payment: BillPayment) => {
+    const doc = new jsPDF();
+    
+    // Titre
+    doc.setFontSize(20);
+    doc.text('Reçu de Paiement de Facture', 20, 30);
+    
+    // Ligne de séparation
+    doc.setLineWidth(0.5);
+    doc.line(20, 35, 190, 35);
+    
+    // Informations du paiement
+    doc.setFontSize(12);
+    doc.text('DÉTAILS DU PAIEMENT', 20, 50);
+    
+    doc.setFontSize(10);
+    doc.text(`ID de transaction: ${payment.id}`, 20, 65);
+    doc.text(`Date: ${new Date(payment.created_at).toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`, 20, 75);
+    
+    doc.text(`Montant reçu: ${formatCurrency(payment.amount, "XAF")}`, 20, 85);
+    doc.text(`Statut: ${payment.status === 'completed' ? 'Payé' : payment.status}`, 20, 95);
+    
+    // Informations du client
+    doc.setFontSize(12);
+    doc.text('INFORMATIONS DU CLIENT', 20, 115);
+    
+    doc.setFontSize(10);
+    doc.text(`Nom: ${payment.profiles?.full_name || 'Client inconnu'}`, 20, 130);
+    doc.text(`Téléphone: ${payment.profiles?.phone || 'N/A'}`, 20, 140);
+    
+    // Informations de la facture
+    if (payment.bill_type || payment.company || payment.account_number) {
+      doc.setFontSize(12);
+      doc.text('DÉTAILS DE LA FACTURE', 20, 160);
+      
+      doc.setFontSize(10);
+      if (payment.bill_type) doc.text(`Type: ${payment.bill_type}`, 20, 175);
+      if (payment.company) doc.text(`Compagnie: ${payment.company}`, 20, 185);
+      if (payment.account_number) doc.text(`Numéro de compte: ${payment.account_number}`, 20, 195);
+    }
+    
+    // Note
+    doc.setFontSize(8);
+    doc.text('Note: Ce montant est net après déduction de la commission SendFlow (1,5%)', 20, 250);
+    
+    // Télécharger
+    doc.save(`recu-paiement-${payment.id.slice(0, 8)}.pdf`);
   };
 
   if (loading) {
@@ -255,20 +318,58 @@ export const ProviderPaymentHistory = () => {
                             {payment.profiles?.phone || 'N/A'}
                           </div>
                         </div>
-                        <div>
-                          <label className="text-sm font-medium">Date et heure</label>
-                          <div>
-                            {new Date(payment.created_at).toLocaleDateString('fr-FR', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </div>
-                        </div>
-                      </div>
+                         <div>
+                           <label className="text-sm font-medium">Date et heure</label>
+                           <div>
+                             {new Date(payment.created_at).toLocaleDateString('fr-FR', {
+                               weekday: 'long',
+                               year: 'numeric',
+                               month: 'long',
+                               day: 'numeric',
+                               hour: '2-digit',
+                               minute: '2-digit'
+                             })}
+                           </div>
+                         </div>
+                         
+                         {/* Détails de la facture */}
+                         {(payment.bill_type || payment.company || payment.account_number) && (
+                           <div className="border-t pt-4">
+                             <label className="text-sm font-medium">Détails de la facture</label>
+                             <div className="space-y-1 mt-2">
+                               {payment.bill_type && (
+                                 <div className="text-sm">
+                                   <span className="text-muted-foreground">Type: </span>
+                                   {payment.bill_type}
+                                 </div>
+                               )}
+                               {payment.company && (
+                                 <div className="text-sm">
+                                   <span className="text-muted-foreground">Compagnie: </span>
+                                   {payment.company}
+                                 </div>
+                               )}
+                               {payment.account_number && (
+                                 <div className="text-sm">
+                                   <span className="text-muted-foreground">Numéro de compte: </span>
+                                   {payment.account_number}
+                                 </div>
+                               )}
+                             </div>
+                           </div>
+                         )}
+                         
+                         <div className="border-t pt-4">
+                           <Button 
+                             onClick={() => downloadPaymentPDF(payment)}
+                             variant="outline" 
+                             className="w-full"
+                           >
+                             <Download className="h-4 w-4 mr-2" />
+                             Télécharger le reçu PDF
+                           </Button>
+                         </div>
+                       </div>
                     </DialogContent>
                   </Dialog>
                 </div>
