@@ -89,8 +89,21 @@ function App() {
         
         // ULTRA-aggressive cache and service worker cleanup
         if ('localStorage' in window) {
+          // Preserve read notifications across cleanup
+          const preserved: Record<string, string> = {};
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)!;
+            if (key && key.startsWith('readNotifications_')) {
+              const val = localStorage.getItem(key);
+              if (val !== null) preserved[key] = val;
+            }
+          }
           localStorage.clear();
-          console.log('localStorage cleared');
+          // Restore preserved keys
+          Object.entries(preserved).forEach(([k, v]) => {
+            localStorage.setItem(k, v);
+          });
+          console.log('localStorage cleared (preserved read notifications)');
         }
         if ('sessionStorage' in window) {
           sessionStorage.clear();
