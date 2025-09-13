@@ -212,6 +212,7 @@ export const AutomaticBillForm: React.FC<AutomaticBillFormProps> = ({
                 showCountrySelector={false}
                 placeholder="Ex: 555-000-001"
                 required
+                verifyAgainstProfiles={false}
               />
             )}
 

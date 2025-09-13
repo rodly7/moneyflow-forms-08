@@ -16,6 +16,7 @@ type UnifiedRecipientSearchProps = {
   showCountrySelector?: boolean;
   placeholder?: string;
   required?: boolean;
+  verifyAgainstProfiles?: boolean;
 };
 
 export const UnifiedRecipientSearch = ({
@@ -27,10 +28,12 @@ export const UnifiedRecipientSearch = ({
   label = "Numéro de téléphone du destinataire",
   showCountrySelector = true,
   placeholder,
-  required = false
+  required = false,
+  verifyAgainstProfiles = true
 }: UnifiedRecipientSearchProps) => {
   const { profile } = useAuth();
   const { searchUserByPhone, isSearching } = useUserSearch();
+  const searching = verifyAgainstProfiles ? isSearching : false;
   const [isVerified, setIsVerified] = useState(false);
   const [foundUserName, setFoundUserName] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -110,48 +113,44 @@ export const UnifiedRecipientSearch = ({
       return;
     }
 
-    try {
-      // Clean phone input and ensure no country code duplication
-      let cleanedPhoneInput = phoneInput.replace(/\D/g, '');
-      const countryCodeWithoutPlus = selectedCountryCode.replace('+', '');
-      
-      // Always remove country code if it exists in the input
-      if (cleanedPhoneInput.startsWith(countryCodeWithoutPlus)) {
-        cleanedPhoneInput = cleanedPhoneInput.substring(countryCodeWithoutPlus.length);
+    // Clean phone input and ensure no country code duplication
+    let cleanedPhoneInput = phoneInput.replace(/\D/g, '');
+    const countryCodeWithoutPlus = selectedCountryCode.replace('+', '');
+    
+    // Always remove country code if it exists in the input
+    if (cleanedPhoneInput.startsWith(countryCodeWithoutPlus)) {
+      cleanedPhoneInput = cleanedPhoneInput.substring(countryCodeWithoutPlus.length);
+    }
+    
+    // Construct full phone number with country code
+    const fullPhoneNumber = selectedCountryCode + cleanedPhoneInput;
+
+    // If we are not verifying against profiles (provider numbers), just pass it up
+    if (!verifyAgainstProfiles) {
+      if (onUserFound) {
+        onUserFound({
+          fullPhoneNumber,
+          full_name: "",
+          country: selectedCountry
+        });
       }
-      
-      // Construct full phone number with country code
-      const fullPhoneNumber = selectedCountryCode + cleanedPhoneInput;
-      
+      return;
+    }
+
+    try {
       console.log("🔍 Recherche du destinataire:", fullPhoneNumber);
-      
       const foundUser = await searchUserByPhone(fullPhoneNumber);
       
       if (foundUser) {
         console.log("✅ Utilisateur trouvé:", foundUser);
         setIsVerified(true);
         setFoundUserName(foundUser.full_name || "Utilisateur");
-        
-        // Notify parent component about found user
-        if (onUserFound) {
-          onUserFound({
-            ...foundUser,
-            fullPhoneNumber
-          });
-        }
+        onUserFound?.({ ...foundUser, fullPhoneNumber });
       } else {
         console.log("ℹ️ Aucun utilisateur trouvé");
         setIsVerified(false);
         setFoundUserName("");
-        
-        // Still notify parent with phone number for manual entry
-        if (onUserFound) {
-          onUserFound({
-            fullPhoneNumber,
-            full_name: "",
-            country: selectedCountry
-          });
-        }
+        onUserFound?.({ fullPhoneNumber, full_name: "", country: selectedCountry });
       }
     } catch (error) {
       console.error("❌ Erreur lors de la recherche:", error);
@@ -164,7 +163,6 @@ export const UnifiedRecipientSearch = ({
   const handleBlur = () => {
     setIsFocused(false);
     if (isPhoneComplete()) {
-      console.log("Numéro complet, déclenchement de la vérification");
       handlePhoneSearch();
     }
   };
@@ -208,17 +206,16 @@ export const UnifiedRecipientSearch = ({
 
   // Auto-search when phone number is complete
   useEffect(() => {
-    if (phoneInput.length >= 8 && selectedCountryCode) {
+    if (verifyAgainstProfiles && phoneInput.length >= 8 && selectedCountryCode) {
       const timeoutId = setTimeout(() => {
         handlePhoneSearch();
-      }, 1000); // Debounce for 1s to avoid too many calls
-      
+      }, 1000);
       return () => clearTimeout(timeoutId);
     } else {
       setIsVerified(false);
       setFoundUserName("");
     }
-  }, [phoneInput, selectedCountryCode]);
+  }, [phoneInput, selectedCountryCode, verifyAgainstProfiles]);
 
   return (
     <div className="space-y-4">
@@ -265,17 +262,17 @@ export const UnifiedRecipientSearch = ({
                 onFocus={() => setIsFocused(true)}
                 onBlur={handleBlur}
                 onKeyUp={handleKeyUp}
-                disabled={isSearching}
-                className={`h-12 ${isVerified ? "border-green-500 focus-visible:ring-green-500 pr-10" : "pr-10"}`}
+                disabled={searching}
+                className={`h-12 ${verifyAgainstProfiles && isVerified ? "border-green-500 focus-visible:ring-green-500 pr-10" : "pr-10"}`}
                 autoComplete="tel"
                 required={required}
               />
-              {isSearching && (
+              {verifyAgainstProfiles && searching && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                   <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                 </div>
               )}
-              {isVerified && !isSearching && (
+              {verifyAgainstProfiles && isVerified && !searching && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                   <Check className="w-4 h-4 text-green-500" />
                 </div>
@@ -285,13 +282,13 @@ export const UnifiedRecipientSearch = ({
           
           {/* Compact verification status */}
           <div className="min-h-[20px] form-message-zone">
-            {isVerified && foundUserName && (
+            {verifyAgainstProfiles && isVerified && foundUserName && (
               <div className="flex items-center text-sm text-green-600 animate-fade-in">
                 <User className="w-3.5 h-3.5 mr-1" />
                 <span>{foundUserName}</span>
               </div>
             )}
-            {phoneInput.length >= 8 && !isVerified && !isSearching && (
+            {verifyAgainstProfiles && phoneInput.length >= 8 && !isVerified && !searching && (
               <div className="text-sm text-amber-600">
                 ⚠️ Utilisateur non trouvé - Vérifiez le numéro
               </div>
