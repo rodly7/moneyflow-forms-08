@@ -2377,10 +2377,10 @@ export type Database = {
         Args: { search_term: string }
         Returns: {
           country: string
-          email: string
           full_name: string
           id: string
           phone: string
+          role: Database["public"]["Enums"]["user_role"]
         }[]
       }
       function_name: {
