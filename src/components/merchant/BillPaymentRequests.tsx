@@ -37,6 +37,8 @@ const BillPaymentRequests = () => {
   const [payments, setPayments] = useState<BillPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPayment, setSelectedPayment] = useState<BillPayment | null>(null);
+  const [totalReceived, setTotalReceived] = useState(0);
+  const [todayReceived, setTodayReceived] = useState(0);
 
   const fetchBillPayments = async () => {
     if (!profile?.id) return;
@@ -127,6 +129,23 @@ const BillPaymentRequests = () => {
       ];
 
       setPayments(allPayments);
+
+      // Calculer les totaux
+      const successfulPayments = allPayments.filter(p => 
+        p.status === 'completed' || p.status === 'success'
+      );
+      
+      const total = successfulPayments.reduce((sum, payment) => sum + payment.amount, 0);
+      setTotalReceived(total);
+
+      // Calculer le total d'aujourd'hui
+      const today = new Date().toDateString();
+      const todayPayments = successfulPayments.filter(payment => 
+        new Date(payment.created_at).toDateString() === today
+      );
+      const todayTotal = todayPayments.reduce((sum, payment) => sum + payment.amount, 0);
+      setTodayReceived(todayTotal);
+
     } catch (error) {
       console.error('Erreur:', error);
       toast.error('Erreur lors du chargement');
@@ -220,6 +239,21 @@ const BillPaymentRequests = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Résumé des montants reçus */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+          <div className="text-center">
+            <p className="text-sm font-medium text-green-700 mb-1">Argent reçu aujourd'hui</p>
+            <p className="text-2xl font-bold text-green-800">
+              {todayReceived.toLocaleString()} FCFA
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-green-700 mb-1">Total argent reçu</p>
+            <p className="text-2xl font-bold text-green-800">
+              {totalReceived.toLocaleString()} FCFA
+            </p>
+          </div>
+        </div>
         {payments.length === 0 ? (
           <div className="text-center py-8">
             <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-4" />
