@@ -54,6 +54,12 @@ export const ProviderPaymentHistory = () => {
         .order('created_at', { ascending: false })
         .limit(50);
 
+      console.log('📥 Paiements marchands chargés:', {
+        merchantId: user.id,
+        count: merchantPayments?.length || 0,
+        error: mpError?.message,
+      });
+
       if (mpError) {
         console.error('Erreur lors du chargement des paiements marchands:', mpError);
         return;
@@ -118,6 +124,7 @@ export const ProviderPaymentHistory = () => {
           event: '*',
           schema: 'public',
           table: 'merchant_payments',
+          filter: `merchant_id=eq.${user.id}`,
         },
         (payload) => {
           const eventType = (payload as any).eventType;
