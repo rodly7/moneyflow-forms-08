@@ -26,6 +26,7 @@ export const UniversalQRScanner: React.FC<UniversalQRScannerProps> = ({
   const [hasFlashlight, setHasFlashlight] = useState(false);
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const startCamera = useCallback(async () => {
     if (!videoRef.current) return;
@@ -145,6 +146,48 @@ export const UniversalQRScanner: React.FC<UniversalQRScannerProps> = ({
       console.error('Erreur flashlight:', err);
     }
   }, [hasFlashlight, isFlashlightOn]);
+
+  // Fallback: décoder un QR depuis une photo (utile si l'accès caméra est bloqué)
+  const handlePickImage = () => fileInputRef.current?.click();
+
+  const handleImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = async () => {
+        try {
+          const localReader = new BrowserMultiFormatReader();
+          const result: any = await (localReader as any).decodeFromImage(img as any);
+          const qrData = result?.getText ? result.getText() : String(result?.text || '');
+          try {
+            const parsed = JSON.parse(qrData);
+            onScanSuccess(parsed);
+            stopCamera();
+            onClose();
+          } catch {
+            onScanSuccess({ raw: qrData });
+            stopCamera();
+            onClose();
+          }
+        } catch (err) {
+          console.error('Erreur lecture image QR:', err);
+          setError("Impossible de lire le QR depuis la photo");
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        setError('Image invalide');
+      };
+      img.src = url;
+    } catch (err) {
+      console.error('Erreur chargement photo:', err);
+      setError('Erreur lors du chargement de la photo');
+    }
+  };
 
   useEffect(() => {
     if (isOpen && !isScanning) {

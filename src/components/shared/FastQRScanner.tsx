@@ -27,6 +27,7 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
   const [hasFlashlight, setHasFlashlight] = useState(false);
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const startCamera = useCallback(async () => {
     if (!videoRef.current) return;
@@ -157,6 +158,53 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
     }
   }, [hasFlashlight, isFlashlightOn]);
 
+  // Fallback: décoder un QR depuis une photo (utile si l'accès caméra est bloqué)
+  const handlePickImage = () => fileInputRef.current?.click();
+
+  const handleImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = async () => {
+        try {
+          const localReader = new BrowserMultiFormatReader();
+          const result: any = await (localReader as any).decodeFromImage(img as any);
+          const qrData = result?.getText ? result.getText() : String(result?.text || '');
+          try {
+            const parsed = JSON.parse(qrData);
+            const userData = {
+              userId: parsed.userId,
+              fullName: parsed.fullName || parsed.name || 'Utilisateur',
+              phone: parsed.phone || ''
+            };
+            onScanSuccess(userData);
+            stopCamera();
+            onClose();
+          } catch {
+            onScanSuccess({ userId: 'scan-img-' + Date.now(), fullName: 'Utilisateur', phone: qrData });
+            stopCamera();
+            onClose();
+          }
+        } catch (err) {
+          console.error('Erreur lecture image QR:', err);
+          setError("Impossible de lire le QR depuis la photo");
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        setError('Image invalide');
+      };
+      img.src = url;
+    } catch (err) {
+      console.error('Erreur chargement photo:', err);
+      setError('Erreur lors du chargement de la photo');
+    }
+  };
+
   useEffect(() => {
     if (isOpen && !isScanning) {
       const timer = setTimeout(startCamera, 100);
@@ -203,13 +251,30 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
             {error ? (
               <div className="text-center py-6">
                 <p className="text-red-500 text-sm mb-4">{error}</p>
-                <Button 
-                  onClick={startCamera} 
-                  className={`${buttonClass} bg-blue-500 hover:bg-blue-600`}
-                >
-                  <Camera className="h-4 w-4 mr-2" />
-                  Réessayer
-                </Button>
+                <div className="flex items-center justify-center gap-2">
+                  <Button 
+                    onClick={startCamera} 
+                    className={`${buttonClass} bg-blue-500 hover:bg-blue-600`}
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Activer la caméra
+                  </Button>
+                  <Button 
+                    onClick={handlePickImage} 
+                    variant="outline"
+                    className={`${buttonClass}`}
+                  >
+                    Importer une photo
+                  </Button>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleImageSelected}
+                />
               </div>
             ) : (
               <div className="relative">
