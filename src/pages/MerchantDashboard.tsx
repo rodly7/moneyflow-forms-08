@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import MerchantPersonalQR from '@/components/merchant/MerchantPersonalQR';
 import BillPaymentRequests from '@/components/merchant/BillPaymentRequests';
-import MerchantBillStats from '@/components/merchant/MerchantBillStats';
+
 import LogoutButton from '@/components/auth/LogoutButton';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -252,8 +252,6 @@ const MerchantDashboard = () => {
         </Card>
 
 
-        {/* Statistiques des paiements de factures */}
-        <MerchantBillStats />
 
         {/* QR Code Personnel */}
         <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 max-w-md mx-auto">
