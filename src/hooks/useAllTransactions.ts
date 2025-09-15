@@ -198,13 +198,13 @@ export const useAllTransactions = (userId?: string) => {
         .single();
 
       if (userProfile?.phone) {
-        // Récupérer tous les transferts reçus
+        // Récupérer tous les transferts reçus (par id OU téléphone)
         const { data: receivedTransfersData, error: receivedTransfersError } = await supabase
           .from('transfers')
           .select('*')
-          .eq('recipient_phone', userProfile.phone)
-          .eq('status', 'completed') // Seulement les transferts complétés
-          .neq('sender_id', userId) // Éviter les doublons avec les transferts envoyés
+          .or(`recipient_id.eq.${userId},recipient_phone.eq.${userProfile.phone}`)
+          .eq('status', 'completed')
+          .neq('sender_id', userId)
           .order('created_at', { ascending: false });
 
         if (receivedTransfersError) {
@@ -212,13 +212,12 @@ export const useAllTransactions = (userId?: string) => {
         } else if (receivedTransfersData && receivedTransfersData.length > 0) {
           console.log("✅ Transferts reçus trouvés:", receivedTransfersData.length);
           
-          // Récupérer les informations des expéditeurs
+          // Récupérer les informations des expéditeurs (si disponible via RLS sinon fallback)
           const senderIds = [...new Set(receivedTransfersData.map(t => t.sender_id))];
           const { data: sendersData } = await supabase
             .from('profiles')
             .select('id, full_name, phone')
             .in('id', senderIds);
-
           const sendersMap = new Map(sendersData?.map(s => [s.id, s]) || []);
 
           receivedTransfersData.forEach(transfer => {
