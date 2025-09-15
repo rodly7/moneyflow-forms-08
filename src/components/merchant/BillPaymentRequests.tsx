@@ -83,6 +83,7 @@ const BillPaymentRequests = () => {
         console.error('Erreur lors de la récupération des factures:', billError);
       }
 
+
       // Récupérer les profils des utilisateurs
       const userIds = [
         ...(merchantPayments || []).map(p => p.user_id),
@@ -210,18 +211,19 @@ const BillPaymentRequests = () => {
     }
   };
 
-  const getBillTypeLabel = (billType: string) => {
-    const types: Record<string, string> = {
-      'payment_merchant': 'Paiement par scanner',
-      'electricity': 'Électricité',
-      'water': 'Eau',
-      'internet': 'Internet',
-      'phone': 'Téléphone',
-      'tv': 'Télévision',
-      'insurance': 'Assurance',
-    };
-    return types[billType] || billType;
-  };
+      const getBillTypeLabel = (billType: string) => {
+        const types: Record<string, string> = {
+          'payment_merchant': 'Paiement par scanner',
+          'retrait': 'Retrait d\'espèces',
+          'electricity': 'Électricité',
+          'water': 'Eau',
+          'internet': 'Internet',
+          'phone': 'Téléphone',
+          'tv': 'Télévision',
+          'insurance': 'Assurance',
+        };
+        return types[billType] || billType;
+      };
 
   if (loading) {
     return (
