@@ -18,12 +18,21 @@ interface Notification {
   read_at: string | null;
 }
 
+interface WithdrawalItem {
+  id: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  role: 'client' | 'agent';
+}
+
 const Notifications = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [recentWithdrawals, setRecentWithdrawals] = useState<WithdrawalItem[]>([]);
   const { 
     notifications: unifiedNotifications, 
     markAsRead: markUnifiedAsRead,
@@ -79,6 +88,64 @@ const Notifications = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchRecentWithdrawals = async () => {
+    if (!user?.id) return;
+    try {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: clientWithdrawals, error: clientError } = await supabase
+        .from('withdrawals')
+        .select('id, amount, status, created_at')
+        .eq('user_id', user.id)
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      let agentWithdrawals: any[] = [];
+      let agentError: any = null;
+      if (profile?.role === 'agent') {
+        const { data, error } = await supabase
+          .from('withdrawals')
+          .select('id, amount, status, created_at')
+          .eq('agent_id', user.id)
+          .gte('created_at', since)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        agentWithdrawals = data || [];
+        agentError = error;
+      }
+
+      if (clientError) {
+        console.error('Erreur chargement retraits client:', clientError);
+      }
+      if (agentError) {
+        console.error('Erreur chargement retraits agent:', agentError);
+      }
+
+      const mapped: WithdrawalItem[] = [
+        ...(clientWithdrawals || []).map((w: any) => ({
+          id: `withdrawal_${w.id}`,
+          amount: Number(w.amount) || 0,
+          status: w.status,
+          created_at: w.created_at,
+          role: 'client' as const,
+        })),
+        ...agentWithdrawals.map((w: any) => ({
+          id: `agent_withdrawal_${w.id}`,
+          amount: Number(w.amount) || 0,
+          status: w.status,
+          created_at: w.created_at,
+          role: 'agent' as const,
+        })),
+      ]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 10);
+
+      setRecentWithdrawals(mapped);
+    } catch (e) {
+      console.error('Erreur chargement retraits récents:', e);
     }
   };
 
@@ -181,6 +248,7 @@ const Notifications = () => {
 
   useEffect(() => {
     fetchNotifications();
+    fetchRecentWithdrawals();
   }, [user, profile]);
 
   const handleBack = () => {
@@ -328,6 +396,46 @@ const Notifications = () => {
                 <Bell className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300" />
                 <h3 className="text-base sm:text-lg font-medium text-gray-500 mb-2">Aucune activité récente</h3>
                 <p className="text-xs sm:text-sm text-gray-400">Vos retraits, recharges et transferts apparaîtront ici</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Retraits récents */}
+        <Card className="mt-4 sm:mt-6 bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+              <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+              Retraits récents (30 jours)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            {recentWithdrawals.length > 0 ? (
+              <div className="space-y-3 sm:space-y-4">
+                {recentWithdrawals.map((w) => (
+                  <div key={w.id} className="flex items-start gap-3 p-3 rounded-md border border-purple-100">
+                    <div className="text-lg">💸</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-medium text-sm sm:text-base text-gray-800 break-words">
+                          {w.amount.toLocaleString('fr-FR')} XAF • {w.status === 'completed' ? 'Confirmé' : w.status === 'pending' ? 'En attente' : w.status}
+                        </h4>
+                        <span className="text-[10px] sm:text-xs text-gray-500 px-2 py-0.5 rounded-full border">
+                          {w.role === 'agent' ? 'Agent' : 'Client'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {new Date(w.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Bell className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-base sm:text-lg font-medium text-gray-500 mb-2">Aucun retrait récent</h3>
+                <p className="text-xs sm:text-sm text-gray-400">Vos retraits des 30 derniers jours s'afficheront ici</p>
               </div>
             )}
           </CardContent>
