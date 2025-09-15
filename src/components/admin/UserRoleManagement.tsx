@@ -38,7 +38,7 @@ const UserRoleManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState<string>('');
+  const [filterRole, setFilterRole] = useState<string>('all');
   const [updating, setUpdating] = useState<string | null>(null);
 
   const roleLabels = {
@@ -129,7 +129,7 @@ const UserRoleManagement = () => {
       user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.phone?.includes(searchTerm);
     
-    const matchesRole = filterRole === '' || user.role === filterRole;
+    const matchesRole = filterRole === '' || filterRole === 'all' || user.role === filterRole;
     
     return matchesSearch && matchesRole;
   });
@@ -179,7 +179,7 @@ const UserRoleManagement = () => {
                 <SelectValue placeholder="Filtrer par rôle" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous les rôles</SelectItem>
+                <SelectItem value="all">Tous les rôles</SelectItem>
                 <SelectItem value="user">Utilisateur</SelectItem>
                 <SelectItem value="agent">Agent</SelectItem>
                 <SelectItem value="merchant">Marchand</SelectItem>
