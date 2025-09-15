@@ -4,7 +4,7 @@ import { FastQRScanner } from '@/components/shared/FastQRScanner';
 interface PaymentQRScannerProps {
   isOpen: boolean;
   onClose: () => void;
-  onScanSuccess: (userData: { userId: string; fullName: string; phone: string }) => void;
+  onScanSuccess: (userData: { userId: string; fullName: string; phone: string; isMerchant?: boolean }) => void;
 }
 
 const PaymentQRScanner = ({ isOpen, onClose, onScanSuccess }: PaymentQRScannerProps) => {

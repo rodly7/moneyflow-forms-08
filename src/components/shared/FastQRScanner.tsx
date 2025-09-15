@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 interface FastQRScannerProps {
   isOpen: boolean;
   onClose: () => void;
-  onScanSuccess: (userData: { userId: string; fullName: string; phone: string }) => void;
+  onScanSuccess: (userData: { userId: string; fullName: string; phone: string; isMerchant?: boolean }) => void;
   title?: string;
   variant?: 'default' | 'compact';
 }
@@ -95,7 +95,14 @@ export const FastQRScanner: React.FC<FastQRScannerProps> = ({
           if (result) {
             try {
               const qrData = result.getText();
-              const userData = JSON.parse(qrData);
+              const parsed = JSON.parse(qrData);
+              
+              const userData = {
+                userId: parsed.userId,
+                fullName: parsed.fullName,
+                phone: parsed.phone,
+                isMerchant: Boolean(parsed.isMerchant || parsed.action === 'withdrawal' || parsed.type === 'merchant' || parsed.type === 'user_withdrawal')
+              };
               
               if (userData.userId && userData.fullName && userData.phone) {
                 onScanSuccess(userData);

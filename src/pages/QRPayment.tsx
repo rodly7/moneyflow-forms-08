@@ -47,6 +47,7 @@ const QRPayment = () => {
     userId: string;
     fullName: string;
     phone: string;
+    isMerchant?: boolean;
   } | null>(null);
   const [amount, setAmount] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -61,7 +62,7 @@ const QRPayment = () => {
     }
   }, [user, navigate]);
 
-  const handleScanSuccess = (userData: { userId: string; fullName: string; phone: string }) => {
+  const handleScanSuccess = (userData: { userId: string; fullName: string; phone: string; isMerchant?: boolean }) => {
     // Vérifier qu'on ne se paie pas soi-même
     if (userData.userId === user?.id) {
       toast({
@@ -149,8 +150,8 @@ const QRPayment = () => {
 
       console.log('✅ Destinataire vérifié:', recipientProfile);
 
-      // Calcul des frais selon le rôle du destinataire
-      const isRecipientMerchant = recipientProfile.role === 'merchant';
+      // Calcul des frais selon le type de destinataire (priorité au flag QR)
+      const isRecipientMerchant = Boolean(scannedUser?.isMerchant || recipientProfile.role === 'merchant');
       const fees = isRecipientMerchant ? 0 : Math.round(transferAmount * 0.01);
       const totalWithFees = transferAmount + fees;
 

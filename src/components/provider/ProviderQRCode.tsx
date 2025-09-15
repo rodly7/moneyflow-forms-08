@@ -15,7 +15,8 @@ export const ProviderQRCode = () => {
       fullName: profile?.full_name || 'Fournisseur',
       phone: profile?.phone || '',
       action: 'withdrawal',
-      type: 'user_profile', // Compatible avec les scanners existants
+      type: 'merchant', // Indique un paiement marchand
+      isMerchant: true,
       timestamp: Date.now()
     });
   };
