@@ -119,6 +119,20 @@ export const ProviderPaymentHistory = () => {
           filter: `merchant_id=eq.${user?.id}`
         },
         (payload) => {
+          console.log('Nouveau paiement reçu:', payload);
+          fetchPayments();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'merchant_payments',
+          filter: `merchant_id=eq.${user?.id}`
+        },
+        (payload) => {
+          console.log('Paiement mis à jour:', payload);
           fetchPayments();
         }
       )
