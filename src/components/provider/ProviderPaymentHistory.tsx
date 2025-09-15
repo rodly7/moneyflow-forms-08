@@ -120,12 +120,53 @@ export const ProviderPaymentHistory = () => {
           table: 'merchant_payments',
         },
         (payload) => {
+          const eventType = (payload as any).eventType;
           const newRow: any = (payload as any).new || {};
           const oldRow: any = (payload as any).old || {};
-          if (newRow.merchant_id === user.id || oldRow.merchant_id === user.id) {
-            console.log('🔔 Changement paiement marchand détecté:', (payload as any).eventType, payload);
-            fetchPayments();
+          const isForThisMerchant = newRow?.merchant_id === user.id || oldRow?.merchant_id === user.id;
+
+          if (!isForThisMerchant) return;
+
+          console.log('🔔 Changement paiement marchand détecté:', eventType, payload);
+
+          if (eventType === 'INSERT' && newRow) {
+            // Mise à jour optimiste immédiate
+            setPayments((prev) => {
+              if (prev.some((p) => p.id === newRow.id)) return prev; // déjà présent
+              const optimistic: BillPayment = {
+                id: newRow.id,
+                amount: Number(newRow.amount) || 0,
+                status: newRow.status,
+                created_at: newRow.created_at,
+                user_id: newRow.user_id,
+                bill_type: 'Facture',
+                account_number: 'N/A',
+                company: newRow.business_name || 'Divers',
+                profiles: undefined,
+              };
+              return [optimistic, ...prev].slice(0, 50);
+            });
+
+            // Charger le profil du payeur pour enrichir la ligne
+            supabase
+              .from('profiles')
+              .select('full_name, phone')
+              .eq('id', newRow.user_id)
+              .maybeSingle()
+              .then(({ data, error }) => {
+                if (data) {
+                  setPayments((prev) => prev.map((p) => (p.id === newRow.id ? { ...p, profiles: { full_name: data.full_name, phone: data.phone } } : p)));
+                }
+              });
+          } else if (eventType === 'UPDATE' && newRow) {
+            // Synchroniser statut/montant
+            setPayments((prev) =>
+              prev.map((p) => (p.id === newRow.id ? { ...p, amount: Number(newRow.amount) || p.amount, status: newRow.status } : p))
+            );
           }
+
+          // Sécurité: lancer un fetch pour aligner l'état si besoin
+          fetchPayments();
         }
       )
       .subscribe((status) => {
