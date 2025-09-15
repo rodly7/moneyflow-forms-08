@@ -352,24 +352,59 @@ export const useAllTransactions = (userId?: string) => {
   };
 
   useEffect(() => {
-    if (userId) {
-      console.log("🚀 DEBUG: Démarrage fetchAllTransactions pour userId:", userId);
-      fetchAllTransactions();
-    } else {
+    if (!userId) {
       console.log("⚠️ DEBUG: Pas de userId, arrêt du loading");
       setLoading(false);
       setTransactions([]);
+      return;
     }
 
-    // Écouter les mises à jour de transactions
+    console.log("🚀 DEBUG: Démarrage fetchAllTransactions pour userId:", userId);
+    fetchAllTransactions();
+
+    // Écouter les mises à jour déclenchées par l'app (ex: après une action réussie)
     const handleTransactionUpdate = () => {
-      if (userId) {
-        fetchAllTransactions();
-      }
+      fetchAllTransactions();
+    };
+    window.addEventListener('transactionUpdate', handleTransactionUpdate);
+
+    // Realtime: ré-actualiser automatiquement la liste quand une transaction change
+    const triggerRefetch = () => {
+      console.log('🔄 Realtime: mise à jour détectée, actualisation des transactions');
+      fetchAllTransactions();
     };
 
-    window.addEventListener('transactionUpdate', handleTransactionUpdate);
-    return () => window.removeEventListener('transactionUpdate', handleTransactionUpdate);
+    const channel = supabase.channel(`tx_${userId}`);
+    channel
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawals', filter: `user_id=eq.${userId}` }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recharges', filter: `user_id=eq.${userId}` }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pending_transfers', filter: `sender_id=eq.${userId}` }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transfers', filter: `sender_id=eq.${userId}` }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_payments', filter: `user_id=eq.${userId}` }, triggerRefetch)
+      .subscribe();
+
+    // Écouter aussi les transferts reçus par téléphone
+    let phoneChannel: any;
+    (async () => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profile?.phone) {
+        phoneChannel = supabase.channel(`tx_phone_${profile.phone}`);
+        phoneChannel
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'transfers', filter: `recipient_phone=eq.${profile.phone}` }, triggerRefetch)
+          .subscribe();
+      }
+    })();
+
+    return () => {
+      window.removeEventListener('transactionUpdate', handleTransactionUpdate);
+      if (phoneChannel) supabase.removeChannel(phoneChannel);
+      supabase.removeChannel(channel);
+    };
   }, [userId]);
 
   return {
