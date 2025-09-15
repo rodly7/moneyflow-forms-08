@@ -217,7 +217,7 @@ const MerchantDashboard = () => {
   }, [profile?.id]);
 
   return (
-    <div className="min-h-screen bg-background p-2 sm:p-4 mt-8">
+    <div className="min-h-screen bg-background p-2 sm:p-4">
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
         {/* Header avec notifications et déconnexion - Mobile optimized */}
         <div className="flex justify-between items-start sm:items-center mb-4 sm:mb-8">
