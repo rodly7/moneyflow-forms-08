@@ -157,6 +157,11 @@ const BillPaymentRequests = () => {
   useEffect(() => {
     fetchBillPayments();
 
+    // Rafraîchissement automatique toutes les 5 secondes
+    const refreshInterval = setInterval(() => {
+      fetchBillPayments();
+    }, 5000);
+
     // Écouter les nouveaux paiements en temps réel
     const merchantChannel = supabase
       .channel('merchant-bill-payments')
@@ -172,6 +177,7 @@ const BillPaymentRequests = () => {
       .subscribe();
 
     return () => {
+      clearInterval(refreshInterval);
       supabase.removeChannel(merchantChannel);
     };
   }, [profile?.id]);
