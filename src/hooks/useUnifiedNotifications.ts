@@ -137,7 +137,7 @@ export const useUnifiedNotifications = () => {
         console.error('Erreur chargement recharges:', rechargeError);
       }
 
-      // Charger les retraits récents
+      // Charger les retraits récents (où l'utilisateur est le client)
       const { data: withdrawals, error: withdrawalError } = await supabase
         .from('withdrawals')
         .select('*')
@@ -147,6 +147,18 @@ export const useUnifiedNotifications = () => {
 
       if (withdrawalError) {
         console.error('Erreur chargement retraits:', withdrawalError);
+      }
+
+      // Charger les retraits récents (où l'utilisateur est l'agent/merchant)
+      const { data: agentWithdrawals, error: agentWithdrawalError } = await (supabase as any)
+        .from('withdrawals')
+        .select('id, amount, status, created_at, agent_id, user_id')
+        .eq('agent_id', user.id)
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false });
+
+      if (agentWithdrawalError) {
+        console.error('Erreur chargement retraits agent:', agentWithdrawalError);
       }
 
       // Ajouter les notifications admin (seulement si non lues ET non marquées comme lues en BDD)
@@ -222,7 +234,7 @@ export const useUnifiedNotifications = () => {
         }
       });
 
-      // Ajouter les notifications de retraits
+      // Ajouter les notifications de retraits (client)
       withdrawals?.forEach(withdrawal => {
         const notificationId = `withdrawal_${withdrawal.id}`;
         
@@ -246,6 +258,36 @@ export const useUnifiedNotifications = () => {
               type: 'withdrawal_completed',
               priority: 'normal',
               amount: withdrawal.amount,
+              created_at: withdrawal.created_at,
+              read: false
+            });
+          }
+        }
+      });
+
+      // Ajouter les notifications de retraits (agent/merchant)
+      agentWithdrawals?.forEach((withdrawal: any) => {
+        const notificationId = `agent_withdrawal_${withdrawal.id}`;
+        if (!readIds.has(notificationId)) {
+          if (withdrawal.status === 'completed') {
+            allNotifications.push({
+              id: notificationId,
+              title: '💼 Retrait client confirmé',
+              message: `Retrait client de ${Number(withdrawal.amount || 0).toLocaleString('fr-FR')} FCFA effectué`,
+              type: 'withdrawal_completed',
+              priority: 'high',
+              amount: Number(withdrawal.amount) || 0,
+              created_at: withdrawal.created_at,
+              read: false
+            });
+          } else if (withdrawal.status === 'pending') {
+            allNotifications.push({
+              id: notificationId,
+              title: '⏳ Retrait client en attente',
+              message: `Retrait client de ${Number(withdrawal.amount || 0).toLocaleString('fr-FR')} FCFA en cours`,
+              type: 'withdrawal_completed',
+              priority: 'normal',
+              amount: Number(withdrawal.amount) || 0,
               created_at: withdrawal.created_at,
               read: false
             });
@@ -336,6 +378,52 @@ export const useUnifiedNotifications = () => {
           }
         } catch (error) {
           console.error('❌ Erreur traitement transfert:', error);
+        }
+      }
+    );
+
+    // Écouter les retraits effectués par l'agent (merchant)
+    channelRef.current.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'withdrawals',
+        filter: `agent_id=eq.${user.id}`
+      },
+      (payload: any) => {
+        try {
+          const row = payload.new as any;
+          if (!row) return;
+          const amt = Number(row.amount) || 0;
+          const baseNotification = {
+            id: `agent_withdrawal_${row.id}`,
+            type: 'withdrawal_completed' as const,
+            priority: 'high' as const,
+            amount: amt,
+            created_at: row.created_at,
+            read: false
+          };
+
+          if (row.status === 'completed') {
+            const notification: UnifiedNotification = {
+              ...baseNotification,
+              title: '💼 Retrait client confirmé',
+              message: `Retrait client de ${amt.toLocaleString('fr-FR')} FCFA effectué`
+            };
+            setNotifications(prev => [notification, ...prev.slice(0, 9)]);
+            showNotificationToast(notification);
+          } else if (row.status === 'pending') {
+            const notification: UnifiedNotification = {
+              ...baseNotification,
+              title: '⏳ Retrait client en attente',
+              message: `Retrait client de ${amt.toLocaleString('fr-FR')} FCFA en cours`
+            };
+            setNotifications(prev => [notification, ...prev.slice(0, 9)]);
+            showNotificationToast(notification);
+          }
+        } catch (e) {
+          console.error('❌ Erreur traitement retrait agent:', e);
         }
       }
     );
