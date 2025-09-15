@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,7 @@ const BillPaymentRequests = () => {
   const [selectedPayment, setSelectedPayment] = useState<BillPayment | null>(null);
   const [totalReceived, setTotalReceived] = useState(0);
   const [todayReceived, setTodayReceived] = useState(0);
+  const prevBalanceRef = useRef<number | null>(null);
 
   const fetchBillPayments = async () => {
     if (!profile?.id) return;
@@ -209,8 +210,26 @@ const BillPaymentRequests = () => {
       }, (payload) => {
         console.log('🔔 Nouveau retrait détecté:', payload);
         fetchBillPayments();
-        if (payload.new && payload.new.amount) {
-          toast.success(`💰 Retrait de ${payload.new.amount.toLocaleString()} FCFA effectué pour un client`);
+        if (payload.new && (payload.new as any).amount) {
+          const amt = Number((payload.new as any).amount) || 0;
+          toast.success(`💰 Retrait de ${amt.toLocaleString()} FCFA effectué pour un client`);
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'withdrawals',
+        filter: `agent_id=eq.${profile?.id}`
+      }, (payload) => {
+        try {
+          const newRow: any = payload.new;
+          if (newRow?.status === 'completed') {
+            const amt = Number(newRow.amount) || 0;
+            toast.success(`💰 Retrait confirmé: ${amt.toLocaleString()} FCFA`);
+            fetchBillPayments();
+          }
+        } catch (e) {
+          console.error('Erreur écoute retraits:', e);
         }
       })
       .subscribe();
@@ -221,6 +240,20 @@ const BillPaymentRequests = () => {
       supabase.removeChannel(withdrawalChannel);
     };
   }, [profile?.id]);
+
+  // Afficher une notification quand le solde est débité
+  useEffect(() => {
+    const current = (profile as any)?.balance;
+    if (typeof current === 'number' && prevBalanceRef.current !== null) {
+      const delta = current - prevBalanceRef.current;
+      if (delta < 0) {
+        toast.info(`💸 Retrait débité: ${Math.abs(delta).toLocaleString()} FCFA`);
+      }
+    }
+    if (typeof current === 'number') {
+      prevBalanceRef.current = current;
+    }
+  }, [profile?.balance]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
