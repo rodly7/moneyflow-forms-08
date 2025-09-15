@@ -221,14 +221,14 @@ const MerchantDashboard = () => {
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
         {/* Header avec notifications et déconnexion - Mobile optimized */}
         <div className="flex justify-between items-start sm:items-center mb-4 sm:mb-8">
-          <div className="flex-1">
+            <div className="flex-1">
             <div className="flex items-center justify-start sm:justify-center mb-2 sm:mb-4">
               <Store className="h-6 w-6 sm:h-8 sm:w-8 text-primary mr-2 sm:mr-3" />
-              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground">
+              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground mt-1 sm:mt-0">
                 Interface Commerciale
               </h1>
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground text-left sm:text-center">
+            <p className="text-xs sm:text-sm text-muted-foreground text-left sm:text-center mt-1 sm:mt-0">
               Tableau de bord pour gérer vos paiements
             </p>
           </div>
@@ -244,8 +244,8 @@ const MerchantDashboard = () => {
             <div className="flex items-center justify-center">
               <Wallet className="h-8 w-8 sm:h-10 sm:w-10 text-primary mr-3 sm:mr-4" />
               <div className="text-center">
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Mon Solde</p>
-                <p className="text-2xl sm:text-3xl font-bold text-primary">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1 sm:mt-0">Mon Solde</p>
+                <p className="text-2xl sm:text-3xl font-bold text-primary mt-1 sm:mt-0">
                   {profile?.balance?.toLocaleString() || 0} XAF
                 </p>
               </div>
@@ -276,17 +276,17 @@ const MerchantDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-600 font-medium">
-                    Montant: {sendflowDebt} FCFA
-                  </p>
-                   <p className="text-sm text-orange-500 mt-1">
-                     Payez votre commission quotidienne pour pouvoir effectuer des retraits
+                 <div>
+                   <p className="text-orange-600 font-medium mt-1 sm:mt-0">
+                     Montant: {sendflowDebt} FCFA
                    </p>
-                   <p className="text-xs text-orange-400 mt-1">
-                     Date: {new Date().toLocaleDateString('fr-FR')}
-                   </p>
-                </div>
+                    <p className="text-sm text-orange-500 mt-1">
+                      Payez votre commission quotidienne pour pouvoir effectuer des retraits
+                    </p>
+                    <p className="text-xs text-orange-400 mt-1">
+                      Date: {new Date().toLocaleDateString('fr-FR')}
+                    </p>
+                 </div>
                 <Button 
                   onClick={handlePaySendflow}
                   variant="default"
@@ -302,10 +302,10 @@ const MerchantDashboard = () => {
         {sendflowDebt === 0 && sendflowPaidToday && (
           <Card className="border-green-200 bg-green-50">
             <CardContent className="p-4">
-              <div className="flex items-center justify-center gap-2 text-green-700">
-                <Bell className="h-5 w-5" />
-                <span className="font-medium">Commission Sendflow payée aujourd'hui</span>
-              </div>
+               <div className="flex items-center justify-center gap-2 text-green-700">
+                 <Bell className="h-5 w-5" />
+                 <span className="font-medium mt-1 sm:mt-0">Commission Sendflow payée aujourd'hui</span>
+               </div>
             </CardContent>
           </Card>
         )}
@@ -313,10 +313,10 @@ const MerchantDashboard = () => {
         {sendflowDebt === 0 && !sendflowPaidToday && (
           <Card className="border-blue-200 bg-blue-50">
             <CardContent className="p-4">
-              <div className="flex items-center justify-center gap-2 text-blue-700">
-                <Bell className="h-5 w-5" />
-                <span className="font-medium">Aucune transaction aujourd'hui</span>
-              </div>
+               <div className="flex items-center justify-center gap-2 text-blue-700">
+                 <Bell className="h-5 w-5" />
+                 <span className="font-medium mt-1 sm:mt-0">Aucune transaction aujourd'hui</span>
+               </div>
             </CardContent>
           </Card>
         )}
