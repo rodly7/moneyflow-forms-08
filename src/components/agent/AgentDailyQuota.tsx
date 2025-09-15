@@ -64,7 +64,10 @@ const AgentDailyQuota: React.FC = () => {
   const quotaPercentage = Math.min((totalVolume / DAILY_QUOTA_LIMIT) * 100, 100);
   const isQuotaReached = totalVolume >= DAILY_QUOTA_LIMIT;
 
-  // Suppression du console.log pour éviter le spam
+  
+  // Ajout de logs pour déboguer
+  console.log('AgentDailyQuota: Raw quotaData:', quotaData);
+  console.log('AgentDailyQuota: Calculated values - deposits:', totalDeposits, 'withdrawals:', totalWithdrawals, 'volume:', totalVolume);
 
   return (
     <Card>
