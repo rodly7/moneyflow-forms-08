@@ -181,13 +181,12 @@ export const useRealtimeTransactions = (userId?: string) => {
 
       if (userProfile?.phone) {
         // Récupérer tous les transferts reçus
-        // Récupérer tous les transferts reçus (par id OU téléphone)
         const { data: receivedTransfersData, error: receivedTransfersError } = await supabase
           .from('transfers')
           .select('*')
-          .or(`recipient_id.eq.${currentUserId},recipient_phone.eq.${userProfile.phone}`)
-          .eq('status', 'completed')
-          .neq('sender_id', currentUserId)
+          .eq('recipient_phone', userProfile.phone)
+          .eq('status', 'completed') // Seulement les transferts complétés
+          .neq('sender_id', currentUserId) // Éviter les doublons avec les transferts envoyés
           .order('created_at', { ascending: false });
 
         if (receivedTransfersError) {
