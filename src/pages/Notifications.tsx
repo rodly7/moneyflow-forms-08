@@ -7,7 +7,7 @@ import { ArrowLeft, Bell, MessageSquare, AlertCircle, Info, CheckCircle, AlertTr
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-
+import { useUnifiedNotifications } from "@/hooks/useUnifiedNotifications";
 interface Notification {
   id: string;
   title: string;
@@ -24,6 +24,11 @@ const Notifications = () => {
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { 
+    notifications: unifiedNotifications, 
+    markAsRead: markUnifiedAsRead,
+    markAllAsRead: markAllUnifiedAsRead
+  } = useUnifiedNotifications();
 
   const fetchNotifications = async () => {
     if (!user?.id || !profile) return;
@@ -280,6 +285,49 @@ const Notifications = () => {
                 <p className="text-xs sm:text-sm text-gray-400">
                   Vous n'avez reçu aucun message de l'administration
                 </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Activité du compte */}
+        <Card className="mt-4 sm:mt-6 bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+              <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+              Activité du compte
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            {unifiedNotifications.length > 0 ? (
+              <div className="space-y-3 sm:space-y-4">
+                {unifiedNotifications.map((n) => (
+                  <Card key={n.id} className="border-l-4 border-purple-300">
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="text-lg">
+                          {n.type === 'withdrawal_completed' ? '💸' : n.type === 'transfer_received' ? '💰' : n.type === 'recharge_completed' ? '💳' : '📩'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-medium text-sm sm:text-base text-gray-800 break-words">{n.title}</h4>
+                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => markUnifiedAsRead(n.id)}>Lu</Button>
+                          </div>
+                          <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2 break-words">{n.message}</p>
+                          <p className="text-xs text-gray-400 mt-2 sm:mt-3">
+                            {new Date(n.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Bell className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-base sm:text-lg font-medium text-gray-500 mb-2">Aucune activité récente</h3>
+                <p className="text-xs sm:text-sm text-gray-400">Vos retraits, recharges et transferts apparaîtront ici</p>
               </div>
             )}
           </CardContent>
