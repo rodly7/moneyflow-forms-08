@@ -2314,7 +2314,7 @@ export type Database = {
         Args:
           | Record<PropertyKey, never>
           | { agent_id_param: string; month_param: number; year_param: number }
-        Returns: Record<string, unknown>[]
+        Returns: string
       }
       calculate_commission_rate: {
         Args: { volume: number }
@@ -2337,7 +2337,7 @@ export type Database = {
         Args:
           | Record<PropertyKey, never>
           | { claim_code_param: string; recipient_id: string }
-        Returns: undefined
+        Returns: boolean
       }
       cleanup_expired_password_resets: {
         Args: Record<PropertyKey, never>
@@ -2377,10 +2377,10 @@ export type Database = {
         Args: { search_term: string }
         Returns: {
           country: string
-          email: string
           full_name: string
           id: string
           phone: string
+          role: Database["public"]["Enums"]["user_role"]
         }[]
       }
       function_name: {
@@ -2414,8 +2414,16 @@ export type Database = {
       get_agent_current_month_performance: {
         Args: Record<PropertyKey, never> | { agent_id_param: string }
         Returns: {
-          agent_id: number
-          total_performance: number
+          base_commission: number
+          commission_rate: number
+          complaints_count: number
+          no_complaint_bonus: number
+          tier_name: string
+          total_earnings: number
+          total_transactions: number
+          total_volume: number
+          transaction_bonus: number
+          volume_bonus: number
         }[]
       }
       get_agent_quota_status: {
@@ -2493,7 +2501,7 @@ export type Database = {
               transfer_amount: number
               transfer_fees: number
             }
-        Returns: undefined
+        Returns: string
       }
       process_password_reset: {
         Args: {
