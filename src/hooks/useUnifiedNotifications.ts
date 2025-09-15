@@ -142,7 +142,7 @@ export const useUnifiedNotifications = () => {
         .from('withdrawals')
         .select('*')
         .eq('user_id', user.id)
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false });
 
       if (withdrawalError) {
@@ -154,7 +154,7 @@ export const useUnifiedNotifications = () => {
         .from('withdrawals')
         .select('id, amount, status, created_at, agent_id, user_id')
         .eq('agent_id', user.id)
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false });
 
       if (agentWithdrawalError) {
