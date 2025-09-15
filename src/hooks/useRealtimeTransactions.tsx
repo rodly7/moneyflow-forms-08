@@ -196,17 +196,26 @@ export const useRealtimeTransactions = (userId?: string) => {
           console.log("✅ Transferts reçus trouvés:", receivedTransfersData.length);
           
           // Récupérer les informations des expéditeurs
-          const senderIds = [...new Set(receivedTransfersData.map(t => t.sender_id))];
-          const { data: sendersData } = await supabase
+          const senderIds = [...new Set(receivedTransfersData.map(t => t.sender_id).filter(id => id))];
+          console.log("🔍 IDs des expéditeurs à chercher:", senderIds);
+          
+          const { data: sendersData, error: sendersError } = await supabase
             .from('profiles')
             .select('id, full_name, phone')
             .in('id', senderIds);
+
+          if (sendersError) {
+            console.error('❌ Erreur lors de la récupération des expéditeurs:', sendersError);
+          } else {
+            console.log("👥 Données des expéditeurs récupérées:", sendersData);
+          }
 
           const sendersMap = new Map(sendersData?.map(s => [s.id, s]) || []);
 
           const transformedReceivedTransfers: Transaction[] = receivedTransfersData.map(transfer => {
             const sender = sendersMap.get(transfer.sender_id);
             const senderName = sender?.full_name || sender?.phone || 'Expéditeur inconnu';
+            console.log(`📝 Transfer ${transfer.id}: sender_id=${transfer.sender_id}, sender=${JSON.stringify(sender)}, name=${senderName}`);
             return {
               id: `received_${transfer.id}`,
               type: 'transfer_received',
