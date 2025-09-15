@@ -18,6 +18,11 @@ interface Transaction {
   withdrawal_phone?: string;
   fees?: number;
   sender_id?: string;
+  bill_type?: string;
+  provider_name?: string;
+  meter_number?: string;
+  sender_name?: string;
+  sender_phone?: string;
 }
 
 interface SimpleTransactionDetailProps {
@@ -222,6 +227,36 @@ const SimpleTransactionDetail = ({ transaction, isVisible, onClose }: SimpleTran
               <tr>
                 <td style={{ padding: '8px 0', fontWeight: 'bold', verticalAlign: 'top' }}>Numéro retrait:</td>
                 <td style={{ padding: '8px 0' }}>{transaction.withdrawal_phone}</td>
+              </tr>
+            )}
+            {transaction.bill_type && (
+              <tr>
+                <td style={{ padding: '8px 0', fontWeight: 'bold', verticalAlign: 'top' }}>Type de facture:</td>
+                <td style={{ padding: '8px 0' }}>{transaction.bill_type}</td>
+              </tr>
+            )}
+            {transaction.provider_name && (
+              <tr>
+                <td style={{ padding: '8px 0', fontWeight: 'bold', verticalAlign: 'top' }}>Fournisseur:</td>
+                <td style={{ padding: '8px 0' }}>{transaction.provider_name}</td>
+              </tr>
+            )}
+            {transaction.meter_number && (
+              <tr>
+                <td style={{ padding: '8px 0', fontWeight: 'bold', verticalAlign: 'top' }}>Numéro de compteur:</td>
+                <td style={{ padding: '8px 0' }}>{transaction.meter_number}</td>
+              </tr>
+            )}
+            {transaction.sender_name && transaction.type !== 'transfer' && (
+              <tr>
+                <td style={{ padding: '8px 0', fontWeight: 'bold', verticalAlign: 'top' }}>Client:</td>
+                <td style={{ padding: '8px 0' }}>{transaction.sender_name}</td>
+              </tr>
+            )}
+            {transaction.sender_phone && transaction.type !== 'transfer' && (
+              <tr>
+                <td style={{ padding: '8px 0', fontWeight: 'bold', verticalAlign: 'top' }}>Téléphone:</td>
+                <td style={{ padding: '8px 0' }}>{transaction.sender_phone}</td>
               </tr>
             )}
           </tbody>

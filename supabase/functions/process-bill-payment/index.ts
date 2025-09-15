@@ -285,7 +285,13 @@ Deno.serve(async (req) => {
               amount: amount,
               fees: fees,
               status: 'completed',
-              currency: 'XAF'
+              currency: 'XAF',
+              description: `Paiement facture ${bill_type} - ${provider_name} - ${meter_number || account_number}`,
+              sender_name: userProfile.full_name,
+              sender_phone: userProfile.phone,
+              bill_type: bill_type,
+              meter_number: meter_number || account_number,
+              provider_name: provider_name
             })
           if (transferError) console.error('⚠️ Erreur enregistrement transfert:', transferError)
 
