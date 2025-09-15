@@ -25,7 +25,7 @@ const AgentDailyQuota: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, getAgentQuotaStatus]);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchQuotaStatus();
@@ -64,7 +64,7 @@ const AgentDailyQuota: React.FC = () => {
   const quotaPercentage = Math.min((totalVolume / DAILY_QUOTA_LIMIT) * 100, 100);
   const isQuotaReached = totalVolume >= DAILY_QUOTA_LIMIT;
 
-  console.log('AgentDailyQuota: Affichage - totalDeposits:', totalDeposits, 'totalWithdrawals:', totalWithdrawals, 'totalVolume:', totalVolume, 'quotaPercentage:', quotaPercentage, 'isQuotaReached:', isQuotaReached);
+  // Suppression du console.log pour éviter le spam
 
   return (
     <Card>
