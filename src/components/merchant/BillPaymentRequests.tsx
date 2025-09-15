@@ -234,10 +234,31 @@ const BillPaymentRequests = () => {
       })
       .subscribe();
 
+    // Écouter les variations du solde du marchand pour afficher une notification de débit
+    if (typeof (profile as any)?.balance === 'number') {
+      prevBalanceRef.current = (profile as any).balance as number;
+    }
+    const balanceChannel = supabase
+      .channel('profile-balance-changes')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${profile?.id}`
+      }, (payload) => {
+        const newBal = Number((payload.new as any)?.balance) || 0;
+        if (prevBalanceRef.current !== null && newBal < prevBalanceRef.current) {
+          toast.info(`💸 Retrait débité: ${Math.abs(newBal - prevBalanceRef.current).toLocaleString()} FCFA`);
+        }
+        prevBalanceRef.current = newBal;
+      })
+      .subscribe();
+
     return () => {
       clearInterval(refreshInterval);
       supabase.removeChannel(merchantChannel);
       supabase.removeChannel(withdrawalChannel);
+      supabase.removeChannel(balanceChannel);
     };
   }, [profile?.id]);
 
