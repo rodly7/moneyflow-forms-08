@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useAgentQuota } from "@/hooks/useAgentQuota";
@@ -14,25 +14,30 @@ const AgentDailyQuota: React.FC = () => {
   const [quotaData, setQuotaData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchQuotaStatus = async () => {
-      if (!user?.id) {
-        return;
-      }
-      
-      try {
-        setLoading(true);
-        const data = await getAgentQuotaStatus(user.id);
-        setQuotaData(data);
-      } catch (error) {
-        console.error('AgentDailyQuota: Erreur lors de la récupération du quota:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchQuotaStatus = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      setLoading(true);
+      const data = await getAgentQuotaStatus(user.id);
+      setQuotaData(data);
+    } catch (error) {
+      console.error('AgentDailyQuota: Erreur lors de la récupération du quota:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, getAgentQuotaStatus]);
 
+  useEffect(() => {
     fetchQuotaStatus();
-  }, [user?.id]);
+  }, [fetchQuotaStatus]);
+
+  useEffect(() => {
+    const handler = () => fetchQuotaStatus();
+    window.addEventListener('transactionUpdate', handler);
+    return () => {
+      window.removeEventListener('transactionUpdate', handler);
+    };
+  }, [fetchQuotaStatus]);
 
   if (loading) {
     return (
