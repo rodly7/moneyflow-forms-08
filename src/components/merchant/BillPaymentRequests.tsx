@@ -83,11 +83,29 @@ const BillPaymentRequests = () => {
         console.error('Erreur lors de la récupération des factures:', billError);
       }
 
+      // Récupérer les retraits effectués par ce marchand (agent)
+      const { data: withdrawals, error: withdrawalError } = await supabase
+        .from('withdrawals')
+        .select(`
+          *,
+          profiles:user_id (
+            full_name,
+            phone
+          )
+        `)
+        .eq('agent_id', profile.id)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false });
+
+      if (withdrawalError) {
+        console.error('Erreur lors de la récupération des retraits:', withdrawalError);
+      }
 
       // Récupérer les profils des utilisateurs
       const userIds = [
         ...(merchantPayments || []).map(p => p.user_id),
-        ...(billPayments || []).map(p => p.user_id)
+        ...(billPayments || []).map(p => p.user_id),
+        ...(withdrawals || []).map(p => p.user_id)
       ];
       
       const { data: userProfiles } = await supabase
@@ -126,6 +144,19 @@ const BillPaymentRequests = () => {
           created_at: payment.created_at,
           user_id: payment.user_id,
           profiles: profilesMap.get(payment.user_id) || { full_name: 'N/A', phone: 'N/A' }
+        })),
+        // Retraits effectués par ce marchand
+        ...(withdrawals || []).map(withdrawal => ({
+          id: withdrawal.id,
+          amount: withdrawal.amount,
+          status: withdrawal.status,
+          bill_type: 'retrait',
+          provider_name: 'Retrait d\'espèces',
+          payment_number: '',
+          meter_number: '',
+          created_at: withdrawal.created_at,
+          user_id: withdrawal.user_id,
+          profiles: profilesMap.get(withdrawal.user_id) || { full_name: 'N/A', phone: 'N/A' }
         }))
       ];
 

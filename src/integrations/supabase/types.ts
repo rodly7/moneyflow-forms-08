@@ -2236,6 +2236,7 @@ export type Database = {
       }
       withdrawals: {
         Row: {
+          agent_id: string | null
           amount: number
           created_at: string
           id: string
@@ -2247,6 +2248,7 @@ export type Database = {
           withdrawal_phone: string
         }
         Insert: {
+          agent_id?: string | null
           amount: number
           created_at?: string
           id?: string
@@ -2258,6 +2260,7 @@ export type Database = {
           withdrawal_phone: string
         }
         Update: {
+          agent_id?: string | null
           amount?: number
           created_at?: string
           id?: string
@@ -2269,6 +2272,13 @@ export type Database = {
           withdrawal_phone?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "withdrawals_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "withdrawals_user_id_fkey"
             columns: ["user_id"]
