@@ -2449,6 +2449,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_agent_complete_quota_status: {
+        Args: { p_agent_id: string; p_date?: string }
+        Returns: {
+          agent_id: string
+          date: string
+          quota_achieved: boolean
+          quota_reached_at: string
+          total_deposits: number
+          total_volume: number
+          total_withdrawals: number
+        }[]
+      }
       get_agent_current_month_performance: {
         Args: Record<PropertyKey, never> | { agent_id_param: string }
         Returns: {

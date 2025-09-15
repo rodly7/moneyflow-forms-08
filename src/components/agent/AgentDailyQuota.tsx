@@ -54,10 +54,12 @@ const AgentDailyQuota: React.FC = () => {
   }
 
   const totalDeposits = quotaData?.total_deposits || 0;
-  const quotaPercentage = Math.min((totalDeposits / DAILY_QUOTA_LIMIT) * 100, 100);
-  const isQuotaReached = totalDeposits >= DAILY_QUOTA_LIMIT;
+  const totalWithdrawals = quotaData?.total_withdrawals || 0;
+  const totalVolume = quotaData?.total_volume || 0;
+  const quotaPercentage = Math.min((totalVolume / DAILY_QUOTA_LIMIT) * 100, 100);
+  const isQuotaReached = totalVolume >= DAILY_QUOTA_LIMIT;
 
-  console.log('AgentDailyQuota: Affichage - totalDeposits:', totalDeposits, 'quotaPercentage:', quotaPercentage, 'isQuotaReached:', isQuotaReached);
+  console.log('AgentDailyQuota: Affichage - totalDeposits:', totalDeposits, 'totalWithdrawals:', totalWithdrawals, 'totalVolume:', totalVolume, 'quotaPercentage:', quotaPercentage, 'isQuotaReached:', isQuotaReached);
 
   return (
     <Card>
@@ -74,11 +76,23 @@ const AgentDailyQuota: React.FC = () => {
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className="text-xl font-bold text-gray-900">
-              {formatCurrency(totalDeposits, 'XAF')}
+              {formatCurrency(totalVolume, 'XAF')}
             </span>
             <span className="text-sm text-gray-500">
               / {formatCurrency(DAILY_QUOTA_LIMIT, 'XAF')}
             </span>
+          </div>
+          
+          {/* Détail des composants */}
+          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+            <div className="flex justify-between">
+              <span>Dépôts:</span>
+              <span className="font-medium">{formatCurrency(totalDeposits, 'XAF')}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Retraits:</span>
+              <span className="font-medium">{formatCurrency(totalWithdrawals, 'XAF')}</span>
+            </div>
           </div>
           
           <Progress 
@@ -99,7 +113,7 @@ const AgentDailyQuota: React.FC = () => {
           
           {!isQuotaReached && (
             <div className="text-xs text-gray-600">
-              Restant: {formatCurrency(DAILY_QUOTA_LIMIT - totalDeposits, 'XAF')}
+              Restant: {formatCurrency(DAILY_QUOTA_LIMIT - totalVolume, 'XAF')}
             </div>
           )}
           
