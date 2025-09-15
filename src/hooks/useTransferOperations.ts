@@ -125,6 +125,33 @@ export const useTransferOperations = () => {
               });
 
             if (!transferError) {
+              try {
+                // Tenter d'identifier le destinataire pour gérer le cas marchand
+                const { data: rec } = await supabase
+                  .from('profiles')
+                  .select('id, role, full_name, phone')
+                  .or(`phone.eq.${transferData.recipient.phone || ''},email.eq.${transferData.recipient.email}`)
+                  .maybeSingle();
+
+                if (rec && rec.role === 'merchant') {
+                  // Enregistrer aussi dans merchant_payments pour la visibilité côté fournisseur
+                  const { error: mpErr } = await supabase
+                    .from('merchant_payments')
+                    .insert({
+                      user_id: user.id,
+                      merchant_id: rec.id,
+                      amount: transferData.amount,
+                      business_name: rec.full_name,
+                      description: 'Transfert client',
+                      currency: 'XAF',
+                      status: 'completed'
+                    });
+                  if (mpErr) console.warn('merchant_payments insert (fallback) error:', mpErr);
+                }
+              } catch (e) {
+                console.warn('Impossible de déterminer le destinataire (fallback):', e);
+              }
+
               toast({
                 title: "Transfert Réussi",
                 description: `Transfert de ${transferData.amount} XAF vers ${transferData.recipient.fullName} effectué avec succès`,
@@ -219,16 +246,32 @@ export const useTransferOperations = () => {
         description: successMessage,
       });
 
-      // Créer une notification pour le destinataire si le transfert est direct
+      // Créer une notification pour le destinataire et journaliser paiement marchand si applicable
       try {
         // Trouver le destinataire pour créer la notification
         const { data: recipientData } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, role, full_name')
           .or(`phone.eq.${transferData.recipient.phone || ''},email.eq.${transferData.recipient.email}`)
           .maybeSingle();
 
         if (recipientData) {
+          // Si le destinataire est un marchand, créer aussi une entrée merchant_payments
+          if (recipientData.role === 'merchant') {
+            const { error: mpErr } = await supabase
+              .from('merchant_payments')
+              .insert({
+                user_id: user.id,
+                merchant_id: recipientData.id,
+                amount: transferData.amount,
+                business_name: recipientData.full_name,
+                description: 'Transfert client',
+                currency: 'XAF',
+                status: 'completed'
+              });
+            if (mpErr) console.warn('merchant_payments insert error:', mpErr);
+          }
+
           await NotificationService.createAutoNotification(
             "💰 Transfert reçu",
             `Vous avez reçu un transfert de ${transferData.amount.toLocaleString()} FCFA de ${profile?.full_name || 'un utilisateur'}`,
