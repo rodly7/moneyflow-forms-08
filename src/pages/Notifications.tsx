@@ -94,7 +94,7 @@ const Notifications = () => {
   const fetchRecentWithdrawals = async () => {
     if (!user?.id) return;
     try {
-      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const since = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(); // 6 mois
       const { data: clientWithdrawals, error: clientError } = await supabase
         .from('withdrawals')
         .select('id, amount, status, created_at')
@@ -406,7 +406,7 @@ const Notifications = () => {
           <CardHeader className="p-4 sm:p-6">
             <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
               <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
-              Retraits récents (30 jours)
+              Retraits récents (6 mois)
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-6">
@@ -435,7 +435,7 @@ const Notifications = () => {
               <div className="text-center py-8">
                 <Bell className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300" />
                 <h3 className="text-base sm:text-lg font-medium text-gray-500 mb-2">Aucun retrait récent</h3>
-                <p className="text-xs sm:text-sm text-gray-400">Vos retraits des 30 derniers jours s'afficheront ici</p>
+                <p className="text-xs sm:text-sm text-gray-400">Vos retraits des 6 derniers mois s'afficheront ici</p>
               </div>
             )}
           </CardContent>

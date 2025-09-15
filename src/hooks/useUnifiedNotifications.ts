@@ -142,7 +142,7 @@ export const useUnifiedNotifications = () => {
         .from('withdrawals')
         .select('*')
         .eq('user_id', user.id)
-        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .gte('created_at', new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString()) // 6 mois au lieu de 30 jours
         .order('created_at', { ascending: false });
 
       if (withdrawalError) {
