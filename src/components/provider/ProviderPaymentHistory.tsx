@@ -102,45 +102,40 @@ export const ProviderPaymentHistory = () => {
   };
 
   useEffect(() => {
+    if (!user?.id) return;
+
     fetchPayments();
 
     // Rafraîchir toutes les 5 secondes
     const interval = setInterval(fetchPayments, 5000);
 
-    // Écouter les nouveaux paiements marchands en temps réel
+    // Écouter les paiements marchands en temps réel (INSERT/UPDATE)
     const channel = supabase
-      .channel('provider-payments')
+      .channel(`provider-payments-${user.id}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'merchant_payments',
-          filter: `merchant_id=eq.${user?.id}`
         },
         (payload) => {
-          console.log('Nouveau paiement reçu:', payload);
-          fetchPayments();
+          const newRow: any = (payload as any).new || {};
+          const oldRow: any = (payload as any).old || {};
+          if (newRow.merchant_id === user.id || oldRow.merchant_id === user.id) {
+            console.log('🔔 Changement paiement marchand détecté:', (payload as any).eventType, payload);
+            fetchPayments();
+          }
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'merchant_payments',
-          filter: `merchant_id=eq.${user?.id}`
-        },
-        (payload) => {
-          console.log('Paiement mis à jour:', payload);
-          fetchPayments();
-        }
-      )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Statut realtime paiements fournisseur:', status);
+      });
 
     return () => {
       clearInterval(interval);
       supabase.removeChannel(channel);
+      console.log('🧹 Nettoyage canal paiements fournisseur');
     };
   }, [user?.id]);
 
