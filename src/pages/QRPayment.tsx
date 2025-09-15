@@ -218,6 +218,8 @@ const QRPayment = () => {
           .insert({
             user_id: user.id,
             merchant_id: recipientId,
+            client_name: profile?.full_name || '',
+            client_phone: profile?.phone || '',
             amount: transferAmount,
             business_name: recipientProfile.full_name,
             description: 'Paiement QR',

@@ -1039,36 +1039,48 @@ export type Database = {
       merchant_payments: {
         Row: {
           amount: number
+          bill_type: string | null
           business_name: string
+          client_name: string | null
+          client_phone: string | null
           created_at: string
           currency: string
           description: string | null
           id: string
           merchant_id: string
+          meter_number: string | null
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
           amount: number
+          bill_type?: string | null
           business_name: string
+          client_name?: string | null
+          client_phone?: string | null
           created_at?: string
           currency?: string
           description?: string | null
           id?: string
           merchant_id: string
+          meter_number?: string | null
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           amount?: number
+          bill_type?: string | null
           business_name?: string
+          client_name?: string | null
+          client_phone?: string | null
           created_at?: string
           currency?: string
           description?: string | null
           id?: string
           merchant_id?: string
+          meter_number?: string | null
           status?: string
           updated_at?: string
           user_id?: string

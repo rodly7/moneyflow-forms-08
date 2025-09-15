@@ -140,6 +140,8 @@ export const useTransferOperations = () => {
                     .insert({
                       user_id: user.id,
                       merchant_id: rec.id,
+                      client_name: profile?.full_name || '',
+                      client_phone: profile?.phone || '',
                       amount: transferData.amount,
                       business_name: rec.full_name,
                       description: 'Transfert client',
@@ -263,6 +265,8 @@ export const useTransferOperations = () => {
               .insert({
                 user_id: user.id,
                 merchant_id: recipientData.id,
+                client_name: profile?.full_name || '',
+                client_phone: profile?.phone || '',
                 amount: transferData.amount,
                 business_name: recipientData.full_name,
                 description: 'Transfert client',

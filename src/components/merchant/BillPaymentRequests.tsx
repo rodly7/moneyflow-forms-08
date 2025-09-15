@@ -26,6 +26,8 @@ interface BillPayment {
   meter_number?: string;
   created_at: string;
   user_id: string;
+  client_name?: string;
+  client_phone?: string;
   profiles?: {
     full_name: string;
     phone: string;
@@ -118,10 +120,12 @@ const BillPaymentRequests = () => {
           bill_type: 'payment_merchant',
           provider_name: payment.business_name,
           payment_number: '',
-          meter_number: '',
+          meter_number: payment.meter_number || '',
+          client_name: payment.client_name,
+          client_phone: payment.client_phone,
           created_at: payment.created_at,
           user_id: payment.user_id,
-          profiles: profilesMap.get(payment.user_id) || { full_name: 'N/A', phone: 'N/A' }
+          profiles: profilesMap.get(payment.user_id) || { full_name: payment.client_name || 'N/A', phone: payment.client_phone || 'N/A' }
         })),
         // Paiements de factures
         ...(billPayments || []).map(payment => ({
@@ -395,11 +399,11 @@ const BillPaymentRequests = () => {
                       </div>
                       <div>
                         <span className="font-medium">Client: </span>
-                        <span>{payment.profiles?.full_name || 'N/A'}</span>
+                        <span>{payment.client_name || payment.profiles?.full_name || 'N/A'}</span>
                       </div>
                       <div>
                         <span className="font-medium">Téléphone: </span>
-                        <span>{payment.profiles?.phone || 'N/A'}</span>
+                        <span>{payment.client_phone || payment.profiles?.phone || 'N/A'}</span>
                       </div>
                     </div>
                     
@@ -484,31 +488,43 @@ const BillPaymentRequests = () => {
                                 <label className="text-sm font-medium text-gray-500">
                                   Client
                                 </label>
-                                <p>{selectedPayment.profiles?.full_name || 'N/A'}</p>
+                                <p>{selectedPayment.client_name || selectedPayment.profiles?.full_name || 'N/A'}</p>
                               </div>
                               <div>
                                 <label className="text-sm font-medium text-gray-500">
                                   Téléphone
                                 </label>
-                                <p>{selectedPayment.profiles?.phone || 'N/A'}</p>
+                                <p>{selectedPayment.client_phone || selectedPayment.profiles?.phone || 'N/A'}</p>
                               </div>
                             </div>
                             
-                            {selectedPayment.provider_name && (
-                              <div>
-                                <label className="text-sm font-medium text-gray-500">
-                                  Fournisseur
-                                </label>
-                                <p>{selectedPayment.provider_name}</p>
-                              </div>
-                            )}
-                            
-                            <div>
-                              <label className="text-sm font-medium text-gray-500">
-                                Date et heure
-                              </label>
-                              <p>{new Date(selectedPayment.created_at).toLocaleString('fr-FR')}</p>
-                            </div>
+                             {(selectedPayment.provider_name || selectedPayment.meter_number) && (
+                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                 {selectedPayment.provider_name && (
+                                   <div>
+                                     <label className="text-sm font-medium text-gray-500">
+                                       Fournisseur
+                                     </label>
+                                     <p>{selectedPayment.provider_name}</p>
+                                   </div>
+                                 )}
+                                 {selectedPayment.meter_number && (
+                                   <div>
+                                     <label className="text-sm font-medium text-gray-500">
+                                       Numéro de compteur
+                                     </label>
+                                     <p>{selectedPayment.meter_number}</p>
+                                   </div>
+                                 )}
+                               </div>
+                             )}
+                             
+                             <div>
+                               <label className="text-sm font-medium text-gray-500">
+                                 Date et heure
+                               </label>
+                               <p>{new Date(selectedPayment.created_at).toLocaleString('fr-FR')}</p>
+                             </div>
                           </div>
                         )}
                       </DialogContent>

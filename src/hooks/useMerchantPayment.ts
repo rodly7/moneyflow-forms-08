@@ -66,6 +66,8 @@ export const useMerchantPayment = () => {
           user_id: user.id,
           merchant_id: paymentData.merchantId,
           business_name: paymentData.businessName,
+          client_name: profile.full_name,
+          client_phone: user.phone || '',
           amount: paymentData.amount,
           description: paymentData.description,
           currency: paymentData.currency,
