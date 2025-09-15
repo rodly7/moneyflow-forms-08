@@ -2320,6 +2320,15 @@ export type Database = {
         Args: { user_id_param: string }
         Returns: boolean
       }
+      agent_process_withdrawal_with_commission: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_client_id: string
+          p_client_phone: string
+        }
+        Returns: Json
+      }
       calculate_agent_monthly_performance: {
         Args:
           | Record<PropertyKey, never>
