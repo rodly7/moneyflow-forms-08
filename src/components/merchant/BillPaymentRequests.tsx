@@ -69,10 +69,6 @@ const BillPaymentRequests = () => {
             provider_name,
             payment_number,
             meter_number
-          ),
-          profiles:user_id (
-            full_name,
-            phone
           )
         `)
         .eq('automatic_bills.provider_name', profile.full_name || '')
@@ -84,15 +80,9 @@ const BillPaymentRequests = () => {
       }
 
       // Récupérer les retraits effectués par ce marchand (agent)
-      const { data: withdrawals, error: withdrawalError } = await supabase
+      const { data: withdrawals, error: withdrawalError } = await (supabase as any)
         .from('withdrawals')
-        .select(`
-          *,
-          profiles:user_id (
-            full_name,
-            phone
-          )
-        `)
+        .select('id, user_id, amount, status, created_at')
         .eq('agent_id', profile.id)
         .eq('status', 'completed')
         .order('created_at', { ascending: false });
