@@ -172,25 +172,48 @@ export const useRealtimeTransactions = (userId?: string) => {
       }
 
       // 4. Récupérer les transferts reçus
-      console.log("📥 Récupération des transferts reçus (RPC)...");
-      const { data: receivedTransfersData, error: receivedTransfersError } = await supabase
-        .rpc('get_transfers_with_sender');
+      console.log("📥 Récupération des transferts reçus...");
+      const { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', currentUserId)
+        .single();
 
-      if (receivedTransfersError) {
-        console.error('❌ Erreur transferts reçus (RPC):', receivedTransfersError);
-      } else if (receivedTransfersData && receivedTransfersData.length > 0) {
-        console.log("✅ Transferts reçus trouvés (RPC):", receivedTransfersData.length);
-        const transformedReceivedTransfers: Transaction[] = receivedTransfersData
-          .filter((t: any) => t.sender_id !== currentUserId)
-          .map((transfer: any) => {
-            const senderName = transfer.sender_full_name || transfer.sender_phone || 'Expéditeur inconnu';
+      if (userProfile?.phone) {
+        // Récupérer tous les transferts reçus
+        // Récupérer tous les transferts reçus (par id OU téléphone)
+        const { data: receivedTransfersData, error: receivedTransfersError } = await supabase
+          .from('transfers')
+          .select('*')
+          .or(`recipient_id.eq.${currentUserId},recipient_phone.eq.${userProfile.phone}`)
+          .eq('status', 'completed')
+          .neq('sender_id', currentUserId)
+          .order('created_at', { ascending: false });
+
+        if (receivedTransfersError) {
+          console.error('❌ Erreur transferts reçus:', receivedTransfersError);
+        } else if (receivedTransfersData && receivedTransfersData.length > 0) {
+          console.log("✅ Transferts reçus trouvés:", receivedTransfersData.length);
+          
+          // Récupérer les informations des expéditeurs
+          const senderIds = [...new Set(receivedTransfersData.map(t => t.sender_id))];
+          const { data: sendersData } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .in('id', senderIds);
+
+          const sendersMap = new Map(sendersData?.map(s => [s.id, s]) || []);
+
+          const transformedReceivedTransfers: Transaction[] = receivedTransfersData.map(transfer => {
+            const sender = sendersMap.get(transfer.sender_id);
+            const senderName = sender?.full_name || sender?.phone || 'Expéditeur inconnu';
             return {
               id: `received_${transfer.id}`,
               type: 'transfer_received',
               amount: transfer.amount,
               date: new Date(transfer.created_at),
-              description: `💰 Transfert reçu de ${transfer.amount?.toLocaleString?.() || transfer.amount} XAF de ${senderName}`,
-              currency: transfer.currency || 'XAF',
+              description: `💰 Transfert reçu de ${transfer.amount?.toLocaleString() || '0'} XAF de ${senderName}`,
+              currency: 'XAF',
               status: transfer.status,
               userType: 'user' as const,
               sender_name: senderName,
@@ -198,7 +221,8 @@ export const useRealtimeTransactions = (userId?: string) => {
               impact: 'credit'
             };
           });
-        allTransactions.push(...transformedReceivedTransfers);
+          allTransactions.push(...transformedReceivedTransfers);
+        }
       }
 
       // 5. Récupérer les paiements de factures (DÉBIT)
