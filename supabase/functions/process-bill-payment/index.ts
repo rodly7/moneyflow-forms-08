@@ -239,15 +239,13 @@ Deno.serve(async (req) => {
           )
         }
 
-        // 2) Rechercher le destinataire (match exact du téléphone)
-        const { data: recipientProfile, error: recipientError } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, country')
-          .eq('phone', recipient_phone)
-          .maybeSingle()
+        // 2) Rechercher le destinataire (avec normalisation du numéro)
+        const { data: recipientSearch, error: recipientSearchError } = await supabase.rpc('find_recipient', {
+          search_term: recipient_phone
+        })
 
-        if (recipientError) {
-          console.error('❌ Erreur recherche destinataire:', recipientError)
+        if (recipientSearchError) {
+          console.error('❌ Erreur recherche destinataire:', recipientSearchError)
           // Rollback du débit
           await supabase.rpc('increment_balance', { user_id: user_id, amount: totalAmount })
           return new Response(
@@ -255,6 +253,9 @@ Deno.serve(async (req) => {
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
           )
         }
+
+        const recipientProfile = recipientSearch && recipientSearch.length > 0 ? recipientSearch[0] : null
+
 
         if (recipientProfile) {
           // 3a) Créditer le destinataire du montant original (sans frais)
