@@ -98,7 +98,7 @@ export const AgentRealTimePerformance = () => {
       const { data: todayWithdrawals } = await supabaseClient
         .from('withdrawals')
         .select('amount')
-        .eq('user_id', user.id)
+        .eq('agent_id', user.id)
         .gte('created_at', `${today}T00:00:00.000Z`)
         .lt('created_at', `${today}T23:59:59.999Z`)
         .eq('status', 'completed');
@@ -153,7 +153,7 @@ export const AgentRealTimePerformance = () => {
           supabaseClient
             .from('withdrawals')
             .select('amount')
-            .eq('user_id', agent.id)
+            .eq('agent_id', agent.id)
             .gte('created_at', startDate.toISOString())
             .eq('status', 'completed'),
           supabaseClient
