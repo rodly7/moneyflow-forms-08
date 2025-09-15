@@ -2242,6 +2242,7 @@ export type Database = {
           id: string
           is_deleted: boolean | null
           status: string
+          transaction_reference: string | null
           updated_at: string
           user_id: string
           verification_code: string | null
@@ -2254,6 +2255,7 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           status?: string
+          transaction_reference?: string | null
           updated_at?: string
           user_id: string
           verification_code?: string | null
@@ -2266,6 +2268,7 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           status?: string
+          transaction_reference?: string | null
           updated_at?: string
           user_id?: string
           verification_code?: string | null
