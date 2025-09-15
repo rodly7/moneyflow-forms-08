@@ -198,9 +198,27 @@ const BillPaymentRequests = () => {
       })
       .subscribe();
 
+    // Écouter les nouveaux retraits effectués par ce marchand
+    const withdrawalChannel = supabase
+      .channel('merchant-withdrawals')
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'withdrawals',
+        filter: `agent_id=eq.${profile?.id}`
+      }, (payload) => {
+        console.log('🔔 Nouveau retrait détecté:', payload);
+        fetchBillPayments();
+        if (payload.new && payload.new.amount) {
+          toast.success(`💰 Retrait de ${payload.new.amount.toLocaleString()} FCFA effectué pour un client`);
+        }
+      })
+      .subscribe();
+
     return () => {
       clearInterval(refreshInterval);
       supabase.removeChannel(merchantChannel);
+      supabase.removeChannel(withdrawalChannel);
     };
   }, [profile?.id]);
 
