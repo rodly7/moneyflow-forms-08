@@ -2392,6 +2392,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      ensure_agent_entry: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
       find_recipient: {
         Args: { search_term: string }
         Returns: {
