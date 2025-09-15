@@ -157,88 +157,45 @@ export const useAllTransactions = (userId?: string) => {
         console.log("⚠️ DEBUG: Aucun retrait trouvé pour l'utilisateur");
       }
 
-      // 3. Récupérer les transferts envoyés (DÉBIT)
-      console.log("📤 Récupération des transferts envoyés...");
-      const { data: sentTransfersData, error: sentTransfersError } = await supabase
-        .from('transfers')
-        .select('*')
-        .eq('sender_id', userId)
-        .order('created_at', { ascending: false });
+      // 3. Récupérer les transferts (envoyés ET reçus) de manière sécurisée
+      console.log("📤📥 Récupération des transferts...");
+      const { data: transfersData, error: transfersError } = await supabase
+        .rpc('get_transfers_with_sender');
 
-      if (sentTransfersError) {
-        console.error('❌ Erreur transferts envoyés:', sentTransfersError);
-      } else if (sentTransfersData) {
-        console.log("✅ Transferts envoyés trouvés:", sentTransfersData.length);
-        sentTransfersData.forEach(transfer => {
-          allTransactions.push({
-            id: transfer.id,
-            type: 'transfer_sent',
+      if (transfersError) {
+        console.error('❌ Erreur transferts:', transfersError);
+      } else if (transfersData) {
+        console.log("✅ Transferts trouvés:", transfersData.length);
+        
+        transfersData.forEach(transfer => {
+          const isSent = transfer.sender_id === userId;
+          const senderName = transfer.sender_full_name || transfer.sender_phone || 'Expéditeur inconnu';
+          
+          const transformedTransfer: UnifiedTransaction = {
+            id: isSent ? transfer.id : `received_${transfer.id}`,
+            type: isSent ? 'transfer_sent' : 'transfer_received',
             amount: transfer.amount || 0,
             date: new Date(transfer.created_at),
-            description: `Transfert envoyé vers ${transfer.recipient_full_name || transfer.recipient_phone}`,
+            description: isSent 
+              ? `Transfert envoyé vers ${transfer.recipient_phone}`
+              : `Transfert reçu de ${senderName}`,
             currency: 'XAF',
             status: transfer.status || 'pending',
             created_at: transfer.created_at,
-            recipient_full_name: transfer.recipient_full_name,
-            recipient_phone: transfer.recipient_phone,
-            fees: transfer.fees,
             userType: "user" as const,
-            impact: "debit" as const,
+            impact: isSent ? "debit" as const : "credit" as const,
             reference_id: transfer.id
-          });
+          };
+
+          if (isSent) {
+            transformedTransfer.recipient_phone = transfer.recipient_phone;
+            transformedTransfer.fees = transfer.fees;
+          } else {
+            transformedTransfer.sender_name = senderName;
+          }
+
+          allTransactions.push(transformedTransfer);
         });
-      }
-
-      // 4. Récupérer les transferts reçus (CRÉDIT)
-      console.log("📥 Récupération des transferts reçus...");
-      const { data: userProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('id', userId)
-        .single();
-
-      if (userProfile?.phone) {
-        // Récupérer tous les transferts reçus (par id OU téléphone)
-        const { data: receivedTransfersData, error: receivedTransfersError } = await supabase
-          .from('transfers')
-          .select('*')
-          .or(`recipient_id.eq.${userId},recipient_phone.eq.${userProfile.phone}`)
-          .eq('status', 'completed')
-          .neq('sender_id', userId)
-          .order('created_at', { ascending: false });
-
-        if (receivedTransfersError) {
-          console.error('❌ Erreur transferts reçus:', receivedTransfersError);
-        } else if (receivedTransfersData && receivedTransfersData.length > 0) {
-          console.log("✅ Transferts reçus trouvés:", receivedTransfersData.length);
-          
-          // Récupérer les informations des expéditeurs (si disponible via RLS sinon fallback)
-          const senderIds = [...new Set(receivedTransfersData.map(t => t.sender_id))];
-          const { data: sendersData } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone')
-            .in('id', senderIds);
-          const sendersMap = new Map(sendersData?.map(s => [s.id, s]) || []);
-
-          receivedTransfersData.forEach(transfer => {
-            const sender = sendersMap.get(transfer.sender_id);
-            const senderName = sender?.full_name || sender?.phone || 'Expéditeur inconnu';
-            allTransactions.push({
-              id: `received_${transfer.id}`,
-              type: 'transfer_received',
-              amount: transfer.amount || 0,
-              date: new Date(transfer.created_at),
-              description: `Transfert reçu de ${senderName}`,
-              currency: 'XAF',
-              status: transfer.status || 'pending',
-              created_at: transfer.created_at,
-              sender_name: senderName,
-              userType: "user" as const,
-              impact: "credit" as const,
-              reference_id: transfer.id
-            });
-          });
-        }
       }
 
       // 5. Récupérer les paiements de factures automatiques (DÉBIT)
