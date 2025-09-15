@@ -14,13 +14,13 @@ import {
   Download,
   Plus
 } from 'lucide-react';
-import { useRealtimeTransactions } from '@/hooks/useRealtimeTransactions';
+import { useAllTransactions } from '@/hooks/useAllTransactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const RecentTransactions = () => {
   const { user } = useAuth();
-  const { transactions, isLoading } = useRealtimeTransactions(user?.id);
+  const { transactions, loading } = useAllTransactions(user?.id);
   const navigate = useNavigate();
 
   const getTransactionIcon = (type: string, impact?: string) => {
@@ -104,7 +104,7 @@ const RecentTransactions = () => {
     navigate('/transactions');
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Card>
         <CardHeader>
@@ -194,7 +194,7 @@ const RecentTransactions = () => {
                   <div className="flex items-center gap-4 text-xs text-gray-600">
                     <span>{transaction.date.toLocaleDateString('fr-FR')}</span>
                     <span>{transaction.date.toLocaleTimeString('fr-FR')}</span>
-                    {transaction.verification_code && transaction.showCode && (
+                    {transaction.verification_code && (
                       <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
                         Code: {transaction.verification_code}
                       </Badge>

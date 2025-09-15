@@ -16,13 +16,13 @@ import {
   Plus,
   Eye
 } from 'lucide-react';
-import { useRealtimeTransactions } from '@/hooks/useRealtimeTransactions';
+import { useAllTransactions } from '@/hooks/useAllTransactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const EnhancedTransactionsCard = () => {
   const { user } = useAuth();
-  const { transactions, isLoading } = useRealtimeTransactions(user?.id);
+  const { transactions, loading } = useAllTransactions(user?.id);
   const navigate = useNavigate();
 
   const getTransactionIcon = (type: string, impact?: string) => {
@@ -108,7 +108,7 @@ const EnhancedTransactionsCard = () => {
     navigate('/transactions');
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
         <CardHeader>
@@ -210,7 +210,7 @@ const EnhancedTransactionsCard = () => {
                       </div>
                       
                       <div className="space-y-1">
-                        {transaction.verification_code && transaction.showCode && (
+                        {transaction.verification_code && (
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
                               Code: {transaction.verification_code}
