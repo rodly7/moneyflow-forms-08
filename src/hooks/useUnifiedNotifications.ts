@@ -428,6 +428,53 @@ export const useUnifiedNotifications = () => {
       }
     );
 
+    // Écouter les retraits du client (utilisateur)
+    channelRef.current.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'withdrawals',
+        filter: `user_id=eq.${user.id}`
+      },
+      (payload: any) => {
+        try {
+          const row = payload.new as any;
+          if (!row) return;
+          const amt = Number(row.amount) || 0;
+
+          const baseNotification = {
+            id: `withdrawal_${row.id}`,
+            type: 'withdrawal_completed' as const,
+            priority: row.status === 'completed' ? ('high' as const) : ('normal' as const),
+            amount: amt,
+            created_at: row.created_at,
+            read: false
+          };
+
+          if (row.status === 'completed') {
+            const notification: UnifiedNotification = {
+              ...baseNotification,
+              title: '✅ Retrait confirmé',
+              message: `Retrait de ${amt.toLocaleString('fr-FR')} FCFA confirmé avec succès`
+            };
+            setNotifications(prev => [notification, ...prev.slice(0, 9)]);
+            showNotificationToast(notification);
+          } else if (row.status === 'pending') {
+            const notification: UnifiedNotification = {
+              ...baseNotification,
+              title: '💸 Retrait initié',
+              message: `Demande de retrait de ${amt.toLocaleString('fr-FR')} FCFA créée`
+            };
+            setNotifications(prev => [notification, ...prev.slice(0, 9)]);
+            showNotificationToast(notification);
+          }
+        } catch (e) {
+          console.error('❌ Erreur traitement retrait client:', e);
+        }
+      }
+    );
+
     // S'abonner au canal avec gestion d'erreur améliorée
     channelRef.current.subscribe((status: string) => {
       console.log('📡 Statut connexion notifications:', status);
