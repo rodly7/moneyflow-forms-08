@@ -153,9 +153,13 @@ const AgentDashboard: React.FC = () => {
                   onClick={toggleBalanceVisibility}
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 hover:bg-gray-100 border border-gray-200"
                 >
-                  {isBalanceVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {isBalanceVisible ? (
+                    <EyeOff className="w-4 h-4 text-gray-600" />
+                  ) : (
+                    <Eye className="w-4 h-4 text-gray-600" />
+                  )}
                 </Button>
                 <Wallet className="w-4 h-4 text-blue-600" />
               </div>
@@ -163,6 +167,19 @@ const AgentDashboard: React.FC = () => {
             <CardContent>
               <div className="text-2xl font-bold text-gray-900 mb-3">
                 {formatBalanceDisplay(agentBalance || 0)}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">
+                  {isBalanceVisible ? "Solde visible" : "Solde masqué"}
+                </span>
+                <Button
+                  onClick={toggleBalanceVisibility}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  {isBalanceVisible ? "Masquer" : "Afficher"}
+                </Button>
               </div>
             </CardContent>
           </Card>
