@@ -2486,6 +2486,36 @@ export type Database = {
           total_deposits: number
         }[]
       }
+      get_received_transfers_with_sender: {
+        Args: { p_user_id: string }
+        Returns: {
+          amount: number
+          created_at: string
+          id: string
+          recipient_id: string
+          recipient_phone: string
+          sender_full_name: string
+          sender_id: string
+          sender_phone: string
+          status: string
+        }[]
+      }
+      get_transfers_with_sender: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          amount: number
+          created_at: string
+          currency: string
+          fees: number
+          id: string
+          recipient_id: string
+          recipient_phone: string
+          sender_full_name: string
+          sender_id: string
+          sender_phone: string
+          status: string
+        }[]
+      }
       get_user_role: {
         Args: { user_id_param: string }
         Returns: Database["public"]["Enums"]["user_role"]
