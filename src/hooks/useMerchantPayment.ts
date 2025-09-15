@@ -32,7 +32,7 @@ export const useMerchantPayment = () => {
       // Get user profile and balance
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('balance, full_name')
+        .select('balance, full_name, phone')
         .eq('id', user.id)
         .single();
 
@@ -67,7 +67,7 @@ export const useMerchantPayment = () => {
           merchant_id: paymentData.merchantId,
           business_name: paymentData.businessName,
           client_name: profile.full_name,
-          client_phone: user.phone || '',
+          client_phone: profile.phone || '',
           amount: paymentData.amount,
           description: paymentData.description,
           currency: paymentData.currency,

@@ -295,6 +295,27 @@ Deno.serve(async (req) => {
             })
           if (transferError) console.error('⚠️ Erreur enregistrement transfert:', transferError)
 
+          // Enregistrer également côté marchand pour l'affichage sans accès au profil client
+          try {
+            await supabase
+              .from('merchant_payments')
+              .insert({
+                user_id: user_id,
+                merchant_id: recipientProfile.id,
+                business_name: provider_name || recipientProfile.full_name,
+                amount: amount,
+                currency: 'XAF',
+                status: 'completed',
+                description: `Paiement facture ${bill_type}`,
+                client_name: userProfile.full_name,
+                client_phone: userProfile.phone,
+                meter_number: meter_number || account_number,
+                bill_type: bill_type
+              })
+          } catch (e) {
+            console.error('⚠️ Erreur enregistrement merchant_payments:', e)
+          }
+
           console.log('✅ Transfert instantané réussi:', { amount, fees, totalAmount })
         } else {
           // 3b) Destinataire non trouvé -> créer un transfert en attente (pas de rollback, comme process-money-transfer)
