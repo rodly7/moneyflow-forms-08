@@ -220,9 +220,9 @@ const MerchantDashboard = () => {
     <div className="min-h-screen bg-background p-2 sm:p-4">
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
         {/* Header avec notifications et déconnexion - Mobile optimized */}
-        <div className="flex justify-between items-start sm:items-center mb-4 sm:mb-8 mt-1 sm:mt-0">
+        <div className="flex justify-between items-start sm:items-center mb-4 sm:mb-8">
           <div className="flex-1">
-            <div className="flex items-center justify-start sm:justify-center mb-2 sm:mb-4 mt-1 sm:mt-0">
+            <div className="flex items-center justify-start sm:justify-center mb-2 sm:mb-4">
               <Store className="h-6 w-6 sm:h-8 sm:w-8 text-primary mr-2 sm:mr-3" />
               <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground">
                 Interface Commerciale
@@ -239,7 +239,7 @@ const MerchantDashboard = () => {
         </div>
 
         {/* Carte du solde - Mobile optimized */}
-        <Card className="mb-4 sm:mb-6 mt-1 sm:mt-0">
+        <Card className="mb-4 sm:mb-6">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-center">
               <Wallet className="h-8 w-8 sm:h-10 sm:w-10 text-primary mr-3 sm:mr-4" />
@@ -256,16 +256,14 @@ const MerchantDashboard = () => {
 
 
         {/* QR Code Personnel - Mobile optimized */}
-        <div className="flex justify-center mt-1 sm:mt-0">
+        <div className="flex justify-center">
           <div className="w-full max-w-md">
             <MerchantPersonalQR />
           </div>
         </div>
 
         {/* Paiements de factures reçus */}
-        <div className="mt-1 sm:mt-0">
-          <BillPaymentRequests />
-        </div>
+        <BillPaymentRequests />
 
         {/* Commission Sendflow */}
         {sendflowDebt > 0 && (
