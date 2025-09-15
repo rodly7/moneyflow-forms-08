@@ -121,46 +121,46 @@ const MerchantPersonalQR = () => {
           Mon QR Code Personnel
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* QR Code Display */}
+      <CardContent className="space-y-4 sm:space-y-6">
+        {/* QR Code Display - Mobile optimized */}
         <div className="text-center" ref={qrRef}>
-          <div className="bg-white p-6 rounded-lg border-2 inline-block">
+          <div className="bg-white p-4 sm:p-6 rounded-lg border-2 inline-block">
             <QRCodeSVG
               value={personalQRData}
-              size={200}
+              size={window.innerWidth < 640 ? 180 : 200}
               level="M"
               includeMargin={true}
             />
           </div>
         </div>
 
-        {/* Merchant Info */}
+        {/* Merchant Info - Mobile optimized */}
         <div className="text-center space-y-2">
-          <h3 className="font-semibold text-lg">{profile?.full_name}</h3>
-          <p className="text-primary font-medium">ID: {profile?.id}</p>
-          <p className="text-sm text-green-600">✓ Paiements sans frais</p>
+          <h3 className="font-semibold text-base sm:text-lg">{profile?.full_name}</h3>
+          <p className="text-primary font-medium text-sm">ID: {profile?.id?.slice(0, 8)}...</p>
+          <p className="text-xs sm:text-sm text-green-600">✓ Paiements sans frais</p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-3 gap-3">
-          <Button variant="outline" onClick={handleDownload}>
+        {/* Action Buttons - Mobile optimized */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+          <Button variant="outline" onClick={handleDownload} size="sm" className="w-full">
             <Download className="h-4 w-4 mr-2" />
-            Télécharger
+            <span className="text-xs sm:text-sm">Télécharger</span>
           </Button>
-          <Button variant="outline" onClick={handleShare}>
+          <Button variant="outline" onClick={handleShare} size="sm" className="w-full">
             <Share2 className="h-4 w-4 mr-2" />
-            Partager
+            <span className="text-xs sm:text-sm">Partager</span>
           </Button>
-          <Button variant="outline" onClick={handlePrint}>
+          <Button variant="outline" onClick={handlePrint} size="sm" className="w-full">
             <Printer className="h-4 w-4 mr-2" />
-            Imprimer
+            <span className="text-xs sm:text-sm">Imprimer</span>
           </Button>
         </div>
 
-        {/* Instructions */}
-        <div className="bg-muted p-4 rounded-lg">
-          <h4 className="font-medium mb-2">Pour vos clients :</h4>
-          <ol className="text-sm space-y-1 list-decimal list-inside">
+        {/* Instructions - Mobile optimized */}
+        <div className="bg-muted p-3 sm:p-4 rounded-lg">
+          <h4 className="font-medium mb-2 text-sm sm:text-base">Pour vos clients :</h4>
+          <ol className="text-xs sm:text-sm space-y-1 list-decimal list-inside">
             <li>Scanner ce QR code avec SendFlow</li>
             <li>Saisir le montant à payer</li>
             <li>Confirmer le paiement</li>

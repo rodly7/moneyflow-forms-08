@@ -217,33 +217,35 @@ const MerchantDashboard = () => {
   }, [profile?.id]);
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header avec notifications et déconnexion */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="text-center flex-1">
-            <div className="flex items-center justify-center mb-4">
-              <Store className="h-8 w-8 text-primary mr-3" />
-              <h1 className="text-3xl font-bold text-foreground">Interface Commerciale</h1>
+    <div className="min-h-screen bg-background p-2 sm:p-4">
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+        {/* Header avec notifications et déconnexion - Mobile optimized */}
+        <div className="flex justify-between items-start sm:items-center mb-4 sm:mb-8">
+          <div className="flex-1">
+            <div className="flex items-center justify-start sm:justify-center mb-2 sm:mb-4">
+              <Store className="h-6 w-6 sm:h-8 sm:w-8 text-primary mr-2 sm:mr-3" />
+              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground">
+                Interface Commerciale
+              </h1>
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground text-left sm:text-center">
               Tableau de bord pour gérer vos paiements
             </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 ml-2">
             <UnifiedNotificationBell />
             <LogoutButton />
           </div>
         </div>
 
-        {/* Carte du solde */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
+        {/* Carte du solde - Mobile optimized */}
+        <Card className="mb-4 sm:mb-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-center">
-              <Wallet className="h-10 w-10 text-primary mr-4" />
+              <Wallet className="h-8 w-8 sm:h-10 sm:w-10 text-primary mr-3 sm:mr-4" />
               <div className="text-center">
-                <p className="text-sm font-medium text-muted-foreground">Mon Solde</p>
-                <p className="text-3xl font-bold text-primary">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">Mon Solde</p>
+                <p className="text-2xl sm:text-3xl font-bold text-primary">
                   {profile?.balance?.toLocaleString() || 0} XAF
                 </p>
               </div>
@@ -253,9 +255,11 @@ const MerchantDashboard = () => {
 
 
 
-        {/* QR Code Personnel */}
-        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 max-w-md mx-auto">
-          <MerchantPersonalQR />
+        {/* QR Code Personnel - Mobile optimized */}
+        <div className="flex justify-center">
+          <div className="w-full max-w-md">
+            <MerchantPersonalQR />
+          </div>
         </div>
 
         {/* Paiements de factures reçus */}

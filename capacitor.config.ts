@@ -1,11 +1,11 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.113741a6ec9a42fbb4143b812933c68c',
-  appName: 'Sendflow',
+  appId: 'app.lovable.87769c773b2542bd90e03073f8a74c09',
+  appName: 'moneyflow-forms-08',
   webDir: 'dist',
   server: {
-    url: 'https://113741a6-ec9a-42fb-b414-3b812933c68c.lovableproject.com?forceHideBadge=true',
+    url: 'https://87769c77-3b25-42bd-90e0-3073f8a74c09.lovableproject.com?forceHideBadge=true',
     cleartext: true
   },
   plugins: {
