@@ -180,29 +180,46 @@ export const useRealtimeTransactions = (userId?: string) => {
         .single();
 
       if (userProfile?.phone) {
+        // Récupérer tous les transferts reçus
         const { data: receivedTransfersData, error: receivedTransfersError } = await supabase
           .from('transfers')
           .select('*')
           .eq('recipient_phone', userProfile.phone)
+          .eq('status', 'completed') // Seulement les transferts complétés
+          .neq('sender_id', currentUserId) // Éviter les doublons avec les transferts envoyés
           .order('created_at', { ascending: false });
 
         if (receivedTransfersError) {
           console.error('❌ Erreur transferts reçus:', receivedTransfersError);
-        } else if (receivedTransfersData) {
+        } else if (receivedTransfersData && receivedTransfersData.length > 0) {
           console.log("✅ Transferts reçus trouvés:", receivedTransfersData.length);
-          const transformedReceivedTransfers: Transaction[] = receivedTransfersData.map(transfer => ({
-            id: `received_${transfer.id}`,
-            type: 'transfer_received',
-            amount: transfer.amount,
-            date: new Date(transfer.created_at),
-            description: `💰 Transfert reçu de ${transfer.amount?.toLocaleString() || '0'} XAF d'un expéditeur`,
-            currency: 'XAF',
-            status: transfer.status,
-            userType: 'user' as const,
-            sender_name: 'Expéditeur',
-            created_at: transfer.created_at,
-            impact: 'credit'
-          }));
+          
+          // Récupérer les informations des expéditeurs
+          const senderIds = [...new Set(receivedTransfersData.map(t => t.sender_id))];
+          const { data: sendersData } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .in('id', senderIds);
+
+          const sendersMap = new Map(sendersData?.map(s => [s.id, s]) || []);
+
+          const transformedReceivedTransfers: Transaction[] = receivedTransfersData.map(transfer => {
+            const sender = sendersMap.get(transfer.sender_id);
+            const senderName = sender?.full_name || sender?.phone || 'Expéditeur inconnu';
+            return {
+              id: `received_${transfer.id}`,
+              type: 'transfer_received',
+              amount: transfer.amount,
+              date: new Date(transfer.created_at),
+              description: `💰 Transfert reçu de ${transfer.amount?.toLocaleString() || '0'} XAF de ${senderName}`,
+              currency: 'XAF',
+              status: transfer.status,
+              userType: 'user' as const,
+              sender_name: senderName,
+              created_at: transfer.created_at,
+              impact: 'credit'
+            };
+          });
           allTransactions.push(...transformedReceivedTransfers);
         }
       }

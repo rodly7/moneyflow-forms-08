@@ -198,28 +198,42 @@ export const useAllTransactions = (userId?: string) => {
         .single();
 
       if (userProfile?.phone) {
+        // Récupérer tous les transferts reçus
         const { data: receivedTransfersData, error: receivedTransfersError } = await supabase
           .from('transfers')
           .select('*')
           .eq('recipient_phone', userProfile.phone)
+          .eq('status', 'completed') // Seulement les transferts complétés
           .neq('sender_id', userId) // Éviter les doublons avec les transferts envoyés
           .order('created_at', { ascending: false });
 
         if (receivedTransfersError) {
           console.error('❌ Erreur transferts reçus:', receivedTransfersError);
-        } else if (receivedTransfersData) {
+        } else if (receivedTransfersData && receivedTransfersData.length > 0) {
           console.log("✅ Transferts reçus trouvés:", receivedTransfersData.length);
+          
+          // Récupérer les informations des expéditeurs
+          const senderIds = [...new Set(receivedTransfersData.map(t => t.sender_id))];
+          const { data: sendersData } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .in('id', senderIds);
+
+          const sendersMap = new Map(sendersData?.map(s => [s.id, s]) || []);
+
           receivedTransfersData.forEach(transfer => {
+            const sender = sendersMap.get(transfer.sender_id);
+            const senderName = sender?.full_name || sender?.phone || 'Expéditeur inconnu';
             allTransactions.push({
               id: `received_${transfer.id}`,
               type: 'transfer_received',
               amount: transfer.amount || 0,
               date: new Date(transfer.created_at),
-              description: `Transfert reçu d'un expéditeur`,
+              description: `Transfert reçu de ${senderName}`,
               currency: 'XAF',
               status: transfer.status || 'pending',
               created_at: transfer.created_at,
-              sender_name: 'Expéditeur',
+              sender_name: senderName,
               userType: "user" as const,
               impact: "credit" as const,
               reference_id: transfer.id
