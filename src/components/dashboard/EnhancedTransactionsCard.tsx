@@ -165,7 +165,7 @@ const EnhancedTransactionsCard = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {transactions.slice(0, 3).map((transaction) => (
+            {transactions.slice(0, 5).map((transaction) => (
               <div key={transaction.id} className="flex flex-col p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border hover:shadow-md transition-all duration-300">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
