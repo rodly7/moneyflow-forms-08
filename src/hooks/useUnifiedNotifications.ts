@@ -360,7 +360,8 @@ export const useUnifiedNotifications = () => {
             const notificationId = `transfer_${transfer.id}`;
             
             // Ne pas afficher si déjà lu
-            if (readIds.has(notificationId)) return;
+            const currentReadIds = getReadNotificationIds();
+            if (currentReadIds.has(notificationId)) return;
             
             const notification: UnifiedNotification = {
               id: notificationId,
@@ -395,9 +396,14 @@ export const useUnifiedNotifications = () => {
         try {
           const row = payload.new as any;
           if (!row) return;
+          
+          const notificationId = `agent_withdrawal_${row.id}`;
+          const currentReadIds = getReadNotificationIds();
+          if (currentReadIds.has(notificationId)) return;
+          
           const amt = Number(row.amount) || 0;
           const baseNotification = {
-            id: `agent_withdrawal_${row.id}`,
+            id: notificationId,
             type: 'withdrawal_completed' as const,
             priority: 'high' as const,
             amount: amt,
@@ -441,10 +447,15 @@ export const useUnifiedNotifications = () => {
         try {
           const row = payload.new as any;
           if (!row) return;
+          
+          const notificationId = `withdrawal_${row.id}`;
+          const currentReadIds = getReadNotificationIds();
+          if (currentReadIds.has(notificationId)) return;
+          
           const amt = Number(row.amount) || 0;
 
           const baseNotification = {
-            id: `withdrawal_${row.id}`,
+            id: notificationId,
             type: 'withdrawal_completed' as const,
             priority: row.status === 'completed' ? ('high' as const) : ('normal' as const),
             amount: amt,
