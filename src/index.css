@@ -103,7 +103,7 @@
   }
   
   body {
-    @apply bg-background text-foreground pwa-no-zoom;
+    @apply bg-background text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
     font-size: 16px; /* Force 16px base pour éviter le zoom sur mobile */
     
@@ -240,7 +240,7 @@
 
 /* Nouvelles classes utilitaires fluides */
 .fluid-container {
-  @apply bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 animated-gradient;
+  @apply bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100;
 }
 
 .fluid-card {

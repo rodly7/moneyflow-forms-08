@@ -156,8 +156,8 @@ const RecentTransactions = () => {
             <p className="text-sm">Aucune transaction récente</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {transactions.slice(0, 5).map((transaction) => (
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+            {transactions.map((transaction) => (
               <div key={transaction.id} className="flex flex-col p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
