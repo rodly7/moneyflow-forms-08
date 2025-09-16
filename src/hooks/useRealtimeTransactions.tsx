@@ -179,32 +179,59 @@ export const useRealtimeTransactions = (userId?: string) => {
         .eq('id', currentUserId)
         .single();
 
-      // Utiliser la fonction RPC sécurisée pour récupérer les transferts reçus avec informations expéditeur
-      console.log("📥 Récupération des transferts reçus (RPC)...");
-      const { data: receivedRpc, error: receivedRpcError } = await supabase
-        .rpc('get_received_transfers_with_sender', { p_user_id: currentUserId } as any);
+      if (userProfile?.phone) {
+        // Récupérer tous les transferts reçus
+        // Récupérer tous les transferts reçus (par id OU téléphone)
+        const { data: receivedTransfersData, error: receivedTransfersError } = await supabase
+          .from('transfers')
+          .select('*')
+          .or(`recipient_id.eq.${currentUserId},recipient_phone.eq.${userProfile.phone}`)
+          .eq('status', 'completed')
+          .neq('sender_id', currentUserId)
+          .order('created_at', { ascending: false });
 
-      if (receivedRpcError) {
-        console.error('❌ Erreur transferts reçus (RPC):', receivedRpcError);
-      } else if (receivedRpc && receivedRpc.length > 0) {
-        console.log("✅ Transferts reçus (RPC) trouvés:", receivedRpc.length);
-        const transformedReceivedTransfers: Transaction[] = receivedRpc.map((row: any) => {
-          const senderName = row.sender_full_name || row.sender_phone || 'Expéditeur inconnu';
-          return {
-            id: `received_${row.id}`,
-            type: 'transfer_received',
-            amount: row.amount,
-            date: new Date(row.created_at),
-            description: `💰 Transfert reçu de ${row.amount?.toLocaleString?.() || row.amount || '0'} XAF de ${senderName}`,
-            currency: 'XAF',
-            status: row.status,
-            userType: 'user' as const,
-            sender_name: senderName,
-            created_at: row.created_at,
-            impact: 'credit'
-          };
-        });
-        allTransactions.push(...transformedReceivedTransfers);
+        if (receivedTransfersError) {
+          console.error('❌ Erreur transferts reçus:', receivedTransfersError);
+        } else if (receivedTransfersData && receivedTransfersData.length > 0) {
+          console.log("✅ Transferts reçus trouvés:", receivedTransfersData.length);
+          
+          // Récupérer les informations des expéditeurs
+          const senderIds = [...new Set(receivedTransfersData.map(t => t.sender_id).filter(id => id))];
+          console.log("🔍 IDs des expéditeurs à chercher:", senderIds);
+          
+          const { data: sendersData, error: sendersError } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .in('id', senderIds);
+
+          if (sendersError) {
+            console.error('❌ Erreur lors de la récupération des expéditeurs:', sendersError);
+          } else {
+            console.log("👥 Données des expéditeurs récupérées:", sendersData);
+          }
+
+          const sendersMap = new Map(sendersData?.map(s => [s.id, s]) || []);
+
+          const transformedReceivedTransfers: Transaction[] = receivedTransfersData.map(transfer => {
+            const sender = sendersMap.get(transfer.sender_id);
+            const senderName = sender?.full_name || sender?.phone || 'Expéditeur inconnu';
+            console.log(`📝 Transfer ${transfer.id}: sender_id=${transfer.sender_id}, sender=${JSON.stringify(sender)}, name=${senderName}`);
+            return {
+              id: `received_${transfer.id}`,
+              type: 'transfer_received',
+              amount: transfer.amount,
+              date: new Date(transfer.created_at),
+              description: `💰 Transfert reçu de ${transfer.amount?.toLocaleString() || '0'} XAF de ${senderName}`,
+              currency: 'XAF',
+              status: transfer.status,
+              userType: 'user' as const,
+              sender_name: senderName,
+              created_at: transfer.created_at,
+              impact: 'credit'
+            };
+          });
+          allTransactions.push(...transformedReceivedTransfers);
+        }
       }
 
       // 5. Récupérer les paiements de factures (DÉBIT)
