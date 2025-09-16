@@ -2492,10 +2492,7 @@ export type Database = {
           amount: number
           created_at: string
           id: string
-          recipient_id: string
-          recipient_phone: string
           sender_full_name: string
-          sender_id: string
           sender_phone: string
           status: string
         }[]

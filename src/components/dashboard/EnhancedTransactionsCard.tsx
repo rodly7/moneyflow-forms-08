@@ -19,11 +19,18 @@ import {
 import { useAllTransactions } from '@/hooks/useAllTransactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useTransactionRefresh } from '@/hooks/useTransactionRefresh';
 
 const EnhancedTransactionsCard = () => {
   const { user } = useAuth();
-  const { transactions, loading } = useAllTransactions(user?.id);
+  const { transactions, loading, refetch } = useAllTransactions(user?.id);
   const navigate = useNavigate();
+
+  // Forcer le rafraîchissement quand une notification arrive
+  useTransactionRefresh(() => {
+    console.log('🔄 Rafraîchissement forcé des transactions via notification');
+    refetch();
+  });
 
   const getTransactionIcon = (type: string, impact?: string) => {
     switch (type) {

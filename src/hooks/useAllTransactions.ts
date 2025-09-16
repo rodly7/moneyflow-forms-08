@@ -198,17 +198,33 @@ export const useAllTransactions = (userId?: string) => {
         .single();
 
       if (userProfile?.phone) {
+        // DEBUG: Afficher le téléphone de l'utilisateur
+        console.log("📞 DEBUG: Téléphone utilisateur pour recherche transferts reçus:", userProfile.phone);
+        
         // Utiliser la fonction RPC sécurisée pour contourner les limitations RLS et avoir le nom de l'expéditeur
         console.log("📥 DEBUG: Récupération transferts reçus via RPC...");
         const { data: receivedRpc, error: receivedRpcError } = await supabase
           .rpc('get_received_transfers_with_sender', { p_user_id: userId } as any);
 
+        console.log("📥 DEBUG: Résultat RPC transferts reçus:");
+        console.log("📥 DEBUG: - Erreur:", receivedRpcError);
+        console.log("📥 DEBUG: - Données brutes:", receivedRpc);
+        console.log("📥 DEBUG: - Nombre de transferts reçus:", receivedRpc?.length || 0);
+
         if (receivedRpcError) {
           console.error('❌ DEBUG: Erreur transferts reçus (RPC):', receivedRpcError);
         } else if (receivedRpc && receivedRpc.length > 0) {
           console.log("✅ DEBUG: Transferts reçus (RPC):", receivedRpc.length);
-          receivedRpc.forEach((row: any) => {
+          receivedRpc.forEach((row: any, index: number) => {
             const senderName = row.sender_full_name || row.sender_phone || 'Expéditeur inconnu';
+            console.log(`📥 DEBUG: Transfert reçu ${index + 1}:`, {
+              id: row.id,
+              amount: row.amount,
+              status: row.status,
+              created_at: row.created_at,
+              sender_name: senderName
+            });
+            
             allTransactions.push({
               id: `received_${row.id}`,
               type: 'transfer_received',
@@ -224,7 +240,11 @@ export const useAllTransactions = (userId?: string) => {
               reference_id: row.id
             });
           });
+        } else {
+          console.log("⚠️ DEBUG: Aucun transfert reçu trouvé via RPC");
         }
+      } else {
+        console.log("⚠️ DEBUG: Pas de téléphone trouvé pour l'utilisateur - impossible de rechercher les transferts reçus");
       }
 
       // 5. Récupérer les paiements de factures automatiques (DÉBIT)
@@ -332,12 +352,24 @@ export const useAllTransactions = (userId?: string) => {
       console.log("📊 DEBUG: - En attente:", sortedTransactions.filter(t => t.type === 'transfer_pending').length);
       console.log("📊 DEBUG: - Paiements scanner:", sortedTransactions.filter(t => t.type === 'merchant_payment').length);
 
-      // Afficher les 5 premières transactions pour debug
-      console.log("📋 DEBUG: Les 5 premières transactions:", sortedTransactions.slice(0, 5).map(t => ({
+      // Afficher les 3 premières transactions pour debug
+      console.log("📋 DEBUG: Les 3 premières transactions:", sortedTransactions.slice(0, 3).map(t => ({
+        id: t.id,
         type: t.type,
         amount: t.amount,
         description: t.description,
-        date: t.date
+        date: t.date,
+        impact: t.impact
+      })));
+
+      // Afficher spécifiquement les transferts reçus pour debug
+      const receivedTransfers = sortedTransactions.filter(t => t.type === 'transfer_received');
+      console.log("💰 DEBUG: Détail des transferts reçus:", receivedTransfers.map(t => ({
+        id: t.id,
+        amount: t.amount,
+        description: t.description,
+        sender_name: t.sender_name,
+        created_at: t.created_at
       })));
 
       setTransactions(sortedTransactions);
