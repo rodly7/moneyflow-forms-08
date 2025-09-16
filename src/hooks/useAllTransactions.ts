@@ -198,44 +198,30 @@ export const useAllTransactions = (userId?: string) => {
         .single();
 
       if (userProfile?.phone) {
-        // Récupérer tous les transferts reçus (par id OU téléphone)
-        const { data: receivedTransfersData, error: receivedTransfersError } = await supabase
-          .from('transfers')
-          .select('*')
-          .or(`recipient_id.eq.${userId},recipient_phone.eq.${userProfile.phone}`)
-          .eq('status', 'completed')
-          .neq('sender_id', userId)
-          .order('created_at', { ascending: false });
+        // Utiliser la fonction RPC sécurisée pour contourner les limitations RLS et avoir le nom de l'expéditeur
+        console.log("📥 DEBUG: Récupération transferts reçus via RPC...");
+        const { data: receivedRpc, error: receivedRpcError } = await supabase
+          .rpc('get_received_transfers_with_sender', { p_user_id: userId } as any);
 
-        if (receivedTransfersError) {
-          console.error('❌ Erreur transferts reçus:', receivedTransfersError);
-        } else if (receivedTransfersData && receivedTransfersData.length > 0) {
-          console.log("✅ Transferts reçus trouvés:", receivedTransfersData.length);
-          
-          // Récupérer les informations des expéditeurs (si disponible via RLS sinon fallback)
-          const senderIds = [...new Set(receivedTransfersData.map(t => t.sender_id))];
-          const { data: sendersData } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone')
-            .in('id', senderIds);
-          const sendersMap = new Map(sendersData?.map(s => [s.id, s]) || []);
-
-          receivedTransfersData.forEach(transfer => {
-            const sender = sendersMap.get(transfer.sender_id);
-            const senderName = sender?.full_name || sender?.phone || 'Expéditeur inconnu';
+        if (receivedRpcError) {
+          console.error('❌ DEBUG: Erreur transferts reçus (RPC):', receivedRpcError);
+        } else if (receivedRpc && receivedRpc.length > 0) {
+          console.log("✅ DEBUG: Transferts reçus (RPC):", receivedRpc.length);
+          receivedRpc.forEach((row: any) => {
+            const senderName = row.sender_full_name || row.sender_phone || 'Expéditeur inconnu';
             allTransactions.push({
-              id: `received_${transfer.id}`,
+              id: `received_${row.id}`,
               type: 'transfer_received',
-              amount: transfer.amount || 0,
-              date: new Date(transfer.created_at),
+              amount: Number(row.amount) || 0,
+              date: new Date(row.created_at),
               description: `Transfert reçu de ${senderName}`,
               currency: 'XAF',
-              status: transfer.status || 'pending',
-              created_at: transfer.created_at,
+              status: row.status || 'completed',
+              created_at: row.created_at,
               sender_name: senderName,
-              userType: "user" as const,
-              impact: "credit" as const,
-              reference_id: transfer.id
+              userType: 'user' as const,
+              impact: 'credit' as const,
+              reference_id: row.id
             });
           });
         }

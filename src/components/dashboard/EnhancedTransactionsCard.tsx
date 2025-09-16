@@ -16,13 +16,13 @@ import {
   Plus,
   Eye
 } from 'lucide-react';
-import { useRealtimeTransactions } from '@/hooks/useRealtimeTransactions';
+import { useAllTransactions } from '@/hooks/useAllTransactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const EnhancedTransactionsCard = () => {
   const { user } = useAuth();
-  const { transactions, isLoading } = useRealtimeTransactions(user?.id);
+  const { transactions, loading } = useAllTransactions(user?.id);
   const navigate = useNavigate();
 
   const getTransactionIcon = (type: string, impact?: string) => {
@@ -108,7 +108,7 @@ const EnhancedTransactionsCard = () => {
     navigate('/transactions');
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
         <CardHeader>
@@ -165,7 +165,7 @@ const EnhancedTransactionsCard = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {transactions.slice(0, 3).map((transaction) => (
+            {transactions.slice(0, 5).map((transaction) => (
               <div key={transaction.id} className="flex flex-col p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border hover:shadow-md transition-all duration-300">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -210,7 +210,7 @@ const EnhancedTransactionsCard = () => {
                       </div>
                       
                       <div className="space-y-1">
-                        {transaction.verification_code && transaction.showCode && (
+                        {transaction.verification_code && (
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
                               Code: {transaction.verification_code}
