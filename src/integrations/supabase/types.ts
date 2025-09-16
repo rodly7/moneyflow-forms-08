@@ -2414,6 +2414,7 @@ export type Database = {
       find_recipient: {
         Args: { search_term: string }
         Returns: {
+          balance: number
           country: string
           full_name: string
           id: string
