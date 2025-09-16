@@ -8,7 +8,7 @@ interface UnifiedNotification {
   id: string;
   title: string;
   message: string;
-  type: 'transfer_received' | 'withdrawal_completed' | 'recharge_completed' | 'admin_message' | 'system';
+  type: 'transfer_received' | 'withdrawal_completed' | 'withdrawal_created' | 'bill_payment' | 'recharge_completed' | 'admin_message' | 'system';
   priority: 'low' | 'normal' | 'high';
   amount?: number;
   created_at: string;
@@ -471,17 +471,55 @@ export const useUnifiedNotifications = () => {
             };
             setNotifications(prev => [notification, ...prev.slice(0, 9)]);
             showNotificationToast(notification);
-          } else if (row.status === 'pending') {
+          } else if (payload.eventType === 'INSERT' && row.status === 'pending') {
             const notification: UnifiedNotification = {
               ...baseNotification,
-              title: '💸 Retrait initié',
-              message: `Demande de retrait de ${amt.toLocaleString('fr-FR')} FCFA créée`
+              title: '⏳ Retrait initié',
+              message: `Demande de retrait de ${amt.toLocaleString('fr-FR')} FCFA créée avec le code: ${row.verification_code || 'N/A'}`,
+              type: 'withdrawal_created'
             };
             setNotifications(prev => [notification, ...prev.slice(0, 9)]);
             showNotificationToast(notification);
           }
         } catch (e) {
           console.error('❌ Erreur traitement retrait client:', e);
+        }
+      }
+    );
+
+    // Écouter les paiements de factures
+    channelRef.current.on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'bill_payment_history',
+        filter: `user_id=eq.${user.id}`
+      },
+      (payload: any) => {
+        console.log('🔔 Nouveau paiement de facture détecté:', payload);
+        const billPayment = payload.new;
+        
+        if (billPayment && (billPayment.status === 'success' || billPayment.status === 'completed')) {
+          const notificationId = `bill_${billPayment.id}`;
+          const readIds = getReadNotificationIds();
+          
+          if (!readIds.has(notificationId)) {
+            const notification: UnifiedNotification = {
+              id: notificationId,
+              title: '📄 Facture payée',
+              message: `Votre facture de ${billPayment.amount?.toLocaleString('fr-FR') || 0} FCFA a été payée avec succès`,
+              type: 'bill_payment',
+              priority: 'normal',
+              amount: billPayment.amount,
+              created_at: billPayment.created_at,
+              read: false
+            };
+            
+            setNotifications(prev => [notification, ...prev.slice(0, 9)]);
+            showNotificationToast(notification);
+            console.log('✅ Notification facture ajoutée');
+          }
         }
       }
     );

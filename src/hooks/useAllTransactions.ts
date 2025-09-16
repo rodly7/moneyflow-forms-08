@@ -380,6 +380,8 @@ export const useAllTransactions = (userId?: string) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pending_transfers', filter: `sender_id=eq.${userId}` }, triggerRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'transfers', filter: `sender_id=eq.${userId}` }, triggerRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'merchant_payments', filter: `user_id=eq.${userId}` }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bill_payment_history', filter: `user_id=eq.${userId}` }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `target_users=cs.{${userId}}` }, triggerRefetch)
       .subscribe();
 
     // Écouter aussi les transferts reçus par téléphone

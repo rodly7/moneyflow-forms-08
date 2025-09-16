@@ -351,6 +351,16 @@ export const useRealtimeTransactions = (userId?: string) => {
       .subscribe();
     channels.push(merchantPaymentsChannel);
 
+    // Notifications temps réel
+    const notificationsChannel = supabase
+      .channel('realtime-notifications')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        console.log('🔄 Changement détecté dans notifications, rechargement...');
+        if (userId) fetchTransactions(userId);
+      })
+      .subscribe();
+    channels.push(notificationsChannel);
+
     return () => {
       channels.forEach(channel => supabase.removeChannel(channel));
     };
