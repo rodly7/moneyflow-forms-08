@@ -133,25 +133,23 @@ export function useTransferForm() {
         userRole || 'user'
       );
 
-      const { data: result, error } = await supabase.rpc('process_money_transfer', {
-        sender_id: user.id,
-        recipient_identifier: data.recipient.phone,
-        transfer_amount: data.transfer.amount,
-        transfer_fees: fee
+      const { data: resp, error } = await supabase.functions.invoke('process-money-transfer', {
+        body: {
+          sender_id: user.id,
+          recipient_identifier: data.recipient.phone,
+          transfer_amount: data.transfer.amount,
+          transfer_fees: fee
+        }
       });
 
-      if (error) throw error;
+      if (error || !resp?.success) {
+        throw new Error((resp as any)?.error || (error as any)?.message || 'Erreur transfert');
+      }
 
-      const { data: pendingTransfer, error: pendingError } = await supabase
-        .from('pending_transfers')
-        .select('claim_code, recipient_phone')
-        .eq('id', result)
-        .single();
-
-      if (!pendingError && pendingTransfer) {
+      if (resp.status === 'pending' && resp.claim_code) {
         setPendingTransferInfo({
-          recipientPhone: pendingTransfer.recipient_phone,
-          claimCode: pendingTransfer.claim_code
+          recipientPhone: data.recipient.phone,
+          claimCode: resp.claim_code
         });
         
         toast({
@@ -159,14 +157,14 @@ export function useTransferForm() {
           description: "Le destinataire recevra un code pour réclamer l'argent",
         });
         
-        await generateReceipt(result, 'transfer');
+        await generateReceipt(resp.transfer_id, 'transfer');
       } else {
         toast({
           title: "Transfert réussi",
-          description: `${data.transfer.amount.toLocaleString('fr-FR')} FCFA envoyé à ${data.recipient.fullName}`,
+          description: `${data.transfer.amount.toLocaleString('fr-FR')} FCFA envoyé à ${data.recipient.fullName || data.recipient.phone}`,
         });
         
-        await generateReceipt(result, 'transfer');
+        await generateReceipt(resp.transfer_id, 'transfer');
         resetForm();
       }
 

@@ -52,16 +52,34 @@ Deno.serve(async (req) => {
       throw new Error('Solde insuffisant')
     }
 
-    // Chercher le destinataire par téléphone
-    const { data: recipientProfile, error: recipientError } = await supabase
-      .from('profiles')
-      .select('id, full_name, phone, country')
-      .eq('phone', recipient_identifier)
-      .maybeSingle()
+    // Chercher le destinataire via RPC sécurisé pour gérer différents formats
+    const { data: recipients, error: findError } = await supabase
+      .rpc('find_recipient', { search_term: recipient_identifier })
 
-    if (recipientError) {
-      console.error('❌ Erreur recherche destinataire:', recipientError)
-      throw new Error('Erreur lors de la recherche du destinataire')
+    let recipientProfile: { id: string; full_name: string; phone: string; country: string } | null = null
+
+    if (!findError && recipients && recipients.length > 0) {
+      const r = recipients[0]
+      recipientProfile = {
+        id: r.id,
+        full_name: r.full_name,
+        phone: r.phone,
+        country: r.country
+      }
+    } else {
+      // Fallback: recherche exacte sur le téléphone
+      const { data: directProfile, error: recipientError } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, country')
+        .eq('phone', recipient_identifier)
+        .maybeSingle()
+
+      if (recipientError) {
+        console.error('❌ Erreur recherche destinataire:', recipientError)
+        throw new Error('Erreur lors de la recherche du destinataire')
+      }
+
+      recipientProfile = directProfile
     }
 
     // Débiter l'expéditeur
