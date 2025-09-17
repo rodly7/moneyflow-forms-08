@@ -300,8 +300,9 @@ export const useUnifiedNotifications = () => {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 10);
 
+      // Ne garder que les notifications non lues pour affichage
       setNotifications(unreadNotifications);
-      console.log(`✅ ${unreadNotifications.length} notifications non lues chargées`);
+      console.log(`✅ ${unreadNotifications.length} notifications non lues chargées pour affichage`);
       
       if (unreadNotifications.length === 0) {
         console.log('🔕 Aucune notification non lue trouvée');

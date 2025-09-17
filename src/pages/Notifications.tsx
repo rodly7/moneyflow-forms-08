@@ -306,9 +306,9 @@ const Notifications = () => {
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
               </div>
-            ) : notifications.length > 0 ? (
+            ) : notifications.filter(n => !n.read_at).length > 0 ? (
               <div className="space-y-3 sm:space-y-4">
-                {notifications.map((notification) => (
+                {notifications.filter(n => !n.read_at).map((notification) => (
                   <Card
                     key={notification.id}
                     className={`cursor-pointer border-l-4 transition-all hover:shadow-md ${getPriorityColor(notification.priority)} ${
@@ -349,9 +349,9 @@ const Notifications = () => {
             ) : (
               <div className="text-center py-8">
                 <Bell className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-base sm:text-lg font-medium text-gray-500 mb-2">Aucune notification</h3>
+                <h3 className="text-base sm:text-lg font-medium text-gray-500 mb-2">Aucune nouvelle notification</h3>
                 <p className="text-xs sm:text-sm text-gray-400">
-                  Vous n'avez reçu aucun message de l'administration
+                  Toutes vos notifications ont été lues
                 </p>
               </div>
             )}
