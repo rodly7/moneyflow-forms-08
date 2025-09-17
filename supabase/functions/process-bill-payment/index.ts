@@ -239,23 +239,47 @@ Deno.serve(async (req) => {
           )
         }
 
-        // 2) Rechercher le destinataire (avec normalisation du numéro)
-        const { data: recipientSearch, error: recipientSearchError } = await supabase.rpc('find_recipient', {
-          search_term: recipient_phone
-        })
+        // 2) Obtenir les données utilisateur pour l'historique
+        const { data: userProfile, error: userError } = await supabase
+          .from('profiles')
+          .select('full_name, phone, country')
+          .eq('id', user_id)
+          .single()
 
-        if (recipientSearchError) {
-          console.error('❌ Erreur recherche destinataire:', recipientSearchError)
+        if (userError) {
+          console.error('❌ Erreur profil utilisateur:', userError)
           // Rollback du débit
           await supabase.rpc('increment_balance', { user_id: user_id, amount: totalAmount })
           return new Response(
-            JSON.stringify({ success: false, message: 'Erreur lors de la recherche du destinataire' }),
+            JSON.stringify({ success: false, message: 'Erreur lors de la récupération du profil utilisateur' }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
           )
         }
 
-        const recipientProfile = recipientSearch && recipientSearch.length > 0 ? recipientSearch[0] : null
+        // 3) Rechercher le destinataire par téléphone
+        let recipientProfile = null
+        const { data: foundRecipient } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, country')
+          .eq('phone', recipient_phone)
+          .maybeSingle()
 
+        if (foundRecipient) {
+          recipientProfile = foundRecipient
+        } else {
+          // Recherche alternative avec normalisation
+          const normalized = recipient_phone.replace(/\D/g, '')
+          const withoutCountryCode = normalized.slice(-9)
+          
+          const { data: altRecipient } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone, country')
+            .or(`phone.ilike.%${withoutCountryCode},phone.ilike.%${normalized}`)
+            .limit(1)
+            .maybeSingle()
+          
+          recipientProfile = altRecipient
+        }
 
         if (recipientProfile) {
           // 3a) Créditer le destinataire du montant original (sans frais)
@@ -286,12 +310,9 @@ Deno.serve(async (req) => {
               fees: fees,
               status: 'completed',
               currency: 'XAF',
-              description: `Paiement facture ${bill_type} - ${provider_name} - ${meter_number || account_number}`,
+              description: `Paiement facture ${bill_type || 'manual'} - ${provider || 'manual'} - ${account_number || ''}`,
               sender_name: userProfile.full_name,
-              sender_phone: userProfile.phone,
-              bill_type: bill_type,
-              meter_number: meter_number || account_number,
-              provider_name: provider_name
+              sender_phone: userProfile.phone
             })
           if (transferError) console.error('⚠️ Erreur enregistrement transfert:', transferError)
 
@@ -302,15 +323,15 @@ Deno.serve(async (req) => {
               .insert({
                 user_id: user_id,
                 merchant_id: recipientProfile.id,
-                business_name: provider_name || recipientProfile.full_name,
+                business_name: provider || recipientProfile.full_name,
                 amount: amount,
                 currency: 'XAF',
                 status: 'completed',
-                description: `Paiement facture ${bill_type}`,
+                description: `Paiement facture ${bill_type || 'manuel'}`,
                 client_name: userProfile.full_name,
                 client_phone: userProfile.phone,
-                meter_number: meter_number || account_number,
-                bill_type: bill_type
+                meter_number: account_number || '',
+                bill_type: bill_type || 'manuel'
               })
           } catch (e) {
             console.error('⚠️ Erreur enregistrement merchant_payments:', e)
