@@ -337,6 +337,51 @@ export const useAllTransactions = (userId?: string) => {
         });
       }
 
+      // 8. Récupérer les notifications d'épargne pour les inclure dans les transactions récentes
+      console.log("🏦 Récupération des notifications d'épargne...");
+      const { data: savingsNotifications, error: savingsNotificationsError } = await supabase
+        .from('notifications')
+        .select(`
+          id,
+          title,
+          message,
+          notification_type,
+          created_at,
+          notification_recipients!inner(
+            user_id,
+            status
+          )
+        `)
+        .eq('notification_recipients.user_id', userId)
+        .in('notification_type', ['individual']) // Les notifications d'épargne sont de type 'individual'
+        .or('title.ilike.%épargne%,title.ilike.%objectif%,message.ilike.%épargne%,message.ilike.%objectif%')
+        .order('created_at', { ascending: false });
+
+      if (savingsNotificationsError) {
+        console.error("❌ Erreur notifications épargne:", savingsNotificationsError);
+      } else if (savingsNotifications) {
+        console.log("✅ Notifications d'épargne trouvées:", savingsNotifications.length);
+        savingsNotifications.forEach(notification => {
+          // Extraire le montant du message si possible
+          const messageMatch = notification.message?.match(/(\d+(?:[\s,]\d{3})*(?:\.\d{2})?)\s*XAF/);
+          const extractedAmount = messageMatch ? parseFloat(messageMatch[1].replace(/[\s,]/g, '')) : 0;
+          
+          allTransactions.push({
+            id: `savings_${notification.id}`,
+            type: 'savings_notification',
+            amount: extractedAmount,
+            date: new Date(notification.created_at),
+            description: notification.title || 'Notification épargne',
+            currency: 'XAF',
+            status: 'completed',
+            created_at: notification.created_at,
+            userType: "user" as const,
+            impact: "credit" as const,
+            reference_id: notification.id
+          });
+        });
+      }
+
       // Trier par date décroissante (plus récentes en premier)
       const sortedTransactions = allTransactions.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -351,6 +396,7 @@ export const useAllTransactions = (userId?: string) => {
       console.log("📊 DEBUG: - Paiements factures:", sortedTransactions.filter(t => t.type === 'bill_payment').length);
       console.log("📊 DEBUG: - En attente:", sortedTransactions.filter(t => t.type === 'transfer_pending').length);
       console.log("📊 DEBUG: - Paiements scanner:", sortedTransactions.filter(t => t.type === 'merchant_payment').length);
+      console.log("📊 DEBUG: - Notifications épargne:", sortedTransactions.filter(t => t.type === 'savings_notification').length);
 
       // Afficher les 3 premières transactions pour debug
       console.log("📋 DEBUG: Les 3 premières transactions:", sortedTransactions.slice(0, 3).map(t => ({
