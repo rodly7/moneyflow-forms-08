@@ -544,14 +544,14 @@ export const useUnifiedNotifications = () => {
     });
   };
 
-  // Rafraîchissement automatique des notifications toutes les 30 secondes
+  // Rafraîchissement automatique des notifications optimisé
   useEffect(() => {
     if (!user?.id) return;
 
     const interval = setInterval(() => {
       console.log('🔄 Actualisation automatique des notifications');
       loadRecentNotifications();
-    }, 30000); // 30 secondes
+    }, 45000); // Optimisé : 45 secondes pour réduire la charge
 
     return () => clearInterval(interval);
   }, [user?.id]);

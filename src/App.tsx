@@ -8,6 +8,7 @@ import { PWAInstallBanner } from "./components/pwa/PWAInstallBanner";
 import { PWAUpdateBanner } from "./components/pwa/PWAUpdateBanner";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 import { ForcedPWAInstall } from "./components/pwa/ForcedPWAInstall";
+import OptimizedWrapper from "./components/performance/OptimizedWrapper";
 
 // CRITICAL: All imports must be static - NO dynamic imports whatsoever
 // Every single component is imported statically to prevent code splitting
@@ -158,61 +159,63 @@ function App() {
   console.log('App rendering with 100% static imports - NUCLEAR ANTI-SPLITTING MODE');
 
   return (
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <OfflineIndicator />
-      <ForcedPWAInstall />
-      <PWAInstallBanner />
-      <PWAUpdateBanner />
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Index />} />
-          <Route path="auth" element={<Auth />} />
-          <Route path="agent-auth" element={<AgentAuth />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="agent-dashboard" element={<ResponsiveAgentDashboard />} />
-          <Route path="admin-dashboard" element={<MainAdminDashboard />} />
-          <Route path="main-admin" element={<MainAdminDashboard />} />
-          <Route path="admin/treasury" element={<AdminTreasury />} />
-          <Route path="admin/users" element={<AdminUsers />} />
-          <Route path="admin/agent-reports" element={<AdminAgentReports />} />
-          <Route path="admin/settings" element={<AdminSettings />} />
-          <Route path="admin/notifications" element={<AdminNotifications />} />
-          <Route path="admin/transaction-monitor" element={<AdminTransactionMonitor />} />
-          <Route path="sub-admin-dashboard" element={<SubAdminDashboard />} />
-          <Route path="transfer" element={<Transfer />} />
-          <Route path="transactions" element={<Transactions />} />
-          <Route path="deposit" element={<UnifiedDepositWithdrawal />} />
-          <Route path="unified-deposit-withdrawal" element={<UnifiedDepositWithdrawal />} />
-          <Route path="deposit-withdrawal" element={<UnifiedDepositWithdrawal />} />
-          <Route path="withdraw" element={<UnifiedDepositWithdrawal />} />
-          <Route path="agent-services" element={<AgentServices />} />
-          
-          {/* Agent routes - all statically imported */}
-          <Route path="agent-deposit" element={<AgentDeposit />} />
-          <Route path="agent-withdrawal-advanced" element={<AgentWithdrawalAdvanced />} />
-          <Route path="agent-reports" element={<AgentReports />} />
-          <Route path="agent-performance-dashboard" element={<AgentPerformanceDashboard />} />
-          <Route path="mobile-recharge" element={<PrepaidCards />} />
-          <Route path="agent-commission-withdrawal" element={<AgentCommissionWithdrawal />} />
-          <Route path="agent-settings" element={<AgentSettingsPage />} />
-          
-          <Route path="agent-performance" element={<AgentPerformanceDashboard />} />
-          <Route path="savings" element={<Savings />} />
-          <Route path="receipts" element={<Receipts />} />
-          <Route path="qr-code" element={<QRCode />} />
-          <Route path="qr-payment" element={<QRPayment />} />
-          <Route path="notifications" element={<Notifications />} />
-          <Route path="change-password" element={<ChangePassword />} />
-          <Route path="bill-payments" element={<BillPayments />} />
-          <Route path="merchant" element={<MerchantDashboard />} />
-          <Route path="provider" element={<ProviderDashboard />} />
-          <Route path="profile-test" element={<ProfileTestPage />} />
-          <Route path="admin/payment-numbers" element={<PaymentNumbersManagement />} />
-        </Route>
-      </Routes>
-    </TooltipProvider>
+    <OptimizedWrapper>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <OfflineIndicator />
+        <ForcedPWAInstall />
+        <PWAInstallBanner />
+        <PWAUpdateBanner />
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Index />} />
+            <Route path="auth" element={<Auth />} />
+            <Route path="agent-auth" element={<AgentAuth />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="agent-dashboard" element={<ResponsiveAgentDashboard />} />
+            <Route path="admin-dashboard" element={<MainAdminDashboard />} />
+            <Route path="main-admin" element={<MainAdminDashboard />} />
+            <Route path="admin/treasury" element={<AdminTreasury />} />
+            <Route path="admin/users" element={<AdminUsers />} />
+            <Route path="admin/agent-reports" element={<AdminAgentReports />} />
+            <Route path="admin/settings" element={<AdminSettings />} />
+            <Route path="admin/notifications" element={<AdminNotifications />} />
+            <Route path="admin/transaction-monitor" element={<AdminTransactionMonitor />} />
+            <Route path="sub-admin-dashboard" element={<SubAdminDashboard />} />
+            <Route path="transfer" element={<Transfer />} />
+            <Route path="transactions" element={<Transactions />} />
+            <Route path="deposit" element={<UnifiedDepositWithdrawal />} />
+            <Route path="unified-deposit-withdrawal" element={<UnifiedDepositWithdrawal />} />
+            <Route path="deposit-withdrawal" element={<UnifiedDepositWithdrawal />} />
+            <Route path="withdraw" element={<UnifiedDepositWithdrawal />} />
+            <Route path="agent-services" element={<AgentServices />} />
+            
+            {/* Agent routes - all statically imported */}
+            <Route path="agent-deposit" element={<AgentDeposit />} />
+            <Route path="agent-withdrawal-advanced" element={<AgentWithdrawalAdvanced />} />
+            <Route path="agent-reports" element={<AgentReports />} />
+            <Route path="agent-performance-dashboard" element={<AgentPerformanceDashboard />} />
+            <Route path="mobile-recharge" element={<PrepaidCards />} />
+            <Route path="agent-commission-withdrawal" element={<AgentCommissionWithdrawal />} />
+            <Route path="agent-settings" element={<AgentSettingsPage />} />
+            
+            <Route path="agent-performance" element={<AgentPerformanceDashboard />} />
+            <Route path="savings" element={<Savings />} />
+            <Route path="receipts" element={<Receipts />} />
+            <Route path="qr-code" element={<QRCode />} />
+            <Route path="qr-payment" element={<QRPayment />} />
+            <Route path="notifications" element={<Notifications />} />
+            <Route path="change-password" element={<ChangePassword />} />
+            <Route path="bill-payments" element={<BillPayments />} />
+            <Route path="merchant" element={<MerchantDashboard />} />
+            <Route path="provider" element={<ProviderDashboard />} />
+            <Route path="profile-test" element={<ProfileTestPage />} />
+            <Route path="admin/payment-numbers" element={<PaymentNumbersManagement />} />
+          </Route>
+        </Routes>
+      </TooltipProvider>
+    </OptimizedWrapper>
   );
 }
 

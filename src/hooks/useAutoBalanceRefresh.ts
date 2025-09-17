@@ -10,7 +10,7 @@ interface UseAutoBalanceRefreshOptions {
 }
 
 export const useAutoBalanceRefresh = ({
-  intervalMs = 3000, // 3 secondes exactement
+  intervalMs = 5000, // Optimisé : 5 secondes au lieu de 3
   onBalanceChange,
   enableRealtime = true
 }: UseAutoBalanceRefreshOptions = {}) => {
@@ -22,7 +22,7 @@ export const useAutoBalanceRefresh = ({
     if (!user?.id) return;
 
     try {
-      console.log('🔄 Rafraîchissement automatique du solde toutes les 3 secondes...');
+      console.log('🔄 Rafraîchissement automatique du solde toutes les 5 secondes...');
       
       // Utiliser la fonction RPC pour obtenir le solde exact
       const { data: realBalance, error: rpcError } = await supabase.rpc('increment_balance', {
@@ -59,7 +59,7 @@ export const useAutoBalanceRefresh = ({
     // Rafraîchir immédiatement
     refreshBalance();
 
-    // Configurer l'intervalle - 3 secondes pour une mise à jour plus fréquente
+    // Configurer l'intervalle - 5 secondes optimisé pour la performance
     const interval = setInterval(refreshBalance, intervalMs);
 
     return () => {
