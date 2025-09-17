@@ -191,29 +191,18 @@ export const useAllTransactions = (userId?: string) => {
 
       // 4. Récupérer les transferts reçus (CRÉDIT)
       console.log("📥 Récupération des transferts reçus...");
-      const { data: userProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('id', userId)
-        .single();
-
-      if (userProfile?.phone) {
-        // DEBUG: Afficher le téléphone de l'utilisateur
-        console.log("📞 DEBUG: Téléphone utilisateur pour recherche transferts reçus:", userProfile.phone);
-        
-        // Utiliser la fonction RPC sécurisée pour contourner les limitations RLS et avoir le nom de l'expéditeur
-        console.log("📥 DEBUG: Récupération transferts reçus via RPC...");
+      
+      // Essayer d'abord avec la fonction RPC sécurisée
+      try {
         const { data: receivedRpc, error: receivedRpcError } = await supabase
-          .rpc('get_received_transfers_with_sender', { p_user_id: userId } as any);
+          .rpc('get_received_transfers_with_sender', { p_user_id: userId });
 
         console.log("📥 DEBUG: Résultat RPC transferts reçus:");
         console.log("📥 DEBUG: - Erreur:", receivedRpcError);
         console.log("📥 DEBUG: - Données brutes:", receivedRpc);
         console.log("📥 DEBUG: - Nombre de transferts reçus:", receivedRpc?.length || 0);
 
-        if (receivedRpcError) {
-          console.error('❌ DEBUG: Erreur transferts reçus (RPC):', receivedRpcError);
-        } else if (receivedRpc && receivedRpc.length > 0) {
+        if (!receivedRpcError && receivedRpc && receivedRpc.length > 0) {
           console.log("✅ DEBUG: Transferts reçus (RPC):", receivedRpc.length);
           receivedRpc.forEach((row: any, index: number) => {
             const senderName = row.sender_full_name || row.sender_phone || 'Expéditeur inconnu';
@@ -240,40 +229,96 @@ export const useAllTransactions = (userId?: string) => {
               reference_id: row.id
             });
           });
+        } else if (receivedRpcError) {
+          console.error('❌ DEBUG: Erreur transferts reçus (RPC):', receivedRpcError);
+          
+          // Fallback: essayer avec une requête directe
+          console.log("📥 DEBUG: Fallback - recherche directe des transferts reçus...");
+          const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('phone')
+            .eq('id', userId)
+            .single();
+
+          if (userProfile?.phone) {
+            const { data: directTransfers, error: directError } = await supabase
+              .from('transfers')
+              .select('*')
+              .eq('recipient_phone', userProfile.phone)
+              .eq('status', 'completed')
+              .order('created_at', { ascending: false });
+
+            if (!directError && directTransfers) {
+              console.log("✅ Transferts reçus (fallback):", directTransfers.length);
+              directTransfers.forEach(transfer => {
+                allTransactions.push({
+                  id: `received_fallback_${transfer.id}`,
+                  type: 'transfer_received',
+                  amount: Number(transfer.amount) || 0,
+                  date: new Date(transfer.created_at),
+                  description: `Transfert reçu de ${transfer.recipient_phone || 'Expéditeur inconnu'}`,
+                  currency: 'XAF',
+                  status: transfer.status || 'completed',
+                  created_at: transfer.created_at,
+                  userType: 'user' as const,
+                  impact: 'credit' as const,
+                  reference_id: transfer.id
+                });
+              });
+            }
+          }
         } else {
           console.log("⚠️ DEBUG: Aucun transfert reçu trouvé via RPC");
         }
-      } else {
-        console.log("⚠️ DEBUG: Pas de téléphone trouvé pour l'utilisateur - impossible de rechercher les transferts reçus");
+      } catch (error) {
+        console.error("❌ DEBUG: Erreur lors de l'appel RPC:", error);
       }
 
       // 5. Récupérer les paiements de factures automatiques (DÉBIT)
       console.log("📄 Récupération des paiements de factures automatiques...");
-      const { data: billPaymentsData, error: billPaymentsError } = await supabase
-        .from('bill_payment_history')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+      try {
+        const { data: billPaymentsData, error: billPaymentsError } = await supabase
+          .from('bill_payment_history')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
 
-      if (billPaymentsError) {
-        console.error('❌ Erreur paiements factures:', billPaymentsError);
-      } else if (billPaymentsData) {
-        console.log("✅ Paiements de factures trouvés:", billPaymentsData.length);
-        billPaymentsData.forEach(payment => {
-          allTransactions.push({
-            id: `bill_${payment.id}`,
-            type: 'bill_payment',
-            amount: payment.amount || 0,
-            date: new Date(payment.created_at || payment.payment_date),
-            description: `Paiement de facture`,
-            currency: 'XAF',
-            status: payment.status || 'completed',
-            created_at: payment.created_at || payment.payment_date,
-            userType: "user" as const,
-            impact: "debit" as const,
-            reference_id: payment.id?.toString()
+        console.log("📄 DEBUG: Résultat paiements factures:");
+        console.log("📄 DEBUG: - Erreur:", billPaymentsError);
+        console.log("📄 DEBUG: - Données brutes:", billPaymentsData);
+        console.log("📄 DEBUG: - Nombre de paiements:", billPaymentsData?.length || 0);
+
+        if (billPaymentsError) {
+          console.error('❌ Erreur paiements factures:', billPaymentsError);
+        } else if (billPaymentsData && billPaymentsData.length > 0) {
+          console.log("✅ Paiements de factures trouvés:", billPaymentsData.length);
+          billPaymentsData.forEach((payment, index) => {
+            console.log(`📄 DEBUG: Paiement facture ${index + 1}:`, {
+              id: payment.id,
+              amount: payment.amount,
+              status: payment.status,
+              created_at: payment.created_at
+            });
+            
+            allTransactions.push({
+              id: `bill_${payment.id}`,
+              type: 'bill_payment',
+              amount: payment.amount || 0,
+              date: new Date(payment.created_at || payment.payment_date),
+              description: `Paiement de facture automatique`,
+              currency: 'XAF',
+              status: payment.status || 'completed',
+              created_at: payment.created_at || payment.payment_date,
+              userType: "user" as const,
+              impact: "debit" as const,
+              reference_id: payment.id?.toString()
+            });
           });
-        });
+        } else {
+          console.log("⚠️ DEBUG: Aucun paiement de facture trouvé");
+        }
+      } catch (error) {
+        console.error("❌ DEBUG: Erreur lors de la récupération des paiements de factures:", error);
       }
 
 
