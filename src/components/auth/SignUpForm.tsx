@@ -213,7 +213,7 @@ const SignUpForm = ({ onSwitchToLogin }: SignUpFormProps) => {
             className="font-mono"
           />
           <p className="text-xs text-gray-500">
-            Avez-vous été invité ? Saisissez le code de parrainage de votre ami pour que vous receviez tous les deux 200 F !
+            Avez-vous été invité ? Saisissez le code de parrainage de votre ami pour profiter des avantages de Sendflow.
           </p>
         </div>
 
