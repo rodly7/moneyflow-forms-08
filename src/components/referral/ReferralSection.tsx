@@ -138,24 +138,26 @@ const ReferralSection = () => {
   };
 
   const shareViaWhatsApp = () => {
-    const message = `🎉 Rejoignez Sendflow avec mon code de parrainage ${referralData?.referral_code} et nous gagnerons tous les deux 200 F ! 💸 \n\nSendflow - L'app de transfert d'argent simple et sécurisée.`;
+    const signupUrl = `${window.location.origin}/auth?ref=${referralData?.referral_code}`;
+    const message = `🎉 Rejoignez Sendflow avec mon code de parrainage ${referralData?.referral_code} et nous gagnerons tous les deux 200 F ! 💸 \n\nInscrivez-vous ici : ${signupUrl}\n\nSendflow - L'app de transfert d'argent simple et sécurisée.`;
     const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };
 
   const shareViaEmail = () => {
     const subject = "Invitation Sendflow - Gagnez 200 F !";
+    const signupUrl = `${window.location.origin}/auth?ref=${referralData?.referral_code}`;
     const body = `Salut !
 
 Je t'invite à rejoindre Sendflow, l'app de transfert d'argent que j'utilise.
 
 Utilise mon code de parrainage : ${referralData?.referral_code}
 
-✅ Tu recevras 200 F à ton inscription
-✅ Je recevrai aussi 200 F quand tu t'inscris
+✅ Tu recevras 200 F quand tu recharges 1000 F
+✅ Je recevrai aussi 200 F quand tu fais ta première recharge
 ✅ C'est 100% gratuit et sécurisé
 
-Télécharge l'app et inscris-toi avec mon code !
+Inscris-toi directement ici : ${signupUrl}
 
 À bientôt sur Sendflow ! 🚀`;
 
@@ -164,7 +166,8 @@ Télécharge l'app et inscris-toi avec mon code !
   };
 
   const shareViaSMS = () => {
-    const message = `🎉 Rejoignez Sendflow avec mon code ${referralData?.referral_code} et gagnez 200 F ! 💸`;
+    const signupUrl = `${window.location.origin}/auth?ref=${referralData?.referral_code}`;
+    const message = `🎉 Rejoignez Sendflow avec mon code ${referralData?.referral_code} et gagnez 200 F ! 💸 Inscrivez-vous : ${signupUrl}`;
     const url = `sms:?body=${encodeURIComponent(message)}`;
     window.open(url);
   };
@@ -309,7 +312,7 @@ Télécharge l'app et inscris-toi avec mon code !
           {/* Bouton d'inscription directe */}
           <div className="pt-2">
             <Button
-              onClick={() => window.open('/auth', '_blank')}
+              onClick={() => window.open(`/auth?ref=${referralData?.referral_code}`, '_blank')}
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
               size="sm"
             >
