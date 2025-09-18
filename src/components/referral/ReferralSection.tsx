@@ -227,7 +227,7 @@ Télécharge l'app et inscris-toi avec mon code !
             </div>
             <div className="flex items-start gap-2">
               <span className="font-bold text-purple-600">3️⃣</span>
-              <span>Dès que l'inscription est validée, 200 F sont automatiquement crédités sur votre compte.</span>
+              <span>Dès que votre ami recharge 1000 XAF dans son compte, 200 XAF sont automatiquement crédités sur votre compte.</span>
             </div>
           </div>
           
