@@ -137,6 +137,25 @@ const ReferralSection = () => {
     }
   };
 
+  const copySignupLink = async () => {
+    if (referralData?.referral_code) {
+      try {
+        const signupUrl = `https://sendflow.cards/auth?ref=${referralData.referral_code}`;
+        await navigator.clipboard.writeText(signupUrl);
+        toast({
+          title: "Lien copié !",
+          description: "Le lien d'inscription a été copié dans le presse-papiers",
+        });
+      } catch (error) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de copier le lien",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
   const shareViaWhatsApp = () => {
     const signupUrl = `https://sendflow.cards/auth?ref=${referralData?.referral_code}`;
     const message = `🎉 Rejoignez Sendflow avec mon code de parrainage ${referralData?.referral_code} et nous gagnerons tous les deux 100 F ! 💸 \n\nInscrivez-vous ici : ${signupUrl}\n\nSendflow - L'app de transfert d'argent simple et sécurisée.`;
@@ -252,6 +271,24 @@ Inscris-toi directement ici : ${signupUrl}
               className="font-mono text-lg font-bold text-center bg-purple-50 border-purple-200"
             />
             <Button onClick={copyReferralCode} size="sm" variant="outline">
+              <Copy className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Lien d'inscription direct */}
+        <div className="bg-white rounded-lg p-4 border-2 border-dashed border-purple-300">
+          <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+            <ExternalLink className="w-4 h-4 text-purple-600" />
+            Votre lien d'inscription
+          </h3>
+          <div className="flex items-center gap-2">
+            <Input 
+              value={`https://sendflow.cards/auth?ref=${referralData?.referral_code || ''}`}
+              readOnly 
+              className="font-mono text-sm text-center bg-purple-50 border-purple-200"
+            />
+            <Button onClick={copySignupLink} size="sm" variant="outline">
               <Copy className="w-4 h-4" />
             </Button>
           </div>
