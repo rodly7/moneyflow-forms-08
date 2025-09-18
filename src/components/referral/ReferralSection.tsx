@@ -138,7 +138,7 @@ const ReferralSection = () => {
   };
 
   const shareViaWhatsApp = () => {
-    const signupUrl = `${window.location.origin}/auth?ref=${referralData?.referral_code}`;
+    const signupUrl = `https://sendflow.cards/auth?ref=${referralData?.referral_code}`;
     const message = `🎉 Rejoignez Sendflow avec mon code de parrainage ${referralData?.referral_code} et nous gagnerons tous les deux 100 F ! 💸 \n\nInscrivez-vous ici : ${signupUrl}\n\nSendflow - L'app de transfert d'argent simple et sécurisée.`;
     const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
@@ -146,7 +146,7 @@ const ReferralSection = () => {
 
   const shareViaEmail = () => {
     const subject = "Invitation Sendflow - Gagnez 100 F !";
-    const signupUrl = `${window.location.origin}/auth?ref=${referralData?.referral_code}`;
+    const signupUrl = `https://sendflow.cards/auth?ref=${referralData?.referral_code}`;
     const body = `Salut !
 
 Je t'invite à rejoindre Sendflow, l'app de transfert d'argent que j'utilise.
@@ -166,7 +166,7 @@ Inscris-toi directement ici : ${signupUrl}
   };
 
   const shareViaSMS = () => {
-    const signupUrl = `${window.location.origin}/auth?ref=${referralData?.referral_code}`;
+    const signupUrl = `https://sendflow.cards/auth?ref=${referralData?.referral_code}`;
     const message = `🎉 Rejoignez Sendflow avec mon code ${referralData?.referral_code} et gagnez 100 F ! 💸 Inscrivez-vous : ${signupUrl}`;
     const url = `sms:?body=${encodeURIComponent(message)}`;
     window.open(url);
@@ -312,7 +312,7 @@ Inscris-toi directement ici : ${signupUrl}
           {/* Bouton d'inscription directe */}
           <div className="pt-2">
             <Button
-              onClick={() => window.open(`/auth?ref=${referralData?.referral_code}`, '_blank')}
+              onClick={() => window.open(`https://sendflow.cards/auth?ref=${referralData?.referral_code}`, '_blank')}
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
               size="sm"
             >
