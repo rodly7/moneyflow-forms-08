@@ -1694,6 +1694,7 @@ export type Database = {
           created_at: string
           credit_applique: boolean
           credited_at: string | null
+          first_recharge_completed: boolean | null
           id: string
           referral_code: string
           referred_user_id: string
@@ -1708,6 +1709,7 @@ export type Database = {
           created_at?: string
           credit_applique?: boolean
           credited_at?: string | null
+          first_recharge_completed?: boolean | null
           id?: string
           referral_code: string
           referred_user_id: string
@@ -1722,6 +1724,7 @@ export type Database = {
           created_at?: string
           credit_applique?: boolean
           credited_at?: string | null
+          first_recharge_completed?: boolean | null
           id?: string
           referral_code?: string
           referred_user_id?: string
