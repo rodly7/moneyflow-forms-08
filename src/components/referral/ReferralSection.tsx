@@ -139,13 +139,13 @@ const ReferralSection = () => {
 
   const shareViaWhatsApp = () => {
     const signupUrl = `${window.location.origin}/auth?ref=${referralData?.referral_code}`;
-    const message = `🎉 Rejoignez Sendflow avec mon code de parrainage ${referralData?.referral_code} et nous gagnerons tous les deux 200 F ! 💸 \n\nInscrivez-vous ici : ${signupUrl}\n\nSendflow - L'app de transfert d'argent simple et sécurisée.`;
+    const message = `🎉 Rejoignez Sendflow avec mon code de parrainage ${referralData?.referral_code} et nous gagnerons tous les deux 100 F ! 💸 \n\nInscrivez-vous ici : ${signupUrl}\n\nSendflow - L'app de transfert d'argent simple et sécurisée.`;
     const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };
 
   const shareViaEmail = () => {
-    const subject = "Invitation Sendflow - Gagnez 200 F !";
+    const subject = "Invitation Sendflow - Gagnez 100 F !";
     const signupUrl = `${window.location.origin}/auth?ref=${referralData?.referral_code}`;
     const body = `Salut !
 
@@ -153,8 +153,8 @@ Je t'invite à rejoindre Sendflow, l'app de transfert d'argent que j'utilise.
 
 Utilise mon code de parrainage : ${referralData?.referral_code}
 
-✅ Tu recevras 200 F quand tu recharges 1000 F
-✅ Je recevrai aussi 200 F quand tu fais ta première recharge
+✅ Tu recevras 100 F quand tu recharges 1000 F
+✅ Je recevrai aussi 100 F quand tu fais ta première recharge
 ✅ C'est 100% gratuit et sécurisé
 
 Inscris-toi directement ici : ${signupUrl}
@@ -167,7 +167,7 @@ Inscris-toi directement ici : ${signupUrl}
 
   const shareViaSMS = () => {
     const signupUrl = `${window.location.origin}/auth?ref=${referralData?.referral_code}`;
-    const message = `🎉 Rejoignez Sendflow avec mon code ${referralData?.referral_code} et gagnez 200 F ! 💸 Inscrivez-vous : ${signupUrl}`;
+    const message = `🎉 Rejoignez Sendflow avec mon code ${referralData?.referral_code} et gagnez 100 F ! 💸 Inscrivez-vous : ${signupUrl}`;
     const url = `sms:?body=${encodeURIComponent(message)}`;
     window.open(url);
   };
@@ -208,7 +208,7 @@ Inscris-toi directement ici : ${signupUrl}
           <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full">
             <Gift className="w-6 h-6 text-white" />
           </div>
-          Parrainage Sendflow – Gagnez 200 F !
+          Parrainage Sendflow – Gagnez 100 F !
         </CardTitle>
       </CardHeader>
       
@@ -216,7 +216,7 @@ Inscris-toi directement ici : ${signupUrl}
         {/* Description */}
         <div className="bg-white/70 rounded-lg p-4">
           <p className="text-gray-700 mb-3">
-            Invitez vos amis à rejoindre Sendflow et recevez <strong>200 F</strong> pour chaque ami inscrit avec votre lien de parrainage !
+            Invitez vos amis à rejoindre Sendflow et recevez <strong>100 F</strong> pour chaque ami inscrit avec votre lien de parrainage !
           </p>
           
           <div className="space-y-2 text-sm text-gray-600">
@@ -230,7 +230,7 @@ Inscris-toi directement ici : ${signupUrl}
             </div>
             <div className="flex items-start gap-2">
               <span className="font-bold text-purple-600">3️⃣</span>
-              <span>Dès que votre ami recharge 1000 XAF dans son compte, 200 XAF sont automatiquement crédités sur votre compte.</span>
+              <span>Dès que votre ami recharge 1000 XAF dans son compte, 100 XAF sont automatiquement crédités sur votre compte.</span>
             </div>
           </div>
           
