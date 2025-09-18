@@ -50,6 +50,7 @@ import ProviderDashboard from "./pages/ProviderDashboard";
 import ProfileTestPage from "./pages/ProfileTest";
 import PaymentNumbersManagement from "./pages/admin/PaymentNumbersManagement";
 import DepositWithdrawalForm from "./components/deposit-withdrawal/DepositWithdrawalForm";
+import RechargeManagement from "./pages/RechargeManagement";
 
 // Enhanced loading component with error boundary
 const EnhancedLoader = () => (
@@ -212,6 +213,7 @@ function App() {
             <Route path="provider" element={<ProviderDashboard />} />
             <Route path="profile-test" element={<ProfileTestPage />} />
             <Route path="admin/payment-numbers" element={<PaymentNumbersManagement />} />
+            <Route path="recharge-management" element={<RechargeManagement />} />
           </Route>
         </Routes>
       </TooltipProvider>

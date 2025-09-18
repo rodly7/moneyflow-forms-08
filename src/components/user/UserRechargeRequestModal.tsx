@@ -247,19 +247,28 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
     const config = getPaymentConfig();
     
     return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setCurrentStep('operation')}>
-            <ArrowLeft className="w-4 h-4" />
+      <div className="space-y-6">
+        {/* Header avec titre et icône dollar */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+            <span className="text-white font-bold text-lg">$</span>
+          </div>
+          <h2 className="text-xl font-bold text-center">Recharger / Retirer</h2>
+        </div>
+
+        {/* Sous-titre avec flèche de retour */}
+        <div className="flex items-center gap-3 mb-4">
+          <Button variant="ghost" size="sm" onClick={() => setCurrentStep('operation')} className="p-0">
+            <ArrowLeft className="w-5 h-5" />
           </Button>
           <h3 className="text-lg font-semibold">
             Détails de la {selectedOperation === 'recharge' ? 'recharge' : 'retrait'}
           </h3>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <Label htmlFor="amount">Montant (FCFA) *</Label>
+            <Label htmlFor="amount" className="text-base font-medium text-gray-700">Montant (FCFA) *</Label>
             <Input
               id="amount"
               type="number"
@@ -268,18 +277,19 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
               placeholder="Entrez le montant"
               min="1000"
               step="1000"
+              className="mt-2 h-12 text-base border-2 border-gray-200 focus:border-green-500 rounded-lg"
             />
           </div>
 
           <div>
-            <Label htmlFor="payment-method">Mode de paiement *</Label>
+            <Label htmlFor="payment-method" className="text-base font-medium text-gray-700">Mode de paiement *</Label>
             <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-2 h-12 text-base border-2 border-gray-200 focus:border-green-500 rounded-lg">
                 <SelectValue placeholder="Choisissez un mode de paiement" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white border-2 border-gray-200 rounded-lg shadow-lg z-50">
                 {paymentMethods.map((method, index) => (
-                  <SelectItem key={index} value={method}>
+                  <SelectItem key={index} value={method} className="text-base hover:bg-gray-100">
                     {method}
                   </SelectItem>
                 ))}
@@ -346,7 +356,7 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
 
           <Button 
             onClick={() => setCurrentStep('confirmation')}
-            className="w-full bg-green-600 hover:bg-green-700"
+            className="w-full h-12 bg-green-500 hover:bg-green-600 text-white font-medium text-base rounded-xl shadow-lg"
             disabled={!amount || !paymentMethod}
           >
             Continuer vers la confirmation
@@ -472,7 +482,7 @@ const UserRechargeRequestModal = ({ children }: { children: React.ReactNode }) =
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
             💰 Recharger / Retirer
